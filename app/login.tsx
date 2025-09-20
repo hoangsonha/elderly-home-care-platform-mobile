@@ -1,10 +1,11 @@
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-    Alert,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
@@ -18,13 +19,15 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { showSuccessTooltip } = useSuccessNotification();
+  const { showErrorTooltip } = useErrorNotification();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ email và mật khẩu');
+      showErrorTooltip('Vui lòng nhập đầy đủ email và mật khẩu');
       return;
     }
 
@@ -32,12 +35,19 @@ export default function LoginScreen() {
     try {
       const success = await login(email, password);
       if (success) {
-        router.replace('/profile-setup');
+        showSuccessTooltip('Đăng nhập thành công! Đang chuyển hướng...');
+        // Small delay to ensure user state is updated
+        setTimeout(() => {
+          // The user state will be updated after login, but we need to check it
+          // For now, we'll use a simple approach - always go to profile-setup first
+          // In real app, the login function should return user data
+          router.replace('/profile-setup');
+        }, 1500);
       } else {
-        Alert.alert('Lỗi', 'Email hoặc mật khẩu không đúng');
+        showErrorTooltip('Email hoặc mật khẩu không đúng');
       }
     } catch (error) {
-      Alert.alert('Lỗi', 'Có lỗi xảy ra khi đăng nhập');
+      showErrorTooltip('Có lỗi xảy ra khi đăng nhập');
     } finally {
       setIsLoading(false);
     }
@@ -48,6 +58,14 @@ export default function LoginScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Back Button */}
+      <TouchableOpacity 
+        style={styles.backButton} 
+        onPress={() => router.back()}
+      >
+        <Ionicons name="arrow-back" size={24} color={colors.text} />
+      </TouchableOpacity>
+
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.text }]}>Đăng Nhập</Text>
         <Text style={[styles.subtitle, { color: colors.text }]}>
@@ -113,6 +131,13 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 1,
+    padding: 10,
   },
   content: {
     flex: 1,

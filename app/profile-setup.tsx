@@ -2,7 +2,7 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -25,9 +25,39 @@ export default function ProfileSetupScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
+  // Check if user already has completed profile
+  useEffect(() => {
+    if (user?.hasCompletedProfile) {
+      // User already has profile, redirect to dashboard
+      router.replace('/dashboard');
+    } else if (user?.name) {
+      // Pre-fill form with existing data if any
+      setName(user.name);
+      setPhone(user.phone || '');
+      setAddress(user.address || '');
+      setDateOfBirth(user.dateOfBirth || '');
+    }
+  }, [user]);
+
   const handleSaveProfile = async () => {
+    // Validate all required fields
     if (!name.trim()) {
       Alert.alert('Lỗi', 'Vui lòng nhập họ và tên');
+      return;
+    }
+    
+    if (!phone.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập số điện thoại');
+      return;
+    }
+    
+    if (!dateOfBirth.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập ngày sinh');
+      return;
+    }
+    
+    if (!address.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ');
       return;
     }
 
@@ -38,15 +68,19 @@ export default function ProfileSetupScreen() {
       
       updateProfile({
         name: name.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        dateOfBirth: dateOfBirth.trim(),
+        hasCompletedProfile: true,
       });
 
       Alert.alert(
         'Thành công',
-        'Thông tin cá nhân đã được lưu thành công!',
+        'Thông tin cá nhân đã được lưu thành công! Chào mừng bạn đến với Elder Care Connect.',
         [
           {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)'),
+            text: 'Tiếp tục',
+            onPress: () => router.replace('/dashboard'),
           },
         ]
       );
@@ -57,22 +91,6 @@ export default function ProfileSetupScreen() {
     }
   };
 
-  const handleSkip = () => {
-    Alert.alert(
-      'Xác nhận',
-      'Bạn có muốn bỏ qua việc thiết lập thông tin cá nhân không?',
-      [
-        {
-          text: 'Hủy',
-          style: 'cancel',
-        },
-        {
-          text: 'Bỏ qua',
-          onPress: () => router.replace('/(tabs)'),
-        },
-      ]
-    );
-  };
 
   return (
     <KeyboardAvoidingView
@@ -85,7 +103,7 @@ export default function ProfileSetupScreen() {
             Thiết lập thông tin cá nhân
           </Text>
           <Text style={[styles.subtitle, { color: colors.text }]}>
-            Chào {user?.email}! Hãy hoàn thiện thông tin của bạn
+            Chào {user?.email}! Vui lòng điền đầy đủ thông tin cá nhân để tiếp tục
           </Text>
         </View>
 
@@ -113,7 +131,7 @@ export default function ProfileSetupScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }]}>
-              Số điện thoại
+              Số điện thoại *
             </Text>
             <TextInput
               style={[
@@ -134,7 +152,7 @@ export default function ProfileSetupScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }]}>
-              Ngày sinh
+              Ngày sinh *
             </Text>
             <TextInput
               style={[
@@ -155,7 +173,7 @@ export default function ProfileSetupScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.text }]}>
-              Địa chỉ
+              Địa chỉ *
             </Text>
             <TextInput
               style={[
@@ -184,13 +202,7 @@ export default function ProfileSetupScreen() {
             disabled={isLoading}
           >
             <Text style={styles.saveButtonText}>
-              {isLoading ? 'Đang lưu...' : 'Lưu thông tin'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-            <Text style={[styles.skipButtonText, { color: colors.text }]}>
-              Bỏ qua
+              {isLoading ? 'Đang lưu...' : 'Hoàn thành'}
             </Text>
           </TouchableOpacity>
         </View>
