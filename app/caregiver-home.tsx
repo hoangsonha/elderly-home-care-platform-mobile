@@ -43,7 +43,12 @@ const features = [
     icon: "clipboard-list",
     route: "/booking",
   },
-  { id: "payments", title: "Thanh toán", icon: "credit-card-outline" },
+  {
+    id: "payments",
+    title: "Thanh toán",
+    icon: "credit-card-outline",
+    route: "/payment",
+  },
   { id: "tasks", title: "Theo dõi nhiệm vụ", icon: "check-circle-outline" },
   { id: "chat", title: "Tin nhắn", icon: "chat-outline" },
   { id: "training", title: "Đào tạo liên tục", icon: "school" },
@@ -71,10 +76,7 @@ export default function CaregiverHomeScreen() {
     if (feature.route) {
       router.push(feature.route);
     } else {
-      router.push({
-        pathname: "/placeholder",
-        params: { title: feature.title },
-      });
+      alert(`${feature.title} đang phát triển`);
     }
   };
 
