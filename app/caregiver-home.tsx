@@ -38,10 +38,10 @@ const features = [
     route: "/availability",
   },
   {
-    id: "bookings",
+    id: "booking",
     title: "Yêu cầu dịch vụ",
     icon: "clipboard-list",
-    route: "/bookings",
+    route: "/booking",
   },
   { id: "payments", title: "Thanh toán", icon: "credit-card-outline" },
   { id: "tasks", title: "Theo dõi nhiệm vụ", icon: "check-circle-outline" },
