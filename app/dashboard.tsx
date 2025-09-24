@@ -66,6 +66,7 @@ const serviceModules: ServiceModule[] = [
     icon: 'star',
     color: '#A8E6CF',
     description: 'Đánh giá chất lượng dịch vụ',
+    route: '/reviews',
   },
   {
     id: 'alerts',
@@ -238,7 +239,7 @@ export default function DashboardScreen() {
               </View>
             </TouchableOpacity>
             <ThemedText style={styles.headerTitle}>
-              Xin chào, {user?.name || user?.email?.split('@')[0] || 'Bạn'}!
+              Xin chào, {user?.name || (user?.email ? user.email.split('@')[0] : '') || 'Bạn'}!
             </ThemedText>
           </View>
           

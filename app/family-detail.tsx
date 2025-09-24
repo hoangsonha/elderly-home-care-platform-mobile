@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ElderlyList from '@/components/elderly/ElderlyList';
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/AuthContext';
 import { ElderlyProfile } from '@/types/elderly';
 
 interface FamilyMember {
@@ -42,6 +43,7 @@ interface FamilyDetail {
 
 export default function FamilyDetailScreen() {
   const { id } = useLocalSearchParams();
+  const { user } = useAuth();
   const [selectedTab, setSelectedTab] = useState<'members' | 'elderly'>('members');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showAddElderlyModal, setShowAddElderlyModal] = useState(false);
@@ -338,8 +340,11 @@ export default function FamilyDetailScreen() {
     }
   };
 
-  const renderMember = (member: FamilyMember) => (
-    <View key={member.id} style={styles.memberItem}>
+  const renderMember = (member: FamilyMember) => {
+    const isCurrentUser = user?.email === member.email;
+    
+    return (
+      <View key={member.id} style={[styles.memberItem, isCurrentUser && styles.currentUserItem]}>
       <View style={styles.memberInfo}>
         <View style={styles.avatarContainer}>
           {member.avatar ? (
@@ -347,7 +352,7 @@ export default function FamilyDetailScreen() {
           ) : (
             <View style={styles.defaultAvatar}>
               <ThemedText style={styles.avatarText}>
-                {member.name.split(' ').pop()?.charAt(0)}
+                {member.name ? member.name.split(' ').pop()?.charAt(0) : '?'}
               </ThemedText>
             </View>
           )}
@@ -355,7 +360,14 @@ export default function FamilyDetailScreen() {
         </View>
         
         <View style={styles.memberDetails}>
-          <ThemedText style={styles.memberName}>{member.name}</ThemedText>
+          <View style={styles.memberNameContainer}>
+            <ThemedText style={styles.memberName}>{member.name}</ThemedText>
+            {isCurrentUser && (
+              <View style={styles.currentUserBadge}>
+                <ThemedText style={styles.currentUserText}>Bạn</ThemedText>
+              </View>
+            )}
+          </View>
           <ThemedText style={styles.memberEmail}>{member.email}</ThemedText>
           <View style={styles.roleContainer}>
             <View style={[styles.roleBadge, { backgroundColor: getRoleColor(member.role) + '20' }]}>
@@ -387,7 +399,8 @@ export default function FamilyDetailScreen() {
         </View>
       )}
     </View>
-  );
+    );
+  };
 
 
   return (
@@ -758,6 +771,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+  currentUserItem: {
+    borderWidth: 2,
+    borderColor: '#4ECDC4',
+    backgroundColor: '#f8f9fa',
+  },
+  memberNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  currentUserBadge: {
+    backgroundColor: '#4ECDC4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  currentUserText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
   },
   memberInfo: {
     flex: 1,

@@ -138,9 +138,9 @@ export default function FamilyListScreen() {
   const handleElderlyToggle = (elderly: ElderlyProfile) => {
     const isSelected = selectedElderly.some(e => e.id === elderly.id);
     if (isSelected) {
-      setSelectedElderly(selectedElderly.filter(e => e.id !== elderly.id));
+      setSelectedElderly([]);
     } else {
-      setSelectedElderly([...selectedElderly, elderly]);
+      setSelectedElderly([elderly]); // Chỉ cho phép chọn 1 người
     }
   };
 
@@ -280,30 +280,24 @@ export default function FamilyListScreen() {
             <View style={styles.statsContainer}>
               <View style={styles.statCard}>
                 <Ionicons name="home" size={24} color="#4ECDC4" />
-                <View style={styles.statContent}>
-                  <ThemedText style={styles.statNumber}>{families.length}</ThemedText>
-                  <ThemedText style={styles.statLabel}>Gia đình</ThemedText>
-                </View>
+                <ThemedText style={styles.statNumber}>{families.length}</ThemedText>
+                <ThemedText style={styles.statLabel}>Gia đình</ThemedText>
               </View>
               
               <View style={styles.statCard}>
                 <Ionicons name="people" size={24} color="#ff6b6b" />
-                <View style={styles.statContent}>
-                  <ThemedText style={styles.statNumber}>
-                    {families.reduce((sum, family) => sum + family.memberCount, 0)}
-                  </ThemedText>
-                  <ThemedText style={styles.statLabel}>Thành viên</ThemedText>
-                </View>
+                <ThemedText style={styles.statNumber}>
+                  {families.reduce((sum, family) => sum + family.memberCount, 0)}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Thành viên</ThemedText>
               </View>
               
               <View style={styles.statCard}>
                 <Ionicons name="person" size={24} color="#ffa726" />
-                <View style={styles.statContent}>
-                  <ThemedText style={styles.statNumber}>
-                    {families.reduce((sum, family) => sum + family.elderlyCount, 0)}
-                  </ThemedText>
-                  <ThemedText style={styles.statLabel}>Người già</ThemedText>
-                </View>
+                <ThemedText style={styles.statNumber}>
+                  {families.reduce((sum, family) => sum + family.elderlyCount, 0)}
+                </ThemedText>
+                <ThemedText style={styles.statLabel}>Người già</ThemedText>
               </View>
             </View>
 
@@ -600,26 +594,27 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 16,
     borderRadius: 12,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 80,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-  statContent: {
-    marginLeft: 12,
-  },
   statNumber: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#2c3e50',
+    marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
     color: '#6c757d',
-    marginTop: 2,
+    marginTop: 4,
+    textAlign: 'center',
   },
   familiesList: {
     padding: 20,

@@ -21,9 +21,8 @@ interface AIMatchingModalProps {
 }
 
 interface TimeRange {
-  id: string;
-  startTime: string;
-  endTime: string;
+  start: string;
+  end: string;
 }
 
 interface UserInfo {
@@ -190,12 +189,29 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
       setShowCustomTimePicker(!showCustomTimePicker);
     } else {
       // Toggle regular time slots
-      setUserInfo(prev => ({
-        ...prev,
-        workingTimeSlots: prev.workingTimeSlots.includes(timeId)
+      setUserInfo(prev => {
+        const newWorkingTimeSlots = prev.workingTimeSlots.includes(timeId)
           ? prev.workingTimeSlots.filter(id => id !== timeId)
-          : [...prev.workingTimeSlots, timeId]
-      }));
+          : [...prev.workingTimeSlots, timeId];
+        
+        // Tạo specificTimeRanges từ workingTimeSlots
+        const timeSlotRanges = {
+          'morning': { start: '06:00', end: '12:00' },
+          'afternoon': { start: '12:00', end: '18:00' },
+          'evening': { start: '18:00', end: '22:00' },
+          'overnight': { start: '22:00', end: '06:00' },
+        };
+        
+        const newSpecificTimeRanges = newWorkingTimeSlots.map(slot => 
+          timeSlotRanges[slot as keyof typeof timeSlotRanges]
+        ).filter(Boolean);
+        
+        return {
+          ...prev,
+          workingTimeSlots: newWorkingTimeSlots,
+          specificTimeRanges: newSpecificTimeRanges
+        };
+      });
     }
   };
 
@@ -414,13 +430,68 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
       {/* TimeRangePicker chỉ hiện khi chọn nút Khác */}
       {showCustomTimePicker && (
         <TimeRangePicker
-          timeRanges={userInfo.specificTimeRanges}
-          onTimeRangesChange={(ranges) => setUserInfo(prev => ({ ...prev, specificTimeRanges: ranges }))}
+          timeRanges={userInfo.specificTimeRanges
+            .filter((range, index) => {
+              // Chỉ hiển thị custom ranges (không phải predefined)
+              const predefinedRanges = {
+                'morning': { start: '06:00', end: '12:00' },
+                'afternoon': { start: '12:00', end: '18:00' },
+                'evening': { start: '18:00', end: '22:00' },
+                'overnight': { start: '22:00', end: '06:00' },
+              };
+              return !userInfo.workingTimeSlots.some(slot => {
+                const predefinedRange = predefinedRanges[slot as keyof typeof predefinedRanges];
+                return predefinedRange && 
+                       predefinedRange.start === range.start && 
+                       predefinedRange.end === range.end;
+              });
+            })
+            .map((range, index) => ({
+              id: `custom-range-${index}`,
+              startTime: range.start,
+              endTime: range.end,
+            }))}
+          onTimeRangesChange={(ranges) => {
+            // Merge custom ranges với predefined ranges
+            const predefinedRanges = userInfo.workingTimeSlots.map(slot => {
+              const timeSlotRanges = {
+                'morning': { start: '06:00', end: '12:00' },
+                'afternoon': { start: '12:00', end: '18:00' },
+                'evening': { start: '18:00', end: '22:00' },
+                'overnight': { start: '22:00', end: '06:00' },
+              };
+              return timeSlotRanges[slot as keyof typeof timeSlotRanges];
+            }).filter(Boolean);
+
+            const customRanges = ranges.map(range => ({
+              start: range.startTime,
+              end: range.endTime,
+            }));
+
+            // Merge predefined + custom
+            const allRanges = [...predefinedRanges, ...customRanges];
+            setUserInfo(prev => ({ ...prev, specificTimeRanges: allRanges }));
+            // KHÔNG đóng modal, giữ showCustomTimePicker = true
+          }}
           maxRanges={5}
           selectedTimeSlots={userInfo.workingTimeSlots}
         />
       )}
 
+      {/* Hiển thị khung giờ đã chọn */}
+      {userInfo.specificTimeRanges.length > 0 && (
+        <View style={styles.selectedRangesContainer}>
+          <ThemedText style={styles.selectedRangesTitle}>Khung giờ đã chọn:</ThemedText>
+          
+          {userInfo.specificTimeRanges.map((range, index) => (
+            <View key={`range-${index}`} style={styles.selectedRangeItem}>
+              <ThemedText style={styles.selectedRangeText}>
+                Khung {index + 1}: {range.start} - {range.end}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      )}
 
       <ThemedText style={styles.helpText}>
         Đừng lo, bạn có thể điều chỉnh thời gian này sau
@@ -1131,5 +1202,33 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     backgroundColor: 'white',
     textAlign: 'center',
+  },
+  selectedRangesContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  selectedRangesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  selectedRangeItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#4ECDC4',
+  },
+  selectedRangeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2c3e50',
   },
 });

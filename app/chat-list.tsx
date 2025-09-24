@@ -117,7 +117,7 @@ export default function ChatListScreen() {
       <View style={styles.avatarContainer}>
         <View style={styles.avatar}>
           <ThemedText style={styles.avatarText}>
-            {conversation.caregiverName.split(' ').pop()?.charAt(0)}
+            {conversation.caregiverName ? conversation.caregiverName.split(' ').pop()?.charAt(0) : '?'}
           </ThemedText>
         </View>
         {conversation.isOnline && (
