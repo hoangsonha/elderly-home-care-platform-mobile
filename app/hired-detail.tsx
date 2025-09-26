@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,11 +18,6 @@ export default function HiredDetailScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [containerWidth, setContainerWidth] = useState(350);
 
-  // Ensure today is selected when component mounts
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setSelectedDate(today);
-  }, []);
 
   // Mock data - should be fetched based on id
   const mockCaregivers: HiredCaregiver[] = [
@@ -129,7 +124,7 @@ export default function HiredDetailScreen() {
   const caregiver = mockCaregivers.find(c => c.id === id) || mockCaregivers[0];
 
   // Mock task data for different dates and caregivers
-  const getTaskDataForCaregiver = useCallback((caregiverId: string, date: string = selectedDate) => {
+  const getTaskDataForCaregiver = useCallback((caregiverId: string, date: string) => {
     // Check if caregiver works on this day
     const dayOfWeek = new Date(date).getDay();
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -253,7 +248,7 @@ export default function HiredDetailScreen() {
     if (caregiverId === '3') return []; // Lê Thị Hoa - 0 tasks (nghỉ hôm nay)
     if (caregiverId === '4') return baseTasks.slice(0, 1); // Phạm Văn Đức - 1 task (làm hôm nay)
     return baseTasks;
-  }, [selectedDate, caregiver.currentElderly, caregiver.name, caregiver.workingDays]);
+  }, [caregiver.currentElderly, caregiver.name, caregiver.workingDays]);
 
   // Generate task data for multiple days (7 days back and 7 days forward)
   const generateTaskDays = useCallback(() => {
@@ -285,20 +280,14 @@ export default function HiredDetailScreen() {
   const currentDayData = taskDays.find(day => day.date === selectedDate);
   const currentDayTasks = currentDayData?.tasks || [];
 
-  // Find today's date in taskDays and ensure it's selected
+  // Find today's date in taskDays
   const todayDate = new Date().toISOString().split('T')[0];
-  
-  // If today exists in taskDays but is not selected, select it
-  useEffect(() => {
-    const todayInTaskDays = taskDays.find(day => day.date === todayDate);
-    if (todayInTaskDays && selectedDate !== todayDate) {
-      setSelectedDate(todayDate);
-    }
-  }, [taskDays, todayDate, selectedDate]);
 
-  // Scroll to today's date when component mounts
+  // Scroll to today's date when component mounts (only once)
+  const [hasScrolledToToday, setHasScrolledToToday] = useState(false);
+  
   useEffect(() => {
-    if (taskDays.length > 0 && containerWidth > 0) {
+    if (taskDays.length > 0 && containerWidth > 0 && !hasScrolledToToday) {
       const todayIndex = taskDays.findIndex(day => day.date === todayDate);
       if (todayIndex !== -1 && scrollViewRef.current) {
         // Calculate scroll position to center today's date
@@ -312,10 +301,11 @@ export default function HiredDetailScreen() {
             x: scrollPosition,
             animated: true
           });
+          setHasScrolledToToday(true);
         }, 300);
       }
     }
-  }, [taskDays, todayDate, containerWidth]);
+  }, [taskDays, todayDate, containerWidth, hasScrolledToToday]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -411,7 +401,7 @@ export default function HiredDetailScreen() {
           <View style={styles.profileHeader}>
             <View style={[styles.avatar, { backgroundColor: getStatusColor(caregiver.status) }]}>
               <ThemedText style={styles.avatarText}>
-                {caregiver.name.split(' ').map(n => n[0]).join('')}
+                {caregiver.name ? caregiver.name.split(' ').map(n => n[0]).join('') : '?'}
               </ThemedText>
             </View>
             <View style={styles.profileInfo}>

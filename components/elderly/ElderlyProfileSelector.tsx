@@ -34,9 +34,9 @@ export function ElderlyProfileSelector({
 }: ElderlyProfileSelectorProps) {
   const handleProfileToggle = (profileId: string) => {
     if (selectedProfiles.includes(profileId)) {
-      onSelectionChange(selectedProfiles.filter(id => id !== profileId));
+      onSelectionChange([]);
     } else {
-      onSelectionChange([...selectedProfiles, profileId]);
+      onSelectionChange([profileId]); // Chỉ cho phép chọn 1 người
     }
   };
 
@@ -147,7 +147,7 @@ export function ElderlyProfileSelector({
         <ThemedText style={styles.requiredMark}>*</ThemedText>
       </View>
       <ThemedText style={styles.subtitle}>
-        Có thể chọn nhiều người già
+        Chỉ có thể chọn 1 người già
       </ThemedText>
       {showError && (
         <ThemedText style={styles.errorText}>

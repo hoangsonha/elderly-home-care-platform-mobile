@@ -111,7 +111,13 @@ export default function CaregiverSearchScreen() {
   };
 
   const handleChatPress = (caregiver: Caregiver) => {
-    router.push('/chat');
+    router.push({
+      pathname: '/chat',
+      params: {
+        caregiverId: caregiver.id,
+        caregiverName: caregiver.name,
+      }
+    });
   };
 
   const handleBookNow = (caregiver: Caregiver) => {
@@ -154,9 +160,9 @@ export default function CaregiverSearchScreen() {
 
     // Filter by experience level
     if (userInfo.experience) {
-      const experienceYears = parseInt(userInfo.experience.split('-')[0]) || 0;
+      const experienceYears = parseInt(userInfo.experience ? userInfo.experience.split('-')[0] : '0') || 0;
       filteredCaregivers = filteredCaregivers.filter(caregiver => {
-        const caregiverExp = parseInt(caregiver.experience.split(' ')[0]);
+        const caregiverExp = parseInt(caregiver.experience ? caregiver.experience.split(' ')[0] : '0');
         return caregiverExp >= experienceYears;
       });
     }

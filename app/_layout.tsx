@@ -42,6 +42,7 @@ export default function RootLayout() {
                 <Stack.Screen name="request-detail" options={{ headerShown: false }} />
                 <Stack.Screen name="hired-caregivers" options={{ headerShown: false }} />
                 <Stack.Screen name="hired-detail" options={{ headerShown: false }} />
+                <Stack.Screen name="reviews" options={{ headerShown: false }} />
                 <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />

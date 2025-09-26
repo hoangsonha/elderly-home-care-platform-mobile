@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useState } from "react";
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
 import {
   Alert,
   Animated,
@@ -10,13 +10,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-} from "react-native";
+} from 'react-native';
 
-import { ThemedText } from "@/components/themed-text";
-import { NotificationPanel } from "@/components/ui/NotificationPanel";
-import { useAuth } from "@/contexts/AuthContext";
+import { ThemedText } from '@/components/themed-text';
+import { NotificationPanel } from '@/components/ui/NotificationPanel';
+import { useAuth } from '@/contexts/AuthContext';
 
-const { width } = Dimensions.get("window");
+const { width } = Dimensions.get('window');
 
 interface ServiceModule {
   id: string;
@@ -29,76 +29,68 @@ interface ServiceModule {
 
 const serviceModules: ServiceModule[] = [
   {
-    id: "services",
-    title: "Dịch vụ",
-    icon: "medical",
-    color: "#FF6B6B",
-    description: "Tìm người chăm sóc phù hợp",
-    route: "/caregiver-search",
+    id: 'services',
+    title: 'Dịch vụ',
+    icon: 'medical',
+    color: '#FF6B6B',
+    description: 'Tìm người chăm sóc phù hợp',
+    route: '/caregiver-search',
   },
   {
-    id: "elderly-profile",
-    title: "Hồ sơ người già",
-    icon: "person-circle",
-    color: "#4ECDC4",
-    description: "Quản lý hồ sơ sức khỏe",
-    route: "/elderly-list",
+    id: 'elderly-profile',
+    title: 'Hồ sơ người già',
+    icon: 'person-circle',
+    color: '#4ECDC4',
+    description: 'Quản lý hồ sơ sức khỏe',
+    route: '/elderly-list',
   },
   {
-    id: "family",
-    title: "Gia đình",
-    icon: "people",
-    color: "#FFD93D",
-    description: "Quản lý thành viên gia đình",
-    route: "/family-list",
+    id: 'family',
+    title: 'Gia đình',
+    icon: 'people',
+    color: '#FFD93D',
+    description: 'Quản lý thành viên gia đình',
+    route: '/family-list',
   },
   {
-    id: "chat",
-    title: "Tin nhắn",
-    icon: "chatbubbles",
-    color: "#9B59B6",
-    description: "Trò chuyện với mọi người",
-    route: "/chat-list",
+    id: 'chat',
+    title: 'Tin nhắn',
+    icon: 'chatbubbles',
+    color: '#9B59B6',
+    description: 'Trò chuyện với mọi người',
+    route: '/chat-list',
   },
   {
-    id: "reviews",
-    title: "Đánh giá",
-    icon: "star",
-    color: "#A8E6CF",
-    description: "Đánh giá chất lượng dịch vụ",
+    id: 'reviews',
+    title: 'Đánh giá',
+    icon: 'star',
+    color: '#A8E6CF',
+    description: 'Đánh giá chất lượng dịch vụ',
   },
   {
-    id: "alerts",
-    title: "Alert",
-    icon: "notifications",
-    color: "#FFB6C1",
-    description: "Thông báo quan trọng",
-    route: "/alert-list",
+    id: 'alerts',
+    title: 'Alert',
+    icon: 'notifications',
+    color: '#FFB6C1',
+    description: 'Thông báo quan trọng',
+    route: '/alert-list',
   },
 
   {
-    id: "requests",
-    title: "Yêu cầu",
-    icon: "document-text",
-    color: "#9B59B6",
-    description: "Quản lý yêu cầu chăm sóc",
-    route: "/requests",
+    id: 'requests',
+    title: 'Yêu cầu',
+    icon: 'document-text',
+    color: '#9B59B6',
+    description: 'Quản lý yêu cầu chăm sóc',
+    route: '/requests',
   },
   {
-    id: "hired",
-    title: "Đang thuê",
-    icon: "people-circle",
-    color: "#E67E22",
-    description: "Người chăm sóc đang thuê",
-    route: "/hired-caregivers",
-  },
-  {
-    id: "caregiver",
-    title: "Người chăm sóc",
-    icon: "people-circle",
-    color: "#22b8e6ff",
-    description: "Người chăm sóc xem layout",
-    route: "/caregiver-home",
+    id: 'hired',
+    title: 'Đang thuê',
+    icon: 'people-circle',
+    color: '#E67E22',
+    description: 'Người chăm sóc đang thuê',
+    route: '/hired-caregivers',
   },
 ];
 
@@ -108,43 +100,43 @@ export default function DashboardScreen() {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState([
     {
-      id: "1",
-      title: "Yêu cầu mới",
-      message: "Bà Nguyễn Thị Lan đã gửi yêu cầu chăm sóc cho ngày mai",
-      time: "5 phút trước",
-      type: "info" as const,
+      id: '1',
+      title: 'Yêu cầu mới',
+      message: 'Bà Nguyễn Thị Lan đã gửi yêu cầu chăm sóc cho ngày mai',
+      time: '5 phút trước',
+      type: 'info' as const,
       isRead: false,
     },
     {
-      id: "2",
-      title: "Xác nhận lịch",
-      message: "Lịch chăm sóc với Trần Văn Nam đã được xác nhận",
-      time: "1 giờ trước",
-      type: "success" as const,
+      id: '2',
+      title: 'Xác nhận lịch',
+      message: 'Lịch chăm sóc với Trần Văn Nam đã được xác nhận',
+      time: '1 giờ trước',
+      type: 'success' as const,
       isRead: false,
     },
     {
-      id: "3",
-      title: "Nhắc nhở",
-      message: "Có 2 task chưa hoàn thành trong ngày hôm nay",
-      time: "2 giờ trước",
-      type: "warning" as const,
+      id: '3',
+      title: 'Nhắc nhở',
+      message: 'Có 2 task chưa hoàn thành trong ngày hôm nay',
+      time: '2 giờ trước',
+      type: 'warning' as const,
       isRead: true,
     },
     {
-      id: "4",
-      title: "Thanh toán",
-      message: "Thanh toán tháng 12 đã được xử lý thành công",
-      time: "1 ngày trước",
-      type: "success" as const,
+      id: '4',
+      title: 'Thanh toán',
+      message: 'Thanh toán tháng 12 đã được xử lý thành công',
+      time: '1 ngày trước',
+      type: 'success' as const,
       isRead: true,
     },
     {
-      id: "5",
-      title: "Cập nhật hệ thống",
-      message: "Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai",
-      time: "2 ngày trước",
-      type: "info" as const,
+      id: '5',
+      title: 'Cập nhật hệ thống',
+      message: 'Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai',
+      time: '2 ngày trước',
+      type: 'info' as const,
       isRead: true,
     },
   ]);
@@ -157,7 +149,7 @@ export default function DashboardScreen() {
       Alert.alert(
         module.title,
         `Tính năng "${module.title}" sẽ sớm được phát triển!`,
-        [{ text: "OK" }]
+        [{ text: 'OK' }]
       );
     }
   };
@@ -182,18 +174,22 @@ export default function DashboardScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Đăng xuất",
-        style: "destructive",
-        onPress: () => {
-          setShowProfileModal(false);
-          logout();
-          router.replace("/(tabs)");
+    Alert.alert(
+      'Đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đăng xuất',
+          style: 'destructive',
+          onPress: () => {
+            setShowProfileModal(false);
+            logout();
+            router.replace('/(tabs)');
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const renderServiceModule = (module: ServiceModule, index: number) => {
@@ -215,7 +211,9 @@ export default function DashboardScreen() {
             <View style={styles.moduleIconContainer}>
               <Ionicons name={module.icon as any} size={18} color="white" />
             </View>
-            <ThemedText style={styles.moduleTitle}>{module.title}</ThemedText>
+            <ThemedText style={styles.moduleTitle}>
+              {module.title}
+            </ThemedText>
           </View>
           <View style={styles.divider} />
           <View style={styles.moduleDescriptionContainer}>
@@ -234,30 +232,27 @@ export default function DashboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.logoContainer}>
-            <TouchableOpacity
-              style={styles.avatarButton}
-              onPress={handleProfilePress}
-            >
+            <TouchableOpacity style={styles.avatarButton} onPress={handleProfilePress}>
               <View style={styles.userAvatar}>
                 <Ionicons name="person" size={24} color="white" />
               </View>
             </TouchableOpacity>
             <ThemedText style={styles.headerTitle}>
-              Xin chào, {user?.name || user?.email?.split("@")[0] || "Bạn"}!
+              Xin chào, {user?.name || user?.email?.split('@')[0] || 'Bạn'}!
             </ThemedText>
           </View>
-
-          <TouchableOpacity
+          
+          <TouchableOpacity 
             style={styles.notificationButton}
             onPress={() => setShowNotificationModal(true)}
           >
             <Ionicons name="notifications" size={24} color="white" />
-            {notifications.filter((notif) => !notif.isRead).length > 0 && (
+            {notifications.filter(notif => !notif.isRead).length > 0 && (
               <View style={styles.notificationBadge}>
                 <ThemedText style={styles.badgeText}>
-                  {notifications.filter((notif) => !notif.isRead).length > 99
-                    ? "99+"
-                    : notifications.filter((notif) => !notif.isRead).length}
+                  {notifications.filter(notif => !notif.isRead).length > 99 
+                    ? '99+' 
+                    : notifications.filter(notif => !notif.isRead).length}
                 </ThemedText>
               </View>
             )}
@@ -268,19 +263,16 @@ export default function DashboardScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Question Section */}
         <View style={styles.questionSection}>
-          <ThemedText style={styles.questionText}>
-            Chúng tôi có thể giúp gì?
-          </ThemedText>
+          <ThemedText style={styles.questionText}>Chúng tôi có thể giúp gì?</ThemedText>
         </View>
 
         {/* Service Modules Grid */}
         <View style={styles.modulesContainer}>
           <View style={styles.modulesGrid}>
-            {serviceModules.map((module, index) =>
-              renderServiceModule(module, index)
-            )}
+            {serviceModules.map((module, index) => renderServiceModule(module, index))}
           </View>
         </View>
+
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -303,9 +295,7 @@ export default function DashboardScreen() {
               <View style={styles.footerStatItem}>
                 <Ionicons name="people" size={20} color="#4ECDC4" />
                 <ThemedText style={styles.footerStatNumber}>1000+</ThemedText>
-                <ThemedText style={styles.footerStatLabel}>
-                  Người chăm sóc
-                </ThemedText>
+                <ThemedText style={styles.footerStatLabel}>Người chăm sóc</ThemedText>
               </View>
               <View style={styles.footerStatItem}>
                 <Ionicons name="home" size={20} color="#FF6B6B" />
@@ -327,9 +317,7 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.contactItem}>
                 <Ionicons name="mail" size={16} color="#6c757d" />
-                <ThemedText style={styles.contactText}>
-                  support@eldercare.vn
-                </ThemedText>
+                <ThemedText style={styles.contactText}>support@eldercare.vn</ThemedText>
               </View>
             </View>
 
@@ -339,12 +327,8 @@ export default function DashboardScreen() {
                 © 2025 Elder Care Connect. Tất cả quyền được bảo lưu.
               </ThemedText>
               <View style={styles.footerLinks}>
-                <ThemedText style={styles.footerLink}>
-                  Điều khoản sử dụng
-                </ThemedText>
-                <ThemedText style={styles.footerLink}>
-                  Chính sách bảo mật
-                </ThemedText>
+                <ThemedText style={styles.footerLink}>Điều khoản sử dụng</ThemedText>
+                <ThemedText style={styles.footerLink}>Chính sách bảo mật</ThemedText>
               </View>
             </View>
           </View>
@@ -361,15 +345,15 @@ export default function DashboardScreen() {
         animationType="none"
         onRequestClose={handleCloseModal}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
           onPress={handleCloseModal}
         >
-          <Animated.View
+          <Animated.View 
             style={[
               styles.modalContent,
-              { opacity: fadeAnim, transform: [{ scale: fadeAnim }] },
+              { opacity: fadeAnim, transform: [{ scale: fadeAnim }] }
             ]}
           >
             <TouchableOpacity activeOpacity={1}>
@@ -378,40 +362,37 @@ export default function DashboardScreen() {
                   <Ionicons name="person" size={40} color="#4ECDC4" />
                 </View>
                 <ThemedText style={styles.modalName}>
-                  {user?.name || "Người dùng"}
+                  {user?.name || 'Người dùng'}
                 </ThemedText>
-                <ThemedText style={styles.modalEmail}>{user?.email}</ThemedText>
+                <ThemedText style={styles.modalEmail}>
+                  {user?.email}
+                </ThemedText>
               </View>
 
               <View style={styles.modalInfo}>
                 <View style={styles.infoRow}>
                   <Ionicons name="call" size={20} color="#6c757d" />
                   <ThemedText style={styles.infoText}>
-                    {user?.phone || "Chưa cập nhật"}
+                    {user?.phone || 'Chưa cập nhật'}
                   </ThemedText>
                 </View>
                 <View style={styles.infoRow}>
                   <Ionicons name="location" size={20} color="#6c757d" />
                   <ThemedText style={styles.infoText}>
-                    {user?.address || "Chưa cập nhật"}
+                    {user?.address || 'Chưa cập nhật'}
                   </ThemedText>
                 </View>
                 <View style={styles.infoRow}>
                   <Ionicons name="calendar" size={20} color="#6c757d" />
                   <ThemedText style={styles.infoText}>
-                    {user?.dateOfBirth || "Chưa cập nhật"}
+                    {user?.dateOfBirth || 'Chưa cập nhật'}
                   </ThemedText>
                 </View>
               </View>
 
-              <TouchableOpacity
-                style={styles.logoutButtonModal}
-                onPress={handleLogout}
-              >
+              <TouchableOpacity style={styles.logoutButtonModal} onPress={handleLogout}>
                 <Ionicons name="log-out-outline" size={20} color="white" />
-                <ThemedText style={styles.logoutButtonText}>
-                  Đăng xuất
-                </ThemedText>
+                <ThemedText style={styles.logoutButtonText}>Đăng xuất</ThemedText>
               </TouchableOpacity>
             </TouchableOpacity>
           </Animated.View>
@@ -420,40 +401,40 @@ export default function DashboardScreen() {
 
       {/* Notification Dropdown */}
       {showNotificationModal && (
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.notificationOverlay}
           activeOpacity={1}
           onPress={() => setShowNotificationModal(false)}
         >
           <View style={styles.notificationDropdown}>
             <View style={styles.notificationArrow} />
-            <NotificationPanel
+            <NotificationPanel 
               notifications={notifications}
               onNotificationPress={(notification) => {
-                console.log("Notification pressed:", notification);
+                console.log('Notification pressed:', notification);
                 // Mark as read when pressed
-                setNotifications((prev) =>
-                  prev.map((notif) =>
-                    notif.id === notification.id
+                setNotifications(prev => 
+                  prev.map(notif => 
+                    notif.id === notification.id 
                       ? { ...notif, isRead: true }
                       : notif
                   )
                 );
               }}
               onMarkAsRead={(notificationId) => {
-                setNotifications((prev) =>
-                  prev.map((notif) =>
-                    notif.id === notificationId
+                setNotifications(prev => 
+                  prev.map(notif => 
+                    notif.id === notificationId 
                       ? { ...notif, isRead: true }
                       : notif
                   )
                 );
               }}
-              onMarkAllAsRead={() => {
-                setNotifications((prev) =>
-                  prev.map((notif) => ({ ...notif, isRead: true }))
-                );
-              }}
+               onMarkAllAsRead={() => {
+                 setNotifications(prev => 
+                   prev.map(notif => ({ ...notif, isRead: true }))
+                 );
+               }}
             />
           </View>
         </TouchableOpacity>
@@ -465,22 +446,22 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: "#4ECDC4",
+    backgroundColor: '#4ECDC4',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
   headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   logoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatarButton: {
     marginRight: 12,
@@ -489,40 +470,40 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.3)",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.5)",
+    borderColor: 'rgba(255,255,255,0.5)',
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "white",
+    fontWeight: 'bold',
+    color: 'white',
   },
   notificationButton: {
     padding: 8,
-    position: "relative",
+    position: 'relative',
   },
   notificationBadge: {
-    position: "absolute",
+    position: 'absolute',
     top: -4,
     right: -2,
-    backgroundColor: "#FF6B6B",
+    backgroundColor: '#FF6B6B',
     borderRadius: 12,
     minWidth: 24,
     height: 24,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
-    borderColor: "white",
+    borderColor: 'white',
     paddingHorizontal: 6,
   },
   badgeText: {
-    color: "white",
+    color: 'white',
     fontSize: 11,
-    fontWeight: "bold",
-    textAlign: "center",
+    fontWeight: 'bold',
+    textAlign: 'center',
     lineHeight: 12,
   },
   content: {
@@ -531,22 +512,22 @@ const styles = StyleSheet.create({
   questionSection: {
     paddingHorizontal: 20,
     paddingVertical: 20,
-    backgroundColor: "white",
+    backgroundColor: 'white',
   },
   questionText: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#2c3e50",
+    fontWeight: '600',
+    color: '#2c3e50',
   },
   modulesContainer: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: 'white',
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
   modulesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 20,
   },
   moduleCard: {
@@ -554,230 +535,230 @@ const styles = StyleSheet.create({
     padding: 16,
     minHeight: 110,
     elevation: 3,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
   },
   moduleContent: {
     flex: 1,
-    justifyContent: "space-between",
+    justifyContent: 'space-between',
   },
   moduleHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
   divider: {
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.3)",
+    backgroundColor: 'rgba(255,255,255,0.3)',
     marginVertical: 8,
   },
   moduleIconContainer: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 10,
   },
   moduleTitle: {
     fontSize: 14,
-    fontWeight: "bold",
-    color: "white",
+    fontWeight: 'bold',
+    color: 'white',
     flex: 1,
-    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   moduleDescriptionContainer: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: 'flex-end',
   },
   moduleDescription: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.85)",
+    color: 'rgba(255,255,255,0.85)',
     lineHeight: 15,
-    textAlign: "left",
-    fontWeight: "400",
-    textShadowColor: "rgba(0,0,0,0.2)",
+    textAlign: 'left',
+    fontWeight: '400',
+    textShadowColor: 'rgba(0,0,0,0.2)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 1,
   },
   footer: {
-    backgroundColor: "#2c3e50",
+    backgroundColor: '#2c3e50',
     paddingHorizontal: 20,
     paddingVertical: 40,
     marginTop: 20,
   },
   footerContent: {
-    alignItems: "center",
+    alignItems: 'center',
   },
   footerHeader: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 30,
   },
   appLogo: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "rgba(78, 205, 196, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: 'rgba(78, 205, 196, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
   },
   footerTitle: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "white",
+    fontWeight: 'bold',
+    color: 'white',
     marginBottom: 8,
   },
   footerTagline: {
     fontSize: 14,
-    color: "#bdc3c7",
-    textAlign: "center",
+    color: '#bdc3c7',
+    textAlign: 'center',
     lineHeight: 20,
   },
   footerStats: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
     marginBottom: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     paddingVertical: 20,
     paddingHorizontal: 10,
   },
   footerStatItem: {
-    alignItems: "center",
+    alignItems: 'center',
     flex: 1,
   },
   footerStatNumber: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "white",
+    fontWeight: 'bold',
+    color: 'white',
     marginTop: 8,
     marginBottom: 4,
   },
   footerStatLabel: {
     fontSize: 12,
-    color: "#bdc3c7",
-    textAlign: "center",
+    color: '#bdc3c7',
+    textAlign: 'center',
   },
   footerContact: {
-    flexDirection: "row",
-    justifyContent: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
     marginBottom: 25,
     gap: 30,
   },
   contactItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   contactText: {
     fontSize: 14,
-    color: "#bdc3c7",
+    color: '#bdc3c7',
   },
   footerBottom: {
-    alignItems: "center",
+    alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
     paddingTop: 20,
   },
   copyrightText: {
     fontSize: 12,
-    color: "#95a5a6",
-    textAlign: "center",
+    color: '#95a5a6',
+    textAlign: 'center',
     marginBottom: 12,
   },
   footerLinks: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 20,
   },
   footerLink: {
     fontSize: 12,
-    color: "#4ECDC4",
-    textDecorationLine: "underline",
+    color: '#4ECDC4',
+    textDecorationLine: 'underline',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: 'white',
     borderRadius: 20,
     padding: 24,
-    width: "100%",
+    width: '100%',
     maxWidth: 300,
     elevation: 5,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
   },
   modalHeader: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 20,
   },
   modalAvatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#f8f9fa",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
     borderWidth: 3,
-    borderColor: "#4ECDC4",
+    borderColor: '#4ECDC4',
   },
   modalName: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#2c3e50",
+    fontWeight: 'bold',
+    color: '#2c3e50',
     marginBottom: 4,
   },
   modalEmail: {
     fontSize: 14,
-    color: "#6c757d",
+    color: '#6c757d',
   },
   modalInfo: {
     marginBottom: 24,
   },
   infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 8,
     gap: 12,
   },
   infoText: {
     fontSize: 14,
-    color: "#2c3e50",
+    color: '#2c3e50',
     flex: 1,
   },
   logoutButtonModal: {
-    backgroundColor: "#e74c3c",
+    backgroundColor: '#e74c3c',
     borderRadius: 12,
     padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   logoutButtonText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "white",
+    fontWeight: '600',
+    color: 'white',
   },
   bottomSpacing: {
     height: 20,
   },
   notificationOverlay: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
@@ -785,15 +766,15 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   notificationDropdown: {
-    position: "absolute",
+    position: 'absolute',
     top: 100,
     right: 20,
     width: width * 0.75,
-    maxHeight: "80%",
+    maxHeight: '80%',
     zIndex: 1001,
   },
   notificationArrow: {
-    position: "absolute",
+    position: 'absolute',
     top: -8,
     right: 12,
     width: 0,
@@ -801,9 +782,9 @@ const styles = StyleSheet.create({
     borderLeftWidth: 8,
     borderRightWidth: 8,
     borderBottomWidth: 8,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: "white",
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'white',
     zIndex: 1002,
   },
 });

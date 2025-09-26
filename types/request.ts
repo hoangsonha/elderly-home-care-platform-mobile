@@ -1,76 +1,138 @@
-export interface Request {
+export interface FamilyMember {
   id: string;
-  type: 'booking' | 'counter' | 'modification';
-  status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  
-  // Request details
-  title: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-  dueDate?: string;
-  
-  // Participants
-  requester: {
-    id: string;
-    name: string;
-    avatar: string;
-    type: 'elderly' | 'caregiver';
-  };
-  recipient: {
-    id: string;
-    name: string;
-    avatar: string;
-    type: 'elderly' | 'caregiver';
-  };
-  
-  // Related entities
-  elderlyId?: string;
-  caregiverId?: string;
-  
-  // Request specific data
-  bookingDetails?: {
-    startDate: string;
-    endDate: string;
-    startTime?: string;
-    endTime?: string;
-    duration: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'unlimited';
-    hourlyRate?: number;
-    totalAmount?: number;
-    workingDays: string[];
-    timeSlots: string[];
-    specialRequirements?: string;
-  };
-  
-  // Communication
-  messages: RequestMessage[];
-  
-  // Actions history
-  actions: RequestAction[];
+  name: string;
+  email: string;
+  phone: string;
+  avatar?: string;
+  role: 'admin' | 'member';
+  joinedDate: string;
 }
 
-export interface RequestMessage {
+export interface Elderly {
   id: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  timestamp: string;
-  type: 'text' | 'image' | 'file';
-  isRead: boolean;
+  name: string;
+  age: number;
+  healthStatus: 'good' | 'medium' | 'poor';
+  avatar?: string;
 }
+
+export interface Caregiver {
+  id: string;
+  name: string;
+  avatar: string;
+  rating: number;
+  experience: string;
+  specialties: string[];
+  hourlyRate: number;
+  distance: string;
+  isVerified: boolean;
+  totalReviews: number;
+}
+
+export interface Family {
+  id: string;
+  name: string;
+  members: FamilyMember[];
+  elderly: Elderly[];
+}
+
+// ===== FAMILY REQUESTS =====
+export interface HireCaregiverRequest {
+  id: string;
+  type: 'hire_caregiver';
+  requester: FamilyMember;
+  caregiver: Caregiver;
+  elderly: Elderly;
+  family: Family;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  rejectionReason?: string;
+}
+
+export interface JoinFamilyRequest {
+  id: string;
+  type: 'join_family';
+  requester: {
+    name: string;
+    email: string;
+    phone: string;
+    avatar?: string;
+  };
+  targetFamily: Family;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  rejectionReason?: string;
+}
+
+export interface PaymentRequest {
+  id: string;
+  type: 'payment';
+  requester: FamilyMember;
+  caregiver: Caregiver;
+  elderly: Elderly;
+  family: Family;
+  paymentInfo: {
+    month: string;
+    year: number;
+    amount: number;
+    description: string;
+  };
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  rejectionReason?: string;
+}
+
+export type FamilyRequest = HireCaregiverRequest | JoinFamilyRequest | PaymentRequest;
+
+// ===== CAREGIVER REQUESTS =====
+export interface VideoCallRequest {
+  id: string;
+  type: 'video_call';
+  caregiver: Caregiver;
+  family: Family;
+  elderly: Elderly;
+  scheduledTime: string;
+  duration: number; // minutes
+  status: 'waiting_response' | 'responded' | 'accepted' | 'rejected';
+  caregiverResponse?: {
+    message: string;
+    newScheduledTime?: string;
+    respondedAt: string;
+  };
+  createdAt: string;
+}
+
+export interface ScheduleRequest {
+  id: string;
+  type: 'schedule';
+  caregiver: Caregiver;
+  family: Family;
+  elderly: Elderly;
+  requestedSchedule: {
+    date: string;
+    timeSlots: string[];
+    tasks: string[];
+  };
+  status: 'waiting_response' | 'responded' | 'accepted' | 'rejected';
+  caregiverResponse?: {
+    message: string;
+    modifiedSchedule?: {
+      date: string;
+      timeSlots: string[];
+      tasks: string[];
+    };
+    respondedAt: string;
+  };
+  createdAt: string;
+}
+
+export type CaregiverRequest = VideoCallRequest | ScheduleRequest;
+
+// ===== REQUEST STATUS =====
+export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'waiting_response' | 'responded' | 'accepted';
 
 export interface RequestAction {
-  id: string;
-  action: 'created' | 'accepted' | 'rejected' | 'cancelled' | 'modified' | 'countered';
-  actorId: string;
-  actorName: string;
-  timestamp: string;
-  comment?: string;
-  previousStatus?: string;
-  newStatus?: string;
+  type: 'approve' | 'reject' | 'modify';
+  reason?: string;
+  modifiedData?: any;
 }
-
-export type RequestStatus = Request['status'];
-export type RequestType = Request['type'];
-export type RequestPriority = Request['priority'];

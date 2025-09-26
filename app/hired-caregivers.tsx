@@ -174,7 +174,7 @@ export default function HiredCaregiversScreen() {
         <View style={styles.avatarContainer}>
           <View style={[styles.avatar, { backgroundColor: getStatusColor(item.status) }]}>
             <ThemedText style={styles.avatarText}>
-              {item.name.split(' ').map(n => n[0]).join('')}
+              {item.name ? item.name.split(' ').map(n => n[0]).join('') : '?'}
             </ThemedText>
           </View>
         </View>
