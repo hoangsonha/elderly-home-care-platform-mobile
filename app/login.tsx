@@ -1,53 +1,68 @@
-import { Colors } from '@/constants/theme';
-import { useAuth } from '@/contexts/AuthContext';
-import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { Colors } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+  useErrorNotification,
+  useSuccessNotification,
+} from "@/contexts/NotificationContext";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login, user } = useAuth();
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const colors = Colors[colorScheme ?? "light"];
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      showErrorTooltip('Vui lòng nhập đầy đủ email và mật khẩu');
+      showErrorTooltip("Vui lòng nhập đầy đủ email và mật khẩu");
       return;
     }
 
     setIsLoading(true);
     try {
-      const success = await login(email, password);
-      if (success) {
-        showSuccessTooltip('Đăng nhập thành công! Đang chuyển hướng...');
-        // Small delay to ensure user state is updated
-        setTimeout(() => {
-          // The user state will be updated after login, but we need to check it
-          // For now, we'll use a simple approach - always go to profile-setup first
-          // In real app, the login function should return user data
-          router.replace('/profile-setup');
-        }, 1500);
+      // const success = await login(email, password);
+      if (email === "caregiver" && password === "caregiver123") {
+        const success = await login(email, password);
+        if (success) {
+          showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
+          // Small delay to ensure user state is updated
+          setTimeout(() => {
+            router.replace("/caregiver-home");
+          }, 1500);
+        } else {
+          showErrorTooltip("Email hoặc mật khẩu không đúng");
+        }
       } else {
-        showErrorTooltip('Email hoặc mật khẩu không đúng');
+        const success = await login(email, password);
+        if (success) {
+          showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
+          // Small delay to ensure user state is updated
+          setTimeout(() => {
+            // The user state will be updated after login, but we need to check it
+            // For now, we'll use a simple approach - always go to profile-setup first
+            // In real app, the login function should return user data
+            router.replace("/profile-setup");
+          }, 1500);
+        }
       }
     } catch (error) {
-      showErrorTooltip('Có lỗi xảy ra khi đăng nhập');
+      showErrorTooltip("Có lỗi xảy ra khi đăng nhập");
     } finally {
       setIsLoading(false);
     }
@@ -56,13 +71,10 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* Back Button */}
-      <TouchableOpacity 
-        style={styles.backButton} 
-        onPress={() => router.back()}
-      >
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={24} color={colors.text} />
       </TouchableOpacity>
 
@@ -83,7 +95,7 @@ export default function LoginScreen() {
               },
             ]}
             placeholder="Email"
-            placeholderTextColor={colors.text + '80'}
+            placeholderTextColor={colors.text + "80"}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -101,7 +113,7 @@ export default function LoginScreen() {
               },
             ]}
             placeholder="Mật khẩu"
-            placeholderTextColor={colors.text + '80'}
+            placeholderTextColor={colors.text + "80"}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -113,7 +125,7 @@ export default function LoginScreen() {
             disabled={isLoading}
           >
             <Text style={styles.loginButtonText}>
-              {isLoading ? 'Đang đăng nhập...' : 'Đăng Nhập'}
+              {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -133,7 +145,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 50,
     left: 20,
     zIndex: 1,
@@ -141,18 +153,18 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 32,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 48,
     opacity: 0.7,
   },
@@ -169,17 +181,17 @@ const styles = StyleSheet.create({
   loginButton: {
     height: 56,
     borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 8,
   },
   loginButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   forgotPassword: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 24,
   },
   forgotPasswordText: {
