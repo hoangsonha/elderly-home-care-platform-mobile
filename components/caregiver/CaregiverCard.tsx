@@ -28,9 +28,10 @@ interface CaregiverCardProps {
   onBookPress?: (caregiver: Caregiver) => void;
   onChatPress?: (caregiver: Caregiver) => void;
   showActions?: boolean;
+  hideBookingButton?: boolean;
 }
 
-export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, showActions = true }: CaregiverCardProps) {
+export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, showActions = true, hideBookingButton = false }: CaregiverCardProps) {
   return (
     <TouchableOpacity
       style={styles.caregiverCard}
@@ -107,12 +108,14 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
               <ThemedText style={styles.chatButtonText}>Chat</ThemedText>
             </TouchableOpacity>
             
-            <TouchableOpacity
-              style={styles.bookButton}
-              onPress={() => onBookPress?.(caregiver)}
-            >
-              <ThemedText style={styles.bookButtonText}>Đặt lịch</ThemedText>
-            </TouchableOpacity>
+            {!hideBookingButton && (
+              <TouchableOpacity
+                style={styles.bookButton}
+                onPress={() => onBookPress?.(caregiver)}
+              >
+                <ThemedText style={styles.bookButtonText}>Đặt lịch</ThemedText>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>

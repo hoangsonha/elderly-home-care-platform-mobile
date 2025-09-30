@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -88,7 +88,10 @@ export function DurationSelector({
       case 'hourly':
         return (
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Số giờ (tối đa 24 giờ) *</ThemedText>
+            <View style={styles.labelContainer}>
+              <ThemedText style={styles.inputLabel}>Số giờ (tối đa 24 giờ)</ThemedText>
+              <ThemedText style={styles.requiredMark}>*</ThemedText>
+            </View>
             <TextInput
               style={styles.textInput}
               value={durationValue}
@@ -109,7 +112,10 @@ export function DurationSelector({
       case 'short':
         return (
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Số ngày (tối đa 10 ngày) *</ThemedText>
+            <View style={styles.labelContainer}>
+              <ThemedText style={styles.inputLabel}>Số ngày (tối đa 10 ngày)</ThemedText>
+              <ThemedText style={styles.requiredMark}>*</ThemedText>
+            </View>
             <TextInput
               style={styles.textInput}
               value={durationValue}
@@ -130,7 +136,10 @@ export function DurationSelector({
       case 'long':
         return (
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Số ngày *</ThemedText>
+            <View style={styles.labelContainer}>
+              <ThemedText style={styles.inputLabel}>Số ngày</ThemedText>
+              <ThemedText style={styles.requiredMark}>*</ThemedText>
+            </View>
             <TextInput
               style={styles.textInput}
               value={durationValue}
@@ -174,7 +183,10 @@ export function DurationSelector({
         
         {/* Start Date - hiện cho tất cả loại thuê */}
         <View style={styles.inputGroup}>
-          <ThemedText style={styles.inputLabel}>Ngày bắt đầu *</ThemedText>
+          <View style={styles.labelContainer}>
+            <ThemedText style={styles.inputLabel}>Ngày bắt đầu</ThemedText>
+            <ThemedText style={styles.requiredMark}>*</ThemedText>
+          </View>
           <TouchableOpacity
             style={styles.pickerButton}
             onPress={() => setShowStartDatePicker(true)}
@@ -192,7 +204,10 @@ export function DurationSelector({
         {/* Start Time - chỉ hiện khi chọn "Theo giờ" */}
         {durationType === 'hourly' && (
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Giờ bắt đầu *</ThemedText>
+            <View style={styles.labelContainer}>
+              <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
+              <ThemedText style={styles.requiredMark}>*</ThemedText>
+            </View>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowStartTimePicker(true)}
@@ -211,7 +226,10 @@ export function DurationSelector({
         {/* End Date - chỉ hiện khi KHÔNG chọn "Không thời hạn" */}
         {durationType !== 'unlimited' && (
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Ngày kết thúc *</ThemedText>
+            <View style={styles.labelContainer}>
+            <ThemedText style={styles.inputLabel}>Ngày kết thúc</ThemedText>
+            <ThemedText style={styles.requiredMark}>*</ThemedText>
+          </View>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowEndDatePicker(true)}
@@ -230,7 +248,10 @@ export function DurationSelector({
         {/* End Time - chỉ hiện khi chọn "Theo giờ" */}
         {durationType === 'hourly' && (
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Giờ kết thúc *</ThemedText>
+            <View style={styles.labelContainer}>
+              <ThemedText style={styles.inputLabel}>Giờ kết thúc</ThemedText>
+              <ThemedText style={styles.requiredMark}>*</ThemedText>
+            </View>
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowEndTimePicker(true)}
@@ -355,7 +376,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
+  },
+  requiredMark: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#dc3545',
+    marginLeft: 2,
   },
   textInput: {
     height: 48,

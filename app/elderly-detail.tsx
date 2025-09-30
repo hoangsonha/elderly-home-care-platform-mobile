@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View
+    Image,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,11 +14,11 @@ import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverC
 import { ThemedText } from '@/components/themed-text';
 import { ElderlyProfile } from '@/types/elderly';
 import {
-  renderEnvironmentTab,
-  renderIndependenceTab,
-  renderMedicalTab,
-  renderNeedsTab,
-  renderPreferencesTab
+    renderEnvironmentTab,
+    renderIndependenceTab,
+    renderMedicalTab,
+    renderNeedsTab,
+    renderPreferencesTab
 } from './elderly-profile-tabs';
 
 
@@ -138,19 +138,37 @@ export default function ElderlyDetailScreen() {
           </View>
 
           <View style={styles.infoItem}>
-            <Ionicons name="water" size={16} color="#6c757d" />
-            <View style={styles.infoTextContainer}>
-              <ThemedText style={styles.infoLabel}>Nhóm máu</ThemedText>
-              <ThemedText style={styles.infoValue}>O+</ThemedText>
-            </View>
-          </View>
-
-          <View style={styles.infoItem}>
             <Ionicons name="fitness" size={16} color="#6c757d" />
             <View style={styles.infoTextContainer}>
               <ThemedText style={styles.infoLabel}>Cân nặng / Chiều cao</ThemedText>
               <ThemedText style={styles.infoValue}>58kg / 155cm</ThemedText>
             </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Emergency Contact */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Người liên hệ khẩn cấp</ThemedText>
+        <View style={styles.contactCard}>
+          <View style={styles.contactIcon}>
+            <Ionicons name="person" size={20} color="#4ECDC4" />
+          </View>
+          <View style={styles.contactInfo}>
+            <ThemedText style={styles.contactName}>Nguyễn Văn Minh</ThemedText>
+            <ThemedText style={styles.contactRelation}>Con trai</ThemedText>
+            <ThemedText style={styles.contactPhone}>0901 234 568</ThemedText>
+          </View>
+        </View>
+        
+        <View style={styles.contactCard}>
+          <View style={styles.contactIcon}>
+            <Ionicons name="person" size={20} color="#4ECDC4" />
+          </View>
+          <View style={styles.contactInfo}>
+            <ThemedText style={styles.contactName}>Nguyễn Thị Hoa</ThemedText>
+            <ThemedText style={styles.contactRelation}>Con gái</ThemedText>
+            <ThemedText style={styles.contactPhone}>0901 234 569</ThemedText>
           </View>
         </View>
       </View>
@@ -309,7 +327,7 @@ export default function ElderlyDetailScreen() {
               onPress={() => setActiveTab('medical')}
             >
               <ThemedText style={[styles.tabText, activeTab === 'medical' && styles.activeTabText]}>
-                Bệnh nền
+                Y tế
               </ThemedText>
             </TouchableOpacity>
             
@@ -549,5 +567,41 @@ const styles = StyleSheet.create({
   },
   caregiverItem: {
     marginBottom: 12,
+  },
+  contactCard: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  contactIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 2,
+  },
+  contactRelation: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginBottom: 2,
+  },
+  contactPhone: {
+    fontSize: 14,
+    color: '#4ECDC4',
+    fontWeight: '500',
   },
 });

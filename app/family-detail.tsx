@@ -417,15 +417,11 @@ export default function FamilyDetailScreen() {
          </View>
          
          <View style={styles.headerActions}>
-           {family.userRole === 'admin_family' && (
+           {family.userRole === 'admin_family' && selectedTab === 'members' && (
             <TouchableOpacity 
               style={styles.addButton} 
               onPress={() => {
-                if (selectedTab === 'members') {
-                  setShowAddMemberModal(true);
-                } else {
-                  setShowAddElderlyModal(true);
-                }
+                setShowAddMemberModal(true);
               }}
             >
               <Ionicons name="add" size={20} color="white" />

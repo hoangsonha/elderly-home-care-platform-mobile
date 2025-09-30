@@ -3,8 +3,7 @@ import React from 'react';
 import {
     Dimensions,
     StyleSheet,
-    TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 
 import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverCard';
@@ -54,10 +53,6 @@ export function AIRecommendations({
           <ThemedText style={styles.emptySubtitle}>
             Hãy thử điều chỉnh yêu cầu hoặc mở rộng phạm vi tìm kiếm
           </ThemedText>
-          <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-            <Ionicons name="refresh" size={20} color="white" />
-            <ThemedText style={styles.refreshButtonText}>Thử lại</ThemedText>
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -76,9 +71,6 @@ export function AIRecommendations({
             {recommendations.length} người chăm sóc phù hợp nhất
           </ThemedText>
         </View>
-        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-          <Ionicons name="refresh" size={20} color="#4ECDC4" />
-        </TouchableOpacity>
       </View>
 
       {/* Match Score Info */}
@@ -215,19 +207,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
-  },
-  refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4ECDC4',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  refreshButtonText: {
-    marginLeft: 8,
-    color: 'white',
-    fontWeight: '600',
   },
   aiHeader: {
     flexDirection: 'row',

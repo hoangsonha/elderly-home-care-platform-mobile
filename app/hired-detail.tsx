@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    Modal,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
@@ -17,6 +18,8 @@ export default function HiredDetailScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const scrollViewRef = useRef<ScrollView>(null);
   const [containerWidth, setContainerWidth] = useState(350);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
 
   // Mock data - should be fetched based on id
@@ -138,107 +141,164 @@ export default function HiredDetailScreen() {
     const baseTasks = [
       {
         id: '1',
-        title: 'Check my work emails',
-        description: 'Kiểm tra và trả lời email công việc',
-        scheduledTime: `${date}T10:00:00Z`,
-        duration: 30,
+        title: 'Nhắc nhở uống thuốc buổi sáng',
+        description: 'Kiểm tra và đảm bảo người già uống đúng thuốc theo đơn của bác sĩ vào buổi sáng. Bao gồm: thuốc huyết áp, thuốc tim mạch và vitamin tổng hợp. Cần kiểm tra hạn sử dụng và liều lượng chính xác.',
+        scheduledTime: `${date}T09:00:00Z`,
+        duration: 10,
         status: 'completed' as const,
-        priority: 'medium' as const,
-        category: 'Work',
-        tags: ['Work'],
+        priority: 'high' as const,
+        category: 'Task cố định',
+        tags: ['Thuốc', 'Sức khỏe', 'Buổi sáng'],
         isRecurring: true,
         recurringPattern: 'daily' as const,
         assignedTo: { id: caregiverId, name: caregiver.name },
         elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
         createdAt: '2024-01-20T08:00:00Z',
-        updatedAt: '2024-01-20T10:30:00Z',
-        completedAt: '2024-01-20T10:30:00Z'
+        updatedAt: '2024-01-20T09:10:00Z',
+        completedAt: '2024-01-20T09:10:00Z',
+        notes: 'Người già đã uống đầy đủ thuốc, không có phản ứng phụ nào. Cần tiếp tục theo dõi huyết áp sau khi uống thuốc.',
+        location: 'Phòng ngủ',
+        equipment: ['Cốc nước', 'Thuốc', 'Đơn thuốc'],
+        instructions: [
+          'Kiểm tra đơn thuốc trước khi cho uống',
+          'Đảm bảo uống đúng liều lượng',
+          'Theo dõi phản ứng sau khi uống',
+          'Ghi chú vào sổ theo dõi'
+        ]
       },
       {
         id: '2',
-        title: 'Call Amy',
-        description: 'Gọi điện cho Amy để trao đổi về tình hình sức khỏe',
-        scheduledTime: `${date}T11:00:00Z`,
-        duration: 15,
-        status: 'pending' as const,
-        priority: 'high' as const,
-        category: 'Communication',
-        tags: ['Calendar'],
-        isRecurring: false,
-        assignedTo: { id: caregiverId, name: caregiver.name },
-        elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
-        createdAt: '2024-01-20T08:00:00Z',
-        updatedAt: '2024-01-20T08:00:00Z'
-      },
-      {
-        id: '3',
-        title: 'Prepare lunch',
-        description: 'Chuẩn bị bữa trưa cho bà Lan',
+        title: 'Chuẩn bị bữa trưa',
+        description: 'Nấu ăn và chuẩn bị bữa trưa phù hợp với chế độ dinh dưỡng của người già. Cần đảm bảo thức ăn mềm, dễ tiêu hóa và đầy đủ chất dinh dưỡng. Tránh các món cay, mặn và khó tiêu.',
         scheduledTime: `${date}T12:00:00Z`,
         duration: 45,
         status: 'in_progress' as const,
-        priority: 'medium' as const,
-        category: 'Meal',
-        tags: ['Meal'],
-        isRecurring: true,
-        recurringPattern: 'daily' as const,
-        assignedTo: { id: caregiverId, name: caregiver.name },
-        elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
-        createdAt: '2024-01-20T08:00:00Z',
-        updatedAt: '2024-01-20T11:45:00Z'
-      },
-      {
-        id: '4',
-        title: 'Evening medication',
-        description: 'Nhắc nhở uống thuốc buổi tối',
-        scheduledTime: `${date}T19:00:00Z`,
-        duration: 10,
-        status: 'pending' as const,
         priority: 'high' as const,
-        category: 'Health',
-        tags: ['Health'],
+        category: 'Task cố định',
+        tags: ['Ăn uống', 'Dinh dưỡng', 'Nấu ăn'],
         isRecurring: true,
         recurringPattern: 'daily' as const,
         assignedTo: { id: caregiverId, name: caregiver.name },
         elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
         createdAt: '2024-01-20T08:00:00Z',
-        updatedAt: '2024-01-20T08:00:00Z'
+        updatedAt: '2024-01-20T11:45:00Z',
+        location: 'Nhà bếp',
+        equipment: ['Bếp gas', 'Nồi cơm điện', 'Chảo', 'Dao thớt', 'Đĩa bát'],
+        instructions: [
+          'Kiểm tra nguyên liệu có sẵn trong tủ lạnh',
+          'Rửa sạch rau củ trước khi chế biến',
+          'Nấu chín kỹ thức ăn để dễ tiêu hóa',
+          'Trình bày đẹp mắt trên đĩa',
+          'Kiểm tra nhiệt độ thức ăn trước khi phục vụ'
+        ],
+        notes: 'Người già thích ăn cháo và súp. Cần chú ý đến việc cắt nhỏ thức ăn để dễ nhai.'
       },
       {
-        id: '5',
-        title: 'Morning exercise',
-        description: 'Hướng dẫn tập thể dục buổi sáng',
+        id: '3',
+        title: 'Tập thể dục nhẹ',
+        description: 'Hướng dẫn và cùng tập các bài tập thể dục nhẹ nhàng phù hợp với sức khỏe người già. Bao gồm các động tác khởi động, đi bộ tại chỗ, và các bài tập tay chân đơn giản để duy trì sự linh hoạt.',
         scheduledTime: `${date}T08:00:00Z`,
         duration: 30,
         status: 'completed' as const,
         priority: 'medium' as const,
-        category: 'Health',
-        tags: ['Health', 'Exercise'],
+        category: 'Task linh hoạt',
+        tags: ['Thể dục', 'Sức khỏe', 'Vận động'],
         isRecurring: true,
         recurringPattern: 'daily' as const,
         assignedTo: { id: caregiverId, name: caregiver.name },
         elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
         createdAt: '2024-01-20T08:00:00Z',
         updatedAt: '2024-01-20T08:30:00Z',
-        completedAt: '2024-01-20T08:30:00Z'
+        completedAt: '2024-01-20T08:30:00Z',
+        location: 'Phòng khách',
+        equipment: ['Thảm tập', 'Ghế hỗ trợ', 'Nước uống'],
+        instructions: [
+          'Kiểm tra sức khỏe người già trước khi tập',
+          'Khởi động nhẹ nhàng trong 5 phút',
+          'Thực hiện các bài tập tay chân đơn giản',
+          'Nghỉ ngơi khi cần thiết',
+          'Kết thúc bằng các động tác thư giãn'
+        ],
+        notes: 'Người già tập rất tích cực và không có dấu hiệu mệt mỏi. Cần duy trì cường độ tập luyện này.'
       },
       {
-        id: '6',
-        title: 'Medication reminder',
-        description: 'Nhắc nhở uống thuốc buổi sáng',
-        scheduledTime: `${date}T09:00:00Z`,
-        duration: 5,
-        status: 'completed' as const,
-        priority: 'high' as const,
-        category: 'Health',
-        tags: ['Health', 'Medication'],
+        id: '4',
+        title: 'Trò chuyện và giải trí',
+        description: 'Trò chuyện, đọc sách hoặc xem TV cùng người già để giải trí và giảm cô đơn. Tạo không khí vui vẻ, chia sẻ những câu chuyện thú vị và lắng nghe những kỷ niệm của người già.',
+        scheduledTime: `${date}T15:00:00Z`,
+        duration: 60,
+        status: 'pending' as const,
+        priority: 'medium' as const,
+        category: 'Task linh hoạt',
+        tags: ['Giải trí', 'Tâm lý', 'Giao tiếp'],
         isRecurring: true,
         recurringPattern: 'daily' as const,
         assignedTo: { id: caregiverId, name: caregiver.name },
         elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
         createdAt: '2024-01-20T08:00:00Z',
-        updatedAt: '2024-01-20T09:05:00Z',
-        completedAt: '2024-01-20T09:05:00Z'
+        updatedAt: '2024-01-20T08:00:00Z',
+        location: 'Phòng khách',
+        equipment: ['TV', 'Sách báo', 'Trà nước'],
+        instructions: [
+          'Hỏi thăm sức khỏe và tâm trạng',
+          'Chọn chương trình TV phù hợp',
+          'Khuyến khích người già chia sẻ câu chuyện',
+          'Lắng nghe và phản hồi tích cực',
+          'Tạo không khí thoải mái và vui vẻ'
+        ],
+        notes: 'Người già rất thích kể về thời trẻ và gia đình. Cần kiên nhẫn lắng nghe.'
+      },
+      {
+        id: '5',
+        title: 'Dọn dẹp phòng',
+        description: 'Dọn dẹp và sắp xếp lại phòng ngủ, phòng khách để tạo không gian sạch sẽ, thoáng mát. Đảm bảo mọi thứ được sắp xếp gọn gàng và dễ tìm kiếm.',
+        scheduledTime: `${date}T14:00:00Z`,
+        duration: 30,
+        status: 'pending' as const,
+        priority: 'low' as const,
+        category: 'Task tùy chọn',
+        tags: ['Dọn dẹp', 'Vệ sinh', 'Sắp xếp'],
+        isRecurring: false,
+        assignedTo: { id: caregiverId, name: caregiver.name },
+        elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
+        createdAt: '2024-01-20T08:00:00Z',
+        updatedAt: '2024-01-20T08:00:00Z',
+        location: 'Phòng ngủ, Phòng khách',
+        equipment: ['Chổi', 'Khăn lau', 'Nước lau sàn', 'Túi rác'],
+        instructions: [
+          'Thu dọn đồ đạc cá nhân',
+          'Lau bụi trên bàn ghế',
+          'Quét và lau sàn nhà',
+          'Sắp xếp lại đồ đạc gọn gàng',
+          'Thay ga giường nếu cần'
+        ],
+        notes: 'Người già rất quan tâm đến việc giữ gìn vệ sinh. Cần làm nhẹ nhàng để không làm phiền.'
+      },
+      {
+        id: '6',
+        title: 'Mua sắm đồ dùng',
+        description: 'Đi mua các đồ dùng cần thiết như thực phẩm, thuốc men, đồ dùng cá nhân nếu có thời gian. Kiểm tra danh sách mua sắm và đảm bảo mua đúng những gì cần thiết.',
+        scheduledTime: `${date}T16:00:00Z`,
+        duration: 90,
+        status: 'pending' as const,
+        priority: 'low' as const,
+        category: 'Task tùy chọn',
+        tags: ['Mua sắm', 'Thực phẩm', 'Thuốc men'],
+        isRecurring: false,
+        assignedTo: { id: caregiverId, name: caregiver.name },
+        elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
+        createdAt: '2024-01-20T08:00:00Z',
+        updatedAt: '2024-01-20T08:00:00Z',
+        location: 'Siêu thị, Nhà thuốc',
+        equipment: ['Danh sách mua sắm', 'Tiền mặt', 'Túi đựng'],
+        instructions: [
+          'Kiểm tra danh sách mua sắm',
+          'Đến siêu thị mua thực phẩm',
+          'Ghé nhà thuốc mua thuốc nếu cần',
+          'Kiểm tra hạn sử dụng sản phẩm',
+          'Cất giữ đồ mua về đúng chỗ'
+        ],
+        notes: 'Cần mua thêm sữa và bánh mì. Thuốc huyết áp còn đủ dùng đến tuần sau.'
       }
     ];
 
@@ -338,8 +398,18 @@ export default function HiredDetailScreen() {
     });
   };
 
+  const handleTaskPress = (task: Task) => {
+    setSelectedTask(task);
+    setShowTaskModal(true);
+  };
+
+  const handleCloseTaskModal = () => {
+    setShowTaskModal(false);
+    setSelectedTask(null);
+  };
+
   const renderTaskItem = (task: Task) => (
-    <View key={task.id} style={styles.taskItem}>
+    <TouchableOpacity key={task.id} style={styles.taskItem} onPress={() => handleTaskPress(task)}>
       <View style={styles.taskLeft}>
         <View style={styles.taskStatusIcon}>
           {task.status === 'completed' ? (
@@ -355,21 +425,15 @@ export default function HiredDetailScreen() {
               <Ionicons name="time-outline" size={14} color="#4ECDC4" />
               <ThemedText style={styles.taskTime}>{formatTime(task.scheduledTime)}</ThemedText>
             </View>
-            {task.isRecurring && (
-              <Ionicons name="refresh-outline" size={14} color="#4ECDC4" />
-            )}
           </View>
         </View>
       </View>
       <View style={styles.taskRight}>
-        <View style={styles.taskTags}>
-          <ThemedText style={styles.taskTag}>{task.category}</ThemedText>
-          {task.tags.map((tag, index) => (
-            <ThemedText key={index} style={styles.taskTag}>#{tag}</ThemedText>
-          ))}
+        <View style={styles.taskCategoryBadge}>
+          <ThemedText style={styles.taskCategoryBadgeText}>{task.category}</ThemedText>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -529,6 +593,40 @@ export default function HiredDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Task Detail Modal */}
+      <Modal
+        visible={showTaskModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCloseTaskModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Chi tiết Task</ThemedText>
+              <TouchableOpacity onPress={handleCloseTaskModal} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#6c757d" />
+              </TouchableOpacity>
+            </View>
+            
+            {selectedTask ? (
+              <View style={styles.modalBody}>
+                <View style={styles.taskDetailSection}>
+                  <ThemedText style={styles.taskDetailTitle}>{selectedTask.title}</ThemedText>
+                  <ThemedText style={styles.taskDetailDescription}>{selectedTask.description}</ThemedText>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.modalBody}>
+                <View style={styles.emptyState}>
+                  <ThemedText style={styles.emptyText}>Không có thông tin task</ThemedText>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -832,20 +930,18 @@ const styles = StyleSheet.create({
   taskRight: {
     alignItems: 'flex-end',
   },
-  taskTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
+  taskCategoryBadge: {
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4ECDC4',
   },
-  taskTag: {
+  taskCategoryBadgeText: {
     fontSize: 10,
-    color: '#6c757d',
-    backgroundColor: '#e9ecef',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 4,
-    marginBottom: 2,
+    color: '#4ECDC4',
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
@@ -855,5 +951,175 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6c757d',
     marginTop: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '85%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalBody: {
+    maxHeight: '80%',
+    paddingHorizontal: 0,
+  },
+  taskDetailSection: {
+    padding: 20,
+  },
+  taskDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  taskDetailStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taskDetailStatusText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  taskDetailCategory: {
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4ECDC4',
+  },
+  taskDetailCategoryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4ECDC4',
+  },
+  taskDetailTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  taskDetailDescription: {
+    fontSize: 16,
+    color: '#6c757d',
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  taskDetailInfo: {
+    gap: 16,
+  },
+  taskDetailInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taskDetailInfoContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  taskDetailInfoLabel: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  taskDetailInfoValue: {
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  taskDetailTags: {
+    marginTop: 20,
+  },
+  taskDetailTagsLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  taskDetailTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  taskDetailTag: {
+    backgroundColor: '#e9ecef',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  taskDetailTagText: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  taskDetailSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 12,
+    marginTop: 20,
+  },
+  taskDetailList: {
+    gap: 8,
+  },
+  taskDetailListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  taskDetailListNumber: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4ECDC4',
+    marginRight: 8,
+    minWidth: 20,
+  },
+  taskDetailListItemText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    flex: 1,
+    marginLeft: 8,
+  },
+  taskDetailNotes: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4ECDC4',
+  },
+  taskDetailNotesText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    lineHeight: 20,
   },
 });

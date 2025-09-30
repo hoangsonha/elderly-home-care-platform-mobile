@@ -4,9 +4,9 @@ import React, { useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { CaregiverRequests } from './CaregiverRequests';
 import { FamilyRequests } from './FamilyRequests';
-import { PaymentRequests } from './PaymentRequests';
+import { ServiceRequests } from './ServiceRequests';
 
-type TabType = 'family' | 'caregiver' | 'payment';
+type TabType = 'family' | 'video' | 'service';
 
 interface RequestTabsProps {
   onChatPress?: (caregiver: any) => void;
@@ -24,16 +24,16 @@ export function RequestTabs({ onChatPress, onBookPress }: RequestTabsProps) {
       count: 5, // Mock count
     },
     {
-      id: 'caregiver' as TabType,
-      title: 'Người chăm sóc',
-      icon: 'people-outline',
+      id: 'video' as TabType,
+      title: 'Video tư vấn',
+      icon: 'videocam-outline',
       count: 8, // Mock count
     },
     {
-      id: 'payment' as TabType,
-      title: 'Thanh toán',
-      icon: 'card-outline',
-      count: 3, // Mock count
+      id: 'service' as TabType,
+      title: 'Dịch vụ',
+      icon: 'business-outline',
+      count: 12, // Mock count
     },
   ];
 
@@ -41,10 +41,10 @@ export function RequestTabs({ onChatPress, onBookPress }: RequestTabsProps) {
     switch (activeTab) {
       case 'family':
         return <FamilyRequests onChatPress={onChatPress} onBookPress={onBookPress} />;
-      case 'caregiver':
+      case 'video':
         return <CaregiverRequests />;
-      case 'payment':
-        return <PaymentRequests />;
+      case 'service':
+        return <ServiceRequests onChatPress={onChatPress} onBookPress={onBookPress} />;
       default:
         return <FamilyRequests onChatPress={onChatPress} onBookPress={onBookPress} />;
     }

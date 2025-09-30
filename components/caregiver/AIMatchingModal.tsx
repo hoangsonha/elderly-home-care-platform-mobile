@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -249,7 +249,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
   const renderStep1 = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Thông tin cơ bản</ThemedText>
+      <ThemedText style={styles.stepTitle}>Thông tin cơ bản của người già</ThemedText>
       
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Mức độ sức khỏe <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
@@ -340,7 +340,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
   const renderStep2 = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Nhu cầu đặc biệt</ThemedText>
+      <ThemedText style={styles.stepTitle}>Nhu cầu đặc biệt của người già</ThemedText>
       
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Chọn các nhu cầu phù hợp (có thể chọn nhiều)</ThemedText>
@@ -379,7 +379,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
   const renderStep3 = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Thời gian làm việc</ThemedText>
+      <ThemedText style={styles.stepTitle}>Thời gian làm việc của người chăm sóc</ThemedText>
       
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Chọn ngày cần chăm sóc <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
@@ -672,7 +672,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
   const renderStep5 = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Vị trí làm việc</ThemedText>
+      <ThemedText style={styles.stepTitle}>Vị trí làm việc của người chăm sóc</ThemedText>
       
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Vị trí làm việc của người chăm sóc</ThemedText>

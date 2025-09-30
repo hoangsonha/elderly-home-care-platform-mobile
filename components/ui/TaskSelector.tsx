@@ -370,7 +370,10 @@ export function TaskSelector({
             >
               {/* Task Type Selection */}
               <View style={styles.inputGroup}>
-                <ThemedText style={styles.inputLabel}>Loại nhiệm vụ *</ThemedText>
+                <View style={styles.labelContainer}>
+                  <ThemedText style={styles.inputLabel}>Loại nhiệm vụ</ThemedText>
+                  <ThemedText style={styles.requiredMark}>*</ThemedText>
+                </View>
                 <View style={styles.taskTypesList}>
                   {taskTypes.map((type) => (
                     <TouchableOpacity
@@ -400,7 +403,10 @@ export function TaskSelector({
 
               {/* Task Name */}
               <View style={styles.inputGroup}>
-                <ThemedText style={styles.inputLabel}>Tên nhiệm vụ *</ThemedText>
+                <View style={styles.labelContainer}>
+                  <ThemedText style={styles.inputLabel}>Tên nhiệm vụ</ThemedText>
+                  <ThemedText style={styles.requiredMark}>*</ThemedText>
+                </View>
                 <TextInput
                   style={styles.textInput}
                   value={newTask.name}
@@ -412,7 +418,10 @@ export function TaskSelector({
 
               {/* Task Description */}
               <View style={styles.inputGroup}>
-                <ThemedText style={styles.inputLabel}>Mô tả nhiệm vụ *</ThemedText>
+                <View style={styles.labelContainer}>
+                  <ThemedText style={styles.inputLabel}>Mô tả nhiệm vụ</ThemedText>
+                  <ThemedText style={styles.requiredMark}>*</ThemedText>
+                </View>
                 <TextInput
                   style={[styles.textInput, styles.textArea]}
                   value={newTask.description}
@@ -428,7 +437,10 @@ export function TaskSelector({
               {/* Fixed Task - Working Days Selection */}
               {newTask.type === 'fixed' && (
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.inputLabel}>Chọn ngày trong tuần *</ThemedText>
+                  <View style={styles.labelContainer}>
+                    <ThemedText style={styles.inputLabel}>Chọn ngày trong tuần</ThemedText>
+                    <ThemedText style={styles.requiredMark}>*</ThemedText>
+                  </View>
                   <View style={styles.workingDaysList}>
                     {weekDays.map((day) => (
                       <TouchableOpacity
@@ -454,7 +466,10 @@ export function TaskSelector({
               {/* Fixed Task - Start Time Selection */}
               {newTask.type === 'fixed' && (
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.inputLabel}>Giờ bắt đầu *</ThemedText>
+                  <View style={styles.labelContainer}>
+                    <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
+                    <ThemedText style={styles.requiredMark}>*</ThemedText>
+                  </View>
                   <TouchableOpacity
                     style={styles.timePickerButton}
                     onPress={handleTimePickerOpen}
@@ -473,7 +488,10 @@ export function TaskSelector({
               {/* Flexible Task - Days and Times Count */}
               {newTask.type === 'flexible' && (
                 <View style={styles.inputGroup}>
-                  <ThemedText style={styles.inputLabel}>Tần suất thực hiện *</ThemedText>
+                  <View style={styles.labelContainer}>
+                    <ThemedText style={styles.inputLabel}>Tần suất thực hiện</ThemedText>
+                    <ThemedText style={styles.requiredMark}>*</ThemedText>
+                  </View>
                   <View style={styles.flexibleInputsContainer}>
                     <View style={styles.flexibleInputGroup}>
                       <ThemedText style={styles.flexibleInputLabel}>Số ngày</ThemedText>
@@ -679,7 +697,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
+  },
+  requiredMark: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#dc3545',
+    marginLeft: 2,
   },
   taskTypesList: {
     gap: 8,

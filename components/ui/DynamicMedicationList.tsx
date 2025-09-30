@@ -75,7 +75,10 @@ export function DynamicMedicationList({
             </View>
 
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Tên thuốc *</ThemedText>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Tên thuốc</ThemedText>
+                <ThemedText style={styles.requiredMark}>*</ThemedText>
+              </View>
               <TextInput
                 style={styles.textInput}
                 value={medication.name}
@@ -86,7 +89,10 @@ export function DynamicMedicationList({
             </View>
 
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Liều lượng *</ThemedText>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Liều lượng</ThemedText>
+                <ThemedText style={styles.requiredMark}>*</ThemedText>
+              </View>
               <TextInput
                 style={styles.textInput}
                 value={medication.dosage}
@@ -97,7 +103,10 @@ export function DynamicMedicationList({
             </View>
 
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Tần suất *</ThemedText>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Tần suất</ThemedText>
+                <ThemedText style={styles.requiredMark}>*</ThemedText>
+              </View>
               <TextInput
                 style={styles.textInput}
                 value={medication.frequency}
@@ -184,7 +193,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#2c3e50',
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 6,
+  },
+  requiredMark: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#dc3545',
+    marginLeft: 2,
   },
   textInput: {
     borderWidth: 1,

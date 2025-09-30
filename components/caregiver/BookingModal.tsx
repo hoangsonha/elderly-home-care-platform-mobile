@@ -62,13 +62,14 @@ interface BookingModalProps {
   onClose: () => void;
   caregiver: Caregiver;
   elderlyProfiles: ElderlyProfile[];
+  immediateOnly?: boolean;
 }
 
 type BookingType = 'immediate' | 'schedule';
 
-export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: BookingModalProps) {
+export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, immediateOnly = false }: BookingModalProps) {
   const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
-  const [bookingType, setBookingType] = useState<BookingType | null>(null);
+  const [bookingType, setBookingType] = useState<BookingType | null>(immediateOnly ? 'immediate' : null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -76,9 +77,11 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
   const [immediateData, setImmediateData] = useState({
     workLocation: '',
     salary: '',
-    workingDays: [] as string[],
-    workingTimeSlots: [] as string[],
-    specificTimeRanges: [] as { start: string; end: string }[],
+    timeSlotGroups: [] as {
+      id: string;
+      days: string[];
+      timeSlots: { slot: string; start: string; end: string }[];
+    }[],
     tasks: [] as Task[],
     durationType: '',
     durationValue: '',
@@ -106,6 +109,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
   const [externalEmail, setExternalEmail] = useState('');
   const [foundExternalUser, setFoundExternalUser] = useState<any>(null);
   const [familySearchQuery, setFamilySearchQuery] = useState('');
+  const [sendToFamilyMembers, setSendToFamilyMembers] = useState(false);
 
   // Mock family members data
   const familyMembers: FamilyMember[] = [
@@ -153,6 +157,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
     setExternalEmail('');
     setFoundExternalUser(null);
     setFamilySearchQuery('');
+    setSendToFamilyMembers(false);
     setScheduleData(prev => ({ ...prev, participants: [] }));
     onClose();
   };
@@ -305,9 +310,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
         }
       } else if (bookingType === 'immediate') {
         if (!immediateData.workLocation || !immediateData.salary || 
-            (!immediateData.workingDays || immediateData.workingDays.length === 0) ||
-            ((!immediateData.workingTimeSlots || immediateData.workingTimeSlots.length === 0) && 
-             (!immediateData.specificTimeRanges || immediateData.specificTimeRanges.length === 0)) ||
+            (!immediateData.timeSlotGroups || immediateData.timeSlotGroups.length === 0) ||
             !immediateData.durationType || !immediateData.durationValue) {
           Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin thuê ngay lập tức');
           return;
@@ -318,6 +321,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    
+    // Log checkbox value
+    console.log('Send to family members:', sendToFamilyMembers);
     
     // Simulate API call
     setTimeout(() => {
@@ -382,38 +388,40 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[
-          styles.optionCard,
-          bookingType === 'schedule' && styles.optionCardSelected
-        ]}
-        onPress={() => setBookingType('schedule')}
-      >
-        <View style={styles.optionContent}>
-          <Ionicons 
-            name="calendar" 
-            size={32} 
-            color={bookingType === 'schedule' ? '#4ECDC4' : '#6c757d'} 
-          />
-          <View style={styles.optionText}>
-            <ThemedText style={[
-              styles.optionTitle,
-              bookingType === 'schedule' && styles.optionTitleSelected
-            ]}>
-              Đặt lịch hẹn trước
-            </ThemedText>
-            <ThemedText style={[
-              styles.optionDescription,
-              bookingType === 'schedule' && styles.optionDescriptionSelected
-            ]}>
-              Hẹn gặp để hiểu thêm về người này
-            </ThemedText>
+      {!immediateOnly && (
+        <TouchableOpacity
+          style={[
+            styles.optionCard,
+            bookingType === 'schedule' && styles.optionCardSelected
+          ]}
+          onPress={() => setBookingType('schedule')}
+        >
+          <View style={styles.optionContent}>
+            <Ionicons 
+              name="calendar" 
+              size={32} 
+              color={bookingType === 'schedule' ? '#4ECDC4' : '#6c757d'} 
+            />
+            <View style={styles.optionText}>
+              <ThemedText style={[
+                styles.optionTitle,
+                bookingType === 'schedule' && styles.optionTitleSelected
+              ]}>
+                Đặt lịch hẹn trước
+              </ThemedText>
+              <ThemedText style={[
+                styles.optionDescription,
+                bookingType === 'schedule' && styles.optionDescriptionSelected
+              ]}>
+                Hẹn gặp để hiểu thêm về người này
+              </ThemedText>
+            </View>
           </View>
-        </View>
-        {bookingType === 'schedule' && (
-          <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
-        )}
-      </TouchableOpacity>
+          {bookingType === 'schedule' && (
+            <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
+          )}
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -502,12 +510,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
                 <View style={styles.labelContainer}>
                 </View>
                 <WorkTimeSelectorFromAI
-                  selectedDays={immediateData.workingDays || []}
-                  selectedTimeSlots={immediateData.workingTimeSlots || []}
-                  specificTimeRanges={immediateData.specificTimeRanges || []}
-                  onDaysChange={(days) => setImmediateData(prev => ({ ...prev, workingDays: days }))}
-                  onTimeSlotsChange={(slots) => setImmediateData(prev => ({ ...prev, workingTimeSlots: slots }))}
-                  onSpecificTimeRangesChange={(ranges) => setImmediateData(prev => ({ ...prev, specificTimeRanges: ranges }))}
+                  timeSlotGroups={immediateData.timeSlotGroups || []}
+                  onTimeSlotGroupsChange={(groups) => setImmediateData(prev => ({ ...prev, timeSlotGroups: groups }))}
                 />
               </View>
             )}
@@ -578,14 +582,33 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
                   durationValue={immediateData.durationValue}
                   startDate={immediateData.startDate}
                   endDate={immediateData.endDate}
-                  workingTimeSlots={immediateData.specificTimeRanges?.map(range => `${range.start}-${range.end}`) || []}
-                  selectedWorkingDays={immediateData.workingDays || []}
+                  workingTimeSlots={immediateData.timeSlotGroups?.flatMap(group => 
+                    group.timeSlots.map(slot => `${slot.start}-${slot.end}`)
+                  ) || []}
+                  selectedWorkingDays={immediateData.timeSlotGroups?.flatMap(group => group.days) || []}
                   onValidationError={(message) => {
                     Alert.alert('Thông báo', message);
                   }}
                 />
               </View>
             )}
+          </View>
+
+          {/* Family Approval Checkbox */}
+          <View style={styles.checkboxContainer}>
+            <TouchableOpacity
+              style={styles.checkbox}
+              onPress={() => setSendToFamilyMembers(!sendToFamilyMembers)}
+            >
+              <View style={[styles.checkboxBox, sendToFamilyMembers && styles.checkboxBoxChecked]}>
+                {sendToFamilyMembers && (
+                  <Ionicons name="checkmark" size={16} color="white" />
+                )}
+              </View>
+              <ThemedText style={styles.checkboxLabel}>
+                Bạn có thể gửi yêu cầu tới người trong gia đình để họ xem xét chấp nhận người chăm sóc này hay không?
+              </ThemedText>
+            </TouchableOpacity>
           </View>
         </View>
       );
@@ -714,6 +737,23 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles }: B
               numberOfLines={3}
               placeholderTextColor="#999"
             />
+          </View>
+
+          {/* Family Approval Checkbox */}
+          <View style={styles.checkboxContainer}>
+            <TouchableOpacity
+              style={styles.checkbox}
+              onPress={() => setSendToFamilyMembers(!sendToFamilyMembers)}
+            >
+              <View style={[styles.checkboxBox, sendToFamilyMembers && styles.checkboxBoxChecked]}>
+                {sendToFamilyMembers && (
+                  <Ionicons name="checkmark" size={16} color="white" />
+                )}
+              </View>
+              <ThemedText style={styles.checkboxLabel}>
+                Bạn có thể gửi yêu cầu tới người trong gia đình để họ xem xét chấp nhận người chăm sóc này hay không?
+              </ThemedText>
+            </TouchableOpacity>
           </View>
         </View>
       );
@@ -1711,5 +1751,34 @@ const styles = StyleSheet.create({
   },
   addFoundUserButton: {
     padding: 8,
+  },
+  // Checkbox styles
+  checkboxContainer: {
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  checkboxBox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#4ECDC4',
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  checkboxBoxChecked: {
+    backgroundColor: '#4ECDC4',
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: '#2c3e50',
+    lineHeight: 20,
   },
 });

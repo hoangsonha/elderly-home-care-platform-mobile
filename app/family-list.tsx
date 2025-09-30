@@ -3,13 +3,12 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
-    FlatList,
     Modal,
     ScrollView,
     StyleSheet,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -46,8 +45,6 @@ export default function FamilyListScreen() {
   const [showCreateFamilyModal, setShowCreateFamilyModal] = useState(false);
   const [familyName, setFamilyName] = useState('');
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
-  const [selectedElderly, setSelectedElderly] = useState<ElderlyProfile[]>([]);
-  const [showElderlySelection, setShowElderlySelection] = useState(false);
   
   // Mock data - in real app, this would come from API
   const [families, setFamilies] = useState<Family[]>([
@@ -80,28 +77,6 @@ export default function FamilyListScreen() {
     },
   ]);
 
-  // Mock data for elderly profiles
-  const elderlyProfiles: ElderlyProfile[] = [
-    {
-      id: 'e1',
-      name: 'Bà Nguyễn Thị Lan',
-      age: 75,
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
-    },
-    {
-      id: 'e2',
-      name: 'Ông Trần Văn Hùng',
-      age: 82,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    },
-    {
-      id: 'e3',
-      name: 'Bà Lê Thị Mai',
-      age: 68,
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-    },
-  ];
-
   const handleFamilyPress = (family: Family) => {
     router.push(`/family-detail?id=${family.id}`);
   };
@@ -129,20 +104,7 @@ export default function FamilyListScreen() {
     ));
   };
 
-  const handleMemberRoleChange = (memberId: string, role: 'admin_family' | 'member') => {
-    setFamilyMembers(familyMembers.map(member => 
-      member.id === memberId ? { ...member, role } : member
-    ));
-  };
 
-  const handleElderlyToggle = (elderly: ElderlyProfile) => {
-    const isSelected = selectedElderly.some(e => e.id === elderly.id);
-    if (isSelected) {
-      setSelectedElderly([]);
-    } else {
-      setSelectedElderly([elderly]); // Chỉ cho phép chọn 1 người
-    }
-  };
 
   const handleCreateFamilySubmit = () => {
     if (!familyName.trim()) {
@@ -154,7 +116,7 @@ export default function FamilyListScreen() {
       id: Date.now().toString(),
       name: familyName.trim(),
       memberCount: familyMembers.length + 1, // +1 for creator
-      elderlyCount: selectedElderly.length,
+      elderlyCount: 0,
       userRole: 'admin_family',
       createdAt: new Date().toISOString().split('T')[0],
     };
@@ -163,7 +125,6 @@ export default function FamilyListScreen() {
     setShowCreateFamilyModal(false);
     setFamilyName('');
     setFamilyMembers([]);
-    setSelectedElderly([]);
     
     Alert.alert('Thành công', 'Gia đình đã được tạo thành công!');
   };
@@ -172,7 +133,6 @@ export default function FamilyListScreen() {
     setShowCreateFamilyModal(false);
     setFamilyName('');
     setFamilyMembers([]);
-    setSelectedElderly([]);
   };
 
   const getRoleText = (role: string) => {
@@ -379,35 +339,8 @@ export default function FamilyListScreen() {
                         placeholderTextColor="#6c757d"
                         keyboardType="email-address"
                       />
-                      <View style={styles.roleSelector}>
-                        <TouchableOpacity
-                          style={[
-                            styles.roleOption,
-                            member.role === 'admin_family' && styles.roleOptionSelected
-                          ]}
-                          onPress={() => handleMemberRoleChange(member.id, 'admin_family')}
-                        >
-                          <ThemedText style={[
-                            styles.roleOptionText,
-                            member.role === 'admin_family' && styles.roleOptionTextSelected
-                          ]}>
-                            Quản trị viên
-                          </ThemedText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.roleOption,
-                            member.role === 'member' && styles.roleOptionSelected
-                          ]}
-                          onPress={() => handleMemberRoleChange(member.id, 'member')}
-                        >
-                          <ThemedText style={[
-                            styles.roleOptionText,
-                            member.role === 'member' && styles.roleOptionTextSelected
-                          ]}>
-                            Thành viên
-                          </ThemedText>
-                        </TouchableOpacity>
+                      <View style={styles.roleDisplay}>
+                        <ThemedText style={styles.roleText}>Thành viên</ThemedText>
                       </View>
                     </View>
                   </View>
@@ -421,87 +354,10 @@ export default function FamilyListScreen() {
               ))}
             </View>
 
-            {/* Elderly Selection */}
-            <View style={styles.inputSection}>
-              <View style={styles.sectionHeader}>
-                <ThemedText style={styles.inputLabel}>Người già</ThemedText>
-                <TouchableOpacity 
-                  style={styles.addButton} 
-                  onPress={() => setShowElderlySelection(true)}
-                >
-                  <Ionicons name="add" size={20} color="#4ECDC4" />
-                  <ThemedText style={styles.addButtonText}>Chọn</ThemedText>
-                </TouchableOpacity>
-              </View>
-
-              {selectedElderly.length > 0 ? (
-                <View style={styles.selectedElderlyList}>
-                  {selectedElderly.map((elderly) => (
-                    <View key={elderly.id} style={styles.selectedElderlyItem}>
-                      <Ionicons name="person" size={20} color="#ff6b6b" />
-                      <ThemedText style={styles.elderlyName}>{elderly.name}</ThemedText>
-                      <TouchableOpacity
-                        onPress={() => handleElderlyToggle(elderly)}
-                      >
-                        <Ionicons name="close-circle" size={20} color="#e74c3c" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <ThemedText style={styles.emptyText}>Chưa chọn người già nào</ThemedText>
-              )}
-            </View>
           </ScrollView>
         </SafeAreaView>
       </Modal>
 
-      {/* Elderly Selection Modal */}
-      <Modal
-        visible={showElderlySelection}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer} edges={['top']}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowElderlySelection(false)}>
-              <ThemedText style={styles.cancelButton}>Hủy</ThemedText>
-            </TouchableOpacity>
-            <ThemedText style={styles.modalTitle}>Chọn người già</ThemedText>
-            <TouchableOpacity onPress={() => setShowElderlySelection(false)}>
-              <ThemedText style={styles.saveButton}>Xong</ThemedText>
-            </TouchableOpacity>
-          </View>
-
-          <FlatList
-            data={elderlyProfiles}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => {
-              const isSelected = selectedElderly.some(e => e.id === item.id);
-              return (
-                <TouchableOpacity
-                  style={[
-                    styles.elderlyItem,
-                    isSelected && styles.elderlyItemSelected
-                  ]}
-                  onPress={() => handleElderlyToggle(item)}
-                >
-                  <Ionicons 
-                    name={isSelected ? "checkmark-circle" : "ellipse-outline"} 
-                    size={24} 
-                    color={isSelected ? "#4ECDC4" : "#6c757d"} 
-                  />
-                  <View style={styles.elderlyInfo}>
-                    <ThemedText style={styles.elderlyItemName}>{item.name}</ThemedText>
-                    <ThemedText style={styles.elderlyItemAge}>{item.age} tuổi</ThemedText>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-            style={styles.elderlyList}
-          />
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -774,6 +630,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
+  roleDisplay: {
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  roleText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6c757d',
+  },
   memberItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -852,12 +720,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e9ecef',
     gap: 12,
-  },
-  elderlyName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#2c3e50',
   },
   emptyText: {
     fontSize: 14,
