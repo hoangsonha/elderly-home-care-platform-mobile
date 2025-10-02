@@ -30,7 +30,12 @@ const features = [
     icon: "account-tie",
     route: "/expert-profile",
   },
-
+  {
+    id: "dashboard",
+    title: "Dashboard",
+    icon: "check-circle-outline",
+    route: "/caregiver-dashboard",
+  },
   {
     id: "availability",
     title: "Quản lý lịch",
@@ -49,7 +54,7 @@ const features = [
     icon: "credit-card-outline",
     route: "/payment",
   },
-  { id: "tasks", title: "Theo dõi nhiệm vụ", icon: "check-circle-outline" },
+
   { id: "chat", title: "Tin nhắn", icon: "chat-outline" },
   { id: "training", title: "Đào tạo liên tục", icon: "school" },
   { id: "analytics", title: "Hiệu suất", icon: "chart-line" },
