@@ -1,104 +1,170 @@
-import { useState } from "react";
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Button, Chip, Divider } from "react-native-paper";
 
 type Booking = {
   id: string;
-  customer: string;
-  service: string;
+  code: string;
+  name: string;
+  type: string; // Đặt ngay / đặt trước
+  mode?: string; // Video Call
   date: string;
-  status: "pending" | "in_progress" | "completed";
+  time: string;
+  status: string;
+  total: number;
+  note?: string;
 };
 
-export default function BookingsScreen() {
-  const [bookings, setBookings] = useState<Booking[]>([
-    {
-      id: "1",
-      customer: "Nguyễn Văn A",
-      service: "Chăm sóc người già",
-      date: "2025-09-24 10:00",
-      status: "pending",
-    },
-    {
-      id: "2",
-      customer: "Trần Thị B",
-      service: "Chăm sóc trẻ em",
-      date: "2025-09-25 14:00",
-      status: "in_progress",
-    },
-    {
-      id: "3",
-      customer: "Lê Văn C",
-      service: "Chăm sóc người bệnh",
-      date: "2025-09-26 09:00",
-      status: "completed",
-    },
-  ]);
+const TAB_STATUS = [
+  { key: "pending", label: "Chờ xác nhận" },
+  { key: "reschedule", label: "Chờ đổi lịch" },
+  { key: "ready", label: "Chờ thực hiện" },
+  { key: "inprogress", label: "Đang thực hiện" },
+  { key: "completed", label: "Đã hoàn thành" },
+  { key: "cancelled", label: "Đã hủy" },
+  { key: "complaint", label: "Khiếu nại" },
+];
 
-  const getStatusColor = (status: Booking["status"]) => {
-    switch (status) {
-      case "pending":
-        return "#FFD93D";
-      case "in_progress":
-        return "#4ECDC4";
-      case "completed":
-        return "#6A4C93";
-    }
-  };
+const initialBookings: Booking[] = [
+  {
+    id: "1",
+    code: "BK001",
+    name: "Cụ Nguyễn Văn A",
+    type: "Đặt ngay",
+    date: "2025-09-20",
+    time: "08:00",
+    status: "pending",
+    total: 480000,
+  },
+  {
+    id: "2",
+    code: "BK005",
+    name: "Bà Nguyễn Thị E",
+    type: "Đặt trước",
+    mode: "Video Call",
+    date: "2025-09-21",
+    time: "07:30",
+    status: "pending",
+    total: 600000,
+    note: "Yêu cầu video: Chờ người chăm sóc xác nhận",
+  },
+];
+
+export default function BookingScreen() {
+  const [activeTab, setActiveTab] = useState("pending");
+
+  const filteredBookings = initialBookings.filter(
+    (b) => b.status === activeTab
+  );
+
+  const renderBooking = ({ item }: { item: Booking }) => (
+    <View style={styles.bookingCard}>
+      <View style={styles.header}>
+        <Text style={styles.code}>{item.code} • Q.1, TP.HCM</Text>
+        <Chip mode="outlined" style={styles.typeChip}>
+          {item.type}
+        </Chip>
+        {item.mode && (
+          <Chip mode="flat" style={styles.modeChip}>
+            {item.mode}
+          </Chip>
+        )}
+      </View>
+
+      <Text style={styles.name}>{item.name}</Text>
+
+      <View style={styles.dateRow}>
+        <MaterialCommunityIcons name="clock-outline" size={16} color="#555" />
+        <Text style={styles.dateText}>
+          {item.date} {item.time}
+        </Text>
+      </View>
+
+      {item.note && <Text style={styles.note}>{item.note}</Text>}
+
+      <View style={styles.footer}>
+        <Text style={styles.total}>
+          Tổng tạm tính: {item.total.toLocaleString("vi-VN")} ₫
+        </Text>
+        <View style={styles.buttonsRow}>
+          <Button mode="outlined" onPress={() => {}} style={styles.actionBtn}>
+            Từ chối
+          </Button>
+          <Button mode="outlined" onPress={() => {}} style={styles.actionBtn}>
+            Đề nghị đổi lịch
+          </Button>
+          <Button mode="contained" onPress={() => {}} style={styles.actionBtn}>
+            Chấp nhận
+          </Button>
+        </View>
+      </View>
+    </View>
+  );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F7F9FC" }}>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Text style={styles.title}>Yêu cầu dịch vụ</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Quản lý yêu cầu đặt lịch</Text>
+      <Text style={styles.subtitle}>
+        Theo dõi và xử lý các yêu cầu theo trạng thái
+      </Text>
 
-        {bookings.length === 0 ? (
-          <Text style={{ color: "#555", marginTop: 20 }}>
-            Chưa có yêu cầu nào
-          </Text>
-        ) : (
-          bookings.map((b) => (
-            <View
-              key={b.id}
-              style={[
-                styles.card,
-                { borderLeftColor: getStatusColor(b.status) },
-              ]}
-            >
-              <Text style={styles.customer}>{b.customer}</Text>
-              <Text style={styles.service}>{b.service}</Text>
-              <Text style={styles.date}>{b.date}</Text>
-              <Text
-                style={[styles.status, { color: getStatusColor(b.status) }]}
-              >
-                {b.status === "pending"
-                  ? "Chờ"
-                  : b.status === "in_progress"
-                  ? "Đang thực hiện"
-                  : "Hoàn thành"}
-              </Text>
-            </View>
-          ))
-        )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabRow}
+      >
+        {TAB_STATUS.map((tab) => (
+          <Chip
+            key={tab.key}
+            mode={activeTab === tab.key ? "flat" : "outlined"}
+            onPress={() => setActiveTab(tab.key)}
+            style={activeTab === tab.key ? styles.activeTab : styles.tab}
+          >
+            {tab.label}
+          </Chip>
+        ))}
       </ScrollView>
-    </SafeAreaView>
+
+      <FlatList
+        data={filteredBookings}
+        keyExtractor={(item) => item.id}
+        renderItem={renderBooking}
+        ItemSeparatorComponent={() => <Divider style={{ marginVertical: 8 }} />}
+        contentContainerStyle={{ paddingBottom: 16 }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 16, color: "#222" },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderLeftWidth: 6,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+  container: { flex: 1, padding: 16, backgroundColor: "#fff" },
+  title: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
+  subtitle: { fontSize: 14, color: "#555", marginBottom: 16 },
+  tabRow: { flexDirection: "row", marginBottom: 16, maxHeight: 60 },
+  tab: { marginRight: 8, height: 45 },
+  activeTab: {
+    marginRight: 8,
+    backgroundColor: "#007bff",
+    color: "#fff",
+    height: 45,
   },
-  customer: { fontSize: 18, fontWeight: "600", marginBottom: 4, color: "#222" },
-  service: { fontSize: 16, color: "#555", marginBottom: 4 },
-  date: { fontSize: 14, color: "#888", marginBottom: 4 },
-  status: { fontSize: 14, fontWeight: "600" },
+  bookingCard: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+    borderRadius: 8,
+  },
+  header: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  code: { fontWeight: "bold", marginRight: 8 },
+  typeChip: { marginRight: 4, backgroundColor: "#e6f0ff" },
+  modeChip: { backgroundColor: "#f8e6ff" },
+  name: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
+  dateRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+  dateText: { marginLeft: 4, color: "#555" },
+  note: { fontStyle: "italic", color: "#777", marginBottom: 8 },
+  footer: { marginTop: 8 },
+  total: { fontWeight: "bold", marginBottom: 8 },
+  buttonsRow: { flexDirection: "row", justifyContent: "space-between" },
+  actionBtn: { flex: 1, marginHorizontal: 4 },
 });
