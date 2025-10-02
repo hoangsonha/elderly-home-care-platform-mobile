@@ -56,8 +56,13 @@ const features = [
     route: "/payment",
   },
 
-  { id: "chat", title: "Tin nhắn", icon: "chat-outline" },
-  { id: "training", title: "Đào tạo liên tục", icon: "school" },
+  { id: "chat", title: "Tin nhắn", icon: "chat-outline", route: "/chat" },
+  {
+    id: "training",
+    title: "Đào tạo liên tục",
+    icon: "school",
+    route: "/training-courses",
+  },
   { id: "analytics", title: "Hiệu suất", icon: "chart-line" },
 ];
 

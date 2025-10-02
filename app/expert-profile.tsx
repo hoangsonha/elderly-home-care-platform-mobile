@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const GENDER_OPTIONS = ["Nam", "Nữ", "Khác"];
 const EDUCATION_OPTIONS = [
@@ -152,358 +153,375 @@ export default function ExpertProfileScreen() {
   );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 48 }}
-    >
-      {/* Avatar section */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Ảnh đại diện</Text>
-        <View style={styles.avatarRow}>
-          <View style={styles.avatarWrapper}>
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarPlaceholderText}>Ảnh</Text>
-              </View>
-            )}
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <TouchableOpacity
-              style={styles.primaryBtn}
-              onPress={() => pickImage(setAvatarUri)}
-            >
-              <Text style={styles.primaryBtnText}>Chọn ảnh mới</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.ghostBtn, { marginTop: 10 }]}
-              onPress={() => takePhoto(setAvatarUri)}
-            >
-              <Text style={styles.ghostBtnText}>Chụp ảnh</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.smallNote}>
-              Chấp nhận: JPG, PNG (tối đa 5MB)
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 1. Basic info */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>1. Thông tin cơ bản</Text>
-
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.label}>Họ tên</Text>
-            <TextInput
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Họ tên"
-              style={styles.input}
-            />
-          </View>
-          <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Email"
-              keyboardType="email-address"
-              style={styles.input}
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* 2. Personal info */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>2. Thông tin cá nhân & liên hệ</Text>
-
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.label}>Ngày sinh</Text>
-            <TextInput
-              placeholder="mm/dd/yyyy"
-              value={dob}
-              onChangeText={setDob}
-              style={styles.input}
-            />
-          </View>
-
-          <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.label}>Giới tính</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowGenderModal(true)}
-            >
-              <Text style={{ color: gender ? "#000" : "#9CA3AF" }}>
-                {gender || "Chọn giới tính"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.label}>Số CMND/CCCD</Text>
-            <TextInput
-              value={idNumber}
-              onChangeText={setIdNumber}
-              placeholder="Số CMND/CCCD"
-              style={styles.input}
-            />
-          </View>
-
-          <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.label}>Số điện thoại</Text>
-            <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="0123456789"
-              keyboardType="phone-pad"
-              style={styles.input}
-            />
-          </View>
-        </View>
-
-        <Text style={[styles.label, { marginTop: 8 }]}>Địa chỉ thường trú</Text>
-        <TextInput
-          value={permanentAddress}
-          onChangeText={setPermanentAddress}
-          placeholder="Địa chỉ thường trú"
-          style={[styles.input, { height: 80 }]}
-          multiline
-        />
-
-        <Text style={[styles.label, { marginTop: 8 }]}>Địa chỉ tạm trú</Text>
-        <TextInput
-          value={temporaryAddress}
-          onChangeText={setTemporaryAddress}
-          placeholder="Địa chỉ tạm trú"
-          style={[styles.input, { height: 80 }]}
-          multiline
-        />
-      </View>
-
-      {/* CCCD images */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>Ảnh CCCD/CMND</Text>
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <View style={styles.cccdBlock}>
-            <Text style={styles.smallLabel}>Ảnh CCCD mặt trước</Text>
-            <TouchableOpacity
-              style={styles.cccdPicker}
-              onPress={() => pickImage(setCccdFrontUri)}
-            >
-              {cccdFrontUri ? (
-                <Image
-                  source={{ uri: cccdFrontUri }}
-                  style={styles.cccdPreview}
-                />
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ paddingBottom: 48 }}
+      >
+        {/* Avatar section */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Ảnh đại diện</Text>
+          <View style={styles.avatarRow}>
+            <View style={styles.avatarWrapper}>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
               ) : (
-                <Text style={styles.cccdPlaceholder}>
-                  Chưa có ảnh CCCD mặt trước
-                </Text>
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarPlaceholderText}>Ảnh</Text>
+                </View>
               )}
-            </TouchableOpacity>
-            <View style={styles.cccdActions}>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
               <TouchableOpacity
-                style={styles.ghostBtnSmall}
+                style={styles.primaryBtn}
+                onPress={() => pickImage(setAvatarUri)}
+              >
+                <Text style={styles.primaryBtnText}>Chọn ảnh mới</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.ghostBtn, { marginTop: 10 }]}
+                onPress={() => takePhoto(setAvatarUri)}
+              >
+                <Text style={styles.ghostBtnText}>Chụp ảnh</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.smallNote}>
+                Chấp nhận: JPG, PNG (tối đa 5MB)
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 1. Basic info */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>1. Thông tin cơ bản</Text>
+
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.label}>Họ tên</Text>
+              <TextInput
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Họ tên"
+                style={styles.input}
+              />
+            </View>
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                keyboardType="email-address"
+                style={styles.input}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* 2. Personal info */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>
+            2. Thông tin cá nhân & liên hệ
+          </Text>
+
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.label}>Ngày sinh</Text>
+              <TextInput
+                placeholder="mm/dd/yyyy"
+                value={dob}
+                onChangeText={setDob}
+                style={styles.input}
+              />
+            </View>
+
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.label}>Giới tính</Text>
+              <TouchableOpacity
+                style={styles.input}
+                onPress={() => setShowGenderModal(true)}
+              >
+                <Text style={{ color: gender ? "#000" : "#9CA3AF" }}>
+                  {gender || "Chọn giới tính"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.label}>Số CMND/CCCD</Text>
+              <TextInput
+                value={idNumber}
+                onChangeText={setIdNumber}
+                placeholder="Số CMND/CCCD"
+                style={styles.input}
+              />
+            </View>
+
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.label}>Số điện thoại</Text>
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="0123456789"
+                keyboardType="phone-pad"
+                style={styles.input}
+              />
+            </View>
+          </View>
+
+          <Text style={[styles.label, { marginTop: 8 }]}>
+            Địa chỉ thường trú
+          </Text>
+          <TextInput
+            value={permanentAddress}
+            onChangeText={setPermanentAddress}
+            placeholder="Địa chỉ thường trú"
+            style={[styles.input, { height: 80 }]}
+            multiline
+          />
+
+          <Text style={[styles.label, { marginTop: 8 }]}>Địa chỉ tạm trú</Text>
+          <TextInput
+            value={temporaryAddress}
+            onChangeText={setTemporaryAddress}
+            placeholder="Địa chỉ tạm trú"
+            style={[styles.input, { height: 80 }]}
+            multiline
+          />
+        </View>
+
+        {/* CCCD images */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Ảnh CCCD/CMND</Text>
+          <View
+            style={{ flexDirection: "row", justifyContent: "space-between" }}
+          >
+            <View style={styles.cccdBlock}>
+              <Text style={styles.smallLabel}>Ảnh CCCD mặt trước</Text>
+              <TouchableOpacity
+                style={styles.cccdPicker}
                 onPress={() => pickImage(setCccdFrontUri)}
               >
-                <Text style={styles.ghostBtnTextSmall}>Chọn file</Text>
+                {cccdFrontUri ? (
+                  <Image
+                    source={{ uri: cccdFrontUri }}
+                    style={styles.cccdPreview}
+                  />
+                ) : (
+                  <Text style={styles.cccdPlaceholder}>
+                    Chưa có ảnh CCCD mặt trước
+                  </Text>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.ghostBtnSmall}
-                onPress={() => takePhoto(setCccdFrontUri)}
-              >
-                <Text style={styles.ghostBtnTextSmall}>Chụp</Text>
-              </TouchableOpacity>
+              <View style={styles.cccdActions}>
+                <TouchableOpacity
+                  style={styles.ghostBtnSmall}
+                  onPress={() => pickImage(setCccdFrontUri)}
+                >
+                  <Text style={styles.ghostBtnTextSmall}>Chọn file</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.ghostBtnSmall}
+                  onPress={() => takePhoto(setCccdFrontUri)}
+                >
+                  <Text style={styles.ghostBtnTextSmall}>Chụp</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.cccdBlock}>
-            <Text style={styles.smallLabel}>Ảnh CCCD mặt sau</Text>
-            <TouchableOpacity
-              style={styles.cccdPicker}
-              onPress={() => pickImage(setCccdBackUri)}
-            >
-              {cccdBackUri ? (
-                <Image
-                  source={{ uri: cccdBackUri }}
-                  style={styles.cccdPreview}
-                />
-              ) : (
-                <Text style={styles.cccdPlaceholder}>
-                  Chưa có ảnh CCCD mặt sau
-                </Text>
-              )}
-            </TouchableOpacity>
-            <View style={styles.cccdActions}>
+            <View style={styles.cccdBlock}>
+              <Text style={styles.smallLabel}>Ảnh CCCD mặt sau</Text>
               <TouchableOpacity
-                style={styles.ghostBtnSmall}
+                style={styles.cccdPicker}
                 onPress={() => pickImage(setCccdBackUri)}
               >
-                <Text style={styles.ghostBtnTextSmall}>Chọn file</Text>
+                {cccdBackUri ? (
+                  <Image
+                    source={{ uri: cccdBackUri }}
+                    style={styles.cccdPreview}
+                  />
+                ) : (
+                  <Text style={styles.cccdPlaceholder}>
+                    Chưa có ảnh CCCD mặt sau
+                  </Text>
+                )}
               </TouchableOpacity>
+              <View style={styles.cccdActions}>
+                <TouchableOpacity
+                  style={styles.ghostBtnSmall}
+                  onPress={() => pickImage(setCccdBackUri)}
+                >
+                  <Text style={styles.ghostBtnTextSmall}>Chọn file</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.ghostBtnSmall}
+                  onPress={() => takePhoto(setCccdBackUri)}
+                >
+                  <Text style={styles.ghostBtnTextSmall}>Chụp</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.noteBox}>
+            Lưu ý: Ảnh CCCD không thể thay đổi sau khi đăng ký. Nếu cần cập
+            nhật, vui lòng liên hệ quản trị viên.
+          </Text>
+        </View>
+
+        {/* 3. Career info */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>3. Thông tin nghề nghiệp</Text>
+
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.label}>Số năm kinh nghiệm</Text>
+              <TextInput
+                value={yearsExp}
+                onChangeText={setYearsExp}
+                placeholder="0"
+                keyboardType="numeric"
+                style={styles.input}
+              />
+            </View>
+
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.label}>Nơi từng làm việc</Text>
+              <TextInput
+                value={workPlace}
+                onChangeText={setWorkPlace}
+                placeholder="Nơi từng làm việc"
+                style={styles.input}
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Học vấn</Text>
               <TouchableOpacity
-                style={styles.ghostBtnSmall}
-                onPress={() => takePhoto(setCccdBackUri)}
+                style={styles.input}
+                onPress={() => setShowEducationModal(true)}
               >
-                <Text style={styles.ghostBtnTextSmall}>Chụp</Text>
+                <Text style={{ color: education ? "#000" : "#9CA3AF" }}>
+                  {education || "Chọn trình độ"}
+                </Text>
               </TouchableOpacity>
+            </View>
+            <View style={{ width: 12 }} />
+          </View>
+
+          <Text style={[styles.label, { marginTop: 8 }]}>
+            Kỹ năng chuyên môn
+          </Text>
+          <TextInput
+            value={skills}
+            onChangeText={setSkills}
+            placeholder="Mô tả kỹ năng chuyên môn"
+            style={[styles.input, { height: 80 }]}
+            multiline
+          />
+
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.label}>
+                Khoảng mức lương mong muốn (VND/tháng)
+              </Text>
+              <TextInput
+                value={desiredSalary}
+                onChangeText={setDesiredSalary}
+                placeholder="0"
+                keyboardType="numeric"
+                style={styles.input}
+              />
+            </View>
+
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.label}>Bằng cấp / chứng chỉ liên quan</Text>
+              <TextInput
+                value={certificates}
+                onChangeText={setCertificates}
+                placeholder="Liệt kê bằng cấp"
+                style={styles.input}
+              />
             </View>
           </View>
         </View>
 
-        <Text style={styles.noteBox}>
-          Lưu ý: Ảnh CCCD không thể thay đổi sau khi đăng ký. Nếu cần cập nhật,
-          vui lòng liên hệ quản trị viên.
-        </Text>
-      </View>
-
-      {/* 3. Career info */}
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>3. Thông tin nghề nghiệp</Text>
-
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.label}>Số năm kinh nghiệm</Text>
-            <TextInput
-              value={yearsExp}
-              onChangeText={setYearsExp}
-              placeholder="0"
-              keyboardType="numeric"
-              style={styles.input}
-            />
-          </View>
-
-          <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.label}>Nơi từng làm việc</Text>
-            <TextInput
-              value={workPlace}
-              onChangeText={setWorkPlace}
-              placeholder="Nơi từng làm việc"
-              style={styles.input}
-            />
-          </View>
-        </View>
-
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Học vấn</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowEducationModal(true)}
-            >
-              <Text style={{ color: education ? "#000" : "#9CA3AF" }}>
-                {education || "Chọn trình độ"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ width: 12 }} />
-        </View>
-
-        <Text style={[styles.label, { marginTop: 8 }]}>Kỹ năng chuyên môn</Text>
-        <TextInput
-          value={skills}
-          onChangeText={setSkills}
-          placeholder="Mô tả kỹ năng chuyên môn"
-          style={[styles.input, { height: 80 }]}
-          multiline
-        />
-
-        <View style={styles.row}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.label}>
-              Khoảng mức lương mong muốn (VND/tháng)
-            </Text>
-            <TextInput
-              value={desiredSalary}
-              onChangeText={setDesiredSalary}
-              placeholder="0"
-              keyboardType="numeric"
-              style={styles.input}
-            />
-          </View>
-
-          <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.label}>Bằng cấp / chứng chỉ liên quan</Text>
-            <TextInput
-              value={certificates}
-              onChangeText={setCertificates}
-              placeholder="Liệt kê bằng cấp"
-              style={styles.input}
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* Actions */}
-      <View
-        style={{
-          paddingHorizontal: 8,
-          marginTop: 8,
-          marginBottom: 32,
-          flexDirection: "row",
-          justifyContent: "flex-end",
-        }}
-      >
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: "#E5E7EB", marginRight: 10 }]}
-          onPress={() => Alert.alert("Huỷ", "Đã huỷ (demo).")}
+        {/* Actions */}
+        <View
+          style={{
+            paddingHorizontal: 8,
+            marginTop: 8,
+            marginBottom: 32,
+            flexDirection: "row",
+            justifyContent: "flex-end",
+          }}
         >
-          <Text style={{ color: "#374151" }}>Huỷ</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: "#10B981" }]}
-          onPress={onSave}
-        >
-          <Text style={{ color: "#fff", fontWeight: "700" }}>Lưu</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Gender modal */}
-      <Modal visible={showGenderModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Chọn giới tính</Text>
-            {renderModalList(GENDER_OPTIONS, (val) => {
-              setGender(val);
-              setShowGenderModal(false);
-            })}
-            <TouchableOpacity
-              onPress={() => setShowGenderModal(false)}
-              style={styles.modalClose}
-            >
-              <Text style={{ color: "#2563EB", fontWeight: "700" }}>Đóng</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[
+              styles.btn,
+              { backgroundColor: "#E5E7EB", marginRight: 10 },
+            ]}
+            onPress={() => Alert.alert("Huỷ", "Đã huỷ (demo).")}
+          >
+            <Text style={{ color: "#374151" }}>Huỷ</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: "#10B981" }]}
+            onPress={onSave}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700" }}>Lưu</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
 
-      {/* Education modal */}
-      <Modal visible={showEducationModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Chọn trình độ</Text>
-            {renderModalList(EDUCATION_OPTIONS, (val) => {
-              setEducation(val);
-              setShowEducationModal(false);
-            })}
-            <TouchableOpacity
-              onPress={() => setShowEducationModal(false)}
-              style={styles.modalClose}
-            >
-              <Text style={{ color: "#2563EB", fontWeight: "700" }}>Đóng</Text>
-            </TouchableOpacity>
+        {/* Gender modal */}
+        <Modal visible={showGenderModal} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Chọn giới tính</Text>
+              {renderModalList(GENDER_OPTIONS, (val) => {
+                setGender(val);
+                setShowGenderModal(false);
+              })}
+              <TouchableOpacity
+                onPress={() => setShowGenderModal(false)}
+                style={styles.modalClose}
+              >
+                <Text style={{ color: "#2563EB", fontWeight: "700" }}>
+                  Đóng
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+
+        {/* Education modal */}
+        <Modal visible={showEducationModal} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Chọn trình độ</Text>
+              {renderModalList(EDUCATION_OPTIONS, (val) => {
+                setEducation(val);
+                setShowEducationModal(false);
+              })}
+              <TouchableOpacity
+                onPress={() => setShowEducationModal(false)}
+                style={styles.modalClose}
+              >
+                <Text style={{ color: "#2563EB", fontWeight: "700" }}>
+                  Đóng
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

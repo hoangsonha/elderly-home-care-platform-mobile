@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Button, Chip, Divider } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type Booking = {
   id: string;
@@ -103,7 +104,7 @@ export default function BookingScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Quản lý yêu cầu đặt lịch</Text>
       <Text style={styles.subtitle}>
         Theo dõi và xử lý các yêu cầu theo trạng thái
@@ -133,7 +134,7 @@ export default function BookingScreen() {
         ItemSeparatorComponent={() => <Divider style={{ marginVertical: 8 }} />}
         contentContainerStyle={{ paddingBottom: 16 }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -83,105 +84,111 @@ export default function AvailabilityScreen() {
   };
 
   return (
-    <View style={styles.screen}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Lịch làm việc trong tuần</Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.weekBtn}
-              onPress={() => Alert.alert("Tuần trước (chưa xử lý)")}
-            >
-              <Text style={styles.weekBtnText}>← Tuần trước</Text>
-            </TouchableOpacity>
-            <View style={styles.weekRange}>
-              <Text style={styles.weekRangeText}>
-                {/* show monday - sunday */}
-                {`${pad(weekDays[0].getDate())}/${pad(
-                  weekDays[0].getMonth() + 1
-                )} - ${pad(weekDays[6].getDate())}/${pad(
-                  weekDays[6].getMonth() + 1
-                )}`}
-              </Text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.screen}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
+          {/* Header */}
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>Lịch làm việc trong tuần</Text>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.weekBtn}
+                onPress={() => Alert.alert("Tuần trước (chưa xử lý)")}
+              >
+                <Text style={styles.weekBtnText}>← Tuần trước</Text>
+              </TouchableOpacity>
+              <View style={styles.weekRange}>
+                <Text style={styles.weekRangeText}>
+                  {/* show monday - sunday */}
+                  {`${pad(weekDays[0].getDate())}/${pad(
+                    weekDays[0].getMonth() + 1
+                  )} - ${pad(weekDays[6].getDate())}/${pad(
+                    weekDays[6].getMonth() + 1
+                  )}`}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.weekBtn}
+                onPress={() => Alert.alert("Tuần sau (chưa xử lý)")}
+              >
+                <Text style={styles.weekBtnText}>Tuần sau →</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.setupBtn}
+                onPress={() => Alert.alert("Thiết lập lịch rảnh (chưa xử lý)")}
+              >
+                <Text style={styles.setupBtnText}>Thiết lập lịch rảnh</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.weekBtn}
-              onPress={() => Alert.alert("Tuần sau (chưa xử lý)")}
-            >
-              <Text style={styles.weekBtnText}>Tuần sau →</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.setupBtn}
-              onPress={() => Alert.alert("Thiết lập lịch rảnh (chưa xử lý)")}
-            >
-              <Text style={styles.setupBtnText}>Thiết lập lịch rảnh</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Grid header (hours + days) */}
-        <View style={[styles.gridHeader, { paddingHorizontal: 16 }]}>
-          <View style={[styles.timeColHeader, { width: timeColWidth }]}>
-            <Text style={styles.timeHeaderText}>Giờ</Text>
           </View>
 
-          <View style={{ flexDirection: "row", flexWrap: "nowrap" }}>
-            {weekDays.map((d, idx) => {
-              const { displayDay, displayDate } = renderDayLabel(d);
-              return (
-                <View
-                  key={idx}
-                  style={[styles.dayColHeader, { width: dayColWidth }]}
-                >
-                  <Text style={styles.dayName}>{displayDay}</Text>
-                  <Text style={styles.dayDate}>{displayDate}</Text>
+          {/* Grid header (hours + days) */}
+          <View style={[styles.gridHeader, { paddingHorizontal: 16 }]}>
+            <View style={[styles.timeColHeader, { width: timeColWidth }]}>
+              <Text style={styles.timeHeaderText}>Giờ</Text>
+            </View>
+
+            <View style={{ flexDirection: "row", flexWrap: "nowrap" }}>
+              {weekDays.map((d, idx) => {
+                const { displayDay, displayDate } = renderDayLabel(d);
+                return (
+                  <View
+                    key={idx}
+                    style={[styles.dayColHeader, { width: dayColWidth }]}
+                  >
+                    <Text style={styles.dayName}>{displayDay}</Text>
+                    <Text style={styles.dayDate}>{displayDate}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Grid body: time rows */}
+          <View style={{ paddingHorizontal: 16, paddingBottom: 40 }}>
+            {times.map((t, hourIndex) => (
+              <View key={t} style={styles.row}>
+                {/* time col */}
+                <View style={[styles.timeCol, { width: timeColWidth }]}>
+                  <Text style={styles.timeText}>{t}</Text>
                 </View>
-              );
-            })}
+
+                {/* day cols */}
+                <View style={{ flexDirection: "row", flexWrap: "nowrap" }}>
+                  {weekDays.map((d, dayIndex) => {
+                    const selectedCell = isSelected(dayIndex, hourIndex);
+                    return (
+                      <TouchableOpacity
+                        key={`${dayIndex}-${hourIndex}`}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.cell,
+                          { width: dayColWidth },
+                          selectedCell ? styles.cellSelected : styles.cellEmpty,
+                        ]}
+                        onPress={() => toggleCell(dayIndex, hourIndex)}
+                      >
+                        {/* show small indicator if selected */}
+                        {selectedCell && <View style={styles.cellDot} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
           </View>
-        </View>
-
-        {/* Grid body: time rows */}
-        <View style={{ paddingHorizontal: 16, paddingBottom: 40 }}>
-          {times.map((t, hourIndex) => (
-            <View key={t} style={styles.row}>
-              {/* time col */}
-              <View style={[styles.timeCol, { width: timeColWidth }]}>
-                <Text style={styles.timeText}>{t}</Text>
-              </View>
-
-              {/* day cols */}
-              <View style={{ flexDirection: "row", flexWrap: "nowrap" }}>
-                {weekDays.map((d, dayIndex) => {
-                  const selectedCell = isSelected(dayIndex, hourIndex);
-                  return (
-                    <TouchableOpacity
-                      key={`${dayIndex}-${hourIndex}`}
-                      activeOpacity={0.8}
-                      style={[
-                        styles.cell,
-                        { width: dayColWidth },
-                        selectedCell ? styles.cellSelected : styles.cellEmpty,
-                      ]}
-                      onPress={() => toggleCell(dayIndex, hourIndex)}
-                    >
-                      {/* show small indicator if selected */}
-                      {selectedCell && <View style={styles.cellDot} />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
   screen: { flex: 1, backgroundColor: "#F8FAFC" },
 
   headerRow: {
