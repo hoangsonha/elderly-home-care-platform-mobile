@@ -44,6 +44,9 @@ export interface Task {
   updatedAt: string;
   completedAt?: string;
   notes?: string;
+  location?: string;
+  equipment?: string[];
+  instructions?: string[];
 }
 
 export interface TaskDay {

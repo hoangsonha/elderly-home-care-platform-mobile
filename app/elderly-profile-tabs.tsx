@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  StyleSheet,
-  View
+    StyleSheet,
+    View
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,7 +10,20 @@ import { ThemedText } from '@/components/themed-text';
 // Helper functions for rendering new tabs
 export const renderMedicalTab = (profile: any) => (
   <View style={styles.tabContent}>
+    {/* Blood Type */}
+    <View style={styles.section}>
+      <ThemedText style={styles.sectionTitle}>Thông tin y tế cơ bản</ThemedText>
+      <View style={styles.infoItem}>
+        <Ionicons name="water" size={16} color="#6c757d" />
+        <View style={styles.infoTextContainer}>
+          <ThemedText style={styles.infoLabel}>Nhóm máu</ThemedText>
+          <ThemedText style={styles.infoValue}>O+</ThemedText>
+        </View>
+      </View>
+    </View>
+
     {/* Underlying Diseases */}
+
     <View style={styles.section}>
       <ThemedText style={styles.sectionTitle}>Bệnh nền</ThemedText>
       {profile.medicalConditions.underlyingDiseases?.map((disease: string, index: number) => (
@@ -383,6 +396,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2c3e50',
     fontWeight: '500',
+  },
+  infoTextContainer: {
+    flex: 1,
   },
   diseaseCard: {
     flexDirection: 'row',

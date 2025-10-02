@@ -1,261 +1,348 @@
+import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
+    ScrollView,
     StyleSheet,
     TouchableOpacity,
     View,
 } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { TimeRangePicker } from '@/components/ui/TimeRangePicker';
-
-interface WorkTimeSelectorProps {
-  selectedTimeSlots: string[];
-  specificTimeRanges: Array<{ start: string; end: string }>;
-  onTimeSlotsChange: (slots: string[]) => void;
-  onSpecificTimeRangesChange: (ranges: Array<{ start: string; end: string }>) => void;
+interface TimeSlot {
+  id: string;
+  day: string;
+  timeRange: string;
+  startTime: string;
+  endTime: string;
 }
 
-export function WorkTimeSelector({
-  selectedTimeSlots,
-  specificTimeRanges,
-  onTimeSlotsChange,
-  onSpecificTimeRangesChange,
-}: WorkTimeSelectorProps) {
-  const [showTimeRangePicker, setShowTimeRangePicker] = useState(false);
+interface WorkTimeSelectorProps {
+  onTimeSlotsChange?: (timeSlots: TimeSlot[]) => void;
+}
 
-  const timeSlots = [
-    { id: 'morning', label: 'Sáng', time: '06:00 - 12:00' },
-    { id: 'afternoon', label: 'Chiều', time: '12:00 - 18:00' },
-    { id: 'evening', label: 'Tối', time: '18:00 - 22:00' },
-    { id: 'night', label: 'Đêm', time: '22:00 - 06:00' },
-    { id: 'custom', label: 'Khác', time: 'Tùy chọn' },
-  ];
+const DAYS = [
+  { key: 'monday', label: 'Thứ 2', short: 'T2' },
+  { key: 'tuesday', label: 'Thứ 3', short: 'T3' },
+  { key: 'wednesday', label: 'Thứ 4', short: 'T4' },
+  { key: 'thursday', label: 'Thứ 5', short: 'T5' },
+  { key: 'friday', label: 'Thứ 6', short: 'T6' },
+  { key: 'saturday', label: 'Thứ 7', short: 'T7' },
+  { key: 'sunday', label: 'Chủ nhật', short: 'CN' },
+];
 
-  const handleTimeSlotToggle = (slotId: string) => {
-    if (slotId === 'custom') {
-      setShowTimeRangePicker(true);
+const TIME_RANGES = [
+  { key: 'morning', label: 'Sáng', startTime: '06:00', endTime: '12:00' },
+  { key: 'afternoon', label: 'Chiều', startTime: '12:00', endTime: '18:00' },
+  { key: 'evening', label: 'Tối', startTime: '18:00', endTime: '22:00' },
+  { key: 'night', label: 'Đêm', startTime: '22:00', endTime: '06:00' },
+];
+
+export function WorkTimeSelector({ onTimeSlotsChange }: WorkTimeSelectorProps) {
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>('');
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+
+  const handleDayPress = (dayKey: string) => {
+    if (selectedDays.includes(dayKey)) {
+      setSelectedDays(selectedDays.filter(day => day !== dayKey));
+    } else {
+      setSelectedDays([...selectedDays, dayKey]);
+    }
+  };
+
+  const handleTimeRangePress = (timeRangeKey: string) => {
+    setSelectedTimeRange(timeRangeKey);
+  };
+
+  const handleAddTimeSlot = () => {
+    if (selectedDays.length === 0 || !selectedTimeRange) {
       return;
     }
 
-    if (selectedTimeSlots.includes(slotId)) {
-      onTimeSlotsChange(selectedTimeSlots.filter(id => id !== slotId));
-    } else {
-      onTimeSlotsChange([...selectedTimeSlots, slotId]);
+    const timeRange = TIME_RANGES.find(tr => tr.key === selectedTimeRange);
+    if (!timeRange) return;
+
+    const newTimeSlots: TimeSlot[] = [];
+    
+    selectedDays.forEach(dayKey => {
+      const day = DAYS.find(d => d.key === dayKey);
+      if (!day) return;
+
+      // Check if this day already has a time slot
+      const existingSlot = timeSlots.find(slot => slot.day === day.label);
+      if (existingSlot) {
+        // Update existing slot
+        const updatedSlots = timeSlots.map(slot => 
+          slot.day === day.label 
+            ? { ...slot, timeRange: timeRange.label, startTime: timeRange.startTime, endTime: timeRange.endTime }
+            : slot
+        );
+        setTimeSlots(updatedSlots);
+        onTimeSlotsChange?.(updatedSlots);
+        return;
+      }
+
+      // Add new slot
+      newTimeSlots.push({
+        id: `${dayKey}-${timeRangeKey}-${Date.now()}`,
+        day: day.label,
+        timeRange: timeRange.label,
+        startTime: timeRange.startTime,
+        endTime: timeRange.endTime,
+      });
+    });
+
+    if (newTimeSlots.length > 0) {
+      const updatedSlots = [...timeSlots, ...newTimeSlots];
+      setTimeSlots(updatedSlots);
+      onTimeSlotsChange?.(updatedSlots);
     }
+
+    // Clear selections
+    setSelectedDays([]);
+    setSelectedTimeRange('');
   };
 
-  const handleTimeRangeAdd = (start: string, end: string) => {
-    const newRange = { start, end };
-    onSpecificTimeRangesChange([...specificTimeRanges, newRange]);
+  const handleRemoveTimeSlot = (slotId: string) => {
+    const updatedSlots = timeSlots.filter(slot => slot.id !== slotId);
+    setTimeSlots(updatedSlots);
+    onTimeSlotsChange?.(updatedSlots);
   };
 
-  const handleTimeRangeRemove = (index: number) => {
-    const newRanges = specificTimeRanges.filter((_, i) => i !== index);
-    onSpecificTimeRangesChange(newRanges);
+  const getDayLabel = (dayKey: string) => {
+    return DAYS.find(day => day.key === dayKey)?.short || dayKey;
   };
 
-  const getTimeSlotInfo = (slotId: string) => {
-    return timeSlots.find(slot => slot.id === slotId);
+  const getTimeRangeLabel = (timeRangeKey: string) => {
+    return TIME_RANGES.find(tr => tr.key === timeRangeKey)?.label || timeRangeKey;
   };
 
   return (
     <View style={styles.container}>
-      {/* Time Slot Buttons */}
-      <View style={styles.timeSlotsContainer}>
-        {timeSlots.map((slot) => {
-          const isSelected = selectedTimeSlots.includes(slot.id);
-          const isCustom = slot.id === 'custom';
-          
-          return (
+      {/* Selected Time Slots */}
+      {timeSlots.length > 0 && (
+        <View style={styles.timeSlotsContainer}>
+          <ThemedText style={styles.sectionTitle}>Thời gian đã chọn</ThemedText>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeSlotsScroll}>
+            {timeSlots.map((slot) => (
+              <View key={slot.id} style={styles.timeSlotCard}>
+                <View style={styles.timeSlotContent}>
+                  <ThemedText style={styles.timeSlotDay}>{slot.day}</ThemedText>
+                  <ThemedText style={styles.timeSlotTime}>{slot.timeRange}</ThemedText>
+                  <ThemedText style={styles.timeSlotRange}>{slot.startTime} - {slot.endTime}</ThemedText>
+                </View>
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => handleRemoveTimeSlot(slot.id)}
+                >
+                  <Ionicons name="close-circle" size={20} color="#DC3545" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Day Selection */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Chọn ngày trong tuần</ThemedText>
+        <View style={styles.daysContainer}>
+          {DAYS.map((day) => (
             <TouchableOpacity
-              key={slot.id}
+              key={day.key}
               style={[
-                styles.timeSlotButton,
-                isSelected && styles.timeSlotButtonSelected,
-                isCustom && styles.customButton,
+                styles.dayButton,
+                selectedDays.includes(day.key) && styles.dayButtonSelected
               ]}
-              onPress={() => handleTimeSlotToggle(slot.id)}
+              onPress={() => handleDayPress(day.key)}
             >
               <ThemedText style={[
-                styles.timeSlotButtonText,
-                isSelected && styles.timeSlotButtonTextSelected,
+                styles.dayButtonText,
+                selectedDays.includes(day.key) && styles.dayButtonTextSelected
               ]}>
-                {slot.label}
+                {day.short}
               </ThemedText>
             </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Selected Time Slots Display */}
-      {selectedTimeSlots && selectedTimeSlots.length > 0 && (
-        <View style={styles.selectedSlotsContainer}>
-          <ThemedText style={styles.selectedSlotsTitle}>Khung giờ đã chọn:</ThemedText>
-          {selectedTimeSlots.map((slotId) => {
-            const slotInfo = getTimeSlotInfo(slotId);
-            if (!slotInfo) return null;
-            
-            return (
-              <View key={slotId} style={styles.selectedSlotItem}>
-                <ThemedText style={styles.selectedSlotText}>
-                  {slotInfo.label}: {slotInfo.time}
-                </ThemedText>
-              </View>
-            );
-          })}
-        </View>
-      )}
-
-      {/* Specific Time Ranges Display */}
-      {specificTimeRanges && specificTimeRanges.length > 0 && (
-        <View style={styles.specificRangesContainer}>
-          <ThemedText style={styles.specificRangesTitle}>Khung giờ cụ thể:</ThemedText>
-          {specificTimeRanges.map((range, index) => (
-            <View key={index} style={styles.specificRangeItem}>
-              <ThemedText style={styles.specificRangeText}>
-                Khung {index + 1}: {range.start} - {range.end}
-              </ThemedText>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleTimeRangeRemove(index)}
-              >
-                <Ionicons name="close-circle" size={20} color="#dc3545" />
-              </TouchableOpacity>
-            </View>
           ))}
         </View>
-      )}
+      </View>
 
-      {/* Add Specific Time Range Button */}
+      {/* Time Range Selection */}
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Chọn khung giờ</ThemedText>
+        <View style={styles.timeRangesContainer}>
+          {TIME_RANGES.map((timeRange) => (
+            <TouchableOpacity
+              key={timeRange.key}
+              style={[
+                styles.timeRangeButton,
+                selectedTimeRange === timeRange.key && styles.timeRangeButtonSelected
+              ]}
+              onPress={() => handleTimeRangePress(timeRange.key)}
+            >
+              <ThemedText style={[
+                styles.timeRangeButtonText,
+                selectedTimeRange === timeRange.key && styles.timeRangeButtonTextSelected
+              ]}>
+                {timeRange.label}
+              </ThemedText>
+              <ThemedText style={[
+                styles.timeRangeTimeText,
+                selectedTimeRange === timeRange.key && styles.timeRangeTimeTextSelected
+              ]}>
+                {timeRange.startTime} - {timeRange.endTime}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Add Button */}
       <TouchableOpacity
-        style={styles.addTimeRangeButton}
-        onPress={() => setShowTimeRangePicker(true)}
+        style={[
+          styles.addButton,
+          (selectedDays.length === 0 || !selectedTimeRange) && styles.addButtonDisabled
+        ]}
+        onPress={handleAddTimeSlot}
+        disabled={selectedDays.length === 0 || !selectedTimeRange}
       >
-        <Ionicons name="add" size={20} color="#4ECDC4" />
-        <ThemedText style={styles.addTimeRangeButtonText}>
-          Thêm khung giờ cụ thể
-        </ThemedText>
+        <Ionicons name="add" size={20} color="white" />
+        <ThemedText style={styles.addButtonText}>Thêm khung giờ</ThemedText>
       </TouchableOpacity>
-
-      {/* Time Range Picker Modal */}
-      {showTimeRangePicker && (
-        <TimeRangePicker
-          timeRanges={specificTimeRanges.map((range, index) => ({
-            id: `range-${index}`,
-            startTime: range.start,
-            endTime: range.end,
-          }))}
-          onTimeRangesChange={(ranges) => {
-            const newRanges = ranges.map(range => ({
-              start: range.startTime,
-              end: range.endTime,
-            }));
-            onSpecificTimeRangesChange(newRanges);
-            setShowTimeRangePicker(false);
-          }}
-          selectedTimeSlots={selectedTimeSlots}
-        />
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    // Remove flex: 1 to prevent layout issues
+    padding: 16,
   },
   timeSlotsContainer: {
+    marginBottom: 20,
+  },
+  timeSlotsScroll: {
+    marginTop: 8,
+  },
+  timeSlotCard: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    padding: 12,
+    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 120,
+  },
+  timeSlotContent: {
+    flex: 1,
+  },
+  timeSlotDay: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1976D2',
+    marginBottom: 2,
+  },
+  timeSlotTime: {
+    fontSize: 12,
+    color: '#1976D2',
+    marginBottom: 2,
+  },
+  timeSlotRange: {
+    fontSize: 10,
+    color: '#1976D2',
+    opacity: 0.8,
+  },
+  removeButton: {
+    marginLeft: 8,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 12,
+  },
+  daysContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 16,
   },
-  timeSlotButton: {
-    paddingVertical: 8,
+  dayButton: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 20,
+    backgroundColor: '#F8F9FA',
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    backgroundColor: 'white',
+    borderColor: '#E9ECEF',
   },
-  timeSlotButtonSelected: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+  dayButtonSelected: {
+    backgroundColor: '#3498DB',
+    borderColor: '#3498DB',
   },
-  customButton: {
-    borderColor: '#4ECDC4',
-  },
-  timeSlotButtonText: {
+  dayButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#2c3e50',
+    color: '#6C757D',
   },
-  timeSlotButtonTextSelected: {
+  dayButtonTextSelected: {
     color: 'white',
-  },
-  selectedSlotsContainer: {
-    marginBottom: 16,
-  },
-  selectedSlotsTitle: {
-    fontSize: 14,
     fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 8,
   },
-  selectedSlotItem: {
-    backgroundColor: '#f0fdfa',
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  selectedSlotText: {
-    fontSize: 13,
-    color: '#4ECDC4',
-    fontWeight: '500',
-  },
-  specificRangesContainer: {
-    marginBottom: 16,
-  },
-  specificRangesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 8,
-  },
-  specificRangeItem: {
+  timeRangesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8f9fa',
-    padding: 8,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timeRangeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  timeRangeButtonSelected: {
+    backgroundColor: '#27AE60',
+    borderColor: '#27AE60',
+  },
+  timeRangeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6C757D',
     marginBottom: 4,
   },
-  specificRangeText: {
-    fontSize: 13,
-    color: '#6c757d',
-    flex: 1,
+  timeRangeButtonTextSelected: {
+    color: 'white',
+    fontWeight: '600',
   },
-  removeButton: {
-    padding: 4,
+  timeRangeTimeText: {
+    fontSize: 10,
+    color: '#6C757D',
+    opacity: 0.8,
   },
-  addTimeRangeButton: {
+  timeRangeTimeTextSelected: {
+    color: 'white',
+    opacity: 0.9,
+  },
+  addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#3498DB',
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#4ECDC4',
-    borderStyle: 'dashed',
-    backgroundColor: '#f0fdfa',
+    gap: 8,
   },
-  addTimeRangeButtonText: {
-    fontSize: 14,
-    color: '#4ECDC4',
-    fontWeight: '500',
-    marginLeft: 8,
+  addButtonDisabled: {
+    backgroundColor: '#BDC3C7',
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
   },
 });

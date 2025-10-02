@@ -36,10 +36,8 @@ export function DynamicContactList({
   };
 
   const removeContact = (index: number) => {
-    if (contacts.length > 1) {
-      const newContacts = contacts.filter((_, i) => i !== index);
-      onContactsChange(newContacts);
-    }
+    const newContacts = contacts.filter((_, i) => i !== index);
+    onContactsChange(newContacts);
   };
 
   const updateContact = (index: number, field: keyof Contact, value: string) => {
@@ -64,18 +62,19 @@ export function DynamicContactList({
           <View key={index} style={styles.contactCard}>
             <View style={styles.contactHeader}>
               <ThemedText style={styles.contactNumber}>Liên hệ {index + 1}</ThemedText>
-              {contacts.length > 1 && (
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removeContact(index)}
-                >
-                  <Ionicons name="remove" size={20} color="#dc3545" />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => removeContact(index)}
+              >
+                <Ionicons name="remove" size={20} color="#dc3545" />
+              </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Họ tên *</ThemedText>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Họ tên</ThemedText>
+                <ThemedText style={styles.requiredMark}>*</ThemedText>
+              </View>
               <TextInput
                 style={styles.textInput}
                 value={contact.name}
@@ -86,7 +85,10 @@ export function DynamicContactList({
             </View>
 
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Mối quan hệ *</ThemedText>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Mối quan hệ</ThemedText>
+                <ThemedText style={styles.requiredMark}>*</ThemedText>
+              </View>
               <TextInput
                 style={styles.textInput}
                 value={contact.relationship}
@@ -97,7 +99,10 @@ export function DynamicContactList({
             </View>
 
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.inputLabel}>Số điện thoại *</ThemedText>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Số điện thoại</ThemedText>
+                <ThemedText style={styles.requiredMark}>*</ThemedText>
+              </View>
               <TextInput
                 style={styles.textInput}
                 value={contact.phone}
@@ -181,11 +186,21 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 12,
   },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
     color: '#2c3e50',
-    marginBottom: 6,
+  },
+  requiredMark: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#dc3545',
+    marginLeft: 2,
   },
   textInput: {
     borderWidth: 1,

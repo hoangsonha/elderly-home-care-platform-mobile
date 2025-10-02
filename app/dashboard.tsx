@@ -30,7 +30,7 @@ interface ServiceModule {
 const serviceModules: ServiceModule[] = [
   {
     id: 'services',
-    title: 'Dịch vụ',
+    title: 'Kết nối',
     icon: 'medical',
     color: '#FF6B6B',
     description: 'Tìm người chăm sóc phù hợp',
@@ -66,6 +66,7 @@ const serviceModules: ServiceModule[] = [
     icon: 'star',
     color: '#A8E6CF',
     description: 'Đánh giá chất lượng dịch vụ',
+    route: '/reviews',
   },
   {
     id: 'alerts',
@@ -85,6 +86,14 @@ const serviceModules: ServiceModule[] = [
     route: '/requests',
   },
   {
+    id: 'complaints',
+    title: 'Khiếu nại',
+    icon: 'warning',
+    color: '#E74C3C',
+    description: 'Quản lý khiếu nại và tố cáo',
+    route: '/complaints',
+  },
+  {
     id: 'hired',
     title: 'Đang thuê',
     icon: 'people-circle',
@@ -92,6 +101,30 @@ const serviceModules: ServiceModule[] = [
     description: 'Người chăm sóc đang thuê',
     route: '/hired-caregivers',
   },
+  {
+    id: 'appointments',
+    title: 'Lịch hẹn',
+    icon: 'calendar',
+    color: '#3498DB',
+    description: 'Quản lý lịch hẹn video call',
+    route: '/appointments',
+  },
+  {
+    id: 'payments',
+    title: 'Thanh toán',
+    icon: 'card',
+    color: '#27AE60',
+    description: 'Quản lý thanh toán dịch vụ',
+    route: '/payments',
+  },
+  {
+    id: 'hiring-history',
+    title: 'Dịch vụ',
+    icon: 'time',
+    color: '#8E44AD',
+    description: 'Lịch sử các dịch vụ đã thuê',
+    route: '/hiring-history',
+  }
 ];
 
 export default function DashboardScreen() {

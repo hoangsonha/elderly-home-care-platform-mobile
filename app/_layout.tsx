@@ -43,6 +43,17 @@ export default function RootLayout() {
                 <Stack.Screen name="hired-caregivers" options={{ headerShown: false }} />
                 <Stack.Screen name="hired-detail" options={{ headerShown: false }} />
                 <Stack.Screen name="reviews" options={{ headerShown: false }} />
+                <Stack.Screen name="appointments" options={{ headerShown: false }} />
+                <Stack.Screen name="payments" options={{ headerShown: false }} />
+                <Stack.Screen name="hiring-history" options={{ headerShown: false }} />
+                <Stack.Screen name="availability" options={{ headerShown: false }} />
+                <Stack.Screen name="booking" options={{ headerShown: false }} />
+                <Stack.Screen name="caregiver-home" options={{ headerShown: false }} />
+                <Stack.Screen name="expert-profile" options={{ headerShown: false }} />
+                <Stack.Screen name="payment" options={{ headerShown: false }} />
+                <Stack.Screen name="complaints" options={{ headerShown: false, title: 'Khiếu nại' }} />
+                <Stack.Screen name="complaint-detail" options={{ headerShown: false, title: 'Chi tiết khiếu nại' }} />
+                <Stack.Screen name="create-complaint" options={{ headerShown: false, title: 'Tạo khiếu nại' }} />
                 <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />

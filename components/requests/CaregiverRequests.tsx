@@ -1,22 +1,31 @@
 import { ThemedText } from '@/components/themed-text';
 import { CaregiverRequest, ScheduleRequest, VideoCallRequest } from '@/types/request';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
-export function CaregiverRequests() {
+interface CaregiverRequestsProps {
+  onChatPress?: (caregiver: any) => void;
+  onBookPress?: (caregiver: any) => void;
+}
+
+export function CaregiverRequests({ onChatPress, onBookPress }: CaregiverRequestsProps) {
   const [activeStatus, setActiveStatus] = useState<'waiting_response' | 'responded' | 'accepted' | 'rejected'>('waiting_response');
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<CaregiverRequest | null>(null);
   const [modifyMessage, setModifyMessage] = useState('');
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [selectedDateTime, setSelectedDateTime] = useState('');
 
   // Mock data
   const caregiverRequests: CaregiverRequest[] = [
@@ -248,8 +257,43 @@ export function CaregiverRequests() {
     setModifyMessage('');
   };
 
+  const handleAcceptRequest = (request: CaregiverRequest) => {
+    console.log('Accepted request:', request.id);
+    Alert.alert('Thành công', 'Đã chấp nhận yêu cầu');
+  };
+
+  const handleRejectRequest = (request: CaregiverRequest) => {
+    console.log('Rejected request:', request.id);
+    Alert.alert('Thông báo', 'Đã từ chối yêu cầu');
+  };
+
+  const handleRespondAgain = (request: CaregiverRequest) => {
+    setSelectedRequest(request);
+    setShowTimeModal(true);
+  };
+
+  const confirmTimeChange = () => {
+    if (!selectedRequest || !selectedDateTime.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng chọn thời gian mới');
+      return;
+    }
+
+    console.log('Time changed for request:', selectedRequest.id, 'New time:', selectedDateTime);
+    setShowTimeModal(false);
+    setSelectedRequest(null);
+    setSelectedDateTime('');
+    Alert.alert('Thành công', 'Đã gửi phản hồi với thời gian mới');
+  };
+
   const renderVideoCallRequest = (request: VideoCallRequest) => (
-    <View style={styles.requestCard}>
+    <TouchableOpacity 
+      style={styles.requestCard}
+      onPress={() => {
+        // Navigate to caregiver detail
+        router.push(`/caregiver-detail?id=${request.caregiver.id}&name=${request.caregiver.name}`);
+      }}
+      activeOpacity={0.7}
+    >
       <View style={styles.requestHeader}>
         <View style={styles.requestInfo}>
           <ThemedText style={styles.requestType}>
@@ -310,19 +354,42 @@ export function CaregiverRequests() {
       {request.status === 'responded' && (
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.modifyButton]}
-            onPress={() => handleModifyRequest(request)}
+            style={[styles.actionButton, styles.acceptButton]}
+            onPress={() => handleAcceptRequest(request)}
           >
-            <Ionicons name="create" size={16} color="white" />
-            <ThemedText style={styles.modifyButtonText}>Chỉnh sửa</ThemedText>
+            <Ionicons name="checkmark" size={16} color="white" />
+            <ThemedText style={styles.acceptButtonText}>Chấp nhận</ThemedText>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.respondButton]}
+            onPress={() => handleRespondAgain(request)}
+          >
+            <Ionicons name="time" size={16} color="white" />
+            <ThemedText style={styles.respondButtonText}>Phản hồi lại</ThemedText>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.rejectButton]}
+            onPress={() => handleRejectRequest(request)}
+          >
+            <Ionicons name="close" size={16} color="white" />
+            <ThemedText style={styles.rejectButtonText}>Từ chối</ThemedText>
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   const renderScheduleRequest = (request: ScheduleRequest) => (
-    <View style={styles.requestCard}>
+    <TouchableOpacity 
+      style={styles.requestCard}
+      onPress={() => {
+        // Navigate to caregiver detail
+        router.push(`/caregiver-detail?id=${request.caregiver.id}&name=${request.caregiver.name}`);
+      }}
+      activeOpacity={0.7}
+    >
       <View style={styles.requestHeader}>
         <View style={styles.requestInfo}>
           <ThemedText style={styles.requestType}>
@@ -404,15 +471,31 @@ export function CaregiverRequests() {
       {request.status === 'responded' && (
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.modifyButton]}
-            onPress={() => handleModifyRequest(request)}
+            style={[styles.actionButton, styles.acceptButton]}
+            onPress={() => handleAcceptRequest(request)}
           >
-            <Ionicons name="create" size={16} color="white" />
-            <ThemedText style={styles.modifyButtonText}>Chỉnh sửa</ThemedText>
+            <Ionicons name="checkmark" size={16} color="white" />
+            <ThemedText style={styles.acceptButtonText}>Chấp nhận</ThemedText>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.respondButton]}
+            onPress={() => handleRespondAgain(request)}
+          >
+            <Ionicons name="time" size={16} color="white" />
+            <ThemedText style={styles.respondButtonText}>Phản hồi lại</ThemedText>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.rejectButton]}
+            onPress={() => handleRejectRequest(request)}
+          >
+            <Ionicons name="close" size={16} color="white" />
+            <ThemedText style={styles.rejectButtonText}>Từ chối</ThemedText>
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   const renderRequest = ({ item }: { item: CaregiverRequest }) => {
@@ -428,32 +511,31 @@ export function CaregiverRequests() {
 
   return (
     <View style={styles.container}>
-      {/* Status Tabs */}
-      <View style={styles.statusTabContainer}>
-        {statusTabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[styles.statusTab, activeStatus === tab.id && styles.activeStatusTab]}
-            onPress={() => setActiveStatus(tab.id)}
-            activeOpacity={0.7}
-          >
-            <ThemedText
-              style={[
-                styles.statusTabText,
-                activeStatus === tab.id && styles.activeStatusTabText,
-              ]}
+      {/* Status Tabs - Horizontal Scroll */}
+      <View style={styles.statusTabsContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.statusTabsScrollContainer}
+        >
+          {statusTabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.statusTab, activeStatus === tab.id && styles.activeStatusTab]}
+              onPress={() => setActiveStatus(tab.id)}
+              activeOpacity={0.7}
             >
-              {tab.title}
-            </ThemedText>
-            {tab.count > 0 && (
-              <View style={styles.statusBadge}>
-                <ThemedText style={styles.statusBadgeText}>
-                  {tab.count}
-                </ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
+              <ThemedText
+                style={[
+                  styles.statusTabText,
+                  activeStatus === tab.id && styles.activeStatusTabText,
+                ]}
+              >
+                {tab.title} {tab.count > 0 && `(${tab.count})`}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Requests List */}
@@ -500,6 +582,48 @@ export function CaregiverRequests() {
           </View>
         </View>
       </Modal>
+
+      {/* Time Selection Modal */}
+      <Modal
+        visible={showTimeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTimeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ThemedText style={styles.modalTitle}>Chọn thời gian mới</ThemedText>
+            
+            <View style={styles.timeSelectionContainer}>
+              <ThemedText style={styles.timeSelectionLabel}>Thời gian mới:</ThemedText>
+              <TextInput
+                style={styles.timeInput}
+                placeholder="VD: 25/01/2024 15:30"
+                value={selectedDateTime}
+                onChangeText={setSelectedDateTime}
+              />
+              <ThemedText style={styles.timeNote}>
+                Nhập thời gian theo định dạng: DD/MM/YYYY HH:MM
+              </ThemedText>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowTimeModal(false)}
+              >
+                <ThemedText style={styles.cancelButtonText}>Hủy</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={confirmTimeChange}
+              >
+                <ThemedText style={styles.confirmButtonText}>Xác nhận</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -509,24 +633,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  statusTabContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
+  statusTabsContainer: {
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  statusTabsScrollContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
   },
   statusTab: {
-    flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    borderRadius: 8,
-    marginHorizontal: 2,
+    borderRadius: 16,
+    marginRight: 8,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
   },
   activeStatusTab: {
     backgroundColor: '#4ECDC4',
@@ -594,11 +718,6 @@ const styles = StyleSheet.create({
   elderlyName: {
     fontSize: 14,
     color: '#6c757d',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
   },
   statusText: {
     fontSize: 12,
@@ -676,6 +795,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: 'white',
+  },
+  // New button styles
+  acceptButton: {
+    backgroundColor: '#2ed573',
+  },
+  acceptButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  respondButton: {
+    backgroundColor: '#3742fa',
+  },
+  respondButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  rejectButton: {
+    backgroundColor: '#ff4757',
+  },
+  rejectButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  // Time selection modal styles
+  timeSelectionContainer: {
+    marginBottom: 20,
+  },
+  timeSelectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  timeInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  timeNote: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,

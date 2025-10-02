@@ -184,9 +184,9 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({ profile }) => {
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Môi trường sống</ThemedText>
         
-        <View style={styles.environmentItem}>
-          <ThemedText style={styles.environmentLabel}>Loại nhà ở:</ThemedText>
-          <ThemedText style={styles.environmentValue}>
+        <View style={styles.environmentItemInline}>
+          <ThemedText style={styles.environmentLabelInline}>Loại nhà ở:</ThemedText>
+          <ThemedText style={styles.environmentValueInline}>
             {profile.livingEnvironment.houseType === 'private_house' && 'Nhà riêng'}
             {profile.livingEnvironment.houseType === 'apartment' && 'Căn hộ chung cư'}
             {profile.livingEnvironment.houseType === 'nursing_home' && 'Viện dưỡng lão'}
@@ -322,6 +322,22 @@ const styles = StyleSheet.create({
   environmentValue: {
     fontSize: 14,
     color: '#6c757d',
+  },
+  environmentItemInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  environmentLabelInline: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginRight: 8,
+  },
+  environmentValueInline: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
   },
 });
 

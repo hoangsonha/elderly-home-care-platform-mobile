@@ -6,6 +6,7 @@ export interface FamilyMember {
   avatar?: string;
   role: 'admin' | 'member';
   joinedDate: string;
+  responded?: boolean; // For tracking response status
 }
 
 export interface Elderly {
@@ -44,7 +45,7 @@ export interface HireCaregiverRequest {
   caregiver: Caregiver;
   elderly: Elderly;
   family: Family;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'waiting_response' | 'responded' | 'approved' | 'rejected';
   createdAt: string;
   rejectionReason?: string;
 }
@@ -82,7 +83,18 @@ export interface PaymentRequest {
   rejectionReason?: string;
 }
 
-export type FamilyRequest = HireCaregiverRequest | JoinFamilyRequest | PaymentRequest;
+export interface AddElderlyToFamilyRequest {
+  id: string;
+  type: 'add_elderly_to_family';
+  requester: FamilyMember;
+  elderly: Elderly;
+  family: Family;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  rejectionReason?: string;
+}
+
+export type FamilyRequest = HireCaregiverRequest | JoinFamilyRequest | PaymentRequest | AddElderlyToFamilyRequest;
 
 // ===== CAREGIVER REQUESTS =====
 export interface VideoCallRequest {

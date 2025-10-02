@@ -19,6 +19,7 @@ interface CaregiverDetail {
   avatar: string;
   rating: number;
   experience: string;
+  yearsOfExperience: number;
   specialties: string[];
   hourlyRate: number;
   distance: string;
@@ -32,6 +33,11 @@ interface CaregiverDetail {
   location: string;
   phone: string;
   email: string;
+  birthDate: string;
+  gender: 'male' | 'female';
+  permanentAddress: string;
+  temporaryAddress: string;
+  workHistory: string[];
   reviews: Review[];
 }
 
@@ -55,6 +61,7 @@ export default function CaregiverDetailScreen() {
     avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
     rating: 4.9,
     experience: '5 năm',
+    yearsOfExperience: 5,
     specialties: ['Chăm sóc người cao tuổi', 'Y tế cơ bản', 'Vật lý trị liệu'],
     hourlyRate: 150000,
     distance: '2.5 km',
@@ -75,6 +82,15 @@ export default function CaregiverDetailScreen() {
     location: 'Quận Cầu Giấy, Hà Nội',
     phone: '0901 234 567',
     email: 'nguyenlan@gmail.com',
+    birthDate: '15/03/1990',
+    gender: 'female',
+    permanentAddress: 'Số 123, đường Láng, phường Láng Thượng, quận Đống Đa, Hà Nội',
+    temporaryAddress: 'Số 456, đường Cầu Giấy, phường Dịch Vọng, quận Cầu Giấy, Hà Nội',
+    workHistory: [
+      'Bệnh viện Bạch Mai - Điều dưỡng viên (2018-2020)',
+      'Trung tâm Chăm sóc người cao tuổi Hà Nội - Chuyên viên chăm sóc (2020-2022)',
+      'Tự do - Người chăm sóc tại nhà (2022-nay)',
+    ],
     reviews: [
       {
         id: '1',
@@ -323,6 +339,56 @@ export default function CaregiverDetailScreen() {
                 <Ionicons name="mail-outline" size={16} color="#4ECDC4" />
                 <ThemedText style={styles.contactText}>{caregiver.email}</ThemedText>
               </View>
+            </View>
+
+            {/* Personal Information */}
+            <View style={styles.section}>
+              <ThemedText style={styles.sectionTitle}>Thông tin cá nhân</ThemedText>
+              <View style={styles.infoItem}>
+                <Ionicons name="calendar-outline" size={16} color="#4ECDC4" />
+                <ThemedText style={styles.infoLabel}>Ngày sinh:</ThemedText>
+                <ThemedText style={styles.infoText}>{caregiver.birthDate}</ThemedText>
+              </View>
+              <View style={styles.infoItem}>
+                <Ionicons name="person-outline" size={16} color="#4ECDC4" />
+                <ThemedText style={styles.infoLabel}>Giới tính:</ThemedText>
+                <ThemedText style={styles.infoText}>{caregiver.gender === 'female' ? 'Nữ' : 'Nam'}</ThemedText>
+              </View>
+              <View style={styles.infoItem}>
+                <Ionicons name="time-outline" size={16} color="#4ECDC4" />
+                <ThemedText style={styles.infoLabel}>Số năm kinh nghiệm:</ThemedText>
+                <ThemedText style={styles.infoText}>{caregiver.yearsOfExperience} năm</ThemedText>
+              </View>
+            </View>
+
+            {/* Address Information */}
+            <View style={styles.section}>
+              <ThemedText style={styles.sectionTitle}>Địa chỉ</ThemedText>
+              <View style={styles.addressItem}>
+                <Ionicons name="home-outline" size={16} color="#4ECDC4" />
+                <View style={styles.addressContent}>
+                  <ThemedText style={styles.addressLabel}>Địa chỉ thường chú:</ThemedText>
+                  <ThemedText style={styles.addressText}>{caregiver.permanentAddress}</ThemedText>
+                </View>
+              </View>
+              <View style={styles.addressItem}>
+                <Ionicons name="location-outline" size={16} color="#4ECDC4" />
+                <View style={styles.addressContent}>
+                  <ThemedText style={styles.addressLabel}>Địa chỉ tạm trú:</ThemedText>
+                  <ThemedText style={styles.addressText}>{caregiver.temporaryAddress}</ThemedText>
+                </View>
+              </View>
+            </View>
+
+            {/* Work History */}
+            <View style={styles.section}>
+              <ThemedText style={styles.sectionTitle}>Nơi từng làm việc</ThemedText>
+              {caregiver.workHistory.map((work, index) => (
+                <View key={index} style={styles.workItem}>
+                  <Ionicons name="business-outline" size={16} color="#4ECDC4" />
+                  <ThemedText style={styles.workText}>{work}</ThemedText>
+                </View>
+              ))}
             </View>
           </View>
         ) : (
@@ -627,6 +693,55 @@ const styles = StyleSheet.create({
   contactText: {
     fontSize: 14,
     color: '#2c3e50',
+  },
+  // New styles for additional information
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+    minWidth: 120,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    flex: 1,
+  },
+  addressItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 8,
+  },
+  addressContent: {
+    flex: 1,
+  },
+  addressLabel: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  addressText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    lineHeight: 20,
+  },
+  workItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  workText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    flex: 1,
   },
   reviewsContent: {
     backgroundColor: 'white',

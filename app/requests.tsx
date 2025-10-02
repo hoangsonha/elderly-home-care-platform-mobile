@@ -60,13 +60,13 @@ export default function RequestsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#2c3e50" />
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <ThemedText style={styles.headerTitle}>Yêu cầu</ThemedText>
         <View style={styles.placeholder} />
@@ -99,13 +99,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
+    backgroundColor: '#9B59B6',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    justifyContent: 'space-between',
   },
   backButton: {
     padding: 8,
@@ -114,8 +114,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
-    flex: 1,
+    color: 'white',
   },
   placeholder: {
     width: 40,

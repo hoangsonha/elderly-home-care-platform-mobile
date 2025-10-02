@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BookingModal } from '@/components/caregiver/BookingModal';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -82,6 +83,29 @@ export default function ReviewsScreen() {
   const [comment, setComment] = useState('');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedDetailItem, setSelectedDetailItem] = useState<any>(null);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedCaregiver, setSelectedCaregiver] = useState<any>(null);
+
+  // Mock elderly profiles for booking
+  const elderlyProfiles = [
+    {
+      id: '1',
+      name: 'Bà Nguyễn Thị Mai',
+      age: 75,
+      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+      healthStatus: 'good',
+      familyName: 'Gia đình Nguyễn',
+    },
+    {
+      id: '2',
+      name: 'Ông Trần Văn Nam',
+      age: 82,
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+      healthStatus: 'fair',
+      familyName: 'Gia đình Trần',
+    },
+  ];
 
   // Mock data - Video Consultation Reviews
   const videoReviews: VideoConsultationReview[] = [
@@ -315,9 +339,39 @@ export default function ReviewsScreen() {
       user: user?.email
     });
     
-    // Close modal and show success message
+    // Close review modal and show confirmation modal
     setShowReviewModal(false);
-    alert('Đánh giá đã được gửi thành công!');
+    setShowConfirmationModal(true);
+  };
+
+  const handleConfirmationChoice = (choice: 'hire' | 'not_hire') => {
+    setShowConfirmationModal(false);
+    
+    if (choice === 'hire') {
+      // Show booking modal for immediate hire only
+      setSelectedCaregiver({
+        id: selectedReviewItem.caregiverId || '1',
+        name: selectedReviewItem.caregiverName,
+        avatar: selectedReviewItem.caregiverAvatar,
+        hourlyRate: 150000, // Mock rate
+        specialties: ['Chăm sóc người già', 'Tư vấn sức khỏe'],
+        experience: '5 năm',
+        rating: 4.5,
+        reviews: 120,
+        location: 'Hồ Chí Minh',
+        isOnline: true,
+        isVerified: true,
+      });
+      setShowBookingModal(true);
+    } else {
+      // Just show success message
+      alert('Đánh giá đã được gửi thành công!');
+    }
+  };
+
+  const handleCloseBookingModal = () => {
+    setShowBookingModal(false);
+    setSelectedCaregiver(null);
   };
 
   const renderRatingStars = (currentRating: number, onPress: (rating: number) => void) => {
@@ -1262,6 +1316,72 @@ export default function ReviewsScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Confirmation Modal */}
+      <Modal
+        visible={showConfirmationModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowConfirmationModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowConfirmationModal(false)}
+            >
+              <Ionicons name="close" size={24} color="#6c757d" />
+            </TouchableOpacity>
+            <ThemedText style={styles.modalTitle}>Xác nhận đánh giá</ThemedText>
+            <View style={styles.modalPlaceholder} />
+          </View>
+
+          <View style={styles.confirmationContent}>
+            <View style={styles.confirmationStars}>
+              {renderStars(rating)}
+            </View>
+            
+            <ThemedText style={styles.confirmationTitle}>
+              Bạn đánh giá người này {rating} sao
+            </ThemedText>
+            
+            <ThemedText style={styles.confirmationQuestion}>
+              Vậy bạn có muốn tiếp tục thuê người này không?
+            </ThemedText>
+
+            <View style={styles.confirmationButtons}>
+              <TouchableOpacity 
+                style={styles.confirmationButton}
+                onPress={() => handleConfirmationChoice('not_hire')}
+              >
+                <ThemedText style={styles.confirmationButtonText}>
+                  Gửi đánh giá và không thuê
+                </ThemedText>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.confirmationButton, styles.confirmationButtonPrimary]}
+                onPress={() => handleConfirmationChoice('hire')}
+              >
+                <ThemedText style={[styles.confirmationButtonText, styles.confirmationButtonTextPrimary]}>
+                  Gửi đánh giá và thuê
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Booking Modal */}
+      {selectedCaregiver && (
+        <BookingModal
+          visible={showBookingModal}
+          onClose={handleCloseBookingModal}
+          caregiver={selectedCaregiver}
+          elderlyProfiles={elderlyProfiles}
+          immediateOnly={true} // Only show immediate hire option
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -2198,5 +2318,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6c757d',
     fontStyle: 'italic',
+  },
+  // Confirmation Modal Styles
+  confirmationContent: {
+    flex: 1,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmationStars: {
+    marginBottom: 20,
+  },
+  confirmationTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  confirmationQuestion: {
+    fontSize: 16,
+    color: '#6c757d',
+    textAlign: 'center',
+    marginBottom: 40,
+    lineHeight: 24,
+  },
+  confirmationButtons: {
+    width: '100%',
+    gap: 16,
+  },
+  confirmationButton: {
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  confirmationButtonPrimary: {
+    backgroundColor: '#4ECDC4',
+    borderColor: '#4ECDC4',
+  },
+  confirmationButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6c757d',
+  },
+  confirmationButtonTextPrimary: {
+    color: 'white',
   },
 });
