@@ -25,17 +25,18 @@ const COLORS = [
 
 const features = [
   {
-    id: "profile",
-    title: "Hồ sơ chuyên gia",
-    icon: "account-tie",
-    route: "/expert-profile",
-  },
-  {
     id: "dashboard",
     title: "Dashboard",
     icon: "check-circle-outline",
     route: "/caregiver-dashboard",
   },
+  {
+    id: "profile",
+    title: "Hồ sơ chuyên gia",
+    icon: "account-tie",
+    route: "/expert-profile",
+  },
+
   {
     id: "availability",
     title: "Quản lý lịch",
