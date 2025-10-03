@@ -1,103 +1,96 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Button, Chip, Divider } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Dimensions,
+  FlatList,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-type Booking = {
-  id: string;
-  code: string;
-  name: string;
-  type: string; // Đặt ngay / đặt trước
-  mode?: string; // Video Call
-  date: string;
-  time: string;
-  status: string;
-  total: number;
-  note?: string;
-};
+const { width } = Dimensions.get("window");
 
-const TAB_STATUS = [
-  { key: "pending", label: "Chờ xác nhận" },
-  { key: "reschedule", label: "Chờ đổi lịch" },
-  { key: "ready", label: "Chờ thực hiện" },
-  { key: "inprogress", label: "Đang thực hiện" },
-  { key: "completed", label: "Đã hoàn thành" },
-  { key: "cancelled", label: "Đã hủy" },
-  { key: "complaint", label: "Khiếu nại" },
+const tabs = [
+  "Chờ xác nhận",
+  "Chờ dời lịch",
+  "Chờ thực hiện",
+  "Đang thực hiện",
+  "Đã hoàn thành",
+  "Đã hủy",
+  "Khiếu nại",
 ];
 
-const initialBookings: Booking[] = [
+const bookings = [
   {
-    id: "1",
-    code: "BK001",
-    name: "Cụ Nguyễn Văn A",
+    id: "BK001",
+    name: "Cụ Nguyen Văn A",
+    location: "Q.1, TP.HCM",
     type: "Đặt ngay",
-    date: "2025-09-20",
-    time: "08:00",
-    status: "pending",
-    total: 480000,
+    date: "2025-09-20 08:00",
+    status: "Chờ xác nhận",
+    price: 480000,
   },
   {
-    id: "2",
-    code: "BK005",
-    name: "Bà Nguyễn Thị E",
+    id: "BK005",
+    name: "Bà Nguyen Thị E",
+    location: "Q.10, TP.HCM",
     type: "Đặt trước",
-    mode: "Video Call",
-    date: "2025-09-21",
-    time: "07:30",
-    status: "pending",
-    total: 600000,
-    note: "Yêu cầu video: Chờ người chăm sóc xác nhận",
+    tag: "Video Call",
+    date: "2025-09-21 07:30",
+    status: "Chờ xác nhận",
+    price: 600000,
   },
 ];
 
-export default function BookingScreen() {
-  const [activeTab, setActiveTab] = useState("pending");
+export default function BookingManagement() {
+  const [activeTab, setActiveTab] = useState("Chờ xác nhận");
 
-  const filteredBookings = initialBookings.filter(
-    (b) => b.status === activeTab
+  const renderTab = (tab: string) => (
+    <TouchableOpacity
+      key={tab}
+      style={[styles.tab, activeTab === tab && styles.tabActive]}
+      onPress={() => setActiveTab(tab)}
+    >
+      <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+        {tab}
+      </Text>
+    </TouchableOpacity>
   );
 
-  const renderBooking = ({ item }: { item: Booking }) => (
-    <View style={styles.bookingCard}>
-      <View style={styles.header}>
-        <Text style={styles.code}>{item.code} • Q.1, TP.HCM</Text>
-        <Chip mode="outlined" style={styles.typeChip}>
-          {item.type}
-        </Chip>
-        {item.mode && (
-          <Chip mode="flat" style={styles.modeChip}>
-            {item.mode}
-          </Chip>
+  const renderBooking = ({ item }: { item: (typeof bookings)[0] }) => (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.bookingId}>
+          #{item.id} • {item.location}
+        </Text>
+        <Text style={styles.badge}>{item.type}</Text>
+        {item.tag && (
+          <Text style={[styles.badge, styles.badgeAlt]}>{item.tag}</Text>
         )}
       </View>
 
       <Text style={styles.name}>{item.name}</Text>
+      <Text style={styles.date}>{item.date}</Text>
 
-      <View style={styles.dateRow}>
-        <MaterialCommunityIcons name="clock-outline" size={16} color="#555" />
-        <Text style={styles.dateText}>
-          {item.date} {item.time}
-        </Text>
-      </View>
-
-      {item.note && <Text style={styles.note}>{item.note}</Text>}
-
-      <View style={styles.footer}>
-        <Text style={styles.total}>
-          Tổng tạm tính: {item.total.toLocaleString("vi-VN")} ₫
-        </Text>
-        <View style={styles.buttonsRow}>
-          <Button mode="outlined" onPress={() => {}} style={styles.actionBtn}>
-            Từ chối
-          </Button>
-          <Button mode="outlined" onPress={() => {}} style={styles.actionBtn}>
-            Đề nghị đổi lịch
-          </Button>
-          <Button mode="contained" onPress={() => {}} style={styles.actionBtn}>
-            Chấp nhận
-          </Button>
+      <View style={styles.cardFooter}>
+        <View>
+          <Text style={styles.status}>{item.status}</Text>
+          <Text style={styles.price}>{item.price.toLocaleString()} đ</Text>
+        </View>
+        <View style={styles.actions}>
+          <TouchableOpacity style={[styles.actionBtn, styles.reject]}>
+            <Text style={styles.actionText}>Từ chối</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, styles.suggest]}>
+            <Text style={styles.actionText}>Đề nghị đổi lịch</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, styles.accept]}>
+            <Text style={[styles.actionText, { color: "#fff" }]}>
+              Chấp nhận
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -105,67 +98,151 @@ export default function BookingScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Quản lý yêu cầu đặt lịch</Text>
-      <Text style={styles.subtitle}>
-        Theo dõi và xử lý các yêu cầu theo trạng thái
-      </Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Quản lý yêu cầu đặt lịch</Text>
+        <Text style={styles.subtitle}>
+          Theo dõi và xử lý các yêu cầu lịch chăm sóc theo trạng thái.
+        </Text>
+      </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabRow}
-      >
-        {TAB_STATUS.map((tab) => (
-          <Chip
-            key={tab.key}
-            mode={activeTab === tab.key ? "flat" : "outlined"}
-            onPress={() => setActiveTab(tab.key)}
-            style={activeTab === tab.key ? styles.activeTab : styles.tab}
-          >
-            {tab.label}
-          </Chip>
-        ))}
-      </ScrollView>
+      <View style={styles.tabRow}>{tabs.map(renderTab)}</View>
 
       <FlatList
-        data={filteredBookings}
-        keyExtractor={(item) => item.id}
+        data={bookings.filter((b) => b.status === activeTab)}
         renderItem={renderBooking}
-        ItemSeparatorComponent={() => <Divider style={{ marginVertical: 8 }} />}
-        contentContainerStyle={{ paddingBottom: 16 }}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ padding: 16 }}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-  title: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
-  subtitle: { fontSize: 14, color: "#555", marginBottom: 16 },
-  tabRow: { flexDirection: "row", marginBottom: 16, maxHeight: 60 },
-  tab: { marginRight: 8, height: 45 },
-  activeTab: {
-    marginRight: 8,
-    backgroundColor: "#007bff",
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  header: {
+    paddingTop: Platform.OS === "android" ? 18 : 8,
+    paddingBottom: 12,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 10,
+    paddingHorizontal: 16,
+  },
+  tabRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  tab: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#f2f2f2",
+    margin: 4,
+  },
+  tabActive: {
+    backgroundColor: "#1F6FEB",
+  },
+  tabText: {
+    fontSize: 12,
+    color: "#333",
+  },
+  tabTextActive: {
     color: "#fff",
-    height: 45,
+    fontWeight: "600",
   },
-  bookingCard: {
-    padding: 12,
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#f0f0f0",
-    borderRadius: 8,
+    borderColor: "#eee",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  header: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  code: { fontWeight: "bold", marginRight: 8 },
-  typeChip: { marginRight: 4, backgroundColor: "#e6f0ff" },
-  modeChip: { backgroundColor: "#f8e6ff" },
-  name: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
-  dateRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  dateText: { marginLeft: 4, color: "#555" },
-  note: { fontStyle: "italic", color: "#777", marginBottom: 8 },
-  footer: { marginTop: 8 },
-  total: { fontWeight: "bold", marginBottom: 8 },
-  buttonsRow: { flexDirection: "row", justifyContent: "space-between" },
-  actionBtn: { flex: 1, marginHorizontal: 4 },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: 6,
+  },
+  bookingId: {
+    fontSize: 12,
+    color: "#444",
+    marginRight: 6,
+  },
+  badge: {
+    fontSize: 11,
+    backgroundColor: "#E5F0FF",
+    color: "#1F6FEB",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  badgeAlt: {
+    backgroundColor: "#F9E5FF",
+    color: "#B144D4",
+  },
+  name: {
+    fontWeight: "600",
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  date: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 10,
+  },
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  status: {
+    fontSize: 12,
+    color: "#F59E0B",
+    marginBottom: 4,
+  },
+  price: {
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  actions: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  actionBtn: {
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginLeft: 6,
+  },
+  reject: {
+    backgroundColor: "#f2f2f2",
+  },
+  suggest: {
+    backgroundColor: "#f2f2f2",
+  },
+  accept: {
+    backgroundColor: "#1F6FEB",
+  },
+  actionText: {
+    fontSize: 12,
+    color: "#333",
+  },
 });
