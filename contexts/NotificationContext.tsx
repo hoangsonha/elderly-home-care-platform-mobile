@@ -17,6 +17,9 @@ interface NotificationContextType {
     position?: TooltipProps['position'],
     duration?: number
   ) => void;
+  showEmergencyAlert: () => void;
+  emergencyAlertVisible: boolean;
+  hideEmergencyAlert: () => void;
   hideNotification: () => void;
   hideTooltip: () => void;
 }
@@ -56,6 +59,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     position: 'top',
     duration: 3000,
   });
+
+  const [emergencyAlertVisible, setEmergencyAlertVisible] = useState(false);
 
   const showNotification = (
     title: string,
@@ -97,9 +102,20 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     setTooltip(prev => ({ ...prev, visible: false }));
   };
 
+  const showEmergencyAlert = () => {
+    setEmergencyAlertVisible(true);
+  };
+
+  const hideEmergencyAlert = () => {
+    setEmergencyAlertVisible(false);
+  };
+
   const contextValue: NotificationContextType = {
     showNotification,
     showTooltip,
+    showEmergencyAlert,
+    emergencyAlertVisible,
+    hideEmergencyAlert,
     hideNotification,
     hideTooltip,
   };

@@ -84,7 +84,7 @@ export function WorkTimeSelector({ onTimeSlotsChange }: WorkTimeSelectorProps) {
 
       // Add new slot
       newTimeSlots.push({
-        id: `${dayKey}-${timeRangeKey}-${Date.now()}`,
+        id: `${dayKey}-${selectedTimeRange}-${Date.now()}`,
         day: day.label,
         timeRange: timeRange.label,
         startTime: timeRange.startTime,

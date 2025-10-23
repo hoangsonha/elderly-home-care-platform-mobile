@@ -95,8 +95,6 @@ export default function ElderlyList({
             </View>
             
             <View style={styles.familyRow}>
-              <ThemedText style={styles.personFamily}>{item.family}</ThemedText>
-              
               <TouchableOpacity
                 style={styles.chevronButton}
                 onPress={() => handlePersonPress(item)}
@@ -394,13 +392,8 @@ const styles = StyleSheet.create({
   },
   familyRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-  },
-  personFamily: {
-    fontSize: 12,
-    color: '#6c757d',
-    flex: 1,
   },
   healthStatusBadge: {
     paddingHorizontal: 8,

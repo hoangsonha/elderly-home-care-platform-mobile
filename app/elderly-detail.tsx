@@ -299,7 +299,6 @@ export default function ElderlyDetailScreen() {
           <View style={styles.profileInfo}>
             <ThemedText style={styles.profileName}>{elderlyProfile.name}</ThemedText>
             <ThemedText style={styles.profileAge}>{elderlyProfile.age} tuổi</ThemedText>
-            <ThemedText style={styles.profileFamily}>{elderlyProfile.family}</ThemedText>
             
             <View style={styles.healthStatus}>
               <Ionicons name="heart" size={16} color={getHealthStatusColor(elderlyProfile.healthStatus)} />
@@ -396,6 +395,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    paddingBottom: 100, // Space for navigation bar
   },
   header: {
     backgroundColor: '#4ECDC4',
@@ -476,11 +476,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6c757d',
     marginBottom: 4,
-  },
-  profileFamily: {
-    fontSize: 14,
-    color: '#6c757d',
-    marginBottom: 8,
   },
   healthStatus: {
     flexDirection: 'row',

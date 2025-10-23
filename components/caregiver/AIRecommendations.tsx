@@ -2,22 +2,39 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
     Dimensions,
+    ScrollView,
     StyleSheet,
     View
 } from 'react-native';
 
 import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverCard';
 import { ThemedText } from '@/components/themed-text';
+import { CaregiverRecommendation } from '@/services/types';
 
 const { width } = Dimensions.get('window');
 
 interface AIRecommendationsProps {
-  recommendations: Caregiver[];
+  recommendations: CaregiverRecommendation[];
   onCaregiverPress: (caregiver: Caregiver) => void;
   onBookPress: (caregiver: Caregiver) => void;
   onChatPress: (caregiver: Caregiver) => void;
   onRefresh: () => void;
   isLoading?: boolean;
+}
+
+// Convert CaregiverRecommendation to Caregiver format for CaregiverCard
+function convertToCaregiver(recommendation: CaregiverRecommendation): Caregiver {
+  return {
+    id: recommendation.caregiver_id,
+    name: recommendation.name,
+    avatar: recommendation.avatar,
+    rating: recommendation.rating,
+    experience: recommendation.experience,
+    hourlyRate: recommendation.price_per_hour || 0, // Use price_per_hour and fallback to 0
+    distance: recommendation.distance,
+    isVerified: recommendation.isVerified || false, // Fallback to false
+    totalReviews: recommendation.total_reviews,
+  };
 }
 
 export function AIRecommendations({
@@ -59,7 +76,7 @@ export function AIRecommendations({
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* AI Header */}
       <View style={styles.aiHeader}>
         <View style={styles.aiIconContainer}>
@@ -77,38 +94,41 @@ export function AIRecommendations({
       <View style={styles.matchInfo}>
         <View style={styles.matchItem}>
           <Ionicons name="checkmark-circle" size={16} color="#28a745" />
-          <ThemedText style={styles.matchText}>Phù hợp về kỹ năng</ThemedText>
+          <ThemedText style={styles.matchText}>Kỹ năng phù hợp</ThemedText>
         </View>
         <View style={styles.matchItem}>
           <Ionicons name="location" size={16} color="#28a745" />
-          <ThemedText style={styles.matchText}>Gần địa chỉ của bạn</ThemedText>
+          <ThemedText style={styles.matchText}>Gần nhà</ThemedText>
         </View>
         <View style={styles.matchItem}>
           <Ionicons name="time" size={16} color="#28a745" />
-          <ThemedText style={styles.matchText}>Linh hoạt về thời gian</ThemedText>
+          <ThemedText style={styles.matchText}>Linh hoạt</ThemedText>
         </View>
       </View>
 
       {/* Recommendations List */}
       <View style={styles.recommendationsList}>
-        {recommendations.map((caregiver, index) => (
-          <View key={caregiver.id} style={styles.recommendationItem}>
-            {/* Match Score Badge */}
-            <View style={styles.matchScoreBadge}>
-              <Ionicons name="star" size={12} color="#ffc107" />
-              <ThemedText style={styles.matchScoreText}>
-                {Math.round(95 - index * 2)}% phù hợp
-              </ThemedText>
+        {recommendations.map((recommendation, index) => {
+          const caregiver = convertToCaregiver(recommendation);
+          return (
+            <View key={recommendation.caregiver_id} style={styles.recommendationItem}>
+              {/* Match Score Badge */}
+              <View style={styles.matchScoreBadge}>
+                <Ionicons name="star" size={12} color="#ffc107" />
+                <ThemedText style={styles.matchScoreText}>
+                  {recommendation.match_percentage} phù hợp
+                </ThemedText>
+              </View>
+              
+              <CaregiverCard
+                caregiver={caregiver}
+                onPress={onCaregiverPress}
+                onBookPress={onBookPress}
+                onChatPress={onChatPress}
+              />
             </View>
-            
-            <CaregiverCard
-              caregiver={caregiver}
-              onPress={onCaregiverPress}
-              onBookPress={onBookPress}
-              onChatPress={onChatPress}
-            />
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       {/* AI Explanation */}
@@ -147,7 +167,7 @@ export function AIRecommendations({
           </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -243,33 +263,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     backgroundColor: '#f8f9fa',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 20, // Tăng padding vertical
+    paddingHorizontal: 16, // Giảm padding horizontal để có nhiều không gian hơn
+    marginBottom: 8, // Thêm margin bottom
   },
   matchItem: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+    paddingHorizontal: 4, // Thêm padding horizontal cho mỗi item
   },
   matchText: {
-    marginLeft: 6,
-    fontSize: 12,
+    marginLeft: 4, // Giảm margin left
+    fontSize: 11, // Giảm font size một chút
     color: '#28a745',
     fontWeight: '500',
+    textAlign: 'center', // Center text
+    flexShrink: 1, // Cho phép text co lại nếu cần
   },
   recommendationsList: {
     padding: 20,
   },
   recommendationItem: {
     marginBottom: 16,
+    marginTop: 16, // Tăng margin top để tạo thêm không gian cho badge
     position: 'relative',
   },
   matchScoreBadge: {
     position: 'absolute',
-    top: -8,
+    top: -20, // Đẩy lên cao hơn nữa
     right: 8,
-    zIndex: 1,
+    zIndex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff3cd',
@@ -278,6 +303,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#ffeaa7',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   matchScoreText: {
     marginLeft: 4,
