@@ -5,6 +5,7 @@ import {
   useSuccessNotification,
 } from "@/contexts/NotificationContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { AuthService } from "@/services/auth.service";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -27,7 +28,6 @@ export default function LoginScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
-
   const handleLogin = async () => {
     if (!email || !password) {
       showErrorTooltip("Vui lòng nhập đầy đủ email và mật khẩu");
@@ -36,32 +36,23 @@ export default function LoginScreen() {
 
     setIsLoading(true);
     try {
-      // const success = await login(email, password);
-      if (email === "caregiver" && password === "caregiver123") {
-        const success = await login(email, password);
-        if (success) {
-          showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
-          // Small delay to ensure user state is updated
-          setTimeout(() => {
-            router.replace("/caregiver-home");
-          }, 1500);
-        } else {
-          showErrorTooltip("Email hoặc mật khẩu không đúng");
-        }
-      } else {
-        const success = await login(email, password);
-        if (success) {
-          showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
-          // Small delay to ensure user state is updated
-          setTimeout(() => {
-            // The user state will be updated after login, but we need to check it
-            // For now, we'll use a simple approach - always go to profile-setup first
-            // In real app, the login function should return user data
+      const user = await AuthService.login(email, password);
+
+      if (user) {
+        showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
+
+        setTimeout(() => {
+          if (user.role === "Care Seeker") {
             router.replace("/profile-setup");
-          }, 1500);
-        }
+          } else if (user.role === "Caregiver") {
+            router.replace("/caregiver-home");
+          }
+        }, 1500);
+      } else {
+        showErrorTooltip("Email hoặc mật khẩu không đúng");
       }
     } catch (error) {
+      console.error(error);
       showErrorTooltip("Có lỗi xảy ra khi đăng nhập");
     } finally {
       setIsLoading(false);

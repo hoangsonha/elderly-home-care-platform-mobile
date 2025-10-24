@@ -25,6 +25,12 @@ const COLORS = [
 
 const features = [
   {
+    id: "dashboard",
+    title: "Dashboard",
+    icon: "check-circle-outline",
+    route: "/caregiver-dashboard",
+  },
+  {
     id: "profile",
     title: "Hồ sơ chuyên gia",
     icon: "account-tie",
@@ -49,9 +55,14 @@ const features = [
     icon: "credit-card-outline",
     route: "/payment",
   },
-  { id: "tasks", title: "Theo dõi nhiệm vụ", icon: "check-circle-outline" },
-  { id: "chat", title: "Tin nhắn", icon: "chat-outline" },
-  { id: "training", title: "Đào tạo liên tục", icon: "school" },
+
+  { id: "chat", title: "Tin nhắn", icon: "chat-outline", route: "/chat" },
+  {
+    id: "training",
+    title: "Đào tạo liên tục",
+    icon: "school",
+    route: "/training-courses",
+  },
   { id: "analytics", title: "Hiệu suất", icon: "chart-line" },
 ];
 
