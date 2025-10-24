@@ -16,8 +16,10 @@ import {
 import { EmergencyAlert } from '@/components/alerts/EmergencyAlert';
 import { ElderlyProfiles } from '@/components/elderly/ElderlyProfiles';
 import { RequestNotification } from '@/components/notifications/RequestNotification';
-import { AppointmentSchedule } from '@/components/schedule/AppointmentSchedule';
+import { AppointmentScheduleToday } from '@/components/schedule/AppointmentScheduleToday';
 import { ThemedText } from '@/components/themed-text';
+import { AddElderlyModal } from '@/components/ui/AddElderlyModal';
+import { CustomModal } from '@/components/ui/CustomModal';
 import { NotificationPanel } from '@/components/ui/NotificationPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
@@ -75,6 +77,9 @@ export default function DashboardScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showAppInfoModal, setShowAppInfoModal] = useState(false);
+  const [showAddElderlyModal, setShowAddElderlyModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // Request notification data
   const requestCount = 3; // Sample data
@@ -97,6 +102,9 @@ export default function DashboardScreen() {
       caregiverAvatar: 'N',
       timeSlot: '08:00 - 12:00',
       status: 'completed' as const,
+      address: '123 Đường ABC, Quận 1, TP.HCM',
+      rating: 4.8,
+      isVerified: true,
       tasks: [
         { id: '7', name: 'Nhắc nhở uống thuốc buổi sáng', completed: true, time: '09:00', status: 'completed' as const },
         { id: '8', name: 'Tập thể dục nhẹ', completed: true, time: '08:00', status: 'completed' as const },
@@ -110,6 +118,9 @@ export default function DashboardScreen() {
       caregiverAvatar: 'M',
       timeSlot: '14:00 - 18:00',
       status: 'in-progress' as const,
+      address: '456 Đường XYZ, Quận 2, TP.HCM',
+      rating: 4.5,
+      isVerified: true,
       tasks: [
         { id: '1', name: 'Nhắc nhở uống thuốc buổi sáng', completed: true, time: '09:00', status: 'completed' as const },
         { id: '2', name: 'Tập thể dục nhẹ', completed: true, time: '08:00', status: 'completed' as const },
@@ -125,6 +136,9 @@ export default function DashboardScreen() {
       caregiverAvatar: 'H',
       timeSlot: '19:00 - 22:00',
       status: 'upcoming' as const,
+      address: '789 Đường DEF, Quận 3, TP.HCM',
+      rating: 4.2,
+      isVerified: false,
       tasks: [
         { id: '11', name: 'Nhắc nhở uống thuốc buổi sáng', completed: false, time: '09:00' },
         { id: '12', name: 'Tập thể dục nhẹ', completed: false, time: '08:00' },
@@ -219,6 +233,9 @@ export default function DashboardScreen() {
     if (module.id === 'app-info') {
       // Hiển thị footer thay vì navigate
       setShowAppInfoModal(true);
+    } else if (module.id === 'add-elderly') {
+      // Mở modal thay vì navigate
+      setShowAddElderlyModal(true);
     } else if (module.route) {
       router.push(module.route as any);
     } else {
@@ -251,22 +268,24 @@ export default function DashboardScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc chắn muốn đăng xuất?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Đăng xuất',
-          style: 'destructive',
-          onPress: () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      // Simulate logout process
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
             setShowProfileModal(false);
+      setShowLogoutModal(false);
             logout();
             router.replace('/(tabs)');
-          },
-        },
-      ]
-    );
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -352,7 +371,7 @@ export default function DashboardScreen() {
               
               {/* Appointment Schedule */}
               <View style={styles.appointmentContainer}>
-                <AppointmentSchedule appointments={appointments} />
+                <AppointmentScheduleToday appointments={appointments} />
               </View>
               
               {/* Elderly Profiles */}
@@ -582,6 +601,29 @@ export default function DashboardScreen() {
           </View>
         </TouchableOpacity>
       )}
+
+      {/* Add Elderly Modal */}
+      <AddElderlyModal
+        visible={showAddElderlyModal}
+        onClose={() => setShowAddElderlyModal(false)}
+        onSuccess={() => {
+          // Refresh elderly profiles or show success message
+          console.log('Elderly profile created successfully');
+        }}
+      />
+
+      {/* Logout Confirmation Modal */}
+      <CustomModal
+        visible={showLogoutModal}
+        title="Xác nhận đăng xuất"
+        message="Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?"
+        buttonText={isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
+        onPress={handleConfirmLogout}
+        iconName="log-out-outline"
+        iconColor="#E74C3C"
+        buttonColors={['#E74C3C', '#C0392B']}
+        isLoading={isLoggingOut}
+      />
     </View>
   );
 }
@@ -967,7 +1009,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   featuresScrollContent: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   featureCardLarge: {
     width: 120,

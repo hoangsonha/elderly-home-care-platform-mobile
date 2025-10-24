@@ -127,7 +127,7 @@ export default function ElderlyList({
             borderColor: getHealthStatusColor(item.healthStatus) + '40'
           }]}>
             <ThemedText style={[styles.healthStatusText, { color: getHealthStatusColor(item.healthStatus) }]}>
-              Tình trạng {getHealthStatusText(item.healthStatus)}
+              Sức khỏe {getHealthStatusText(item.healthStatus)}
             </ThemedText>
           </View>
         </View>
@@ -150,7 +150,7 @@ export default function ElderlyList({
         </View>
         
         <View style={styles.healthStatusSection}>
-          <ThemedText style={styles.healthStatusTitle}>Tình trạng</ThemedText>
+          <ThemedText style={styles.healthStatusTitle}>Sức khỏe</ThemedText>
           <View style={styles.statsGrid}>
           <View style={[styles.statCard, styles.goodStatCard]}>
             <View style={styles.statHeader}>

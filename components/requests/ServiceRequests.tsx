@@ -2,13 +2,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-    FlatList,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  FlatList,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface ServiceRequest {
@@ -203,9 +203,9 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pending': return 'Chờ phản hồi';
-      case 'approved': return 'Đã chấp nhận';
-      case 'rejected': return 'Đã từ chối';
-      case 'completed': return 'Đã hoàn thành';
+      case 'approved': return 'Đã xác nhận';
+      case 'rejected': return 'Đã hủy';
+      case 'completed': return 'Đã thanh toán';
       default: return 'Tất cả';
     }
   };
@@ -490,7 +490,7 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
             onPress={() => setActiveStatusTab('approved')}
           >
             <ThemedText style={[styles.statusTabText, activeStatusTab === 'approved' && styles.statusTabTextActive]}>
-              Đã chấp nhận ({getStatusCount('approved')})
+              Đã xác nhận ({getStatusCount('approved')})
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
@@ -498,7 +498,7 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
             onPress={() => setActiveStatusTab('rejected')}
           >
             <ThemedText style={[styles.statusTabText, activeStatusTab === 'rejected' && styles.statusTabTextActive]}>
-              Đã từ chối ({getStatusCount('rejected')})
+              Đã hủy ({getStatusCount('rejected')})
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
@@ -506,7 +506,7 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
             onPress={() => setActiveStatusTab('completed')}
           >
             <ThemedText style={[styles.statusTabText, activeStatusTab === 'completed' && styles.statusTabTextActive]}>
-              Đã hoàn thành ({getStatusCount('completed')})
+              Đã thanh toán ({getStatusCount('completed')})
             </ThemedText>
           </TouchableOpacity>
         </ScrollView>

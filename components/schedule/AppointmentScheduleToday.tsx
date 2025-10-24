@@ -11,6 +11,9 @@ interface Appointment {
   timeSlot: string;
   status: 'completed' | 'upcoming' | 'in-progress';
   tasks: Task[];
+  address: string;
+  rating: number;
+  isVerified: boolean;
 }
 
 export interface Task {
@@ -21,11 +24,11 @@ export interface Task {
   status?: 'completed' | 'failed' | 'pending';
 }
 
-interface AppointmentScheduleProps {
+interface AppointmentScheduleTodayProps {
   appointments: Appointment[];
 }
 
-export function AppointmentSchedule({ appointments }: AppointmentScheduleProps) {
+export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTodayProps) {
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
 
   const getStatusText = (status: string) => {
@@ -109,26 +112,47 @@ export function AppointmentSchedule({ appointments }: AppointmentScheduleProps) 
             >
               <View style={styles.appointmentHeader}>
                 <View style={styles.caregiverInfo}>
-                  <View style={styles.avatarContainer}>
-                    <ThemedText style={styles.avatarText}>
-                      {appointment.caregiverName.charAt(0)}
-                    </ThemedText>
+                  <View style={styles.leftSection}>
+                    <View style={styles.infoRow}>
+                      <View style={styles.avatarContainer}>
+                        <ThemedText style={styles.avatarText}>
+                          {appointment.caregiverName.charAt(0)}
+                        </ThemedText>
+                      </View>
+                      <View style={styles.infoColumn}>
+                        <View style={styles.nameRow}>
+                          <ThemedText style={styles.caregiverName}>
+                            {appointment.caregiverName}
+                          </ThemedText>
+                          {appointment.isVerified && (
+                            <Ionicons name="checkmark-circle" size={16} color="#27AE60" />
+                          )}
+                        </View>
+                        <ThemedText style={styles.timeSlot}>
+                          {appointment.timeSlot}
+                        </ThemedText>
+                        <View style={styles.ratingRow}>
+                          <Ionicons name="star" size={12} color="#F39C12" />
+                          <ThemedText style={styles.ratingText}>
+                            {appointment.rating.toFixed(1)}
+                          </ThemedText>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.addressRow}>
+                      <Ionicons name="location-outline" size={12} color="#7f8c8d" />
+                      <ThemedText style={styles.addressText}>
+                        {appointment.address}
+                      </ThemedText>
+                    </View>
                   </View>
-                  <View style={styles.caregiverDetails}>
-                    <ThemedText style={styles.caregiverName}>
-                      {appointment.caregiverName}
-                    </ThemedText>
-                    <ThemedText style={styles.timeSlot}>
-                      {appointment.timeSlot}
-                    </ThemedText>
-                  </View>
-                </View>
-                
-                <View style={styles.statusContainer}>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(appointment.status) }]}>
-                    <ThemedText style={styles.statusText}>
-                      {getStatusText(appointment.status)}
-                    </ThemedText>
+                  
+                  <View style={styles.rightSection}>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(appointment.status) }]}>
+                      <ThemedText style={styles.statusText}>
+                        {getStatusText(appointment.status)}
+                      </ThemedText>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -261,12 +285,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   caregiverInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
+  },
+  leftSection: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  rightSection: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    marginTop: 0,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    width: '100%',
+  },
+  caregiverName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginRight: 6,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoColumn: {
+    marginLeft: 12,
+    justifyContent: 'center',
   },
   avatarContainer: {
     width: 40,
@@ -275,33 +329,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#4ECDC4',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   avatarText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
-  caregiverDetails: {
-    flex: 1,
-  },
-  caregiverName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 2,
-  },
   timeSlot: {
     fontSize: 14,
     color: '#7f8c8d',
+    marginBottom: 4,
   },
-  statusContainer: {
-    alignItems: 'flex-end',
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  addressText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginLeft: 4,
+    flex: 1,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontSize: 12,
+    color: '#F39C12',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusText: {
     color: 'white',
@@ -312,7 +375,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderTopWidth: 1,
     borderTopColor: '#ecf0f1',
   },

@@ -1,4 +1,5 @@
 import { NavigationHelper } from '@/components/navigation/NavigationHelper';
+import { AuthService } from '@/services/auth.service';
 import React, { createContext, ReactNode, useContext, useState } from 'react';
 
 interface User {
@@ -10,6 +11,7 @@ interface User {
   address?: string;
   avatar?: string;
   hasCompletedProfile?: boolean;
+  role?: string; // Add role field
 }
 
 interface AuthContextType {
@@ -28,14 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     // Simulate API call
     if (email && password) {
-      // Fake API response - simulate checking if user has completed profile
-      // For demo: 70% chance user needs to complete profile (new users)
+      // Get user data from AuthService to get role
+      const authUser = await AuthService.login(email, password);
+      if (!authUser) return false;
+
+      // Random chance for hasCompletedProfile (like before)
       const hasProfile = Math.random() > 0.7;
-      
+
       const newUser: User = {
         id: '1',
         email: email,
         hasCompletedProfile: hasProfile,
+        role: authUser.role,
         avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
         // If has profile, include sample data
         ...(hasProfile && {
@@ -58,7 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = (profile: Partial<User>) => {
     if (user) {
-      setUser({ ...user, ...profile });
+      const updatedUser = { ...user, ...profile };
+      setUser(updatedUser);
     }
   };
 

@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  FlatList,
-  Image,
-  SafeAreaView,
-  StyleSheet,
-  TouchableOpacity,
-  View
+    FlatList,
+    Image,
+    SafeAreaView,
+    StyleSheet,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -93,7 +93,7 @@ const mockPayments: Payment[] = [
     date: '20/12/2024',
     status: 'completed',
     method: 'bank_transfer',
-    description: 'Lương tháng 12/2024',
+    description: 'Lương ngày 20/12/2024',
     transactionId: 'TXN123456789',
     elderlyName: 'Ông Nguyễn Văn A',
     familyName: 'Gia đình A',
@@ -110,7 +110,7 @@ const mockPayments: Payment[] = [
     date: '30/11/2024',
     status: 'completed',
     method: 'credit_card',
-    description: 'Lương tháng 11/2024',
+    description: 'Lương ngày 30/11/2024',
     transactionId: 'TXN123456791',
     elderlyName: 'Bà Lê Thị B',
     familyName: 'Gia đình B',
@@ -127,7 +127,7 @@ const mockPayments: Payment[] = [
     dueDate: '15/01/2025',
     status: 'cancelled',
     method: 'wallet',
-    description: 'Lương tháng 1/2025',
+    description: 'Lương ngày 15/10/2024',
     elderlyName: 'Ông Trần Văn C',
     familyName: 'Gia đình C',
     caregiverName: 'Phạm Thị Hoa',
@@ -136,7 +136,7 @@ const mockPayments: Payment[] = [
 ];
 
 const mockWalletInfo: WalletInfo = {
-  balance: 15000000,
+  balance: 8800000, // 15,000,000 - 2,400,000 - 1,800,000 - 2,000,000 = 8,800,000
   currency: 'VND',
   lastUpdated: '23/10/2024 15:30'
 };
@@ -204,14 +204,18 @@ export default function PaymentsScreen() {
         <View style={styles.serviceDetailRow}>
           <View style={styles.serviceDetailItem}>
             <Ionicons name="person-circle" size={16} color="#3498DB" />
+            <ThemedText style={styles.serviceDetailLabel}>Người chăm sóc:</ThemedText>
             <ThemedText style={styles.serviceDetailText}>{item.caregiverName}</ThemedText>
-          </View>
-          <View style={styles.serviceDetailItem}>
-            <Ionicons name="heart" size={16} color="#E74C3C" />
-            <ThemedText style={styles.serviceDetailText}>{item.elderlyName}</ThemedText>
           </View>
         </View>
         <View style={styles.serviceDetailRow}>
+          <View style={styles.serviceDetailItem}>
+            <Ionicons name="heart" size={16} color="#E74C3C" />
+            <ThemedText style={styles.serviceDetailLabel}>Người già:</ThemedText>
+            <ThemedText style={styles.serviceDetailText}>{item.elderlyName}</ThemedText>
+          </View>
+        </View>
+        <View style={styles.serviceStatusRow}>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
             <ThemedText style={styles.paymentStatusText}>{getStatusText(item.status)}</ThemedText>
           </View>
@@ -248,7 +252,7 @@ export default function PaymentsScreen() {
         </View>
         <View style={styles.dateRow}>
           <ThemedText style={styles.dateLabel}>
-            {item.date ? 'Ngày:' : 'Hạn thanh toán:'}
+            {item.date ? 'Ngày thanh toán:' : 'Hạn thanh toán:'}
           </ThemedText>
           <ThemedText style={styles.dateValue}>{item.date || item.dueDate}</ThemedText>
         </View>
@@ -307,14 +311,10 @@ export default function PaymentsScreen() {
               
               <View style={styles.walletCard}>
                 <View style={styles.walletBalanceRow}>
-                  <ThemedText style={styles.walletBalanceLabel}>Số dư hiện tại:</ThemedText>
+                  <ThemedText style={styles.walletBalanceLabel}>Số dư sau thanh toán:</ThemedText>
                   <ThemedText style={styles.walletBalanceValue}>
                     {mockWalletInfo.balance.toLocaleString('vi-VN')} {mockWalletInfo.currency}
                   </ThemedText>
-                </View>
-                <View style={styles.walletLastUpdatedRow}>
-                  <ThemedText style={styles.walletLastUpdatedLabel}>Cập nhật lần cuối:</ThemedText>
-                  <ThemedText style={styles.walletLastUpdatedValue}>{mockWalletInfo.lastUpdated}</ThemedText>
                 </View>
               </View>
             </View>
@@ -507,19 +507,31 @@ const styles = StyleSheet.create({
   },
   serviceDetailRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
   serviceDetailItem: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  serviceDetailLabel: {
+    fontSize: 14,
+    color: '#6C757D',
+    marginLeft: 8,
+    marginRight: 4,
+    fontWeight: '500',
+  },
   serviceDetailText: {
     fontSize: 14,
     color: '#2C3E50',
-    marginLeft: 8,
     flex: 1,
+  },
+  serviceStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 8,
   },
   paymentType: {
     fontSize: 16,
@@ -634,6 +646,16 @@ const styles = StyleSheet.create({
   },
   walletInfoContainer: {
     marginBottom: 20,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   walletTitle: {
     fontSize: 18,
@@ -663,19 +685,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#27AE60',
-  },
-  walletLastUpdatedRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  walletLastUpdatedLabel: {
-    fontSize: 14,
-    color: '#6C757D',
-  },
-  walletLastUpdatedValue: {
-    fontSize: 14,
-    color: '#2C3E50',
-    fontWeight: '500',
   },
 });

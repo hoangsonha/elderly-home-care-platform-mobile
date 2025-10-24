@@ -111,7 +111,7 @@ export function ElderlyProfiles({ profiles }: ElderlyProfilesProps) {
                   styles.healthStatusText,
                   { color: getHealthStatusColor(profile.healthStatus) }
                 ]}>
-                  {profile.healthStatus}
+                  Sức khỏe {profile.healthStatus}
                 </ThemedText>
               </View>
             </View>

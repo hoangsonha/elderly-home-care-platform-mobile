@@ -333,8 +333,8 @@ export default function FamilyDetailScreen() {
 
   const getHealthStatusText = (status: string) => {
     switch (status) {
-      case 'good': return 'Tốt';
-      case 'fair': return 'Trung bình';
+      case 'good': return 'Sức khỏe Tốt';
+      case 'fair': return 'Sức khỏe Trung bình';
       case 'poor': return 'Kém';
       default: return 'Không xác định';
     }

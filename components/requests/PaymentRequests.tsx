@@ -303,8 +303,8 @@ export function PaymentRequests() {
             />
             <ThemedText style={styles.healthText}>
               Tình trạng: {
-                request.elderly.healthStatus === 'good' ? 'Tốt' :
-                request.elderly.healthStatus === 'medium' ? 'Trung bình' : 'Yếu'
+                request.elderly.healthStatus === 'good' ? 'Sức khỏe Tốt' :
+                request.elderly.healthStatus === 'medium' ? 'Sức khỏe Trung bình' : 'Sức khỏe Yếu'
               }
             </ThemedText>
           </View>

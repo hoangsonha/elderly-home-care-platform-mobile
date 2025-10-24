@@ -90,9 +90,9 @@ export default function ElderlyDetailScreen() {
 
   const getHealthStatusText = (status: ElderlyProfile['healthStatus']) => {
     switch (status) {
-      case 'good': return 'Tốt';
-      case 'fair': return 'Trung bình';
-      case 'poor': return 'Yếu';
+      case 'good': return 'Sức khỏe Tốt';
+      case 'fair': return 'Sức khỏe Trung bình';
+      case 'poor': return 'Sức khỏe Yếu';
       default: return 'Không rõ';
     }
   };
@@ -277,13 +277,6 @@ export default function ElderlyDetailScreen() {
         
         <View style={styles.headerContent}>
           <ThemedText style={styles.headerTitle}>Chi tiết người già</ThemedText>
-          <ThemedText style={styles.headerSubtitle}>{elderlyProfile.name}</ThemedText>
-        </View>
-        
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.moreButton}>
-            <Ionicons name="ellipsis-vertical" size={20} color="white" />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -303,7 +296,7 @@ export default function ElderlyDetailScreen() {
             <View style={styles.healthStatus}>
               <Ionicons name="heart" size={16} color={getHealthStatusColor(elderlyProfile.healthStatus)} />
               <ThemedText style={[styles.healthStatusText, { color: getHealthStatusColor(elderlyProfile.healthStatus) }]}>
-                Tình trạng: {getHealthStatusText(elderlyProfile.healthStatus)}
+                {getHealthStatusText(elderlyProfile.healthStatus)}
               </ThemedText>
             </View>
           </View>

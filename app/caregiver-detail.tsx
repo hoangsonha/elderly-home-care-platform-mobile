@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Image,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BookingModal } from '@/components/caregiver/BookingModal';
 import { ThemedText } from '@/components/themed-text';
 
 interface CaregiverDetail {
@@ -52,7 +53,37 @@ interface Review {
 
 export default function CaregiverDetailScreen() {
   const [selectedTab, setSelectedTab] = useState<'info' | 'reviews'>('info');
-  const { id, name, fromElderly } = useLocalSearchParams();
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const { id, name, fromElderly, openBooking } = useLocalSearchParams();
+
+  // Auto-open booking modal if openBooking param is true
+  useEffect(() => {
+    if (openBooking === 'true') {
+      setShowBookingModal(true);
+    }
+  }, [openBooking]);
+
+  // Mock elderly profiles data
+  const elderlyProfiles = [
+    {
+      id: '1',
+      name: 'Bà Nguyễn Thị Lan',
+      age: 75,
+      currentCaregivers: 1,
+      family: 'Gia đình Nguyễn',
+      healthStatus: 'good' as const,
+      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+    },
+    {
+      id: '2',
+      name: 'Ông Trần Văn Minh',
+      age: 82,
+      currentCaregivers: 0,
+      family: 'Gia đình Trần',
+      healthStatus: 'fair' as const,
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+    },
+  ];
 
   // Mock data - in real app, this would come from props or API
   const caregiver: CaregiverDetail = {
@@ -124,7 +155,7 @@ export default function CaregiverDetailScreen() {
   };
 
   const handleBook = () => {
-    Alert.alert('Đặt lịch', 'Chuyển đến màn hình đặt lịch...');
+    setShowBookingModal(true);
   };
 
   const handleCall = () => {
@@ -397,6 +428,14 @@ export default function CaregiverDetailScreen() {
           </View>
         )}
       </ScrollView>
+      
+      <BookingModal
+        visible={showBookingModal}
+        onClose={() => setShowBookingModal(false)}
+        caregiver={caregiver}
+        elderlyProfiles={elderlyProfiles}
+        immediateOnly={true}
+      />
     </SafeAreaView>
   );
 }

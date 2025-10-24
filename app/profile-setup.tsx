@@ -1,3 +1,4 @@
+import { SuccessModal } from '@/components/ui/SuccessModal';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -21,6 +22,7 @@ export default function ProfileSetupScreen() {
   const [address, setAddress] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const { updateProfile, user } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -61,6 +63,11 @@ export default function ProfileSetupScreen() {
       return;
     }
 
+    // Show confirmation modal first
+    setShowSuccessModal(true);
+  };
+
+  const handleConfirmSave = async () => {
     setIsLoading(true);
     try {
       // Simulate API call
@@ -74,16 +81,9 @@ export default function ProfileSetupScreen() {
         hasCompletedProfile: true,
       });
 
-      Alert.alert(
-        'Thành công',
-        'Thông tin cá nhân đã được lưu thành công! Chào mừng bạn đến với Elder Care Connect.',
-        [
-          {
-            text: 'Tiếp tục',
-            onPress: () => router.replace('/dashboard'),
-          },
-        ]
-      );
+      // Close modal and navigate to dashboard
+      setShowSuccessModal(false);
+      router.replace('/dashboard');
     } catch (error) {
       Alert.alert('Lỗi', 'Có lỗi xảy ra khi lưu thông tin');
     } finally {
@@ -207,6 +207,15 @@ export default function ProfileSetupScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Confirmation Modal */}
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Xác nhận lưu thông tin"
+        message="Bạn có chắc chắn muốn lưu thông tin cá nhân này không?"
+        buttonText={isLoading ? "Đang lưu..." : "Xác nhận"}
+        onPress={handleConfirmSave}
+      />
     </KeyboardAvoidingView>
   );
 }

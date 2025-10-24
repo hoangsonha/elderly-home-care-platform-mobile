@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View
+    Modal,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -912,15 +912,35 @@ export default function HiredDetailScreen() {
                       <TouchableOpacity style={styles.actionButtonSecondary}>
                         <ThemedText style={styles.actionButtonSecondaryText}>Đánh giá</ThemedText>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionButtonPrimary}>
+                      <TouchableOpacity 
+                        style={styles.actionButtonPrimary}
+                        onPress={() => router.push({
+                          pathname: '/caregiver-detail',
+                          params: {
+                            caregiverId: caregiver.id,
+                            caregiverName: caregiver.name,
+                            openBooking: 'true'
+                          }
+                        })}
+                      >
                         <ThemedText style={styles.actionButtonPrimaryText}>Thuê lại</ThemedText>
                       </TouchableOpacity>
                     </>
-                  ) : (
-                    <TouchableOpacity style={styles.actionButtonPrimary}>
+                  ) : dayStatus.status === 'completed' && dayStatus.rating ? (
+                    <TouchableOpacity 
+                      style={styles.actionButtonPrimary}
+                      onPress={() => router.push({
+                        pathname: '/caregiver-detail',
+                        params: {
+                          caregiverId: caregiver.id,
+                          caregiverName: caregiver.name,
+                          openBooking: 'true'
+                        }
+                      })}
+                    >
                       <ThemedText style={styles.actionButtonPrimaryText}>Thuê lại</ThemedText>
                     </TouchableOpacity>
-                  )}
+                  ) : null}
                 </View>
               </View>
             );

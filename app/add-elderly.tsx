@@ -171,28 +171,12 @@ export default function AddElderlyScreen() {
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
 
-  const totalSteps = 9;
+  const totalSteps = 8;
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
       // Validate before going to preview step
       if (currentStep === totalSteps - 1) {
-        // Validate family selection
-        if (!familySelectionType) {
-          showErrorTooltip('Vui lòng chọn gia đình');
-          return;
-        }
-        
-        if (familySelectionType === 'create' && !newFamilyData.name.trim()) {
-          showErrorTooltip('Vui lòng nhập tên gia đình');
-          return;
-        }
-        
-        if (familySelectionType === 'select' && !selectedFamily) {
-          showErrorTooltip('Vui lòng chọn gia đình');
-          return;
-        }
-
         // Validate required fields
         if (!profile.personalInfo.name || !profile.personalInfo.age) {
           showErrorTooltip('Vui lòng điền đầy đủ thông tin cơ bản');
@@ -207,11 +191,8 @@ export default function AddElderlyScreen() {
 
   const handlePrevious = () => {
     if (currentStep > 1) {
-      if (currentStep === 9) {
-        // Từ preview quay về step 8 (family selection)
-        setCurrentStep(8);
-      } else if (currentStep === 8) {
-        // Từ family selection quay về step 7 (emergency contacts)
+      if (currentStep === 8) {
+        // Từ preview quay về step 7 (emergency contacts)
         setCurrentStep(7);
       } else if (currentStep === 2) {
         // Từ personal info quay về step 1 (personal info)
@@ -904,76 +885,9 @@ export default function AddElderlyScreen() {
       case 5: return renderPreferences();
       case 6: return renderEnvironment();
       case 7: return renderEmergencyContacts();
-      case 8: return renderFamilySelection();
-      case 9: return (
+      case 8: return (
         <View style={styles.stepContent}>
           <ThemedText style={styles.stepTitle}>Xem trước hồ sơ</ThemedText>
-          
-          {/* Family Information */}
-          <View style={styles.previewSection}>
-            <ThemedText style={styles.previewSectionTitle}>Thông tin gia đình</ThemedText>
-            <View style={styles.familyPreviewCard}>
-              {familySelectionType === 'create' ? (
-                <View>
-                  <View style={styles.familyPreviewHeader}>
-                    <Ionicons name="add-circle" size={24} color="#4ECDC4" />
-                    <ThemedText style={styles.familyPreviewTitle}>Tạo mới gia đình</ThemedText>
-                  </View>
-                  <ThemedText style={styles.familyPreviewName}>{newFamilyData.name}</ThemedText>
-                  <View style={styles.familyPreviewMembers}>
-                    <ThemedText style={styles.familyPreviewMembersTitle}>Thành viên:</ThemedText>
-                    <View style={styles.familyPreviewMemberItem}>
-                      <Ionicons name="person" size={16} color="#4ECDC4" />
-                      <ThemedText style={styles.familyPreviewMemberText}>Bạn (Quản trị viên)</ThemedText>
-                    </View>
-                    {newFamilyData.members.map((member) => (
-                      <View key={member.id} style={styles.familyPreviewMemberItem}>
-                        <Ionicons name="person" size={16} color="#6c757d" />
-                        <ThemedText style={styles.familyPreviewMemberText}>{member.email} (Thành viên)</ThemedText>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : (
-                <View>
-                  <View style={styles.familyPreviewHeader}>
-                    <Ionicons name="people" size={24} color="#4ECDC4" />
-                    <ThemedText style={styles.familyPreviewTitle}>Gia đình đã chọn</ThemedText>
-                  </View>
-                  <ThemedText style={styles.familyPreviewName}>{selectedFamily?.name}</ThemedText>
-                  <ThemedText style={styles.familyPreviewDescription}>{selectedFamily?.description}</ThemedText>
-                  <View style={styles.familyPreviewStats}>
-                    <View style={styles.familyPreviewStatItem}>
-                      <Ionicons name="people" size={16} color="#4ECDC4" />
-                      <ThemedText style={styles.familyPreviewStatText}>{selectedFamily?.memberCount} thành viên</ThemedText>
-                    </View>
-                    <View style={styles.familyPreviewStatItem}>
-                      <Ionicons name="person" size={16} color="#ff6b6b" />
-                      <ThemedText style={styles.familyPreviewStatText}>{selectedFamily?.elderlyCount} người già</ThemedText>
-                    </View>
-                  </View>
-                  <View style={styles.familyPreviewRole}>
-                    <View style={[
-                      styles.familyPreviewRoleBadge,
-                      { backgroundColor: selectedFamily?.userRole === 'admin_family' ? '#4ECDC4' : '#6c757d' }
-                    ]}>
-                      <ThemedText style={styles.familyPreviewRoleText}>
-                        {selectedFamily?.userRole === 'admin_family' ? 'Quản trị viên' : 'Thành viên'}
-                      </ThemedText>
-                    </View>
-                  </View>
-                  {selectedFamily?.userRole === 'member' && (
-                    <View style={styles.familyPreviewNote}>
-                      <Ionicons name="warning" size={16} color="#ffc107" />
-                      <ThemedText style={styles.familyPreviewNoteText}>
-                        Cần sự chấp nhận của admin gia đình
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
-          </View>
           
           {/* Profile Information */}
           <View style={styles.previewSection}>

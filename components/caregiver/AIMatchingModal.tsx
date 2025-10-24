@@ -648,7 +648,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
     return (
       <View style={styles.stepContent}>
-        <ThemedText style={styles.stepTitle}>Ngân sách dự kiến</ThemedText>
+        <ThemedText style={styles.stepTitle}>Mức lương theo giờ</ThemedText>
         <View style={styles.inputGroup}>
           <ThemedText style={styles.inputLabel}>Mức giá tham khảo tại {priceRef.area}</ThemedText>
           <View style={styles.priceReferenceCard}>
@@ -667,7 +667,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
           </View>
         )}
         <View style={styles.inputGroup}>
-          <ThemedText style={styles.inputLabel}>Ngân sách dự kiến <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
+          <ThemedText style={styles.inputLabel}>Bạn có thể trả bao nhiêu tiền/giờ? <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
           <TextInput
             style={styles.budgetInput}
             value={userInfo.budgetPerHour}

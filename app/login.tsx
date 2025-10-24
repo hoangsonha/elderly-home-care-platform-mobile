@@ -39,6 +39,9 @@ export default function LoginScreen() {
       const user = await AuthService.login(email, password);
 
       if (user) {
+        // Call AuthContext.login to set user state
+        await login(email, password);
+        
         showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
 
         setTimeout(() => {
