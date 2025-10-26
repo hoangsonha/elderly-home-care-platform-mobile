@@ -427,19 +427,6 @@ export default function ExpertProfileScreen() {
           />
 
           <View style={styles.row}>
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={styles.label}>
-                Khoảng mức lương mong muốn (VND/tháng)
-              </Text>
-              <TextInput
-                value={desiredSalary}
-                onChangeText={setDesiredSalary}
-                placeholder="0"
-                keyboardType="numeric"
-                style={styles.input}
-              />
-            </View>
-
             <View style={{ flex: 1, marginLeft: 8 }}>
               <Text style={styles.label}>Bằng cấp / chứng chỉ liên quan</Text>
               <TextInput

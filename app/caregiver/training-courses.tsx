@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
-
 const { width } = Dimensions.get("window");
 const CARD_MARGIN = 12;
 const CARD_WIDTH = Math.min(420, width - CARD_MARGIN * 2);
@@ -70,7 +69,7 @@ export default function TrainingCoursesMobile({ navigation }: any) {
           activeOpacity={0.8}
           style={styles.button}
           onPress={() =>
-            navigation?.navigate?.("CourseDetail", { id: item.id })
+            navigation.navigate("Chi tiết khóa học", { id: item.id })
           }
         >
           <Text style={styles.buttonText}>Xem chi tiết</Text>

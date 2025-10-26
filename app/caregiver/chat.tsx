@@ -1,23 +1,23 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { ThemedText } from '@/components/themed-text';
+import { ThemedText } from "@/components/themed-text";
 
 interface Message {
   id: string;
   text: string;
-  sender: 'user' | 'caregiver';
+  sender: "user" | "caregiver";
   timestamp: Date;
   isRead: boolean;
 }
@@ -29,36 +29,38 @@ interface ChatScreenProps {
 
 export default function ChatScreen() {
   const { caregiverId, caregiverName } = useLocalSearchParams();
-  
+
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      text: 'Xin chào! Tôi có thể giúp gì cho bạn?',
-      sender: 'caregiver',
+      id: "1",
+      text: "Xin chào! Tôi có thể giúp gì cho bạn?",
+      sender: "caregiver",
       timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
       isRead: true,
     },
     {
-      id: '2',
-      text: 'Chào chị! Tôi muốn tìm hiểu về dịch vụ chăm sóc người già của chị',
-      sender: 'user',
+      id: "2",
+      text: "Chào chị! Tôi muốn tìm hiểu về dịch vụ chăm sóc người già của chị",
+      sender: "user",
       timestamp: new Date(Date.now() - 1000 * 60 * 25), // 25 minutes ago
       isRead: true,
     },
     {
-      id: '3',
-      text: 'Tôi có 5 năm kinh nghiệm chăm sóc người cao tuổi, đặc biệt là những người có vấn đề về trí nhớ và vận động',
-      sender: 'caregiver',
+      id: "3",
+      text: "Tôi có 5 năm kinh nghiệm chăm sóc người cao tuổi, đặc biệt là những người có vấn đề về trí nhớ và vận động",
+      sender: "caregiver",
       timestamp: new Date(Date.now() - 1000 * 60 * 20), // 20 minutes ago
       isRead: true,
     },
   ]);
 
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState("");
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const currentCaregiverName = (caregiverName as string) || 'Chị Nguyễn Thị Lan';
-  const caregiverAvatar = 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face';
+  const currentCaregiverName =
+    (caregiverName as string) || "Chị Nguyễn Thị Lan";
+  const caregiverAvatar =
+    "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face";
 
   useEffect(() => {
     // Auto scroll to bottom when new message is added
@@ -70,53 +72,56 @@ export default function ChatScreen() {
       const message: Message = {
         id: Date.now().toString(),
         text: newMessage.trim(),
-        sender: 'user',
+        sender: "user",
         timestamp: new Date(),
         isRead: false,
       };
 
-      setMessages(prev => [...prev, message]);
-      setNewMessage('');
+      setMessages((prev) => [...prev, message]);
+      setNewMessage("");
 
       // Simulate caregiver response after 2 seconds
       setTimeout(() => {
         const responses = [
-          'Cảm ơn bạn đã quan tâm!',
-          'Tôi sẽ cố gắng hỗ trợ bạn tốt nhất có thể.',
-          'Bạn có câu hỏi gì khác không?',
-          'Tôi có thể tư vấn thêm về dịch vụ của mình.',
+          "Cảm ơn bạn đã quan tâm!",
+          "Tôi sẽ cố gắng hỗ trợ bạn tốt nhất có thể.",
+          "Bạn có câu hỏi gì khác không?",
+          "Tôi có thể tư vấn thêm về dịch vụ của mình.",
         ];
-        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-        
+        const randomResponse =
+          responses[Math.floor(Math.random() * responses.length)];
+
         const caregiverMessage: Message = {
           id: (Date.now() + 1).toString(),
           text: randomResponse,
-          sender: 'caregiver',
+          sender: "caregiver",
           timestamp: new Date(),
           isRead: true,
         };
 
-        setMessages(prev => [...prev, caregiverMessage]);
+        setMessages((prev) => [...prev, caregiverMessage]);
       }, 2000);
     }
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('vi-VN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const renderMessage = (message: Message) => {
-    const isUser = message.sender === 'user';
-    
+    const isUser = message.sender === "user";
+
     return (
       <View
         key={message.id}
         style={[
           styles.messageContainer,
-          isUser ? styles.userMessageContainer : styles.caregiverMessageContainer,
+          isUser
+            ? styles.userMessageContainer
+            : styles.caregiverMessageContainer,
         ]}
       >
         <View
@@ -147,9 +152,9 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
       {/* Header */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
@@ -167,13 +172,13 @@ export default function ChatScreen() {
             <Ionicons name="ellipsis-vertical" size={20} color="white" />
           </TouchableOpacity>
         </View>
-      </View>
+      </View> */}
 
       {/* Messages */}
       <KeyboardAvoidingView
         style={styles.messagesContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <ScrollView
           ref={scrollViewRef}
@@ -199,7 +204,9 @@ export default function ChatScreen() {
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                newMessage.trim() ? styles.sendButtonActive : styles.sendButtonInactive,
+                newMessage.trim()
+                  ? styles.sendButtonActive
+                  : styles.sendButtonInactive,
               ]}
               onPress={handleSendMessage}
               disabled={!newMessage.trim()}
@@ -207,7 +214,7 @@ export default function ChatScreen() {
               <Ionicons
                 name="send"
                 size={20}
-                color={newMessage.trim() ? 'white' : '#999'}
+                color={newMessage.trim() ? "white" : "#999"}
               />
             </TouchableOpacity>
           </View>
@@ -220,43 +227,43 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
     paddingBottom: 100, // Space for navigation bar
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: "#4ECDC4",
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   backButton: {
     padding: 8,
   },
   headerContent: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: "bold",
+    color: "white",
   },
   headerSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    color: "rgba(255,255,255,0.9)",
     marginTop: 2,
   },
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   moreButton: {
     padding: 8,
     marginRight: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderRadius: 8,
   },
   messagesContainer: {
@@ -273,26 +280,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   userMessageContainer: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   caregiverMessageContainer: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   messageBubble: {
-    maxWidth: '80%',
+    maxWidth: "80%",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
   },
   userMessageBubble: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: "#4ECDC4",
     borderBottomRightRadius: 4,
   },
   caregiverMessageBubble: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomLeftRadius: 4,
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -302,33 +309,33 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   userMessageText: {
-    color: 'white',
+    color: "white",
   },
   caregiverMessageText: {
-    color: '#2c3e50',
+    color: "#2c3e50",
   },
   messageTime: {
     fontSize: 12,
     marginTop: 4,
   },
   userMessageTime: {
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'right',
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "right",
   },
   caregiverMessageTime: {
-    color: '#6c757d',
+    color: "#6c757d",
   },
   inputContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: "#e9ecef",
   },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: '#f8f9fa',
+    flexDirection: "row",
+    alignItems: "flex-end",
+    backgroundColor: "#f8f9fa",
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -337,7 +344,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#2c3e50',
+    color: "#2c3e50",
     maxHeight: 100,
     paddingVertical: 8,
   },
@@ -345,13 +352,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   sendButtonActive: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: "#4ECDC4",
   },
   sendButtonInactive: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: "#e9ecef",
   },
 });
