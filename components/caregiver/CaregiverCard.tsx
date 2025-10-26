@@ -15,7 +15,6 @@ export interface Caregiver {
   avatar: string;
   rating: number;
   experience: string;
-  specialties: string[];
   hourlyRate: number;
   distance: string;
   isVerified: boolean;
@@ -80,21 +79,11 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
         </View>
       </View>
 
-      <View style={styles.specialtiesContainer}>
-        {caregiver.specialties.map((specialty, index) => (
-          <View key={index} style={styles.specialtyTag}>
-            <ThemedText style={styles.specialtyText} numberOfLines={1}>
-              {specialty}
-            </ThemedText>
-          </View>
-        ))}
-      </View>
-
       <View style={styles.cardFooter}>
         <View style={styles.priceContainer}>
           <ThemedText style={styles.priceLabel}>Giá/giờ:</ThemedText>
           <ThemedText style={styles.price}>
-            {caregiver.hourlyRate.toLocaleString('vi-VN')}đ
+            {(caregiver.hourlyRate || 0).toLocaleString('vi-VN')}đ
           </ThemedText>
         </View>
         
@@ -209,23 +198,6 @@ const styles = StyleSheet.create({
   distance: {
     fontSize: 14,
     color: '#6c757d',
-  },
-  specialtiesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  specialtyTag: {
-    backgroundColor: '#e6f4fe',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  specialtyText: {
-    fontSize: 12,
-    color: '#667eea',
-    fontWeight: '500',
   },
   cardFooter: {
     flexDirection: 'row',

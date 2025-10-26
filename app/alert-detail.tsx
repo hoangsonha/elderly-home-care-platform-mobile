@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert as RNAlert,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Alert as RNAlert,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -133,7 +133,7 @@ export default function AlertDetailScreen() {
     switch (priority) {
       case 'critical': return 'Khẩn cấp';
       case 'high': return 'Cao';
-      case 'medium': return 'Trung bình';
+      case 'medium': return 'Sức khỏe Trung bình';
       case 'low': return 'Thấp';
       default: return 'Không xác định';
     }

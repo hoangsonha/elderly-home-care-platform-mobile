@@ -62,7 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = (profile: Partial<User>) => {
     if (user) {
-      setUser({ ...user, ...profile });
+      const updatedUser = { ...user, ...profile };
+      setUser(updatedUser);
     }
   };
 

@@ -1,227 +1,210 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { DynamicInputList } from '@/components/ui/DynamicInputList';
-import { TimeRangePicker } from '@/components/ui/TimeRangePicker';
+import { WorkTimeSelectorFromAI } from '@/components/ui/WorkTimeSelectorFromAI';
+import { MatchResponse, matchService } from '@/services/matchServiceAxios';
+import { formatCurrency } from '@/utils/currency';
 
 interface AIMatchingModalProps {
   visible: boolean;
   onClose: () => void;
-  onGetRecommendations: (userInfo: UserInfo) => void;
+  onGetRecommendations: (response: MatchResponse) => void;
 }
 
-interface TimeRange {
-  start: string;
-  end: string;
-}
 
 interface UserInfo {
-  address: string;
   elderlyAge: string;
-  healthLevel: string;
-  careLevel: string;
-  specialNeeds: string[];
-  customSpecialNeeds: string[];
-  preferredGender: string;
-  budget: string;
-  workingDays: string[];
-  workingTimeSlots: string[];
-  specificTimeRanges: TimeRange[];
-  experience: string;
-  workLocation: {
-    address: string;
-    coordinates: {
-      latitude: number;
-      longitude: number;
-    };
-  };
-  ageRange: {
+  healthStatus: string;
+  careLevel: number;
+  requiredSkills: string[];
+  prioritySkills: string[];
+  customRequiredSkills: string[];
+  customPrioritySkills: string[];
+  timeSlotGroups: {
+    id: string;
+    days: string[];
+    timeSlots: { slot: string; start: string; end: string }[];
+  }[];
+  caregiverAgeRange: {
     min: string;
     max: string;
-  };
-  certifications: string[];
-  skills: string[];
+  } | null;
+  genderPreference: string | null;
+  requiredYearsExperience: string | null;
   personality: string[];
   attitude: string[];
-  rating: string;
+  overallRatingRange: {
+    min: number;
+    max: number;
+  } | null;
+  budgetPerHour: string;
 }
 
 const careLevels = [
-  { id: 'basic', label: 'Cơ bản', description: 'Hỗ trợ sinh hoạt hàng ngày' },
-  { id: 'intermediate', label: 'Trung bình', description: 'Chăm sóc y tế cơ bản' },
-  { id: 'advanced', label: 'Nâng cao', description: 'Chăm sóc y tế chuyên sâu' },
-  { id: 'specialized', label: 'Chuyên biệt', description: 'Chăm sóc đặc biệt, phục hồi chức năng' },
+  { id: 1, label: 'Cơ bản', description: 'Hỗ trợ sinh hoạt hàng ngày' },
+  { id: 2, label: 'Trung bình', description: 'Chăm sóc y tế cơ bản' },
+  { id: 3, label: 'Nâng cao', description: 'Chăm sóc y tế chuyên sâu' },
+  { id: 4, label: 'Chuyên biệt', description: 'Chăm sóc đặc biệt, phục hồi chức năng' },
 ];
 
-const specialNeedsOptions = [
-  { id: 'mobility', label: 'Hỗ trợ di chuyển' },
-  { id: 'medication', label: 'Quản lý thuốc' },
-  { id: 'dementia', label: 'Chăm sóc người mất trí nhớ' },
-  { id: 'diabetes', label: 'Chăm sóc tiểu đường' },
-  { id: 'hypertension', label: 'Chăm sóc huyết áp cao' },
-  { id: 'physical_therapy', label: 'Vật lý trị liệu' },
-  { id: 'companionship', label: 'Đồng hành, trò chuyện' },
-  { id: 'cooking', label: 'Nấu ăn theo chế độ đặc biệt' },
+const requiredSkillsOptions = [
+  { id: 'tiêm insulin', label: 'Tiêm insulin' },
+  { id: 'đo đường huyết', label: 'Đo đường huyết' },
+  { id: 'đái tháo đường', label: 'Chăm sóc đái tháo đường' },
+  { id: 'quản lý thuốc', label: 'Quản lý thuốc' },
+  { id: 'đo huyết áp', label: 'Đo huyết áp' },
+  { id: 'cao huyết áp', label: 'Chăm sóc cao huyết áp' },
+  { id: 'hỗ trợ vệ sinh', label: 'Hỗ trợ vệ sinh' },
+  { id: 'nấu ăn', label: 'Nấu ăn' },
+  { id: 'đồng hành', label: 'Đồng hành' },
+];
+
+const prioritySkillsOptions = [
+  { id: 'chăm sóc vết thương', label: 'Chăm sóc vết thương' },
+  { id: 'đo dấu hiệu sinh tồn', label: 'Đo dấu hiệu sinh tồn' },
+  { id: 'hỗ trợ đi lại', label: 'Hỗ trợ đi lại' },
+  { id: 'vật lý trị liệu', label: 'Vật lý trị liệu' },
+  { id: 'giám sát an toàn', label: 'Giám sát an toàn' },
+  { id: 'nhắc nhở uống thuốc', label: 'Nhắc nhở uống thuốc' },
+  { id: 'theo dõi sức khỏe', label: 'Theo dõi sức khỏe' },
+  { id: 'hỗ trợ tâm lý', label: 'Hỗ trợ tâm lý' },
 ];
 
 const genderOptions = [
-  { id: 'any', label: 'Không' },
+  { id: null, label: 'Không' },
   { id: 'female', label: 'Nữ' },
   { id: 'male', label: 'Nam' },
 ];
 
-const budgetRanges = [
-  { id: 'low', label: 'Dưới 100k/giờ' },
-  { id: 'medium', label: '100k - 200k/giờ' },
-  { id: 'high', label: '200k - 300k/giờ' },
-  { id: 'premium', label: 'Trên 300k/giờ' },
-];
 
 const experienceLevels = [
-  { id: '1-2', label: '1-2 năm' },
-  { id: '3-5', label: '3-5 năm' },
-  { id: '5+', label: 'Trên 5 năm' },
-  { id: 'expert', label: 'Chuyên gia (10+ năm)' },
+  { id: null, label: 'Không yêu cầu' },
+  { id: '1', label: '1 năm' },
+  { id: '2', label: '2 năm' },
+  { id: '3', label: '3 năm' },
+  { id: '5', label: '5 năm' },
+  { id: '7', label: '7 năm' },
+  { id: '10', label: '10 năm' },
 ];
 
-const weekDays = [
-  { id: 'sun', label: 'CN' },
-  { id: 'mon', label: 'T2' },
-  { id: 'tue', label: 'T3' },
-  { id: 'wed', label: 'T4' },
-  { id: 'thu', label: 'T5' },
-  { id: 'fri', label: 'T6' },
-  { id: 'sat', label: 'T7' },
+
+const ratingRangeOptions = [
+  { id: null, label: 'Không yêu cầu' },
+  { id: '0-1', label: '0 tới 1 sao', min: 0.0, max: 1.0 },
+  { id: '1-2', label: '1 tới 2 sao', min: 1.0, max: 2.0 },
+  { id: '2-3', label: '2 tới 3 sao', min: 2.0, max: 3.0 },
+  { id: '3-4', label: '3 tới 4 sao', min: 3.0, max: 4.0 },
+  { id: '4-5', label: '4 tới 5 sao', min: 4.0, max: 5.0 },
 ];
 
-const timeSlots = [
-  { id: 'morning', label: 'Sáng' },
-  { id: 'afternoon', label: 'Chiều' },
-  { id: 'evening', label: 'Tối' },
-  { id: 'overnight', label: 'Đêm' },
-  { id: 'custom', label: 'Khác' },
-];
-
-const certificationOptions = [
-  { id: 'nursing', label: 'Điều dưỡng' },
-  { id: 'medical', label: 'Y tế cơ bản' },
-  { id: 'elderly_care', label: 'Chăm sóc người cao tuổi' },
-  { id: 'physical_therapy', label: 'Vật lý trị liệu' },
-  { id: 'first_aid', label: 'Sơ cấp cứu' },
-  { id: 'dementia_care', label: 'Chăm sóc người mất trí nhớ' },
-  { id: 'diabetes_care', label: 'Chăm sóc bệnh nhân tiểu đường' },
-  { id: 'hypertension_care', label: 'Chăm sóc bệnh nhân huyết áp cao' },
-];
-
-const ratingOptions = [
-  { id: '4.5+', label: '4.5+ sao' },
-  { id: '4.0+', label: '4.0+ sao' },
-  { id: '3.5+', label: '3.5+ sao' },
-  { id: '3.0+', label: '3.0+ sao' },
-  { id: 'any', label: 'Bất kỳ' },
-];
 
 export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMatchingModalProps) {
   const [userInfo, setUserInfo] = useState<UserInfo>({
-    address: '',
     elderlyAge: '',
-    healthLevel: 'fair',
-    careLevel: 'intermediate',
-    specialNeeds: [],
-    customSpecialNeeds: [],
-    preferredGender: 'any',
-    budget: '',
-    workingDays: [],
-    workingTimeSlots: [],
-    specificTimeRanges: [],
-    experience: '',
-    workLocation: {
-      address: '',
-      coordinates: {
-        latitude: 0,
-        longitude: 0,
-      },
-    },
-    ageRange: { min: '18', max: '65' },
-    certifications: [],
-    skills: [],
+    healthStatus: 'moderate',
+    careLevel: 2,
+    requiredSkills: [],
+    prioritySkills: [],
+    customRequiredSkills: [],
+    customPrioritySkills: [],
+    timeSlotGroups: [],
+    caregiverAgeRange: null,
+    genderPreference: null,
+    requiredYearsExperience: null,
     personality: [],
     attitude: [],
-    rating: '',
+    overallRatingRange: null, // Mặc định là "Không yêu cầu"
+    budgetPerHour: '',
   });
 
-  const [showCustomTimePicker, setShowCustomTimePicker] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const totalSteps = 6;
 
-  const handleSpecialNeedToggle = (needId: string) => {
-    setUserInfo(prev => ({
-      ...prev,
-      specialNeeds: prev.specialNeeds.includes(needId)
-        ? prev.specialNeeds.filter(id => id !== needId)
-        : [...prev.specialNeeds, needId]
-    }));
-  };
+  // Animation values
+  const spinValue = new Animated.Value(0);
+  const pulseValue = new Animated.Value(1);
 
-  const handleDayToggle = (dayId: string) => {
-    setUserInfo(prev => ({
-      ...prev,
-      workingDays: prev.workingDays.includes(dayId)
-        ? prev.workingDays.filter(id => id !== dayId)
-        : [...prev.workingDays, dayId]
-    }));
-  };
+  useEffect(() => {
+    if (isLoading) {
+      // Spin animation
+      const spinAnimation = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      );
 
-  const handleTimeSlotToggle = (timeId: string) => {
-    if (timeId === 'custom') {
-      // Toggle custom time picker
-      setShowCustomTimePicker(!showCustomTimePicker);
-    } else {
-      // Toggle regular time slots
-      setUserInfo(prev => {
-        const newWorkingTimeSlots = prev.workingTimeSlots.includes(timeId)
-          ? prev.workingTimeSlots.filter(id => id !== timeId)
-          : [...prev.workingTimeSlots, timeId];
-        
-        // Tạo specificTimeRanges từ workingTimeSlots
-        const timeSlotRanges = {
-          'morning': { start: '06:00', end: '12:00' },
-          'afternoon': { start: '12:00', end: '18:00' },
-          'evening': { start: '18:00', end: '22:00' },
-          'overnight': { start: '22:00', end: '06:00' },
-        };
-        
-        const newSpecificTimeRanges = newWorkingTimeSlots.map(slot => 
-          timeSlotRanges[slot as keyof typeof timeSlotRanges]
-        ).filter(Boolean);
-        
-        return {
-          ...prev,
-          workingTimeSlots: newWorkingTimeSlots,
-          specificTimeRanges: newSpecificTimeRanges
-        };
-      });
+      // Pulse animation
+      const pulseAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseValue, {
+            toValue: 1.1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+
+      spinAnimation.start();
+      pulseAnimation.start();
+
+      return () => {
+        spinAnimation.stop();
+        pulseAnimation.stop();
+      };
     }
+  }, [isLoading]);
+
+  const handleRequiredSkillToggle = (skillId: string) => {
+    setUserInfo(prev => ({
+      ...prev,
+      requiredSkills: prev.requiredSkills.includes(skillId)
+        ? prev.requiredSkills.filter(id => id !== skillId)
+        : [...prev.requiredSkills, skillId]
+    }));
+  };
+
+  const handlePrioritySkillToggle = (skillId: string) => {
+    setUserInfo(prev => ({
+      ...prev,
+      prioritySkills: prev.prioritySkills.includes(skillId)
+        ? prev.prioritySkills.filter(id => id !== skillId)
+        : [...prev.prioritySkills, skillId]
+    }));
   };
 
 
-  const handleNext = () => {
+
+  const handleNext = async () => {
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     } else {
       // Validate required fields
-      if (!userInfo.healthLevel) {
+      if (!userInfo.elderlyAge) {
+        Alert.alert('Thiếu thông tin', 'Vui lòng nhập tuổi của người già');
+        return;
+      }
+      if (!userInfo.healthStatus) {
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn mức độ sức khỏe');
         return;
       }
@@ -229,15 +212,84 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn mức độ chăm sóc cần thiết');
         return;
       }
-      if (userInfo.workingDays.length === 0 || (userInfo.workingTimeSlots.length === 0 && userInfo.specificTimeRanges.length === 0)) {
-        Alert.alert('Thiếu thông tin', 'Vui lòng chọn ít nhất một ngày và một khung thời gian làm việc');
+      if (userInfo.timeSlotGroups.length === 0) {
+        Alert.alert('Thiếu thông tin', 'Vui lòng thêm ít nhất một khung thời gian làm việc');
         return;
       }
-      if (!userInfo.budget) {
+      if (!userInfo.budgetPerHour) {
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn ngân sách dự kiến');
         return;
       }
-      onGetRecommendations(userInfo);
+      // Transform userInfo to API request format
+      const requestBody = {
+        seeker_name: "Người dùng", // You can get this from user context
+        care_level: userInfo.careLevel,
+        health_status: userInfo.healthStatus,
+        elderly_age: parseInt(userInfo.elderlyAge),
+        caregiver_age_range: userInfo.caregiverAgeRange ? [
+          parseInt(userInfo.caregiverAgeRange.min),
+          parseInt(userInfo.caregiverAgeRange.max)
+        ] as [number, number] : null,
+        gender_preference: userInfo.genderPreference,
+        required_years_experience: userInfo.requiredYearsExperience ? parseInt(userInfo.requiredYearsExperience) : null,
+        overall_rating_range: userInfo.overallRatingRange ? [
+          userInfo.overallRatingRange.min,
+          userInfo.overallRatingRange.max
+        ] as [number, number] : null,
+        personality: userInfo.personality,
+        attitude: userInfo.attitude,
+        skills: {
+          required_skills: [...userInfo.requiredSkills, ...userInfo.customRequiredSkills],
+          priority_skills: [...userInfo.prioritySkills, ...userInfo.customPrioritySkills]
+        },
+        time_slots: userInfo.timeSlotGroups.flatMap(group => 
+          group.days.flatMap(day => 
+            group.timeSlots.map(slot => ({
+              day: day.toLowerCase(),
+              start: slot.start,
+              end: slot.end
+            }))
+          )
+        ),
+        location: {
+          lat: 10.7350,
+          lon: 106.7200,
+          address: "Quận 7, TP.HCM"
+        },
+        budget_per_hour: parseInt(userInfo.budgetPerHour)
+      };
+      // Log request body để debug
+      console.log('=== REQUEST BODY KHI BẤM "GỢI Ý TỪ AI" ===');
+      console.log(JSON.stringify(requestBody, null, 2));
+      console.log('==========================================');
+      // Gọi API thông qua service
+      setIsLoading(true);
+      try {
+        const response = await matchService.matchCaregivers(requestBody);
+        
+        // Log chi tiết với score_breakdown
+        console.log('✅ API Response với Score Breakdown:');
+        console.log(JSON.stringify({
+          total_matches: response.total_matches,
+          recommendations: response.recommendations.map(rec => ({
+            name: rec.name,
+            match_score: rec.match_score,
+            match_percentage: rec.match_percentage,
+            score_breakdown: rec.score_breakdown
+          }))
+        }, null, 2));
+        
+        onGetRecommendations(response);
+      } catch (error: any) {
+        console.error('❌ API Error:', error);
+        Alert.alert(
+          'Lỗi API',
+          error.message || 'Có lỗi xảy ra khi gọi API. Vui lòng thử lại.',
+          [{ text: 'OK' }]
+        );
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -250,53 +302,65 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
   const renderStep1 = () => (
     <View style={styles.stepContent}>
       <ThemedText style={styles.stepTitle}>Thông tin cơ bản của người già</ThemedText>
-      
+      <View style={styles.inputGroup}>
+        <ThemedText style={styles.inputLabel}>Tuổi của người già <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
+        <TextInput
+          style={styles.textInput}
+          value={userInfo.elderlyAge}
+          onChangeText={(text) => {
+            // Chỉ cho phép nhập số
+            const numericText = text.replace(/[^0-9]/g, '');
+            setUserInfo(prev => ({ ...prev, elderlyAge: numericText }));
+          }}
+          placeholder="Ví dụ: 60"
+          keyboardType="numeric"
+          placeholderTextColor="#999"
+        />
+      </View>
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Mức độ sức khỏe <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
         <View style={styles.healthLevelContainer}>
           <TouchableOpacity
             style={[
               styles.healthLevelCard,
-              userInfo.healthLevel === 'good' && styles.healthLevelCardSelected
+              userInfo.healthStatus === 'good' && styles.healthLevelCardSelected
             ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, healthLevel: 'good' }))}
+            onPress={() => setUserInfo(prev => ({ ...prev, healthStatus: 'good' }))}
           >
-            <Ionicons name="happy" size={32} color={userInfo.healthLevel === 'good' ? 'white' : '#4ECDC4'} />
+            <Ionicons name="happy" size={32} color={userInfo.healthStatus === 'good' ? 'white' : '#4ECDC4'} />
             <ThemedText style={[
               styles.healthLevelText,
-              userInfo.healthLevel === 'good' && styles.healthLevelTextSelected
+              userInfo.healthStatus === 'good' && styles.healthLevelTextSelected
             ]}>
               Tốt
             </ThemedText>
           </TouchableOpacity>
-          
           <TouchableOpacity
             style={[
               styles.healthLevelCard,
-              userInfo.healthLevel === 'fair' && styles.healthLevelCardSelected
+              userInfo.healthStatus === 'moderate' && styles.healthLevelCardSelected
             ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, healthLevel: 'fair' }))}
+            onPress={() => setUserInfo(prev => ({ ...prev, healthStatus: 'moderate' }))}
           >
-            <Ionicons name="medical" size={32} color={userInfo.healthLevel === 'fair' ? 'white' : '#4ECDC4'} />
+            <Ionicons name="medical" size={32} color={userInfo.healthStatus === 'moderate' ? 'white' : '#4ECDC4'} />
             <ThemedText style={[
               styles.healthLevelText,
-              userInfo.healthLevel === 'fair' && styles.healthLevelTextSelected
+              userInfo.healthStatus === 'moderate' && styles.healthLevelTextSelected
             ]}>
               Trung bình
             </ThemedText>
           </TouchableOpacity>
-          
           <TouchableOpacity
             style={[
               styles.healthLevelCard,
-              userInfo.healthLevel === 'poor' && styles.healthLevelCardSelected
+              userInfo.healthStatus === 'weak' && styles.healthLevelCardSelected
             ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, healthLevel: 'poor' }))}
+            onPress={() => setUserInfo(prev => ({ ...prev, healthStatus: 'weak' }))}
           >
-            <Ionicons name="warning" size={32} color={userInfo.healthLevel === 'poor' ? 'white' : '#4ECDC4'} />
+            <Ionicons name="warning" size={32} color={userInfo.healthStatus === 'weak' ? 'white' : '#4ECDC4'} />
             <ThemedText style={[
               styles.healthLevelText,
-              userInfo.healthLevel === 'poor' && styles.healthLevelTextSelected
+              userInfo.healthStatus === 'weak' && styles.healthLevelTextSelected
             ]}>
               Yếu
             </ThemedText>
@@ -311,25 +375,25 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
             key={level.id}
             style={[
               styles.optionCard,
-              userInfo.careLevel === level.id && styles.optionCardSelected
+              userInfo.careLevel === (level.id as number) && styles.optionCardSelected
             ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, careLevel: level.id }))}
+            onPress={() => setUserInfo(prev => ({ ...prev, careLevel: level.id as number }))}
           >
             <View style={styles.optionContent}>
               <ThemedText style={[
                 styles.optionTitle,
-                userInfo.careLevel === level.id && styles.optionTitleSelected
+                userInfo.careLevel === (level.id as number) && styles.optionTitleSelected
               ]}>
                 {level.label}
               </ThemedText>
               <ThemedText style={[
                 styles.optionDescription,
-                userInfo.careLevel === level.id && styles.optionDescriptionSelected
+                userInfo.careLevel === (level.id as number) && styles.optionDescriptionSelected
               ]}>
                 {level.description}
               </ThemedText>
             </View>
-            {userInfo.careLevel === level.id && (
+            {userInfo.careLevel === (level.id as number) && (
               <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
             )}
           </TouchableOpacity>
@@ -340,158 +404,76 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
   const renderStep2 = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Nhu cầu đặc biệt của người già</ThemedText>
-      
+      <ThemedText style={styles.stepTitle}>Kĩ năng cần có ở người chăm sóc</ThemedText>
       <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Chọn các nhu cầu phù hợp (có thể chọn nhiều)</ThemedText>
+        <ThemedText style={styles.inputLabel}>Kĩ năng bắt buộc</ThemedText>
         <View style={styles.optionsGrid}>
-          {specialNeedsOptions.map((need) => (
+          {requiredSkillsOptions.map((skill) => (
             <TouchableOpacity
-              key={need.id}
+              key={skill.id}
               style={[
                 styles.specialNeedCard,
-                userInfo.specialNeeds.includes(need.id) && styles.specialNeedCardSelected
+                userInfo.requiredSkills.includes(skill.id) && styles.specialNeedCardSelected
               ]}
-              onPress={() => handleSpecialNeedToggle(need.id)}
+              onPress={() => handleRequiredSkillToggle(skill.id)}
             >
               <ThemedText style={[
                 styles.specialNeedText,
-                userInfo.specialNeeds.includes(need.id) && styles.specialNeedTextSelected
+                userInfo.requiredSkills.includes(skill.id) && styles.specialNeedTextSelected
               ]}>
-                {need.label}
+                {skill.label}
               </ThemedText>
             </TouchableOpacity>
           ))}
         </View>
-      </View>
-
-      <View style={styles.inputGroup}>
         <DynamicInputList
-          title="Nhu cầu đặc biệt khác"
-          placeholder="Nhập nhu cầu đặc biệt"
-          items={userInfo.customSpecialNeeds || []}
-          onItemsChange={(customSpecialNeeds) => setUserInfo(prev => ({ ...prev, customSpecialNeeds }))}
-          maxItems={10}
+          title="Kĩ năng bắt buộc khác"
+          placeholder="Nhập kĩ năng bắt buộc"
+          items={userInfo.customRequiredSkills || []}
+          onItemsChange={(customRequiredSkills) => setUserInfo(prev => ({ ...prev, customRequiredSkills }))}
+          maxItems={5}
         />
       </View>
-    </View>
+      
+      <View style={styles.inputGroup}>
+        <ThemedText style={styles.inputLabel}>Kĩ năng ưu tiên</ThemedText>
+        <View style={styles.optionsGrid}>
+          {prioritySkillsOptions.map((skill) => (
+            <TouchableOpacity
+              key={skill.id}
+              style={[
+                styles.specialNeedCard,
+                userInfo.prioritySkills.includes(skill.id) && styles.specialNeedCardSelected
+              ]}
+              onPress={() => handlePrioritySkillToggle(skill.id)}
+            >
+              <ThemedText style={[
+                styles.specialNeedText,
+                userInfo.prioritySkills.includes(skill.id) && styles.specialNeedTextSelected
+              ]}>
+                {skill.label}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <DynamicInputList
+          title="Kĩ năng ưu tiên khác"
+          placeholder="Nhập kĩ năng ưu tiên"
+          items={userInfo.customPrioritySkills || []}
+          onItemsChange={(customPrioritySkills) => setUserInfo(prev => ({ ...prev, customPrioritySkills }))}
+          maxItems={5}
+        />
+      </View>
+        </View>
   );
 
   const renderStep3 = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Thời gian làm việc của người chăm sóc</ThemedText>
-      
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Chọn ngày cần chăm sóc <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
-        <View style={styles.daysContainer}>
-          {weekDays.map((day) => (
-            <TouchableOpacity
-              key={day.id}
-              style={[
-                styles.dayButton,
-                userInfo.workingDays.includes(day.id) && styles.dayButtonSelected
-              ]}
-              onPress={() => handleDayToggle(day.id)}
-            >
-              <ThemedText style={[
-                styles.dayButtonText,
-                userInfo.workingDays.includes(day.id) && styles.dayButtonTextSelected
-              ]}>
-                {day.label}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Chọn khung thời gian <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
-        <View style={styles.timeSlotsContainer}>
-          {timeSlots.map((time) => (
-            <TouchableOpacity
-              key={time.id}
-              style={[
-                styles.timeSlotButton,
-                (time.id === 'custom' ? showCustomTimePicker : userInfo.workingTimeSlots.includes(time.id)) && styles.timeSlotButtonSelected
-              ]}
-              onPress={() => handleTimeSlotToggle(time.id)}
-            >
-              <ThemedText style={[
-                styles.timeSlotButtonText,
-                (time.id === 'custom' ? showCustomTimePicker : userInfo.workingTimeSlots.includes(time.id)) && styles.timeSlotButtonTextSelected
-              ]}>
-                {time.label}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* TimeRangePicker chỉ hiện khi chọn nút Khác */}
-      {showCustomTimePicker && (
-        <TimeRangePicker
-          timeRanges={userInfo.specificTimeRanges
-            .filter((range, index) => {
-              // Chỉ hiển thị custom ranges (không phải predefined)
-              const predefinedRanges = {
-                'morning': { start: '06:00', end: '12:00' },
-                'afternoon': { start: '12:00', end: '18:00' },
-                'evening': { start: '18:00', end: '22:00' },
-                'overnight': { start: '22:00', end: '06:00' },
-              };
-              return !userInfo.workingTimeSlots.some(slot => {
-                const predefinedRange = predefinedRanges[slot as keyof typeof predefinedRanges];
-                return predefinedRange && 
-                       predefinedRange.start === range.start && 
-                       predefinedRange.end === range.end;
-              });
-            })
-            .map((range, index) => ({
-              id: `custom-range-${index}`,
-              startTime: range.start,
-              endTime: range.end,
-            }))}
-          onTimeRangesChange={(ranges) => {
-            // Merge custom ranges với predefined ranges
-            const predefinedRanges = userInfo.workingTimeSlots.map(slot => {
-              const timeSlotRanges = {
-                'morning': { start: '06:00', end: '12:00' },
-                'afternoon': { start: '12:00', end: '18:00' },
-                'evening': { start: '18:00', end: '22:00' },
-                'overnight': { start: '22:00', end: '06:00' },
-              };
-              return timeSlotRanges[slot as keyof typeof timeSlotRanges];
-            }).filter(Boolean);
-
-            const customRanges = ranges.map(range => ({
-              start: range.startTime,
-              end: range.endTime,
-            }));
-
-            // Merge predefined + custom
-            const allRanges = [...predefinedRanges, ...customRanges];
-            setUserInfo(prev => ({ ...prev, specificTimeRanges: allRanges }));
-            // KHÔNG đóng modal, giữ showCustomTimePicker = true
-          }}
-          maxRanges={5}
-          selectedTimeSlots={userInfo.workingTimeSlots}
-        />
-      )}
-
-      {/* Hiển thị khung giờ đã chọn */}
-      {userInfo.specificTimeRanges.length > 0 && (
-        <View style={styles.selectedRangesContainer}>
-          <ThemedText style={styles.selectedRangesTitle}>Khung giờ đã chọn:</ThemedText>
-          
-          {userInfo.specificTimeRanges.map((range, index) => (
-            <View key={`range-${index}`} style={styles.selectedRangeItem}>
-              <ThemedText style={styles.selectedRangeText}>
-                Khung {index + 1}: {range.start} - {range.end}
-              </ThemedText>
-            </View>
-          ))}
-        </View>
-      )}
+      <ThemedText style={styles.stepTitle}>Thời gian làm việc</ThemedText>
+      <WorkTimeSelectorFromAI
+        timeSlotGroups={userInfo.timeSlotGroups}
+        onTimeSlotGroupsChange={(timeSlotGroups) => setUserInfo(prev => ({ ...prev, timeSlotGroups }))}
+      />
 
       <ThemedText style={styles.helpText}>
         Đừng lo, bạn có thể điều chỉnh thời gian này sau
@@ -502,7 +484,6 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
   const renderStep4 = () => (
     <View style={styles.stepContent}>
       <ThemedText style={styles.stepTitle}>Yêu cầu người chăm sóc</ThemedText>
-      
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Độ tuổi người chăm sóc</ThemedText>
         <View style={styles.ageRangeContainer}>
@@ -510,12 +491,12 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
             <ThemedText style={styles.ageLabel}>Từ</ThemedText>
             <TextInput
               style={styles.ageInput}
-              value={userInfo.ageRange.min}
+              value={userInfo.caregiverAgeRange?.min || ''}
               onChangeText={(text) => setUserInfo(prev => ({ 
                 ...prev, 
-                ageRange: { ...prev.ageRange, min: text }
+                caregiverAgeRange: prev.caregiverAgeRange ? { ...prev.caregiverAgeRange, min: text } : { min: text, max: '' }
               }))}
-              placeholder="18"
+              placeholder="Ví dụ: 25"
               keyboardType="numeric"
               placeholderTextColor="#999"
             />
@@ -524,34 +505,33 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
             <ThemedText style={styles.ageLabel}>Đến</ThemedText>
             <TextInput
               style={styles.ageInput}
-              value={userInfo.ageRange.max}
+              value={userInfo.caregiverAgeRange?.max || ''}
               onChangeText={(text) => setUserInfo(prev => ({ 
                 ...prev, 
-                ageRange: { ...prev.ageRange, max: text }
+                caregiverAgeRange: prev.caregiverAgeRange ? { ...prev.caregiverAgeRange, max: text } : { min: '', max: text }
               }))}
-              placeholder="65"
+              placeholder="Ví dụ: 50"
               keyboardType="numeric"
               placeholderTextColor="#999"
             />
           </View>
         </View>
       </View>
-      
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Giới tính ưu tiên</ThemedText>
         <View style={styles.genderOptions}>
           {genderOptions.map((gender) => (
             <TouchableOpacity
-              key={gender.id}
+              key={gender.id || 'any'}
               style={[
                 styles.genderCard,
-                userInfo.preferredGender === gender.id && styles.genderCardSelected
+                userInfo.genderPreference === gender.id && styles.genderCardSelected
               ]}
-              onPress={() => setUserInfo(prev => ({ ...prev, preferredGender: gender.id }))}
+              onPress={() => setUserInfo(prev => ({ ...prev, genderPreference: gender.id }))}
             >
               <ThemedText style={[
                 styles.genderText,
-                userInfo.preferredGender === gender.id && styles.genderTextSelected
+                userInfo.genderPreference === gender.id && styles.genderTextSelected
               ]}>
                 {gender.label}
               </ThemedText>
@@ -564,64 +544,24 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
         <ThemedText style={styles.inputLabel}>Kinh nghiệm</ThemedText>
         {experienceLevels.map((exp) => (
           <TouchableOpacity
-            key={exp.id}
+            key={exp.id || 'none'}
             style={[
               styles.optionCard,
-              userInfo.experience === exp.id && styles.optionCardSelected
+              userInfo.requiredYearsExperience === exp.id && styles.optionCardSelected
             ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, experience: exp.id }))}
+            onPress={() => setUserInfo(prev => ({ ...prev, requiredYearsExperience: exp.id }))}
           >
             <ThemedText style={[
               styles.optionTitle,
-              userInfo.experience === exp.id && styles.optionTitleSelected
+              userInfo.requiredYearsExperience === exp.id && styles.optionTitleSelected
             ]}>
               {exp.label}
             </ThemedText>
-            {userInfo.experience === exp.id && (
+            {userInfo.requiredYearsExperience === exp.id && (
               <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
             )}
           </TouchableOpacity>
         ))}
-      </View>
-
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Chuyên môn</ThemedText>
-        <View style={styles.optionsGrid}>
-          {certificationOptions.map((cert) => (
-            <TouchableOpacity
-              key={cert.id}
-              style={[
-                styles.specialNeedCard,
-                userInfo.certifications.includes(cert.id) && styles.specialNeedCardSelected
-              ]}
-              onPress={() => {
-                setUserInfo(prev => ({
-                  ...prev,
-                  certifications: prev.certifications.includes(cert.id)
-                    ? prev.certifications.filter(id => id !== cert.id)
-                    : [...prev.certifications, cert.id]
-                }));
-              }}
-            >
-              <ThemedText style={[
-                styles.specialNeedText,
-                userInfo.certifications.includes(cert.id) && styles.specialNeedTextSelected
-              ]}>
-                {cert.label}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <DynamicInputList
-          title="Kỹ năng"
-          placeholder="Nhập kỹ năng"
-          items={userInfo.skills}
-          onItemsChange={(skills) => setUserInfo(prev => ({ ...prev, skills }))}
-          maxItems={10}
-        />
       </View>
 
       <View style={styles.inputGroup}>
@@ -646,22 +586,34 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Đánh giá</ThemedText>
-        {ratingOptions.map((rating) => (
+        {ratingRangeOptions.map((rating) => (
           <TouchableOpacity
-            key={rating.id}
+            key={rating.id || 'none'}
             style={[
               styles.optionCard,
-              userInfo.rating === rating.id && styles.optionCardSelected
+              ((!userInfo.overallRatingRange && !rating.id) || 
+               (userInfo.overallRatingRange && rating.id && 
+                userInfo.overallRatingRange.min === rating.min && 
+                userInfo.overallRatingRange.max === rating.max)) && styles.optionCardSelected
             ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, rating: rating.id }))}
+            onPress={() => setUserInfo(prev => ({ 
+              ...prev, 
+              overallRatingRange: rating.id ? { min: rating.min, max: rating.max } : null 
+            }))}
           >
             <ThemedText style={[
               styles.optionTitle,
-              userInfo.rating === rating.id && styles.optionTitleSelected
+              ((!userInfo.overallRatingRange && !rating.id) || 
+               (userInfo.overallRatingRange && rating.id && 
+                userInfo.overallRatingRange.min === rating.min && 
+                userInfo.overallRatingRange.max === rating.max)) && styles.optionTitleSelected
             ]}>
               {rating.label}
             </ThemedText>
-            {userInfo.rating === rating.id && (
+            {((!userInfo.overallRatingRange && !rating.id) || 
+              (userInfo.overallRatingRange && rating.id && 
+               userInfo.overallRatingRange.min === rating.min && 
+               userInfo.overallRatingRange.max === rating.max)) && (
               <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
             )}
           </TouchableOpacity>
@@ -672,80 +624,71 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
   const renderStep5 = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Vị trí làm việc của người chăm sóc</ThemedText>
-      
+      <ThemedText style={styles.stepTitle}>Vị trí làm việc</ThemedText>
       <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Vị trí làm việc của người chăm sóc</ThemedText>
-        <TextInput
-          style={styles.textInput}
-          value={userInfo.workLocation.address}
-          onChangeText={(text) => setUserInfo(prev => ({ 
-            ...prev, 
-            workLocation: { ...prev.workLocation, address: text }
-          }))}
-          placeholder="Ví dụ: 456 Lê Lợi, Quận 3, TP.HCM"
-          placeholderTextColor="#999"
-        />
-        <TouchableOpacity style={styles.mapButton}>
-          <Ionicons name="map" size={20} color="#4ECDC4" />
-          <ThemedText style={styles.mapButtonText}>Chọn trên bản đồ</ThemedText>
-        </TouchableOpacity>
+        <ThemedText style={styles.inputLabel}>Vị trí làm việc</ThemedText>
+        <View style={styles.locationCard}>
+          <Ionicons name="location" size={24} color="#4ECDC4" />
+          <ThemedText style={styles.locationText}>
+            Quận 7, TP.HCM (Tọa độ: 10.7350, 106.7200)
+          </ThemedText>
+        </View>
+        <ThemedText style={styles.locationNote}>
+          Vị trí đã được cố định cho mục đích demo
+        </ThemedText>
       </View>
     </View>
   );
 
   const renderStep6 = () => {
-    // Mock price reference based on location
-    const getPriceReference = () => {
-      if (userInfo.workLocation.address.includes('Quận 1') || userInfo.workLocation.address.includes('Quận 3')) {
-        return { min: 150, max: 300, area: 'Trung tâm TP.HCM' };
-      } else if (userInfo.workLocation.address.includes('Quận 7') || userInfo.workLocation.address.includes('Quận 2')) {
-        return { min: 120, max: 250, area: 'Khu vực phát triển' };
-      } else if (userInfo.workLocation.address.includes('TP.HCM')) {
-        return { min: 100, max: 200, area: 'TP.HCM' };
-      } else {
-        return { min: 80, max: 150, area: 'Các tỉnh khác' };
-      }
-    };
-
-    const priceRef = getPriceReference();
+    // Price reference for Quận 7, TP.HCM
+    const priceRef = { min: 100, max: 200, area: 'Quận 7, TP.HCM' };
+    const selectedBudget = parseInt(userInfo.budgetPerHour) || 0;
+    const showWarning = selectedBudget > 0 && selectedBudget < (priceRef.min * 1000);
 
     return (
       <View style={styles.stepContent}>
-        <ThemedText style={styles.stepTitle}>Ngân sách dự kiến</ThemedText>
-        
+        <ThemedText style={styles.stepTitle}>Mức lương theo giờ</ThemedText>
         <View style={styles.inputGroup}>
           <ThemedText style={styles.inputLabel}>Mức giá tham khảo tại {priceRef.area}</ThemedText>
           <View style={styles.priceReferenceCard}>
             <Ionicons name="information-circle" size={20} color="#4ECDC4" />
             <ThemedText style={styles.priceReferenceText}>
-              {priceRef.min}k - {priceRef.max}k/giờ
+              {formatCurrency(priceRef.min * 1000, false)} - {formatCurrency(priceRef.max * 1000, false)}/giờ
             </ThemedText>
           </View>
         </View>
-        
+        {showWarning && (
+          <View style={styles.warningCard}>
+            <Ionicons name="warning" size={20} color="#ff6b6b" />
+            <ThemedText style={styles.warningText}>
+              Bạn đang chọn mức ngân sách ít hơn mức giá tham khảo, nếu bạn vẫn tiếp tục thì có thể ảnh hưởng tới quá trình tự động tìm người chăm sóc của chúng tôi
+            </ThemedText>
+          </View>
+        )}
         <View style={styles.inputGroup}>
-          <ThemedText style={styles.inputLabel}>Ngân sách dự kiến <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
-          {budgetRanges.map((budget) => (
-            <TouchableOpacity
-              key={budget.id}
-              style={[
-                styles.optionCard,
-                userInfo.budget === budget.id && styles.optionCardSelected
-              ]}
-              onPress={() => setUserInfo(prev => ({ ...prev, budget: budget.id }))}
-            >
-              <ThemedText style={[
-                styles.optionTitle,
-                userInfo.budget === budget.id && styles.optionTitleSelected
-              ]}>
-                {budget.label}
+          <ThemedText style={styles.inputLabel}>Bạn có thể trả bao nhiêu tiền/giờ? <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
+          <TextInput
+            style={styles.budgetInput}
+            value={userInfo.budgetPerHour}
+            onChangeText={(text) => {
+              // Chỉ cho phép nhập số
+              const numericText = text.replace(/[^0-9]/g, '');
+              setUserInfo(prev => ({ ...prev, budgetPerHour: numericText }));
+            }}
+            placeholder="Nhập số tiền (VND)/giờ"
+            keyboardType="numeric"
+            placeholderTextColor="#999"
+          />
+          {/* Hiển thị số tiền bằng tiếng Việt */}
+          {userInfo.budgetPerHour && parseInt(userInfo.budgetPerHour) > 0 && (
+            <View style={styles.currencyDisplay}>
+              <Ionicons name="cash-outline" size={16} color="#4ECDC4" />
+              <ThemedText style={styles.currencyText}>
+                {formatCurrency(parseInt(userInfo.budgetPerHour))}/giờ
               </ThemedText>
-              {userInfo.budget === budget.id && (
-                <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
+            </View>
               )}
-            </TouchableOpacity>
-          ))}
         </View>
       </View>
     );
@@ -763,6 +706,11 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
     }
   };
 
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={styles.container}>
@@ -771,7 +719,6 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
-          
           <View style={styles.headerContent}>
             <ThemedText style={styles.headerTitle}>AI Gợi ý Người Chăm Sóc</ThemedText>
             <ThemedText style={styles.headerSubtitle}>
@@ -807,16 +754,50 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
               <ThemedText style={styles.previousButtonText}>Trước</ThemedText>
             </TouchableOpacity>
           )}
-          
           <View style={styles.navigationSpacer} />
-          
-          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+          <TouchableOpacity 
+            style={[styles.nextButton, isLoading && styles.nextButtonDisabled]} 
+            onPress={handleNext}
+            disabled={isLoading}
+          >
             <ThemedText style={styles.nextButtonText}>
               {currentStep === totalSteps ? 'Gợi ý từ AI' : 'Tiếp theo'}
             </ThemedText>
             <Ionicons name="chevron-forward" size={20} color="white" />
           </TouchableOpacity>
         </View>
+
+        {/* Loading Overlay */}
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContainer}>
+              <Animated.View 
+                style={[
+                  styles.loadingIconContainer,
+                  { transform: [{ scale: pulseValue }] }
+                ]}
+              >
+                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                  <Ionicons name="heart" size={48} color="#4ECDC4" />
+                </Animated.View>
+              </Animated.View>
+              
+              <ThemedText style={styles.loadingTitle}>
+                Đang tìm người chăm sóc phù hợp cho bạn
+              </ThemedText>
+              
+              <ThemedText style={styles.loadingSubtitle}>
+                AI đang phân tích và tìm kiếm những người chăm sóc tốt nhất...
+              </ThemedText>
+              
+              <View style={styles.loadingDots}>
+                <Animated.View style={[styles.dot, { opacity: pulseValue }]} />
+                <Animated.View style={[styles.dot, { opacity: pulseValue }]} />
+                <Animated.View style={[styles.dot, { opacity: pulseValue }]} />
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -1029,92 +1010,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
-  daysContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  dayButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayButtonSelected: {
-    backgroundColor: '#495057',
-    borderColor: '#495057',
-  },
-  dayButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
-  },
-  dayButtonTextSelected: {
-    color: 'white',
-  },
-  timeSlotsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  timeSlotButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    backgroundColor: 'white',
-    alignItems: 'center',
-    minWidth: 0,
-  },
-  timeSlotButtonSelected: {
-    backgroundColor: '#495057',
-    borderColor: '#495057',
-  },
-  timeSlotButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#495057',
-    textAlign: 'center',
-  },
-  timeSlotButtonTextSelected: {
-    color: 'white',
+  nextButtonDisabled: {
+    opacity: 0.6,
   },
   helpText: {
     fontSize: 14,
     color: '#6c757d',
     textAlign: 'center',
     marginTop: 16,
-  },
-  selectedTimeRangesContainer: {
-    backgroundColor: '#f0fdfa',
-    borderRadius: 8,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: '#4ECDC4',
-  },
-  selectedTimeRangesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 8,
-  },
-  selectedTimeRangeItem: {
-    backgroundColor: 'white',
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 4,
-  },
-  selectedTimeRangeText: {
-    fontSize: 14,
-    color: '#2c3e50',
-    fontWeight: '500',
   },
   healthLevelContainer: {
     flexDirection: 'row',
@@ -1203,32 +1106,125 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     textAlign: 'center',
   },
-  selectedRangesContainer: {
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  selectedRangesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 12,
-  },
-  selectedRangeItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: 'white',
+  locationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdfa',
     borderRadius: 8,
-    marginBottom: 8,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#4ECDC4',
   },
-  selectedRangeText: {
-    fontSize: 14,
+  locationText: {
+    marginLeft: 12,
+    fontSize: 16,
     fontWeight: '500',
     color: '#2c3e50',
+    flex: 1,
+  },
+  locationNote: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  warningCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff5f5',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ff6b6b',
+    marginBottom: 16,
+  },
+  warningText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#dc3545',
+    flex: 1,
+    lineHeight: 20,
+  },
+  budgetInput: {
+    height: 48,
+    borderColor: '#ced4da',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#2c3e50',
+    backgroundColor: 'white',
+  },
+  currencyDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f0fdfa',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#4ECDC4',
+  },
+  currencyText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  // Loading Overlay Styles
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loadingIconContainer: {
+    marginBottom: 24,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  loadingSubtitle: {
+    fontSize: 16,
+    color: '#6c757d',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  loadingDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4ECDC4',
   },
 });

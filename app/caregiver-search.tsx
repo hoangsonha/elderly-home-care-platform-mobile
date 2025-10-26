@@ -2,12 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
+    Dimensions,
     ScrollView,
     StyleSheet,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AIMatchingModal } from '@/components/caregiver/AIMatchingModal';
@@ -15,8 +22,10 @@ import { AIRecommendations } from '@/components/caregiver/AIRecommendations';
 import { BookingModal } from '@/components/caregiver/BookingModal';
 import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverCard';
 import { SearchFilters, type FilterOption } from '@/components/caregiver/SearchFilters';
+import { AnimatedNavBar } from '@/components/navigation/AnimatedNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
+import { CaregiverRecommendation, MatchResponse } from '@/services/types';
 
 // Mock data
 const mockCaregivers: Caregiver[] = [
@@ -70,13 +79,20 @@ export default function CaregiverSearchScreen() {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [caregivers] = useState<Caregiver[]>(mockCaregivers);
   const [showAIModal, setShowAIModal] = useState(false);
-  const [aiRecommendations, setAiRecommendations] = useState<Caregiver[]>([]);
+  const [aiRecommendations, setAiRecommendations] = useState<CaregiverRecommendation[]>([]);
   const [showAIResults, setShowAIResults] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   const [showFloatingAI, setShowFloatingAI] = useState(true);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedCaregiver, setSelectedCaregiver] = useState<Caregiver | null>(null);
+  const [activeTab, setActiveTab] = useState('services');
   const { user } = useAuth();
+
+  // Floating AI position state
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
+  const translateX = useSharedValue(screenWidth - 80); // Initial position (right side)
+  const translateY = useSharedValue(screenHeight - 200); // Initial position (bottom)
 
   // Mock elderly profiles data
   const elderlyProfiles = [
@@ -129,73 +145,80 @@ export default function CaregiverSearchScreen() {
     setShowAIModal(true);
   };
 
-  const handleGetAIRecommendations = async (userInfo: any) => {
-    setShowAIModal(false);
-    setIsAILoading(true);
+  const handleGetAIRecommendations = (response: MatchResponse) => {
+    console.log('AI Recommendations received:', response);
+    setAiRecommendations(response.recommendations);
     setShowAIResults(true);
-
-    // Simulate AI processing delay
-    setTimeout(() => {
-      // Mock AI recommendations based on user info
-      const recommendations = generateAIRecommendations(userInfo);
-      setAiRecommendations(recommendations);
-      setIsAILoading(false);
-    }, 2000);
-  };
-
-  const generateAIRecommendations = (userInfo: any): Caregiver[] => {
-    // Mock AI logic - in real app, this would call AI API
-    let filteredCaregivers = [...mockCaregivers];
-
-    // Filter by special needs
-    if (userInfo.specialNeeds && userInfo.specialNeeds.length > 0) {
-      filteredCaregivers = filteredCaregivers.filter(caregiver => 
-        userInfo.specialNeeds.some((need: string) => 
-          caregiver.specialties.some(specialty => 
-            specialty.toLowerCase().includes(need.toLowerCase())
-          )
-        )
-      );
-    }
-
-    // Filter by experience level
-    if (userInfo.experience) {
-      const experienceYears = parseInt(userInfo.experience ? userInfo.experience.split('-')[0] : '0') || 0;
-      filteredCaregivers = filteredCaregivers.filter(caregiver => {
-        const caregiverExp = parseInt(caregiver.experience ? caregiver.experience.split(' ')[0] : '0');
-        return caregiverExp >= experienceYears;
-      });
-    }
-
-    // Filter by budget
-    if (userInfo.budget) {
-      const budgetRanges = {
-        'low': 100000,
-        'medium': 200000,
-        'high': 300000,
-        'premium': 500000
-      };
-      const maxRate = budgetRanges[userInfo.budget as keyof typeof budgetRanges] || 500000;
-      filteredCaregivers = filteredCaregivers.filter(caregiver => 
-        caregiver.hourlyRate <= maxRate
-      );
-    }
-
-    // Sort by rating and return top 3
-    return filteredCaregivers
-      .sort((a, b) => b.rating - a.rating)
-      .slice(0, 3);
+    setShowAIModal(false);
+    setIsAILoading(false);
   };
 
   const handleRefreshAI = () => {
     setIsAILoading(true);
+    // In real app, this would refresh AI recommendations
     setTimeout(() => {
-      // Re-generate recommendations
-      const newRecommendations = generateAIRecommendations({});
-      setAiRecommendations(newRecommendations);
       setIsAILoading(false);
-    }, 1500);
+    }, 1000);
   };
+
+  const handleTabPress = (tabId: string) => {
+    setActiveTab(tabId);
+    
+    // Navigate to corresponding page
+    switch (tabId) {
+      case 'home':
+        router.push('/dashboard');
+        break;
+      case 'services':
+        // Already on caregiver-search page
+        break;
+      case 'requests':
+        router.push('/requests');
+        break;
+      case 'wallet':
+        router.push('/payments');
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Gesture handler for floating AI button
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      // Store initial position
+    })
+    .onUpdate((event) => {
+      translateX.value = event.absoluteX - 28; // Center the button
+      translateY.value = event.absoluteY - 28;
+    })
+    .onEnd(() => {
+      // Snap to edges
+      const buttonSize = 56;
+      const margin = 20;
+      
+      if (translateX.value < screenWidth / 2) {
+        // Snap to left edge
+        translateX.value = withSpring(margin);
+      } else {
+        // Snap to right edge
+        translateX.value = withSpring(screenWidth - buttonSize - margin);
+      }
+      
+      // Keep Y within screen bounds
+      translateY.value = withSpring(
+        Math.max(margin, Math.min(screenHeight - buttonSize - margin, translateY.value))
+      );
+    });
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+      ],
+    };
+  });
 
 
 
@@ -289,17 +312,19 @@ export default function CaregiverSearchScreen() {
 
       {/* Floating AI Button */}
       {showFloatingAI && (
-        <View style={styles.floatingAIContainer}>
-          <TouchableOpacity style={styles.floatingAIButton} onPress={handleAIMatching}>
-            <Ionicons name="sparkles" size={24} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.closeFloatingButton} 
-            onPress={() => setShowFloatingAI(false)}
-          >
-            <Ionicons name="close" size={16} color="#666" />
-          </TouchableOpacity>
-        </View>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={[styles.floatingAIContainer, animatedStyle]}>
+            <TouchableOpacity style={styles.floatingAIButton} onPress={handleAIMatching}>
+              <Ionicons name="sparkles" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.closeFloatingButton} 
+              onPress={() => setShowFloatingAI(false)}
+            >
+              <Ionicons name="close" size={16} color="#666" />
+            </TouchableOpacity>
+          </Animated.View>
+        </GestureDetector>
       )}
 
       {/* AI Matching Modal */}
@@ -321,6 +346,12 @@ export default function CaregiverSearchScreen() {
           elderlyProfiles={elderlyProfiles}
         />
       )}
+
+      {/* Animated Navigation Bar */}
+      <AnimatedNavBar 
+        activeTab={activeTab} 
+        onTabPress={handleTabPress} 
+      />
     </SafeAreaView>
   );
 }
@@ -329,6 +360,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    paddingBottom: 100, // Space for navigation bar
   },
   header: {
     backgroundColor: '#4ECDC4',
@@ -368,8 +400,6 @@ const styles = StyleSheet.create({
   },
   floatingAIContainer: {
     position: 'absolute',
-    right: 20,
-    bottom: 100,
     alignItems: 'center',
     zIndex: 1000,
   },

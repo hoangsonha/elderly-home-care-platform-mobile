@@ -95,8 +95,6 @@ export default function ElderlyList({
             </View>
             
             <View style={styles.familyRow}>
-              <ThemedText style={styles.personFamily}>{item.family}</ThemedText>
-              
               <TouchableOpacity
                 style={styles.chevronButton}
                 onPress={() => handlePersonPress(item)}
@@ -129,7 +127,7 @@ export default function ElderlyList({
             borderColor: getHealthStatusColor(item.healthStatus) + '40'
           }]}>
             <ThemedText style={[styles.healthStatusText, { color: getHealthStatusColor(item.healthStatus) }]}>
-              Tình trạng {getHealthStatusText(item.healthStatus)}
+              Sức khỏe {getHealthStatusText(item.healthStatus)}
             </ThemedText>
           </View>
         </View>
@@ -152,7 +150,7 @@ export default function ElderlyList({
         </View>
         
         <View style={styles.healthStatusSection}>
-          <ThemedText style={styles.healthStatusTitle}>Tình trạng</ThemedText>
+          <ThemedText style={styles.healthStatusTitle}>Sức khỏe</ThemedText>
           <View style={styles.statsGrid}>
           <View style={[styles.statCard, styles.goodStatCard]}>
             <View style={styles.statHeader}>
@@ -394,13 +392,8 @@ const styles = StyleSheet.create({
   },
   familyRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-  },
-  personFamily: {
-    fontSize: 12,
-    color: '#6c757d',
-    flex: 1,
   },
   healthStatusBadge: {
     paddingHorizontal: 8,

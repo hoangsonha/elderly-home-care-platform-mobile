@@ -509,6 +509,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F7F9FC',
+    paddingBottom: 100, // Space for navigation bar
   },
   header: {
     backgroundColor: '#3498DB',

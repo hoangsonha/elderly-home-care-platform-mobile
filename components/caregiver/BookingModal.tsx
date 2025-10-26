@@ -12,11 +12,9 @@ import {
 
 import { ElderlyProfileSelector } from '@/components/elderly/ElderlyProfileSelector';
 import { ThemedText } from '@/components/themed-text';
-import { DurationSelector } from '@/components/ui/DurationSelector';
 import { SimpleDatePicker } from '@/components/ui/SimpleDatePicker';
 import { SimpleTimePicker } from '@/components/ui/SimpleTimePicker';
 import { Task, TaskSelector } from '@/components/ui/TaskSelector';
-import { WorkTimeSelectorFromAI } from '@/components/ui/WorkTimeSelectorFromAI';
 
 interface Caregiver {
   id: string;
@@ -72,10 +70,148 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
   const [bookingType, setBookingType] = useState<BookingType | null>(immediateOnly ? 'immediate' : null);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showHourPicker, setShowHourPicker] = useState(false);
+  const [showMinutePicker, setShowMinutePicker] = useState(false);
+  
+  // Set default time when date is selected
+  React.useEffect(() => {
+    if (immediateData?.selectedDate && immediateData?.durationType) {
+      const defaultHour = getDefaultHour();
+      const defaultMinute = getDefaultMinute(defaultHour);
+      
+      setImmediateData(prev => ({
+        ...prev,
+        startHour: defaultHour,
+        startMinute: defaultMinute
+      }));
+    }
+  }, [immediateData?.selectedDate, immediateData?.durationType]);
+  // Helper functions for time validation
+  const getCurrentTime = () => {
+    const now = new Date();
+    const hour = now.getHours().toString().padStart(2, '0');
+    const minute = now.getMinutes().toString().padStart(2, '0');
+    return { hour, minute };
+  };
+
+  const getMaxHour = () => {
+    const workHours = immediateData?.durationType === 'session' ? 4 : 8;
+    return 24 - workHours - 1; // Trừ thêm 1 để đảm bảo có đủ thời gian
+  };
+
+  const isToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return immediateData?.selectedDate === today;
+  };
+
+  const getAvailableHours = () => {
+    const maxHour = getMaxHour();
+    const hours = [];
+    
+    for (let i = 0; i < 24; i++) {
+      const hour = i.toString().padStart(2, '0');
+      
+      if (isToday()) {
+        const currentTime = getCurrentTime();
+        const currentHour = parseInt(currentTime.hour);
+        const currentMinute = parseInt(currentTime.minute);
+        
+        // Nếu là giờ quá khứ, không cho phép chọn
+        if (i < currentHour) {
+          continue;
+        }
+        
+        // Nếu là giờ hiện tại, vẫn cho phép chọn (sẽ validate phút sau)
+        // Nếu là giờ tương lai, cho phép chọn
+      }
+      
+      // Kiểm tra giờ tối đa dựa trên loại
+      if (i > maxHour) {
+        continue;
+      }
+      
+      hours.push(hour);
+    }
+    
+    return hours;
+  };
+
+  const getDefaultHour = () => {
+    if (isToday()) {
+      const currentTime = getCurrentTime();
+      const availableHours = getAvailableHours();
+      
+      // Nếu giờ hiện tại có trong danh sách available, dùng giờ hiện tại
+      if (availableHours.includes(currentTime.hour)) {
+        return currentTime.hour;
+      }
+      
+      // Nếu không, dùng giờ đầu tiên trong danh sách available
+      return availableHours[0] || '15';
+    }
+    
+    // Nếu không phải hôm nay, dùng giờ mặc định
+    return '15';
+  };
+
+  const getDefaultMinute = (selectedHour: string) => {
+    if (isToday()) {
+      const currentTime = getCurrentTime();
+      const currentHour = parseInt(currentTime.hour);
+      const selectedHourInt = parseInt(selectedHour);
+      
+      // Nếu chọn giờ hiện tại, dùng phút hiện tại + 30
+      if (selectedHourInt === currentHour) {
+        const currentMinute = parseInt(currentTime.minute);
+        const defaultMinute = Math.min(currentMinute + 30, 59);
+        return defaultMinute.toString().padStart(2, '0');
+      }
+    }
+    
+    // Mặc định là 00
+    return '00';
+  };
+  const getAvailableMinutes = (selectedHour: string) => {
+    const minutes = [];
+    const maxHour = getMaxHour();
+    const selectedHourInt = parseInt(selectedHour);
+    
+    // Nếu chọn giờ tối đa, chỉ cho phép chọn phút 00
+    if (selectedHourInt === maxHour) {
+      minutes.push('00');
+      return minutes;
+    }
+    
+    if (isToday()) {
+      const currentTime = getCurrentTime();
+      const currentHour = parseInt(currentTime.hour);
+      const currentMinute = parseInt(currentTime.minute);
+      
+      // Tính thời gian hiện tại tính bằng phút
+      const currentTimeInMinutes = currentHour * 60 + currentMinute;
+      
+      for (let i = 0; i < 60; i++) {
+        const minute = i.toString().padStart(2, '0');
+        const selectedTimeInMinutes = selectedHourInt * 60 + i;
+        
+        // Chỉ cho phép chọn nếu cách thời gian hiện tại ít nhất 30 phút
+        if (selectedTimeInMinutes > currentTimeInMinutes + 30) {
+          minutes.push(minute);
+        }
+      }
+    } else {
+      // Nếu không phải hôm nay, cho phép chọn tất cả phút
+      for (let i = 0; i < 60; i++) {
+        minutes.push(i.toString().padStart(2, '0'));
+      }
+    }
+    
+    return minutes;
+  };
 
   // Immediate hire form data
   const [immediateData, setImmediateData] = useState({
-    workLocation: '',
+    workLocation: '123 Đường ABC, Quận 1, TP.HCM',
     salary: '',
     timeSlotGroups: [] as {
       id: string;
@@ -89,6 +225,10 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     endDate: '',
     startTime: '',
     endTime: '',
+    selectedDate: '',
+    startHour: '',
+    startMinute: '',
+    note: '',
   });
 
   // Schedule meeting data
@@ -234,6 +374,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     workTime: false,
     tasks: false,
     duration: false,
+    note: false,
   });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -309,12 +450,19 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
           return;
         }
       } else if (bookingType === 'immediate') {
-        if (!immediateData.workLocation || !immediateData.salary || 
-            (!immediateData.timeSlotGroups || immediateData.timeSlotGroups.length === 0) ||
-            !immediateData.durationType || !immediateData.durationValue) {
+        console.log('Validation immediate data:', {
+          durationType: immediateData.durationType,
+          selectedDate: immediateData.selectedDate,
+          startHour: immediateData.startHour,
+          startMinute: immediateData.startMinute
+        });
+        
+        if (!immediateData.durationType || !immediateData.selectedDate || 
+            !immediateData.startHour || !immediateData.startMinute) {
           Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin thuê ngay lập tức');
           return;
         }
+        setCurrentStep(4);
       }
     }
   };
@@ -373,7 +521,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
               styles.optionTitle,
               bookingType === 'immediate' && styles.optionTitleSelected
             ]}>
-              Thuê ngay lập tức
+              Thuê theo ngày
             </ThemedText>
             <ThemedText style={[
               styles.optionDescription,
@@ -388,40 +536,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
         )}
       </TouchableOpacity>
 
-      {!immediateOnly && (
-        <TouchableOpacity
-          style={[
-            styles.optionCard,
-            bookingType === 'schedule' && styles.optionCardSelected
-          ]}
-          onPress={() => setBookingType('schedule')}
-        >
-          <View style={styles.optionContent}>
-            <Ionicons 
-              name="calendar" 
-              size={32} 
-              color={bookingType === 'schedule' ? '#4ECDC4' : '#6c757d'} 
-            />
-            <View style={styles.optionText}>
-              <ThemedText style={[
-                styles.optionTitle,
-                bookingType === 'schedule' && styles.optionTitleSelected
-              ]}>
-                Đặt lịch hẹn trước
-              </ThemedText>
-              <ThemedText style={[
-                styles.optionDescription,
-                bookingType === 'schedule' && styles.optionDescriptionSelected
-              ]}>
-                Hẹn gặp để hiểu thêm về người này
-              </ThemedText>
-            </View>
-          </View>
-          {bookingType === 'schedule' && (
-            <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
-          )}
-        </TouchableOpacity>
-      )}
     </View>
   );
 
@@ -449,43 +563,30 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
               <View style={styles.sectionContent}>
                 <View style={styles.inputGroup}>
                   <View style={styles.labelContainer}>
-                    <ThemedText style={styles.inputLabel}>Vị trí làm việc</ThemedText>
+                    <ThemedText style={styles.inputLabel}>Địa điểm làm việc</ThemedText>
                     <ThemedText style={styles.requiredMark}>*</ThemedText>
-                  </View>
-                  <TextInput
-                    style={styles.textInput}
-                    value={immediateData.workLocation}
-                    onChangeText={(text) => setImmediateData(prev => ({ ...prev, workLocation: text }))}
-                    placeholder="Nhập địa chỉ làm việc"
-                    placeholderTextColor="#999"
-                  />
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <View style={styles.labelContainer}>
-                    <ThemedText style={styles.inputLabel}>Mức lương (VNĐ/giờ)</ThemedText>
-                    <ThemedText style={styles.requiredMark}>*</ThemedText>
+                  <TouchableOpacity style={styles.locationSelector}>
+                    <View style={styles.locationContent}>
+                      <Ionicons name="location" size={20} color="#FECA57" />
+                      <View style={styles.locationTextContainer}>
+                        <ThemedText style={styles.locationTitle}>Địa chỉ người già</ThemedText>
+                        <ThemedText style={styles.locationAddress}>
+                          {immediateData.workLocation || "123 Đường ABC, Quận 1, TP.HCM"}
+                        </ThemedText>
                   </View>
-                  <TextInput
-                    style={styles.textInput}
-                    value={immediateData.salary}
-                    onChangeText={(text) => {
-                      // Only allow numbers
-                      const numericValue = text.replace(/[^0-9]/g, '');
-                      setImmediateData(prev => ({ ...prev, salary: numericValue }));
-                    }}
-                    placeholder="Ví dụ: 150000"
-                    keyboardType="numeric"
-                    placeholderTextColor="#999"
-                  />
-                  {immediateData.salary && (
-                    <ThemedText style={styles.salaryDisplay}>
-                      💰 {formatSalary(immediateData.salary)}
-                    </ThemedText>
-                  )}
-                  <ThemedText style={styles.salaryHint}>
-                    💡 Gợi ý: Hà Nội: 120,000-200,000 VNĐ/giờ | TP.HCM: 130,000-220,000 VNĐ/giờ
-                  </ThemedText>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.changeLocationButton}
+                      onPress={() => {
+                        // TODO: Implement location change
+                        console.log('Change location');
+                      }}
+                    >
+                      <Ionicons name="chevron-forward" size={16} color="#FECA57" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -507,50 +608,339 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
             
             {expandedSections.workTime && (
               <View style={styles.sectionContent}>
-                <View style={styles.labelContainer}>
+                {/* Duration Type Selection */}
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.inputLabel}>Chọn thời lượng</ThemedText>
+                  <View style={styles.durationTypeContainer}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.durationTypeOption,
+                        immediateData.durationType === 'session' && styles.durationTypeOptionSelected
+                      ]}
+                      onPress={() => setImmediateData(prev => ({ ...prev, durationType: 'session' }))}
+                    >
+                      <ThemedText style={[
+                        styles.durationTypeText,
+                        immediateData.durationType === 'session' && styles.durationTypeTextSelected
+                      ]}>
+                        Theo buổi
+                      </ThemedText>
+                      <ThemedText style={[
+                        styles.durationTypeSubtext,
+                        immediateData.durationType === 'session' && styles.durationTypeSubtextSelected
+                      ]}>
+                        Tối đa 4h/ngày
+                      </ThemedText>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[
+                        styles.durationTypeOption,
+                        immediateData.durationType === 'day' && styles.durationTypeOptionSelected
+                      ]}
+                      onPress={() => setImmediateData(prev => ({ ...prev, durationType: 'day' }))}
+                    >
+                      <ThemedText style={[
+                        styles.durationTypeText,
+                        immediateData.durationType === 'day' && styles.durationTypeTextSelected
+                      ]}>
+                        Theo ngày
+                      </ThemedText>
+                      <ThemedText style={[
+                        styles.durationTypeSubtext,
+                        immediateData.durationType === 'day' && styles.durationTypeSubtextSelected
+                      ]}>
+                        Tối đa 8h/ngày
+                      </ThemedText>
+                    </TouchableOpacity>
                 </View>
-                <WorkTimeSelectorFromAI
-                  timeSlotGroups={immediateData.timeSlotGroups || []}
-                  onTimeSlotGroupsChange={(groups) => setImmediateData(prev => ({ ...prev, timeSlotGroups: groups }))}
-                />
+                </View>
+
+                {/* Date Selection - Only show if duration type is selected */}
+                {immediateData.durationType && (
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Chọn ngày làm việc</ThemedText>
+                    <View style={styles.dateSelectionContainer}>
+                      <View style={styles.dateSelectionHeader}>
+                        <ThemedText style={styles.dateSelectionTitle}>Chọn ngày làm việc</ThemedText>
+                        <ThemedText style={styles.dateSelectionMonth}>Tháng 10/2025</ThemedText>
+                      </View>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScrollView}>
+                        <View style={styles.dateCardsContainer}>
+                          {Array.from({ length: 7 }, (_, index) => {
+                            const date = new Date();
+                            date.setDate(date.getDate() + index);
+                            const dayName = date.toLocaleDateString('vi-VN', { weekday: 'short' });
+                            const dayNumber = date.getDate();
+                            const month = date.getMonth() + 1;
+                            const isSelected = immediateData.selectedDate === date.toISOString().split('T')[0];
+                            
+                            return (
+                              <TouchableOpacity
+                                key={index}
+                                style={[
+                                  styles.dateCard,
+                                  isSelected && styles.dateCardSelected
+                                ]}
+                                onPress={() => setImmediateData(prev => ({ 
+                                  ...prev, 
+                                  selectedDate: date.toISOString().split('T')[0] 
+                                }))}
+                              >
+                                <ThemedText style={[
+                                  styles.dateCardDay,
+                                  isSelected && styles.dateCardDaySelected
+                                ]}>
+                                  {dayName}
+                                </ThemedText>
+                                <ThemedText style={[
+                                  styles.dateCardNumber,
+                                  isSelected && styles.dateCardNumberSelected
+                                ]}>
+                                  {dayNumber}/{month}
+                                </ThemedText>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </ScrollView>
+                    </View>
               </View>
             )}
-          </View>
 
-          {/* Section 3: Duration */}
-          <View style={styles.sectionContainer}>
+                {/* Start Time Selection - Only show if date is selected */}
+                {immediateData.selectedDate && (
+                  <View style={styles.inputGroup}>
+                    {/* Warning message if booking today is not possible */}
+                    {isToday() && getAvailableHours().length === 0 && (
+                      <View style={styles.warningContainer}>
+                        <Ionicons name="warning" size={20} color="#E74C3C" />
+                        <ThemedText style={styles.warningText}>
+                          Không thể đặt lịch hôm nay do không đủ thời gian làm việc
+                        </ThemedText>
+          </View>
+                    )}
+                    
+                    <View style={styles.startTimeContainer}>
+                      <View style={styles.startTimeLabel}>
+                        <Ionicons name="time" size={20} color="#E74C3C" />
+                        <ThemedText style={styles.startTimeLabelText}>Chọn giờ bắt đầu</ThemedText>
+                      </View>
+                      <View style={styles.timePickerContainer}>
+                        {/* Hour Input */}
             <TouchableOpacity 
-              style={styles.sectionHeader}
-              onPress={() => toggleSection('duration')}
-            >
-              <ThemedText style={styles.sectionTitle}>⏳ Thời gian thuê</ThemedText>
-              <Ionicons 
-                name={expandedSections.duration ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#4ECDC4" 
-              />
+                          style={[
+                            styles.timeInputBox,
+                            getAvailableHours().length === 0 && styles.timeInputBoxDisabled
+                          ]}
+                          onPress={() => {
+                            if (getAvailableHours().length > 0) {
+                              setShowHourPicker(!showHourPicker);
+                            }
+                          }}
+                          disabled={getAvailableHours().length === 0}
+                        >
+                          <ThemedText style={[
+                            styles.timeInputText,
+                            getAvailableHours().length === 0 && styles.timeInputTextDisabled
+                          ]}>
+                            {immediateData.startHour || getDefaultHour()}
+                          </ThemedText>
             </TouchableOpacity>
             
-            {expandedSections.duration && (
-              <View style={styles.sectionContent}>
-                <View style={styles.labelContainer}>
-                  <ThemedText style={styles.inputLabel}>Chọn loại và thời gian thuê</ThemedText>
-                  <ThemedText style={styles.requiredMark}>*</ThemedText>
+                        <ThemedText style={styles.timeSeparator}>:</ThemedText>
+                        
+                        {/* Minute Input */}
+                        <TouchableOpacity 
+                          style={[
+                            styles.timeInputBox,
+                            getAvailableMinutes(immediateData?.startHour || '').length === 0 && styles.timeInputBoxDisabled
+                          ]}
+                          onPress={() => {
+                            if (getAvailableMinutes(immediateData?.startHour || '').length > 0) {
+                              setShowMinutePicker(!showMinutePicker);
+                            }
+                          }}
+                          disabled={getAvailableMinutes(immediateData?.startHour || '').length === 0}
+                        >
+                          <ThemedText style={[
+                            styles.timeInputText,
+                            getAvailableMinutes(immediateData?.startHour || '').length === 0 && styles.timeInputTextDisabled
+                          ]}>
+                            {immediateData?.startMinute || getDefaultMinute(immediateData?.startHour || getDefaultHour())}
+                          </ThemedText>
+                        </TouchableOpacity>
                 </View>
-                <DurationSelector
-                  durationType={immediateData.durationType}
-                  durationValue={immediateData.durationValue}
-                  startDate={immediateData.startDate}
-                  endDate={immediateData.endDate}
-                  startTime={immediateData.startTime}
-                  endTime={immediateData.endTime}
-                  onDurationTypeChange={(type) => setImmediateData(prev => ({ ...prev, durationType: type }))}
-                  onDurationValueChange={(value) => setImmediateData(prev => ({ ...prev, durationValue: value }))}
-                  onStartDateChange={(date) => setImmediateData(prev => ({ ...prev, startDate: date }))}
-                  onEndDateChange={(date) => setImmediateData(prev => ({ ...prev, endDate: date }))}
-                  onStartTimeChange={(time) => setImmediateData(prev => ({ ...prev, startTime: time }))}
-                  onEndTimeChange={(time) => setImmediateData(prev => ({ ...prev, endTime: time }))}
-                />
+                      
+                      {/* Hour Picker Modal */}
+                      <Modal
+                        visible={showHourPicker}
+                        transparent={true}
+                        animationType="slide"
+                        onRequestClose={() => setShowHourPicker(false)}
+                      >
+                        <View style={styles.modalOverlay}>
+                          <View style={styles.modalContent}>
+                            <View style={styles.pickerHeader}>
+                              <ThemedText style={styles.pickerTitle}>Chọn giờ</ThemedText>
+                              <TouchableOpacity onPress={() => setShowHourPicker(false)}>
+                                <Ionicons name="close" size={24} color="#6c757d" />
+                              </TouchableOpacity>
+                            </View>
+                            <ScrollView 
+                              style={styles.pickerScroll}
+                              contentContainerStyle={styles.pickerContent}
+                              showsVerticalScrollIndicator={false}
+                              snapToInterval={40}
+                              decelerationRate="fast"
+                            >
+                              {getAvailableHours().map((hour, index) => {
+                                const isSelected = immediateData?.startHour === hour;
+                                return (
+                                  <TouchableOpacity
+                                    key={index}
+                                    style={[
+                                      styles.pickerItem,
+                                      isSelected && styles.pickerItemSelected
+                                    ]}
+                                    onPress={() => {
+                                      const maxHour = getMaxHour();
+                                      const selectedHourInt = parseInt(hour);
+                                      
+                                      // Nếu chọn giờ tối đa, tự động set phút về 00
+                                      if (selectedHourInt === maxHour) {
+                                        setImmediateData(prev => ({ 
+                                          ...prev, 
+                                          startHour: hour,
+                                          startMinute: '00'
+                                        }));
+                                      } else {
+                                        setImmediateData(prev => ({ ...prev, startHour: hour }));
+                                      }
+                                      setShowHourPicker(false);
+                                    }}
+                                  >
+                                    <ThemedText style={[
+                                      styles.pickerText,
+                                      isSelected && styles.pickerTextSelected
+                                    ]}>
+                                      {hour}
+                                    </ThemedText>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
+                          </View>
+                        </View>
+                      </Modal>
+                      
+                      {/* Minute Picker Modal */}
+                      <Modal
+                        visible={showMinutePicker}
+                        transparent={true}
+                        animationType="slide"
+                        onRequestClose={() => setShowMinutePicker(false)}
+                      >
+                        <View style={styles.modalOverlay}>
+                          <View style={styles.modalContent}>
+                            <View style={styles.pickerHeader}>
+                              <ThemedText style={styles.pickerTitle}>Chọn phút</ThemedText>
+                              <TouchableOpacity onPress={() => setShowMinutePicker(false)}>
+                                <Ionicons name="close" size={24} color="#6c757d" />
+                              </TouchableOpacity>
+                            </View>
+                            <ScrollView 
+                              style={styles.pickerScroll}
+                              contentContainerStyle={styles.pickerContent}
+                              showsVerticalScrollIndicator={false}
+                              snapToInterval={40}
+                              decelerationRate="fast"
+                            >
+                              {getAvailableMinutes(immediateData?.startHour || '').map((minute, index) => {
+                                const isSelected = immediateData?.startMinute === minute;
+                                return (
+                                  <TouchableOpacity
+                                    key={index}
+                                    style={[
+                                      styles.pickerItem,
+                                      isSelected && styles.pickerItemSelected
+                                    ]}
+                                    onPress={() => {
+                                      setImmediateData(prev => ({ ...prev, startMinute: minute }));
+                                      setShowMinutePicker(false);
+                                    }}
+                                  >
+                                    <ThemedText style={[
+                                      styles.pickerText,
+                                      isSelected && styles.pickerTextSelected
+                                    ]}>
+                                      {minute}
+                                    </ThemedText>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
+                          </View>
+                        </View>
+                      </Modal>
+                    </View>
+                  </View>
+                )}
+
+                {/* Summary - Only show if all fields are filled */}
+                {immediateData.durationType && immediateData.selectedDate && immediateData.startHour && immediateData.startMinute && (
+                  <View style={styles.inputGroup}>
+                    <View style={styles.summaryContainer}>
+                      <ThemedText style={styles.summaryTitle}>Tóm tắt đặt lịch</ThemedText>
+                      
+                      <View style={styles.summaryRow}>
+                        <ThemedText style={styles.summaryLabel}>Loại:</ThemedText>
+                        <ThemedText style={styles.summaryValue}>
+                          {immediateData.durationType === 'session' ? 'Theo buổi' : 'Theo ngày'}
+                        </ThemedText>
+                      </View>
+                      
+                      <View style={styles.summaryRow}>
+                        <ThemedText style={styles.summaryLabel}>Ngày:</ThemedText>
+                        <ThemedText style={styles.summaryValue}>
+                          {new Date(immediateData.selectedDate).toLocaleDateString('vi-VN')}
+                        </ThemedText>
+                      </View>
+                      
+                      <View style={styles.summaryRow}>
+                        <ThemedText style={styles.summaryLabel}>Thời gian:</ThemedText>
+                        <ThemedText style={styles.summaryValue}>
+                          {immediateData.startHour}:{immediateData.startMinute} - {(() => {
+                            const startHour = parseInt(immediateData.startHour || '15');
+                            const startMinute = parseInt(immediateData.startMinute || '30');
+                            const workHours = immediateData.durationType === 'session' ? 4 : 8;
+                            
+                            let endHour = startHour + workHours;
+                            let endMinute = startMinute;
+                            
+                            if (endHour >= 24) {
+                              endHour = endHour - 24;
+                            }
+                            
+                            return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                          })()}
+                        </ThemedText>
+                      </View>
+                      
+                      <View style={styles.summaryRow}>
+                        <ThemedText style={styles.summaryLabel}>Tổng tiền:</ThemedText>
+                        <ThemedText style={styles.summaryPrice}>
+                          {(() => {
+                            const workHours = immediateData.durationType === 'session' ? 4 : 8;
+                            const hourlyRate = 100000; // Mock rate
+                            const totalAmount = workHours * hourlyRate;
+                            return `${totalAmount.toLocaleString('vi-VN')} VNĐ`;
+                          })()}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -561,7 +951,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
               style={styles.sectionHeader}
               onPress={() => toggleSection('tasks')}
             >
-              <ThemedText style={styles.sectionTitle}>📝 Nhiệm vụ cho từng ngày</ThemedText>
+              <ThemedText style={styles.sectionTitle}>📝 Nhiệm vụ</ThemedText>
               <Ionicons 
                 name={expandedSections.tasks ? "chevron-up" : "chevron-down"} 
                 size={20} 
@@ -571,6 +961,16 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
             
             {expandedSections.tasks && (
               <View style={styles.sectionContent}>
+                {/* Check if work time is selected */}
+                {!immediateData?.durationType || !immediateData?.selectedDate || !immediateData?.startHour || !immediateData?.startMinute ? (
+                  <View style={styles.warningContainer}>
+                    <Ionicons name="information-circle" size={20} color="#4ECDC4" />
+                    <ThemedText style={styles.warningText}>
+                      Vui lòng chọn thời gian làm việc trước khi thêm nhiệm vụ
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <>
                 <View style={styles.labelContainer}>
                   <ThemedText style={styles.inputLabel}>Thêm nhiệm vụ cụ thể</ThemedText>
                   <ThemedText style={styles.requiredMark}>*</ThemedText>
@@ -579,37 +979,86 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                   tasks={immediateData.tasks || []}
                   onTasksChange={(tasks) => setImmediateData(prev => ({ ...prev, tasks }))}
                   durationType={immediateData.durationType}
-                  durationValue={immediateData.durationValue}
-                  startDate={immediateData.startDate}
-                  endDate={immediateData.endDate}
-                  workingTimeSlots={immediateData.timeSlotGroups?.flatMap(group => 
-                    group.timeSlots.map(slot => `${slot.start}-${slot.end}`)
-                  ) || []}
-                  selectedWorkingDays={immediateData.timeSlotGroups?.flatMap(group => group.days) || []}
+                      durationValue={immediateData.durationType === 'session' ? '4' : '8'}
+                      startDate={immediateData.selectedDate}
+                      endDate={immediateData.selectedDate}
+                      startTime={immediateData.startHour ? `${immediateData.startHour}:${immediateData.startMinute}` : ''}
+                      endTime={(() => {
+                        const startHour = parseInt(immediateData.startHour || '15');
+                        const startMinute = parseInt(immediateData.startMinute || '30');
+                        const workHours = immediateData.durationType === 'session' ? 4 : 8;
+                        
+                        let endHour = startHour + workHours;
+                        let endMinute = startMinute;
+                        
+                        if (endHour >= 24) {
+                          endHour = endHour - 24;
+                        }
+                        
+                        return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                      })()}
+                      workingTimeSlots={[`${immediateData.startHour}:${immediateData.startMinute}-${(() => {
+                        const startHour = parseInt(immediateData.startHour || '15');
+                        const startMinute = parseInt(immediateData.startMinute || '30');
+                        const workHours = immediateData.durationType === 'session' ? 4 : 8;
+                        
+                        let endHour = startHour + workHours;
+                        let endMinute = startMinute;
+                        
+                        if (endHour >= 24) {
+                          endHour = endHour - 24;
+                        }
+                        
+                        return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                      })()}`]}
+                      selectedWorkingDays={[immediateData.selectedDate]}
                   onValidationError={(message) => {
                     Alert.alert('Thông báo', message);
                   }}
                 />
+                  </>
+                )}
               </View>
             )}
           </View>
 
-          {/* Family Approval Checkbox */}
-          <View style={styles.checkboxContainer}>
+          {/* Section 5: Note */}
+          <View style={styles.sectionContainer}>
             <TouchableOpacity
-              style={styles.checkbox}
-              onPress={() => setSendToFamilyMembers(!sendToFamilyMembers)}
+              style={styles.sectionHeader}
+              onPress={() => toggleSection('note')}
             >
-              <View style={[styles.checkboxBox, sendToFamilyMembers && styles.checkboxBoxChecked]}>
-                {sendToFamilyMembers && (
-                  <Ionicons name="checkmark" size={16} color="white" />
+              <ThemedText style={styles.sectionTitle}>📝 Ghi chú</ThemedText>
+              <Ionicons 
+                name={expandedSections.note ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color="#4ECDC4" 
+              />
+            </TouchableOpacity>
+            
+            {expandedSections.note && (
+              <View style={styles.sectionContent}>
+                <View style={styles.labelContainer}>
+                  <ThemedText style={styles.inputLabel}>Ghi chú thêm</ThemedText>
+          </View>
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Nhập ghi chú của bạn..."
+                value={immediateData?.note || ''}
+                onChangeText={(text) => {
+                  setImmediateData(prev => ({
+                    ...prev,
+                    note: text
+                  }));
+                }}
+                multiline
+                numberOfLines={6}
+                textAlignVertical="top"
+              />
+              </View>
                 )}
               </View>
-              <ThemedText style={styles.checkboxLabel}>
-                Bạn có thể gửi yêu cầu tới người trong gia đình để họ xem xét chấp nhận người chăm sóc này hay không?
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
+
         </View>
       );
     } else {
@@ -738,34 +1187,103 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
               placeholderTextColor="#999"
             />
           </View>
-
-          {/* Family Approval Checkbox */}
-          <View style={styles.checkboxContainer}>
-            <TouchableOpacity
-              style={styles.checkbox}
-              onPress={() => setSendToFamilyMembers(!sendToFamilyMembers)}
-            >
-              <View style={[styles.checkboxBox, sendToFamilyMembers && styles.checkboxBoxChecked]}>
-                {sendToFamilyMembers && (
-                  <Ionicons name="checkmark" size={16} color="white" />
-                )}
-              </View>
-              <ThemedText style={styles.checkboxLabel}>
-                Bạn có thể gửi yêu cầu tới người trong gia đình để họ xem xét chấp nhận người chăm sóc này hay không?
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
         </View>
       );
     }
   };
 
+  const renderStep4 = () => {
+    console.log('Rendering Step 4 - immediateData:', immediateData);
+    return (
+      <View style={styles.stepContent}>
+        <ThemedText style={styles.stepTitle}>Xem trước thông tin</ThemedText>
+        
+        <View style={styles.reviewContainer}>
+          {/* Work Location */}
+          <View style={styles.reviewItem}>
+            <ThemedText style={styles.reviewLabel}>📍 Địa điểm làm việc:</ThemedText>
+            <ThemedText style={styles.reviewValue}>
+              {immediateData?.workLocation || 'Chưa chọn'}
+            </ThemedText>
+              </View>
+
+          {/* Duration Type */}
+          <View style={styles.reviewItem}>
+            <ThemedText style={styles.reviewLabel}>⏰ Loại thuê:</ThemedText>
+            <ThemedText style={styles.reviewValue}>
+              {immediateData?.durationType === 'session' ? 'Theo buổi (4h)' : 
+               immediateData?.durationType === 'day' ? 'Theo ngày (8h)' : 'Chưa chọn'}
+              </ThemedText>
+          </View>
+
+          {/* Selected Date */}
+          <View style={styles.reviewItem}>
+            <ThemedText style={styles.reviewLabel}>📅 Ngày làm việc:</ThemedText>
+            <ThemedText style={styles.reviewValue}>
+              {immediateData?.selectedDate ? 
+                new Date(immediateData.selectedDate).toLocaleDateString('vi-VN') : 'Chưa chọn'}
+            </ThemedText>
+        </View>
+
+          {/* Work Time */}
+          <View style={styles.reviewItem}>
+            <ThemedText style={styles.reviewLabel}>🕐 Thời gian làm việc:</ThemedText>
+            <ThemedText style={styles.reviewValue}>
+              {immediateData?.startHour && immediateData?.startMinute ? 
+                `${immediateData.startHour}:${immediateData.startMinute} - ${(() => {
+                  const startHour = parseInt(immediateData.startHour);
+                  const startMinute = parseInt(immediateData.startMinute);
+                  const workHours = immediateData.durationType === 'session' ? 4 : 8;
+                  
+                  let endHour = startHour + workHours;
+                  let endMinute = startMinute;
+                  
+                  if (endHour >= 24) {
+                    endHour = endHour - 24;
+                  }
+                  
+                  return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+                })()}` : 'Chưa chọn'}
+            </ThemedText>
+          </View>
+
+          {/* Total Price */}
+          <View style={styles.reviewItem}>
+            <ThemedText style={styles.reviewLabel}>💰 Tổng chi phí:</ThemedText>
+            <ThemedText style={styles.reviewValue}>
+              {immediateData?.startHour && immediateData?.startMinute && immediateData?.durationType ? 
+                `${(immediateData.durationType === 'session' ? 4 : 8) * 100000} VNĐ` : 'Chưa tính'}
+            </ThemedText>
+          </View>
+
+          {/* Tasks */}
+          <View style={styles.reviewItem}>
+            <ThemedText style={styles.reviewLabel}>📝 Nhiệm vụ:</ThemedText>
+            <ThemedText style={styles.reviewValue}>
+              {immediateData?.tasks && immediateData.tasks.length > 0 ? 
+                `${immediateData.tasks.length} nhiệm vụ đã thêm` : 'Chưa thêm nhiệm vụ'}
+            </ThemedText>
+          </View>
+
+          {/* Note */}
+          {immediateData?.note && (
+            <View style={styles.reviewItem}>
+              <ThemedText style={styles.reviewLabel}>📄 Ghi chú:</ThemedText>
+              <ThemedText style={styles.reviewValue}>{immediateData.note}</ThemedText>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   const renderCurrentStep = () => {
+    console.log('Current step:', currentStep);
     switch (currentStep) {
       case 1: return renderStep1();
       case 2: return renderStep2();
       case 3: return renderStep3();
+      case 4: return renderStep4();
       default: return renderStep1();
     }
   };
@@ -819,11 +1337,13 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
           
           <TouchableOpacity 
             style={styles.nextButton} 
-            onPress={currentStep === 3 ? handleSubmit : handleNext}
+            onPress={currentStep === 3 ? handleNext : currentStep === 4 ? handleSubmit : handleNext}
             disabled={isSubmitting}
           >
             <ThemedText style={styles.nextButtonText}>
-              {isSubmitting ? 'Đang xử lý...' : currentStep === 3 ? 'Xác nhận' : 'Tiếp theo'}
+              {isSubmitting ? 'Đang xử lý...' : 
+               currentStep === 3 ? 'Xem trước' : 
+               currentStep === 4 ? 'Xác nhận' : 'Tiếp theo'}
             </ThemedText>
             {!isSubmitting && (
               <Ionicons name="chevron-forward" size={20} color="white" />
@@ -1780,5 +2300,393 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2c3e50',
     lineHeight: 20,
+  },
+  locationSelector: {
+    backgroundColor: '#E74C3C',
+    borderRadius: 8,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  locationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationTextContainer: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  locationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 2,
+  },
+  locationAddress: {
+    fontSize: 14,
+    color: 'white',
+    opacity: 0.9,
+  },
+  changeLocationButton: {
+    padding: 8,
+  },
+  // Duration Type Styles
+  durationTypeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  durationTypeOption: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  durationTypeOptionSelected: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#E74C3C',
+  },
+  durationTypeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6c757d',
+    marginBottom: 4,
+  },
+  durationTypeTextSelected: {
+    color: '#E74C3C',
+  },
+  durationTypeSubtext: {
+    fontSize: 12,
+    color: '#6c757d',
+  },
+  durationTypeSubtextSelected: {
+    color: '#E74C3C',
+  },
+  // Date Selection Styles
+  dateSelectionContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  dateSelectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dateSelectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  dateSelectionMonth: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  dateScrollView: {
+    flexGrow: 0,
+  },
+  dateCardsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dateCard: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    minWidth: 60,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  dateCardSelected: {
+    backgroundColor: '#4ECDC4',
+    borderColor: '#4ECDC4',
+  },
+  dateCardDay: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  dateCardDaySelected: {
+    color: 'white',
+  },
+  dateCardNumber: {
+    fontSize: 12,
+    color: '#6c757d',
+  },
+  dateCardNumberSelected: {
+    color: 'white',
+  },
+  // Start Time Styles
+  startTimeContainer: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  startTimeLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  startTimeLabelText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#2c3e50',
+    marginLeft: 8,
+  },
+  timeInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeInput: {
+    backgroundColor: '#fef2f2',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#2c3e50',
+    textAlign: 'center',
+    minWidth: 40,
+  },
+  timeSeparator: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#2c3e50',
+  },
+  // Time Picker Styles
+  timePickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  timeInputBoxDisabled: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#e9ecef',
+    opacity: 0.6,
+  },
+  timeInputTextDisabled: {
+    color: '#adb5bd',
+  },
+  // Warning Styles
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#E74C3C',
+    marginLeft: 8,
+    flex: 1,
+  },
+  timeSeparator: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    maxHeight: 300,
+    width: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  pickerScroll: {
+    maxHeight: 150,
+    width: '100%',
+  },
+  pickerContent: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  pickerItem: {
+    height: 40,
+    width: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 6,
+    marginVertical: 2,
+  },
+  pickerItemSelected: {
+    backgroundColor: '#4ECDC4',
+  },
+  pickerText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#6c757d',
+  },
+  pickerTextSelected: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  // Summary Styles
+  summaryContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '600',
+  },
+  summaryPrice: {
+    fontSize: 16,
+    color: '#27AE60',
+    fontWeight: 'bold',
+  },
+  // Task Styles
+  addTaskButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#4ECDC4',
+    borderStyle: 'dashed',
+  },
+  addTaskText: {
+    fontSize: 14,
+    color: '#4ECDC4',
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  taskItem: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  taskNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  taskInput: {
+    backgroundColor: 'white',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#2c3e50',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    marginBottom: 8,
+  },
+  // Note Styles
+  noteInput: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#2c3e50',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    minHeight: 120,
+  },
+  // Review Styles
+  reviewContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  reviewItem: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  reviewLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    width: 140,
+    marginRight: 8,
+  },
+  reviewValue: {
+    fontSize: 14,
+    color: '#495057',
+    flex: 1,
+    flexWrap: 'wrap',
   },
 });

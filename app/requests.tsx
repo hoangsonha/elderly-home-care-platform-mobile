@@ -59,6 +59,7 @@ export default function RequestsScreen() {
     setShowBookingModal(true);
   };
 
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.header}>
@@ -89,6 +90,7 @@ export default function RequestsScreen() {
           elderlyProfiles={elderlyProfiles}
         />
       )}
+
     </SafeAreaView>
   );
 }
@@ -97,6 +99,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    paddingBottom: 100, // Space for navigation bar
   },
   header: {
     backgroundColor: '#9B59B6',

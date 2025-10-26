@@ -13,14 +13,100 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { HiredCaregiver, Task, TaskDay } from '@/types/hired';
 
+interface DayStatus {
+  date: string;
+  status: 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
+  rating?: number;
+  note?: string;
+  location?: string;
+  workingHours?: string;
+  caringFor?: string;
+}
+
 export default function HiredDetailScreen() {
   const { id, name } = useLocalSearchParams();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Mock day status data - chỉ các ngày caregiver làm việc
+  const mockDayStatuses: DayStatus[] = useMemo(() => {
+    // Demo: Caregiver Nguyễn Thị Mai - 3 ngày: quá khứ, hiện tại, tương lai
+    if (id === '1') {
+      return [
+        { 
+          date: '2024-10-22', 
+          status: 'completed', 
+          rating: 4, 
+          note: 'Hài lòng với dịch vụ',
+          location: 'Quận 1, TP.HCM',
+          workingHours: '08:00 - 17:00',
+          caringFor: 'Bà Nguyễn Thị Lan'
+        }, // Quá khứ
+        { 
+          date: '2024-10-23', 
+          status: 'in_progress',
+          location: 'Quận 2, TP.HCM',
+          workingHours: '08:00 - 17:00',
+          caringFor: 'Bà Nguyễn Thị Lan'
+        }, // Hôm nay
+        { 
+          date: '2024-10-24', 
+          status: 'upcoming',
+          location: 'Quận 3, TP.HCM',
+          workingHours: '08:00 - 17:00',
+          caringFor: 'Bà Nguyễn Thị Lan'
+        }, // Tương lai
+      ];
+    }
+    
+    // Demo: Caregiver không có lịch hôm nay, chỉ có lịch ngày 25/10
+    if (id === '2') {
+      return [
+        { date: '2024-10-18', status: 'completed', rating: 5, note: 'Rất hài lòng với dịch vụ' },
+        { date: '2024-10-19', status: 'completed', rating: 4, note: 'Tốt, có thể cải thiện thêm' },
+        { date: '2024-10-20', status: 'cancelled' },
+        { date: '2024-10-21', status: 'completed', rating: 5, note: 'Xuất sắc!' },
+        { date: '2024-10-22', status: 'completed' }, // Chưa đánh giá
+        // Không có ngày 23/10 (hôm nay)
+        { date: '2024-10-25', status: 'upcoming' }, // Ngày tương lai gần nhất
+        { date: '2024-10-28', status: 'upcoming' },
+        { date: '2024-10-30', status: 'upcoming' },
+      ];
+    }
+    
+    // Default: Caregiver có lịch hôm nay
+    return [
+      { date: '2024-10-22', status: 'completed', rating: 5, note: 'Rất hài lòng với dịch vụ' }, // Quá khứ
+      { date: '2024-10-23', status: 'in_progress' }, // Hôm nay
+      { date: '2024-10-24', status: 'upcoming' }, // Tương lai
+    ];
+  }, [id]);
+
+  // Logic chọn ngày mặc định
+  const getDefaultSelectedDate = () => {
+    const today = '2024-10-23'; // Ngày hôm nay trong mock data
+    
+    // Kiểm tra xem hôm nay có trong danh sách không
+    const todayExists = mockDayStatuses.find(day => day.date === today);
+    if (todayExists) {
+      return today; // Nếu hôm nay có lịch thì chọn hôm nay
+    }
+    
+    // Nếu hôm nay không có lịch, tìm ngày tương lai gần nhất
+    const futureDays = mockDayStatuses.filter(day => day.date > today);
+    if (futureDays.length > 0) {
+      // Sắp xếp theo ngày và lấy ngày gần nhất
+      futureDays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      return futureDays[0].date;
+    }
+    
+    // Fallback: lấy ngày đầu tiên trong danh sách
+    return mockDayStatuses[0]?.date || today;
+  };
+
+  const [selectedDate, setSelectedDate] = useState(getDefaultSelectedDate());
   const scrollViewRef = useRef<ScrollView>(null);
   const [containerWidth, setContainerWidth] = useState(350);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
-
 
   // Mock data - should be fetched based on id
   const mockCaregivers: HiredCaregiver[] = [
@@ -138,14 +224,14 @@ export default function HiredDetailScreen() {
       return [];
     }
     
+    // Base tasks template
     const baseTasks = [
       {
         id: '1',
         title: 'Nhắc nhở uống thuốc buổi sáng',
-        description: 'Kiểm tra và đảm bảo người già uống đúng thuốc theo đơn của bác sĩ vào buổi sáng. Bao gồm: thuốc huyết áp, thuốc tim mạch và vitamin tổng hợp. Cần kiểm tra hạn sử dụng và liều lượng chính xác.',
+        description: 'Kiểm tra và đảm bảo người già uống đúng thuốc theo đơn của bác sĩ vào buổi sáng.',
         scheduledTime: `${date}T09:00:00Z`,
         duration: 10,
-        status: 'completed' as const,
         priority: 'high' as const,
         category: 'Task cố định',
         tags: ['Thuốc', 'Sức khỏe', 'Buổi sáng'],
@@ -155,8 +241,6 @@ export default function HiredDetailScreen() {
         elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
         createdAt: '2024-01-20T08:00:00Z',
         updatedAt: '2024-01-20T09:10:00Z',
-        completedAt: '2024-01-20T09:10:00Z',
-        notes: 'Người già đã uống đầy đủ thuốc, không có phản ứng phụ nào. Cần tiếp tục theo dõi huyết áp sau khi uống thuốc.',
         location: 'Phòng ngủ',
         equipment: ['Cốc nước', 'Thuốc', 'Đơn thuốc'],
         instructions: [
@@ -169,10 +253,9 @@ export default function HiredDetailScreen() {
       {
         id: '2',
         title: 'Chuẩn bị bữa trưa',
-        description: 'Nấu ăn và chuẩn bị bữa trưa phù hợp với chế độ dinh dưỡng của người già. Cần đảm bảo thức ăn mềm, dễ tiêu hóa và đầy đủ chất dinh dưỡng. Tránh các món cay, mặn và khó tiêu.',
+        description: 'Nấu ăn và chuẩn bị bữa trưa phù hợp với chế độ dinh dưỡng của người già.',
         scheduledTime: `${date}T12:00:00Z`,
         duration: 45,
-        status: 'in_progress' as const,
         priority: 'high' as const,
         category: 'Task cố định',
         tags: ['Ăn uống', 'Dinh dưỡng', 'Nấu ăn'],
@@ -196,10 +279,9 @@ export default function HiredDetailScreen() {
       {
         id: '3',
         title: 'Tập thể dục nhẹ',
-        description: 'Hướng dẫn và cùng tập các bài tập thể dục nhẹ nhàng phù hợp với sức khỏe người già. Bao gồm các động tác khởi động, đi bộ tại chỗ, và các bài tập tay chân đơn giản để duy trì sự linh hoạt.',
+        description: 'Hướng dẫn và cùng tập các bài tập thể dục nhẹ nhàng phù hợp với sức khỏe người già.',
         scheduledTime: `${date}T08:00:00Z`,
         duration: 30,
-        status: 'completed' as const,
         priority: 'medium' as const,
         category: 'Task linh hoạt',
         tags: ['Thể dục', 'Sức khỏe', 'Vận động'],
@@ -209,7 +291,6 @@ export default function HiredDetailScreen() {
         elderly: { id: caregiver.currentElderly[0].id, name: caregiver.currentElderly[0].name },
         createdAt: '2024-01-20T08:00:00Z',
         updatedAt: '2024-01-20T08:30:00Z',
-        completedAt: '2024-01-20T08:30:00Z',
         location: 'Phòng khách',
         equipment: ['Thảm tập', 'Ghế hỗ trợ', 'Nước uống'],
         instructions: [
@@ -224,10 +305,9 @@ export default function HiredDetailScreen() {
       {
         id: '4',
         title: 'Trò chuyện và giải trí',
-        description: 'Trò chuyện, đọc sách hoặc xem TV cùng người già để giải trí và giảm cô đơn. Tạo không khí vui vẻ, chia sẻ những câu chuyện thú vị và lắng nghe những kỷ niệm của người già.',
+        description: 'Trò chuyện, đọc sách hoặc xem TV cùng người già để giải trí và giảm cô đơn.',
         scheduledTime: `${date}T15:00:00Z`,
         duration: 60,
-        status: 'pending' as const,
         priority: 'medium' as const,
         category: 'Task linh hoạt',
         tags: ['Giải trí', 'Tâm lý', 'Giao tiếp'],
@@ -251,10 +331,9 @@ export default function HiredDetailScreen() {
       {
         id: '5',
         title: 'Dọn dẹp phòng',
-        description: 'Dọn dẹp và sắp xếp lại phòng ngủ, phòng khách để tạo không gian sạch sẽ, thoáng mát. Đảm bảo mọi thứ được sắp xếp gọn gàng và dễ tìm kiếm.',
+        description: 'Dọn dẹp và sắp xếp lại phòng ngủ, phòng khách để tạo không gian sạch sẽ, thoáng mát.',
         scheduledTime: `${date}T14:00:00Z`,
         duration: 30,
-        status: 'pending' as const,
         priority: 'low' as const,
         category: 'Task tùy chọn',
         tags: ['Dọn dẹp', 'Vệ sinh', 'Sắp xếp'],
@@ -277,10 +356,9 @@ export default function HiredDetailScreen() {
       {
         id: '6',
         title: 'Mua sắm đồ dùng',
-        description: 'Đi mua các đồ dùng cần thiết như thực phẩm, thuốc men, đồ dùng cá nhân nếu có thời gian. Kiểm tra danh sách mua sắm và đảm bảo mua đúng những gì cần thiết.',
+        description: 'Đi mua các đồ dùng cần thiết như thực phẩm, thuốc men, đồ dùng cá nhân nếu có thời gian.',
         scheduledTime: `${date}T16:00:00Z`,
         duration: 90,
-        status: 'pending' as const,
         priority: 'low' as const,
         category: 'Task tùy chọn',
         tags: ['Mua sắm', 'Thực phẩm', 'Thuốc men'],
@@ -302,38 +380,62 @@ export default function HiredDetailScreen() {
       }
     ];
 
-    // Return different number of tasks based on caregiver
-    if (caregiverId === '1') return baseTasks.slice(0, 6); // Nguyễn Thị Mai - 6 tasks (làm hôm nay)
-    if (caregiverId === '2') return baseTasks.slice(0, 4); // Trần Văn Nam - 4 tasks (làm hôm nay)
-    if (caregiverId === '3') return []; // Lê Thị Hoa - 0 tasks (nghỉ hôm nay)
-    if (caregiverId === '4') return baseTasks.slice(0, 1); // Phạm Văn Đức - 1 task (làm hôm nay)
+    // Return different task statuses based on date
+    if (caregiverId === '1') {
+      // Nguyễn Thị Mai - 6 tasks với status khác nhau theo ngày
+      if (date === '2024-10-22') {
+        // Quá khứ - 4 completed, 2 failed
+        return baseTasks.map((task, index) => ({
+          ...task,
+          status: index < 4 ? 'completed' as const : 'failed' as const,
+          completedAt: index < 4 ? `${date}T${task.scheduledTime.split('T')[1]}` : undefined,
+          notes: index < 4 ? (task.notes || 'Task đã hoàn thành') : 'Task không hoàn thành'
+        }));
+      } else if (date === '2024-10-23') {
+        // Hôm nay - 4 completed, 2 pending
+        return baseTasks.map((task, index) => ({
+          ...task,
+          status: index < 4 ? 'completed' as const : 'pending' as const,
+          completedAt: index < 4 ? `${date}T${task.scheduledTime.split('T')[1]}` : undefined,
+          notes: index < 4 ? (task.notes || 'Task đã hoàn thành') : undefined
+        }));
+      } else if (date === '2024-10-24') {
+        // Tương lai - tất cả pending
+        return baseTasks.map(task => ({
+          ...task,
+          status: 'pending' as const,
+          notes: undefined
+        }));
+      }
+    }
+    
+    // Default: return tasks based on caregiver
+    if (caregiverId === '2') return baseTasks.slice(0, 4); // Trần Văn Nam - 4 tasks
+    if (caregiverId === '3') return []; // Lê Thị Hoa - 0 tasks
+    if (caregiverId === '4') return baseTasks.slice(0, 1); // Phạm Văn Đức - 1 task
     return baseTasks;
   }, [caregiver.currentElderly, caregiver.name, caregiver.workingDays]);
 
-  // Generate task data for multiple days (7 days back and 7 days forward)
+  // Generate task data for multiple days - chỉ các ngày caregiver làm việc
   const generateTaskDays = useCallback(() => {
     const days: TaskDay[] = [];
-    const today = new Date();
     
-    // Generate 7 days back and 7 days forward
-    for (let i = -7; i <= 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      const dateString = date.toISOString().split('T')[0];
-      
-      const tasks = getTaskDataForCaregiver(caregiver.id, dateString);
+    // Chỉ tạo data cho các ngày có trong mockDayStatuses
+    mockDayStatuses.forEach(dayStatus => {
+      const tasks = getTaskDataForCaregiver(caregiver.id, dayStatus.date);
       
       days.push({
-        date: dateString,
+        date: dayStatus.date,
         totalTasks: tasks.length,
         completedTasks: tasks.filter(task => task.status === 'completed').length,
+        failedTasks: tasks.filter(task => task.status === 'failed').length,
         pendingTasks: tasks.filter(task => task.status === 'pending' || task.status === 'in_progress').length,
         tasks: tasks
       });
-    }
+    });
     
     return days;
-  }, [caregiver.id, getTaskDataForCaregiver]);
+  }, [caregiver.id, getTaskDataForCaregiver, mockDayStatuses]);
 
   const taskDays = useMemo(() => generateTaskDays(), [generateTaskDays]);
 
@@ -341,31 +443,45 @@ export default function HiredDetailScreen() {
   const currentDayTasks = currentDayData?.tasks || [];
 
   // Find today's date in taskDays
-  const todayDate = new Date().toISOString().split('T')[0];
+  const todayDate = '2024-10-23'; // Ngày hôm nay trong mock data
 
-  // Scroll to today's date when component mounts (only once)
+  // Scroll to selected date when component mounts or selectedDate changes
   const [hasScrolledToToday, setHasScrolledToToday] = useState(false);
+  
+  // Reset scroll flag when selectedDate changes
+  useEffect(() => {
+    setHasScrolledToToday(false);
+  }, [selectedDate]);
   
   useEffect(() => {
     if (taskDays.length > 0 && containerWidth > 0 && !hasScrolledToToday) {
-      const todayIndex = taskDays.findIndex(day => day.date === todayDate);
-      if (todayIndex !== -1 && scrollViewRef.current) {
-        // Calculate scroll position to center today's date
+      const defaultDateIndex = taskDays.findIndex(day => day.date === selectedDate);
+      if (defaultDateIndex !== -1 && scrollViewRef.current) {
+        // Calculate scroll position to center the default selected date
         const buttonWidth = 68; // 60 (minWidth) + 8 (marginRight)
+        const totalWidth = taskDays.length * buttonWidth;
         const centerOffset = containerWidth / 2;
-        const todayPosition = (todayIndex * buttonWidth) + (buttonWidth / 2); // Center of the button
-        const scrollPosition = Math.max(0, todayPosition - centerOffset - 10); // -10 for fine adjustment
+        
+        // Calculate the position of the selected date button
+        const selectedDatePosition = (defaultDateIndex * buttonWidth) + (buttonWidth / 2);
+        
+        // Calculate scroll position to center the selected date
+        const scrollPosition = Math.max(0, selectedDatePosition - centerOffset);
+        
+        // Ensure we don't scroll beyond the content
+        const maxScroll = Math.max(0, totalWidth - containerWidth);
+        const finalScrollPosition = Math.min(scrollPosition, maxScroll);
         
         setTimeout(() => {
           scrollViewRef.current?.scrollTo({
-            x: scrollPosition,
+            x: finalScrollPosition,
             animated: true
           });
           setHasScrolledToToday(true);
-        }, 300);
+        }, 100);
       }
     }
-  }, [taskDays, todayDate, containerWidth, hasScrolledToToday]);
+  }, [taskDays, selectedDate, containerWidth, hasScrolledToToday]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -374,6 +490,58 @@ export default function HiredDetailScreen() {
       case 'completed': return '#6C757D';
       default: return '#6C757D';
     }
+  };
+
+  // Helper functions for day status
+  const getDayStatus = (date: string): DayStatus | undefined => {
+    return mockDayStatuses.find(day => day.date === date);
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'upcoming': return 'Đang tới';
+      case 'in_progress': return 'Đang thực hiện';
+      case 'completed': return 'Đã hoàn thành';
+      case 'cancelled': return 'Đã hủy';
+      default: return status;
+    }
+  };
+
+  const getStatusColorForDay = (status: string) => {
+    switch (status) {
+      case 'upcoming': return '#FECA57';
+      case 'in_progress': return '#4ECDC4';
+      case 'completed': return '#27AE60';
+      case 'cancelled': return '#E74C3C';
+      default: return '#6C757D';
+    }
+  };
+
+  const renderStars = (rating: number) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <Ionicons key={i} name="star" size={16} color="#FFD700" />
+      );
+    }
+
+    if (hasHalfStar) {
+      stars.push(
+        <Ionicons key="half" name="star-half" size={16} color="#FFD700" />
+      );
+    }
+
+    const emptyStars = 5 - Math.ceil(rating);
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(
+        <Ionicons key={`empty-${i}`} name="star-outline" size={16} color="#FFD700" />
+      );
+    }
+
+    return stars;
   };
 
 
@@ -398,6 +566,17 @@ export default function HiredDetailScreen() {
     });
   };
 
+  const handleProfilePress = () => {
+    // Navigate to caregiver detail page
+    router.push({
+      pathname: '/caregiver-detail',
+      params: {
+        caregiverId: caregiver.id,
+        caregiverName: caregiver.name,
+      }
+    });
+  };
+
   const handleTaskPress = (task: Task) => {
     setSelectedTask(task);
     setShowTaskModal(true);
@@ -408,16 +587,56 @@ export default function HiredDetailScreen() {
     setSelectedTask(null);
   };
 
-  const renderTaskItem = (task: Task) => (
-    <TouchableOpacity key={task.id} style={styles.taskItem} onPress={() => handleTaskPress(task)}>
-      <View style={styles.taskLeft}>
-        <View style={styles.taskStatusIcon}>
-          {task.status === 'completed' ? (
-            <Ionicons name="checkmark-circle" size={20} color="#4ECDC4" />
-          ) : (
-            <Ionicons name="close-circle" size={20} color="#FF6B6B" />
-          )}
-        </View>
+  // Hàm xác định status của task dựa trên ngày
+  const getTaskStatusText = (task: Task, taskDate: string) => {
+    const today = '2024-10-23'; // Ngày hôm nay trong mock data
+    const taskDateOnly = taskDate.split('T')[0];
+    
+    if (taskDateOnly < today) {
+      // Ngày quá khứ
+      return task.status === 'completed' ? 'Đã hoàn thành' : 'Không hoàn thành';
+    } else if (taskDateOnly === today) {
+      // Ngày hôm nay
+      return task.status === 'completed' ? 'Đã hoàn thành' : 'Đang chờ';
+    } else {
+      // Ngày tương lai
+      return 'Đang chờ';
+    }
+  };
+
+  // Hàm xác định màu status của task
+  const getTaskStatusColor = (task: Task, taskDate: string) => {
+    const today = '2024-10-23'; // Ngày hôm nay trong mock data
+    const taskDateOnly = taskDate.split('T')[0];
+    
+    if (taskDateOnly < today) {
+      // Ngày quá khứ
+      return task.status === 'completed' ? '#27AE60' : '#E74C3C';
+    } else if (taskDateOnly === today) {
+      // Ngày hôm nay
+      return task.status === 'completed' ? '#27AE60' : '#FECA57';
+    } else {
+      // Ngày tương lai
+      return '#FECA57';
+    }
+  };
+
+  const renderTaskItem = (task: Task) => {
+    const statusText = getTaskStatusText(task, selectedDate);
+    const statusColor = getTaskStatusColor(task, selectedDate);
+    
+    return (
+      <TouchableOpacity key={task.id} style={styles.taskItem} onPress={() => handleTaskPress(task)}>
+        <View style={styles.taskLeft}>
+          <View style={styles.taskStatusIcon}>
+            {task.status === 'completed' ? (
+              <Ionicons name="checkmark-circle" size={20} color="#27AE60" />
+            ) : statusText === 'Đang chờ' ? (
+              <Ionicons name="ellipse" size={20} color="#FECA57" />
+            ) : (
+              <Ionicons name="close-circle" size={20} color="#E74C3C" />
+            )}
+          </View>
         <View style={styles.taskContent}>
           <ThemedText style={styles.taskTitle}>{task.title}</ThemedText>
           <View style={styles.taskMeta}>
@@ -429,12 +648,13 @@ export default function HiredDetailScreen() {
         </View>
       </View>
       <View style={styles.taskRight}>
-        <View style={styles.taskCategoryBadge}>
-          <ThemedText style={styles.taskCategoryBadgeText}>{task.category}</ThemedText>
+        <View style={[styles.taskCategoryBadge, { backgroundColor: statusColor }]}>
+          <ThemedText style={styles.taskCategoryBadgeText}>{statusText}</ThemedText>
         </View>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -448,7 +668,7 @@ export default function HiredDetailScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
-          <ThemedText style={styles.headerTitle}>Chi tiết người chăm sóc</ThemedText>
+          <ThemedText style={styles.headerTitle}>Chi tiết người đang thuê</ThemedText>
           <ThemedText style={styles.headerSubtitle}>{name || caregiver.name}</ThemedText>
         </View>
         
@@ -462,7 +682,11 @@ export default function HiredDetailScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Info */}
         <View style={styles.section}>
-          <View style={styles.profileHeader}>
+          <TouchableOpacity 
+            style={styles.profileHeader}
+            onPress={handleProfilePress}
+            activeOpacity={0.7}
+          >
             <View style={[styles.avatar, { backgroundColor: getStatusColor(caregiver.status) }]}>
               <ThemedText style={styles.avatarText}>
                 {caregiver.name ? caregiver.name.split(' ').map(n => n[0]).join('') : '?'}
@@ -471,18 +695,8 @@ export default function HiredDetailScreen() {
             <View style={styles.profileInfo}>
               <ThemedText style={styles.profileName}>{caregiver.name}</ThemedText>
               <ThemedText style={styles.profileAge}>{caregiver.age} tuổi</ThemedText>
-              <View style={styles.caringForContainer}>
-                <ThemedText style={styles.caringForLabel}>Đang chăm sóc:</ThemedText>
-                <View style={styles.caringForNames}>
-                  {caregiver.currentElderly.map((elderly, index) => (
-                    <ThemedText key={index} style={styles.caringForName}>
-                      {elderly.name}
-                    </ThemedText>
-                  ))}
-                </View>
-              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Date Selector */}
@@ -503,9 +717,11 @@ export default function HiredDetailScreen() {
             >
               {taskDays.map((day, index) => {
                 const isSelected = day.date === selectedDate;
-                const isToday = day.date === new Date().toISOString().split('T')[0];
+                const isToday = day.date === todayDate;
                 const dayName = new Date(day.date).toLocaleDateString('vi-VN', { weekday: 'short' });
                 const dayNumber = new Date(day.date).getDate();
+                const month = new Date(day.date).getMonth() + 1;
+                const dayStatus = getDayStatus(day.date);
                 
                 return (
                   <TouchableOpacity
@@ -517,13 +733,45 @@ export default function HiredDetailScreen() {
                       {dayName}
                     </ThemedText>
                     <ThemedText style={[styles.dateDayNumber, isSelected && styles.selectedDateText]}>
-                      {dayNumber}
+                      {dayNumber}/{month}
                     </ThemedText>
-                    {isToday && <View style={styles.todayIndicator} />}
+                    {dayStatus && (
+                      <View style={[styles.statusIndicator, { backgroundColor: getStatusColorForDay(dayStatus.status) }]} />
+                    )}
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
+          </View>
+        </View>
+
+        {/* Day Details */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Thông tin ngày</ThemedText>
+          <View style={styles.dayDetailsContainer}>
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="location-outline" size={16} color="#4ECDC4" />
+                <ThemedText style={styles.detailLabel}>Địa chỉ</ThemedText>
+                <ThemedText style={styles.detailValue}>Nhà tôi (Quận 1, TP.HCM)</ThemedText>
+              </View>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="time-outline" size={16} color="#4ECDC4" />
+                <ThemedText style={styles.detailLabel}>Giờ làm</ThemedText>
+                <ThemedText style={styles.detailValue}>08:00 - 17:00</ThemedText>
+              </View>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="person-outline" size={16} color="#4ECDC4" />
+                <ThemedText style={styles.detailLabel}>Chăm sóc</ThemedText>
+                <ThemedText style={styles.detailValue}>Bà Nguyễn Thị Lan</ThemedText>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -540,38 +788,54 @@ export default function HiredDetailScreen() {
           </View>
           
           <View style={styles.statsContainer}>
-            <View style={[styles.statCard, styles.totalStatCard]}>
-              <View style={styles.statIconContainer}>
-                <Ionicons name="list-outline" size={24} color="#2c3e50" />
+            {/* Dòng 1: Tổng task và Đã hoàn thành */}
+            <View style={styles.statsRow}>
+              <View style={[styles.statCard, styles.totalStatCard]}>
+                <View style={styles.statIconContainer}>
+                  <Ionicons name="list-outline" size={20} color="#2c3e50" />
+                </View>
+                <View style={styles.statContent}>
+                  <ThemedText style={styles.statNumber}>{currentDayData?.totalTasks || 0}</ThemedText>
+                  <ThemedText style={styles.statLabel}>Tổng task</ThemedText>
+                </View>
               </View>
-              <View style={styles.statContent}>
-                <ThemedText style={styles.statNumber}>{currentDayData?.totalTasks || 0}</ThemedText>
-                <ThemedText style={styles.statLabel}>Tổng task</ThemedText>
+              
+              <View style={[styles.statCard, styles.completedStatCard]}>
+                <View style={styles.statIconContainer}>
+                  <Ionicons name="checkmark-circle-outline" size={20} color="#27AE60" />
+                </View>
+                <View style={styles.statContent}>
+                  <ThemedText style={[styles.statNumber, { color: '#27AE60' }]}>
+                    {currentDayData?.completedTasks || 0}
+                  </ThemedText>
+                  <ThemedText style={styles.statLabel}>Đã hoàn thành</ThemedText>
+                </View>
               </View>
             </View>
             
+            {/* Dòng 2: Không hoàn thành và Đang chờ */}
             <View style={styles.statsRow}>
-              <View style={[styles.statCard, styles.completedStatCard]}>
+              <View style={[styles.statCard, styles.failedStatCard]}>
                 <View style={styles.statIconContainer}>
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#4ECDC4" />
+                  <Ionicons name="close-circle-outline" size={20} color="#E74C3C" />
                 </View>
                 <View style={styles.statContent}>
-                  <ThemedText style={[styles.statNumber, { color: '#4ECDC4' }]}>
-                    {currentDayData?.completedTasks || 0}
+                  <ThemedText style={[styles.statNumber, { color: '#E74C3C' }]}>
+                    {currentDayData?.failedTasks || 0}
                   </ThemedText>
-                  <ThemedText style={styles.statLabel}>Hoàn thành</ThemedText>
+                  <ThemedText style={styles.statLabel}>Không hoàn thành</ThemedText>
                 </View>
               </View>
               
               <View style={[styles.statCard, styles.pendingStatCard]}>
                 <View style={styles.statIconContainer}>
-                  <Ionicons name="time-outline" size={20} color="#FECA57" />
+                  <Ionicons name="ellipse-outline" size={20} color="#FECA57" />
                 </View>
                 <View style={styles.statContent}>
                   <ThemedText style={[styles.statNumber, { color: '#FECA57' }]}>
                     {currentDayData?.pendingTasks || 0}
                   </ThemedText>
-                  <ThemedText style={styles.statLabel}>Chưa xong</ThemedText>
+                  <ThemedText style={styles.statLabel}>Đang chờ</ThemedText>
                 </View>
               </View>
             </View>
@@ -591,6 +855,96 @@ export default function HiredDetailScreen() {
               <ThemedText style={styles.emptyText}>Không có task nào trong ngày này</ThemedText>
             </View>
           )}
+        </View>
+
+        {/* Day Status */}
+        <View style={[styles.section, styles.dayStatusSection]}>
+          <View style={styles.statsHeader}>
+            <ThemedText style={styles.sectionTitle}>Trạng thái ngày</ThemedText>
+            <View style={styles.dateBadge}>
+              <Ionicons name="calendar-outline" size={14} color="#4ECDC4" />
+              <ThemedText style={styles.dateBadgeText}>
+                {new Date(selectedDate).toLocaleDateString('vi-VN')}
+              </ThemedText>
+            </View>
+          </View>
+          
+          {(() => {
+            const dayStatus = getDayStatus(selectedDate);
+            if (!dayStatus) return null;
+            
+            return (
+              <View style={styles.dayStatusContainer}>
+                <View style={styles.dayStatusRow}>
+                  <View style={styles.statusBadgeContainer}>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColorForDay(dayStatus.status) }]}>
+                      <ThemedText style={styles.statusText}>{getStatusText(dayStatus.status)}</ThemedText>
+                    </View>
+                  </View>
+                  
+                  {dayStatus.status === 'completed' && (
+                    <View style={styles.ratingContainer}>
+                      {dayStatus.rating ? (
+                        <View style={styles.ratingDisplay}>
+                          <View style={styles.stars}>
+                            {renderStars(dayStatus.rating)}
+                          </View>
+                          <ThemedText style={styles.ratingText}>{dayStatus.rating}/5</ThemedText>
+                        </View>
+                      ) : (
+                        <TouchableOpacity style={styles.rateButton}>
+                          <ThemedText style={styles.rateButtonText}>Đánh giá</ThemedText>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
+                
+                {dayStatus.note && (
+                  <View style={styles.noteContainer}>
+                    <ThemedText style={styles.noteText}>&ldquo;{dayStatus.note}&rdquo;</ThemedText>
+                  </View>
+                )}
+                
+                <View style={styles.actionButtonsContainer}>
+                  {dayStatus.status === 'completed' && !dayStatus.rating ? (
+                    <>
+                      <TouchableOpacity style={styles.actionButtonSecondary}>
+                        <ThemedText style={styles.actionButtonSecondaryText}>Đánh giá</ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.actionButtonPrimary}
+                        onPress={() => router.push({
+                          pathname: '/caregiver-detail',
+                          params: {
+                            caregiverId: caregiver.id,
+                            caregiverName: caregiver.name,
+                            openBooking: 'true'
+                          }
+                        })}
+                      >
+                        <ThemedText style={styles.actionButtonPrimaryText}>Thuê lại</ThemedText>
+                      </TouchableOpacity>
+                    </>
+                  ) : dayStatus.status === 'completed' && dayStatus.rating ? (
+                    <TouchableOpacity 
+                      style={styles.actionButtonPrimary}
+                      onPress={() => router.push({
+                        pathname: '/caregiver-detail',
+                        params: {
+                          caregiverId: caregiver.id,
+                          caregiverName: caregiver.name,
+                          openBooking: 'true'
+                        }
+                      })}
+                    >
+                      <ThemedText style={styles.actionButtonPrimaryText}>Thuê lại</ThemedText>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })()}
         </View>
       </ScrollView>
 
@@ -748,16 +1102,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 2,
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  statusText: {
-    fontSize: 12,
-    color: 'white',
-    fontWeight: '600',
-  },
   statsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -785,13 +1129,16 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   statCard: {
+    width: '48%',
+    height: 70,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -806,25 +1153,31 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   totalStatCard: {
-    flex: 1,
     backgroundColor: '#f8f9fa',
     borderColor: '#4ECDC4',
   },
   completedStatCard: {
-    flex: 1,
     backgroundColor: '#f0f9ff',
-    borderColor: '#4ECDC4',
+    borderColor: '#27AE60',
+  },
+  failedStatCard: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#E74C3C',
   },
   pendingStatCard: {
-    flex: 1,
     backgroundColor: '#fffbeb',
     borderColor: '#FECA57',
+  },
+  emptyStatCard: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#6c757d',
   },
   statIconContainer: {
     marginRight: 12,
   },
   statContent: {
     flex: 1,
+    justifyContent: 'center',
   },
   statNumber: {
     fontSize: 20,
@@ -839,9 +1192,12 @@ const styles = StyleSheet.create({
   },
   dateSelector: {
     flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dateScrollView: {
     flexGrow: 0,
+    width: '100%',
   },
   dateButton: {
     alignItems: 'center',
@@ -880,6 +1236,139 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: '#ff6b6b',
+  },
+  statusIndicator: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dayStatusContainer: {
+    gap: 12,
+  },
+  dayStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusBadgeContainer: {
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '600',
+  },
+  ratingContainer: {
+    alignItems: 'flex-end',
+  },
+  ratingDisplay: {
+    alignItems: 'center',
+  },
+  stars: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  ratingText: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  rateButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#4ECDC4',
+  },
+  rateButtonText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '600',
+  },
+  noteContainer: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4ECDC4',
+  },
+  noteText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontStyle: 'italic',
+    lineHeight: 20,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  actionButtonPrimary: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#4ECDC4',
+    alignItems: 'center',
+  },
+  actionButtonPrimaryText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
+  },
+  actionButtonSecondary: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4ECDC4',
+    alignItems: 'center',
+  },
+  actionButtonSecondaryText: {
+    fontSize: 16,
+    color: '#4ECDC4',
+    fontWeight: '600',
+  },
+  dayStatusSection: {
+    marginBottom: 100, // Thêm margin bottom để tránh đụng navigation bar
+  },
+  dayDetailsContainer: {
+    gap: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+  },
+  detailItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4ECDC4',
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
+    marginLeft: 8,
+    marginRight: 8,
+    minWidth: 80,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '600',
+    flex: 1,
   },
   tasksList: {
     gap: 8,
@@ -940,7 +1429,7 @@ const styles = StyleSheet.create({
   },
   taskCategoryBadgeText: {
     fontSize: 10,
-    color: '#4ECDC4',
+    color: 'white',
     fontWeight: '600',
   },
   emptyState: {

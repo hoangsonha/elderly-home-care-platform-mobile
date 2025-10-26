@@ -2,12 +2,12 @@
 
 import { useRouter } from "expo-router";
 import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
@@ -92,8 +92,8 @@ export default function CaregiverHomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F7F9FC" }}>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#F7F9FC", paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         <Text style={styles.title}>Caregiver App</Text>
 
         <View style={styles.grid}>

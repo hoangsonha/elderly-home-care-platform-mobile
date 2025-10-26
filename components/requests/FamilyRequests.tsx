@@ -5,14 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface FamilyRequestsProps {
@@ -577,8 +577,8 @@ export function FamilyRequests({ onChatPress, onBookPress }: FamilyRequestsProps
                                     request.elderly.healthStatus === 'medium' ? '#ffa502' : '#ff4757' }
                 ]}>
                   <ThemedText style={styles.healthStatusText}>
-                    {request.elderly.healthStatus === 'good' ? 'Tốt' :
-                     request.elderly.healthStatus === 'medium' ? 'Trung bình' : 'Kém'}
+                    {request.elderly.healthStatus === 'good' ? 'Sức khỏe Tốt' :
+                     request.elderly.healthStatus === 'medium' ? 'Sức khỏe Trung bình' : 'Sức khỏe Kém'}
                   </ThemedText>
                 </View>
               </View>
