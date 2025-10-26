@@ -1,5 +1,6 @@
-import { NavigationHelper } from '@/components/navigation/NavigationHelper';
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+import { NavigationHelper } from "@/components/navigation/NavigationHelper";
+import { AuthService } from "@/services/auth.service";
+import React, { createContext, ReactNode, useContext, useState } from "react";
 
 interface User {
   id: string;
@@ -10,12 +11,13 @@ interface User {
   address?: string;
   avatar?: string;
   hasCompletedProfile?: boolean;
+  role: "Caregiver" | "Care Seeker" | "Admin" | string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<User | null>;
   logout: () => void;
   updateProfile: (profile: Partial<User>) => void;
 }
@@ -25,30 +27,32 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
-    if (email && password) {
-      // Fake API response - simulate checking if user has completed profile
-      // For demo: 70% chance user needs to complete profile (new users)
-      const hasProfile = Math.random() > 0.7;
-      
-      const newUser: User = {
-        id: '1',
-        email: email,
-        hasCompletedProfile: hasProfile,
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-        // If has profile, include sample data
-        ...(hasProfile && {
-          name: 'Nguyễn Văn A',
-          dateOfBirth: '1990-01-01',
-          phone: '0901234567',
-          address: 'Hà Nội, Việt Nam'
-        })
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<User | null> => {
+    try {
+      const res = await AuthService.login(email, password);
+      if (!res) return null;
+
+      const userData: User = {
+        id: res.id,
+        email: res.email,
+        name: res.name,
+        dateOfBirth: res.dateOfBirth,
+        phone: res.phone,
+        address: res.address,
+        avatar: res.avatar,
+        hasCompletedProfile: res.hasCompletedProfile ?? false,
+        role: res.role ?? "Care Seeker",
       };
-      setUser(newUser);
-      return true;
+
+      setUser(userData);
+      return userData; // ✅ trả về luôn user
+    } catch (error) {
+      console.error("Login error:", error);
+      return null;
     }
-    return false;
   };
 
   const logout = () => {
@@ -80,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

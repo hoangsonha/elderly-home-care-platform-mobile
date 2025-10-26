@@ -5,7 +5,6 @@ import {
   useSuccessNotification,
 } from "@/contexts/NotificationContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { AuthService } from "@/services/auth.service";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -28,6 +27,7 @@ export default function LoginScreen() {
   const colors = Colors[colorScheme ?? "light"];
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
+
   const handleLogin = async () => {
     if (!email || !password) {
       showErrorTooltip("Vui lòng nhập đầy đủ email và mật khẩu");
@@ -35,28 +35,25 @@ export default function LoginScreen() {
     }
 
     setIsLoading(true);
-    try {
-      const user = await AuthService.login(email, password);
+    const userData = await login(email, password);
+    setIsLoading(false);
 
-      if (user) {
-        showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
-
-        setTimeout(() => {
-          if (user.role === "Care Seeker") {
-            router.replace("/profile-setup");
-          } else if (user.role === "Caregiver") {
-            router.replace("/caregiver-home");
-          }
-        }, 1500);
-      } else {
-        showErrorTooltip("Email hoặc mật khẩu không đúng");
-      }
-    } catch (error) {
-      console.error(error);
-      showErrorTooltip("Có lỗi xảy ra khi đăng nhập");
-    } finally {
-      setIsLoading(false);
+    if (!userData) {
+      showErrorTooltip("Email hoặc mật khẩu không đúng");
+      return;
     }
+
+    showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
+
+    setTimeout(() => {
+      if (userData.role === "Caregiver") {
+        router.replace("/caregiver");
+      } else if (userData.role === "Care Seeker") {
+        router.replace("/profile-setup");
+      } else {
+        router.replace("/dashboard");
+      }
+    }, 1000);
   };
 
   return (
