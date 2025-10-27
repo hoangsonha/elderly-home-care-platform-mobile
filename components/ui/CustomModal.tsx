@@ -20,6 +20,9 @@ interface CustomModalProps {
   iconColor?: string;
   buttonColors?: string[];
   isLoading?: boolean;
+  showCancelButton?: boolean;
+  cancelButtonText?: string;
+  onCancel?: () => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -34,6 +37,9 @@ export function CustomModal({
   iconColor = '#4ECDC4',
   buttonColors = ['#4ECDC4', '#44A08D'],
   isLoading = false,
+  showCancelButton = false,
+  cancelButtonText = 'Hủy',
+  onCancel,
 }: CustomModalProps) {
   return (
     <Modal
@@ -60,21 +66,34 @@ export function CustomModal({
           {/* Message */}
           <Text style={styles.message}>{message}</Text>
 
-          {/* Button */}
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={onPress}
-            disabled={isLoading}
-          >
-            <LinearGradient
-              colors={buttonColors}
-              style={styles.buttonGradient}
+          {/* Buttons */}
+          <View style={styles.buttonsContainer}>
+            {showCancelButton && onCancel && (
+              <TouchableOpacity 
+                style={styles.cancelButton} 
+                onPress={onCancel}
+                disabled={isLoading}
+              >
+                <Text style={styles.cancelButtonText}>
+                  {cancelButtonText}
+                </Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={[styles.button, showCancelButton && styles.buttonWithCancel]} 
+              onPress={onPress}
+              disabled={isLoading}
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? "Đang xử lý..." : buttonText}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={buttonColors}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>
+                  {isLoading ? "Đang xử lý..." : buttonText}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -129,19 +148,44 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 30,
   },
-  button: {
+  buttonsContainer: {
+    flexDirection: 'row',
     width: '100%',
+    gap: 12,
+  },
+  button: {
+    width: '48%',
     borderRadius: 12,
     overflow: 'hidden',
   },
+  buttonWithCancel: {
+    width: '48%',
+  },
   buttonGradient: {
     paddingVertical: 15,
-    paddingHorizontal: 30,
+    paddingHorizontal: 16,
     alignItems: 'center',
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  cancelButton: {
+    width: '48%',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  cancelButtonText: {
+    color: '#6C757D',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

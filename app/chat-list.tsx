@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -203,6 +204,9 @@ export default function ChatListScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Navigation Bar */}
+      <SimpleNavBar />
     </SafeAreaView>
   );
 }

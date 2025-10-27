@@ -3,18 +3,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Dimensions,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { EmergencyAlert } from '@/components/alerts/EmergencyAlert';
 import { ElderlyProfiles } from '@/components/elderly/ElderlyProfiles';
+import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { RequestNotification } from '@/components/notifications/RequestNotification';
 import { AppointmentScheduleToday } from '@/components/schedule/AppointmentScheduleToday';
 import { ThemedText } from '@/components/themed-text';
@@ -352,7 +353,7 @@ export default function DashboardScreen() {
                     </ThemedText>
                     <TouchableOpacity
                       style={styles.findNowButton}
-                      onPress={() => router.push('/caregiver-search')}
+                      onPress={() => router.push('/caregiver-search' as any)}
                       activeOpacity={0.8}
                     >
                       <ThemedText style={styles.findNowButtonText}>Tìm ngay</ThemedText>
@@ -623,7 +624,13 @@ export default function DashboardScreen() {
         iconColor="#E74C3C"
         buttonColors={['#E74C3C', '#C0392B']}
         isLoading={isLoggingOut}
+        showCancelButton={true}
+        cancelButtonText="Hủy"
+        onCancel={() => setShowLogoutModal(false)}
       />
+
+      {/* Navigation Bar */}
+      <SimpleNavBar />
     </View>
   );
 }
