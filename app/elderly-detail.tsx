@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverCard';
+import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { ElderlyProfile } from '@/types/elderly';
 import {
@@ -380,6 +381,9 @@ export default function ElderlyDetailScreen() {
         {activeTab === 'environment' && renderEnvironmentTab(elderlyProfile)}
         {activeTab === 'caregivers' && renderCaregiversTab(elderlyProfile)}
       </ScrollView>
+
+      {/* Navigation Bar */}
+      <SimpleNavBar />
     </SafeAreaView>
   );
 }

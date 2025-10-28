@@ -154,12 +154,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   button: {
-    width: '48%',
+    width: '100%',
     borderRadius: 12,
     overflow: 'hidden',
   },
   buttonWithCancel: {
-    width: '48%',
+    flex: 1,
   },
   buttonGradient: {
     paddingVertical: 15,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   cancelButton: {
-    width: '48%',
+    flex: 1,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: '#E0E0E0',

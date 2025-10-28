@@ -2,14 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  FlatList,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
+    FlatList,
+    Image,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
@@ -166,14 +165,20 @@ export default function HiringHistoryScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <View style={styles.headerCenter}>
+        
+        <View style={styles.headerContent}>
           <ThemedText style={styles.headerTitle}>Lịch sử thuê dịch vụ</ThemedText>
+          <ThemedText style={styles.headerSubtitle}>Xem lại lịch sử thuê của bạn</ThemedText>
+        </View>
+        
+        <View style={styles.headerActions}>
+          {/* Empty space for centering */}
         </View>
       </View>
 
@@ -236,7 +241,7 @@ export default function HiringHistoryScreen() {
 
       {/* Navigation Bar */}
       <SimpleNavBar />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -252,17 +257,34 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backButton: {
-    marginRight: 15,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
-  headerCenter: {
+  headerContent: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: 'white',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  headerActions: {
+    width: 40,
+    height: 40,
   },
   searchContainer: {
     paddingHorizontal: 20,

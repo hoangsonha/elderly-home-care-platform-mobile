@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ElderlyList from '@/components/elderly/ElderlyList';
+import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { ElderlyProfile } from '@/types/elderly';
 
@@ -91,6 +92,9 @@ export default function ElderlyListScreen() {
         onPersonPress={handlePersonPress}
         onAddPress={handleAddPerson}
       />
+
+      {/* Navigation Bar */}
+      <SimpleNavBar />
     </SafeAreaView>
   );
 }

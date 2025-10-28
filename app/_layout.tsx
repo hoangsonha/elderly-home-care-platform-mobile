@@ -3,9 +3,9 @@ import { NavigationProvider } from "@/contexts/NavigationContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
+    DarkTheme,
+    DefaultTheme,
+    ThemeProvider,
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -20,7 +20,7 @@ function RootNavigator() {
 
   if (!user) {
     return (
-      <Stack>
+      <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="splash" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
@@ -30,14 +30,14 @@ function RootNavigator() {
 
   if (user.role === "Caregiver") {
     return (
-      <Stack>
+      <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="caregiver" options={{ headerShown: false }} />
       </Stack>
     );
   }
 
   return (
-    <Stack>
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="caregiver-search" options={{ headerShown: false }} />
@@ -67,6 +67,10 @@ function RootNavigator() {
       <Stack.Screen name="elderly-profile-tabs" options={{ headerShown: false }} />
       <Stack.Screen name="system-info" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ headerShown: false }} />
+      <Stack.Screen name="top-up" options={{ headerShown: false }} />
+      <Stack.Screen name="withdraw" options={{ headerShown: false }} />
+      <Stack.Screen name="transaction-history" options={{ headerShown: false }} />
+      <Stack.Screen name="transaction-detail" options={{ headerShown: false }} />
     </Stack>
   );
 }

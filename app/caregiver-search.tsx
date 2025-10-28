@@ -9,7 +9,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -22,12 +22,39 @@ import { AIRecommendations } from '@/components/caregiver/AIRecommendations';
 import { BookingModal } from '@/components/caregiver/BookingModal';
 import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverCard';
 import { SearchFilters, type FilterOption } from '@/components/caregiver/SearchFilters';
-import { AnimatedNavBar } from '@/components/navigation/AnimatedNavBar';
+import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { CaregiverRecommendation, MatchResponse } from '@/services/types';
 
 // Mock data
+const mockElderlyProfiles = [
+  {
+    id: '1',
+    name: 'Bà Nguyễn Thị Mai',
+    age: 75,
+    currentCaregivers: 0,
+    family: 'Gia đình Nguyễn',
+    healthStatus: 'fair' as const,
+  },
+  {
+    id: '2',
+    name: 'Ông Trần Văn Hùng',
+    age: 82,
+    currentCaregivers: 1,
+    family: 'Gia đình Trần',
+    healthStatus: 'poor' as const,
+  },
+  {
+    id: '3',
+    name: 'Bà Lê Thị Hoa',
+    age: 78,
+    currentCaregivers: 0,
+    family: 'Gia đình Lê',
+    healthStatus: 'good' as const,
+  },
+];
+
 const mockCaregivers: Caregiver[] = [
   {
     id: '1',
@@ -85,7 +112,6 @@ export default function CaregiverSearchScreen() {
   const [showFloatingAI, setShowFloatingAI] = useState(true);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedCaregiver, setSelectedCaregiver] = useState<Caregiver | null>(null);
-  const [activeTab, setActiveTab] = useState('services');
   const { user } = useAuth();
 
   // Floating AI position state
@@ -161,28 +187,6 @@ export default function CaregiverSearchScreen() {
     }, 1000);
   };
 
-  const handleTabPress = (tabId: string) => {
-    setActiveTab(tabId);
-    
-    // Navigate to corresponding page
-    switch (tabId) {
-      case 'home':
-        router.push('/dashboard');
-        break;
-      case 'services':
-        // Already on caregiver-search page
-        break;
-      case 'requests':
-        router.push('/requests');
-        break;
-      case 'wallet':
-        router.push('/payments');
-        break;
-      default:
-        break;
-    }
-  };
-
   // Gesture handler for floating AI button
   const panGesture = Gesture.Pan()
     .onStart(() => {
@@ -223,7 +227,8 @@ export default function CaregiverSearchScreen() {
 
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -332,6 +337,7 @@ export default function CaregiverSearchScreen() {
         visible={showAIModal}
         onClose={() => setShowAIModal(false)}
         onGetRecommendations={handleGetAIRecommendations}
+        elderlyProfiles={mockElderlyProfiles}
       />
 
       {/* Booking Modal */}
@@ -347,12 +353,10 @@ export default function CaregiverSearchScreen() {
         />
       )}
 
-      {/* Animated Navigation Bar */}
-      <AnimatedNavBar 
-        activeTab={activeTab} 
-        onTabPress={handleTabPress} 
-      />
+      {/* Navigation Bar */}
+      <SimpleNavBar />
     </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
@@ -484,3 +488,4 @@ const styles = StyleSheet.create({
     height: 20,
   },
 });
+

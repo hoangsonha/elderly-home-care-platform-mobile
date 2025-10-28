@@ -1,16 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    Dimensions,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import { EmergencyAlert } from '@/components/alerts/EmergencyAlert';
@@ -38,18 +37,18 @@ interface ServiceModule {
 
 // Các tính năng khác
 const otherFeatures: ServiceModule[] = [
-  {
-    id: 'payments-feature',
-    title: 'Thanh toán',
-    icon: 'card',
-    color: '#27AE60',
-    description: 'Quản lý thanh toán dịch vụ',
-    route: '/payments',
-  },
+  // {
+  //   id: 'payments-feature',
+  //   title: 'Thanh toán',
+  //   icon: 'card',
+  //   color: '#27AE60',
+  //   description: 'Quản lý thanh toán dịch vụ',
+  //   route: '/payments',
+  // },
   {
     id: 'complaints-feature',
     title: 'Khiếu nại',
-    icon: 'warning',
+    icon: 'chatbubble-ellipses',
     color: '#E74C3C',
     description: 'Quản lý khiếu nại và tố cáo',
     route: '/complaints',
@@ -291,18 +290,20 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      <ScrollView style={styles.fullContainer} showsVerticalScrollIndicator={false}>
+      {/* Header with Wallet */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
+        <View style={styles.headerTop}>
           <View style={styles.logoContainer}>
             <TouchableOpacity style={styles.avatarButton} onPress={handleProfilePress}>
               <View style={styles.userAvatar}>
                 <Ionicons name="person" size={24} color="white" />
               </View>
             </TouchableOpacity>
-            <ThemedText style={styles.headerTitle}>
-              Xin chào, {user?.name || user?.email?.split('@')[0] || 'Bạn'}!
-            </ThemedText>
+            <View style={styles.greetingContainer}>
+              <ThemedText style={styles.greeting}>Xin chào,</ThemedText>
+              <ThemedText style={styles.userName}>{user?.name || user?.email?.split('@')[0] || 'Bạn'}!</ThemedText>
+            </View>
           </View>
           
           <TouchableOpacity 
@@ -321,9 +322,95 @@ export default function DashboardScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Wallet Card in Header */}
+        <View style={styles.walletCard}>
+          {/* Wallet Balance */}
+          <TouchableOpacity 
+            style={styles.walletBalanceRow}
+            onPress={() => router.push('/payments')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.walletIconContainer}>
+              <View style={styles.walletIcon}>
+                <Ionicons name="wallet" size={24} color="white" />
+      </View>
+            </View>
+            <View style={styles.walletInfo}>
+              <ThemedText style={styles.walletLabel}>Số dư ví</ThemedText>
+              <ThemedText style={styles.walletBalance}>2.450.000₫</ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9E9E9E" />
+          </TouchableOpacity>
+
+          {/* Action Buttons */}
+          <View style={styles.walletActions}>
+            <TouchableOpacity 
+              style={styles.walletActionButton}
+              onPress={() => router.push('/top-up')}
+            >
+              <View style={[styles.walletActionIcon, { backgroundColor: '#4CAF50' }]}>
+                <Ionicons name="add" size={24} color="white" />
+              </View>
+              <ThemedText style={styles.walletActionLabel}>Nạp tiền</ThemedText>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.walletActionButton}
+              onPress={() => router.push('/transaction-history' as any)}
+            >
+              <View style={[styles.walletActionIcon, { backgroundColor: '#9C27B0' }]}>
+                <Ionicons name="time" size={24} color="white" />
+              </View>
+              <ThemedText style={styles.walletActionLabel}>Lịch sử</ThemedText>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.walletActionButton}
+              onPress={() => router.push('/withdraw' as any)}
+            >
+              <View style={[styles.walletActionIcon, { backgroundColor: '#FF9800' }]}>
+                <Ionicons name="arrow-up" size={24} color="white" />
+              </View>
+              <ThemedText style={styles.walletActionLabel}>Rút tiền</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Quick Access Cards with Background */}
+      <View style={styles.quickAccessWrapper}>
+        <View style={styles.quickAccessContainer}>
+          <TouchableOpacity 
+            style={[styles.quickAccessCard, { backgroundColor: '#E8F4F8' }]}
+            onPress={() => router.push('/caregiver-search' as any)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#E3F2FD' }]}>
+              <Ionicons name="search" size={28} color="#2196F3" />
+            </View>
+            <View style={styles.quickAccessTextContainer}>
+              <ThemedText style={styles.quickAccessTitle}>Tìm người</ThemedText>
+              <ThemedText style={styles.quickAccessSubtitle}>chăm sóc</ThemedText>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.quickAccessCard, { backgroundColor: '#F5E6F9' }]}
+            onPress={() => router.push('/appointments')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.quickAccessIcon, { backgroundColor: '#F3E5F5' }]}>
+              <Ionicons name="calendar" size={28} color="#9C27B0" />
+            </View>
+            <View style={styles.quickAccessTextContainer}>
+              <ThemedText style={[styles.quickAccessTitle, { color: '#9C27B0' }]}>Lịch hẹn</ThemedText>
+              <ThemedText style={[styles.quickAccessSubtitle, { color: '#BA68C8' }]}>của tôi</ThemedText>
+            </View>
+          </TouchableOpacity>
+        </View>
+        </View>
+
         {/* Service Modules Grid */}
         <View style={styles.modulesContainer}>
           {/* Emergency Alert - Hiển thị khi được trigger */}
@@ -336,32 +423,6 @@ export default function DashboardScreen() {
           {/* Chỉ hiển thị các component khác khi KHÔNG có emergency alert */}
           {!emergencyAlertVisible && (
             <>
-              {/* Find Caregiver Section */}
-              <View style={styles.findCaregiverSection}>
-                <LinearGradient
-                  colors={['#4ECDC4', '#27AE60']}
-                  style={styles.findCaregiverCard}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <View style={styles.findCaregiverContent}>
-                    <ThemedText style={styles.findCaregiverTitle}>
-                      Cần tìm người chăm sóc?
-                    </ThemedText>
-                    <ThemedText style={styles.findCaregiverDescription}>
-                      Chúng tôi sẽ giúp bạn tìm được người phù hợp nhất
-                    </ThemedText>
-                    <TouchableOpacity
-                      style={styles.findNowButton}
-                      onPress={() => router.push('/caregiver-search' as any)}
-                      activeOpacity={0.8}
-                    >
-                      <ThemedText style={styles.findNowButtonText}>Tìm ngay</ThemedText>
-                    </TouchableOpacity>
-          </View>
-                </LinearGradient>
-        </View>
-
               {/* Request Notification */}
               <View style={styles.requestNotificationContainer}>
                 <RequestNotification 
@@ -410,9 +471,6 @@ export default function DashboardScreen() {
           )}
           
         </View>
-
-
-        {/* Footer đã được chuyển vào App Info Modal */}
 
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
@@ -639,22 +697,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-    paddingBottom: 100, // Space for navigation bar
+  },
+  fullContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#2196F3',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 60,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
-  headerContent: {
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  greetingContainer: {
+    marginLeft: 12,
   },
   avatarButton: {
     marginRight: 12,
@@ -669,8 +736,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.5)',
   },
-  headerTitle: {
-    fontSize: 20,
+  greeting: {
+    fontSize: 14,
+    color: 'white',
+    opacity: 0.9,
+  },
+  userName: {
+    fontSize: 22,
     fontWeight: 'bold',
     color: 'white',
   },
@@ -716,47 +788,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     marginBottom: 20,
-  },
-  findCaregiverSection: {
-    marginHorizontal: 8,
-    marginTop: 20,
-    marginBottom: 32,
-  },
-  findCaregiverCard: {
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  findCaregiverContent: {
-    alignItems: 'flex-start',
-  },
-  findCaregiverTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 6,
-  },
-  findCaregiverDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  findNowButton: {
-    backgroundColor: 'white',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  findNowButtonText: {
-    color: '#4ECDC4',
-    fontSize: 16,
-    fontWeight: '600',
   },
   regularModulesGrid: {
     flexDirection: 'row',
@@ -1002,15 +1033,15 @@ const styles = StyleSheet.create({
   },
   // Other Features Styles
   otherFeaturesSection: {
-    marginTop: 32,
-    marginBottom: 32,
+    marginTop: 16,
+    marginBottom: 120, // Thêm margin bottom để tránh đụng nav
     paddingHorizontal: 20,
   },
   otherFeaturesTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#2C3E50',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   featuresScrollView: {
     marginTop: 16,
@@ -1033,7 +1064,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 12,
   },
   featureImageContainer: {
     width: 60,
@@ -1042,7 +1073,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
@@ -1267,5 +1298,119 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4ECDC4',
     textDecorationLine: 'underline',
+  },
+  // Wallet Styles
+  walletCard: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  walletBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  walletIconContainer: {
+    marginRight: 12,
+  },
+  walletIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: '#2196F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walletInfo: {
+    flex: 1,
+  },
+  walletLabel: {
+    fontSize: 14,
+    color: '#6C757D',
+    marginBottom: 4,
+  },
+  walletBalance: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+  },
+  walletActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  walletActionButton: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  walletActionIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  walletActionLabel: {
+    fontSize: 12,
+    color: '#2C3E50',
+    fontWeight: '600',
+  },
+  // Quick Access Cards
+  quickAccessWrapper: {
+    backgroundColor: 'white',
+    paddingTop: 16,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    marginTop: -15,
+    borderRadius: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    marginLeft: 20,
+    marginRight: 20,
+    marginBottom: 20,
+  },
+  quickAccessContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickAccessCard: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  quickAccessIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  quickAccessTextContainer: {
+    flex: 1,
+  },
+  quickAccessTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2196F3',
+  },
+  quickAccessSubtitle: {
+    fontSize: 11,
+    color: '#64B5F6',
   },
 });

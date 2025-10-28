@@ -17,10 +17,21 @@ import { WorkTimeSelectorFromAI } from '@/components/ui/WorkTimeSelectorFromAI';
 import { MatchResponse, matchService } from '@/services/matchServiceAxios';
 import { formatCurrency } from '@/utils/currency';
 
+interface ElderlyProfile {
+  id: string;
+  name: string;
+  age: number;
+  currentCaregivers: number;
+  family: string;
+  healthStatus: 'good' | 'fair' | 'poor';
+  avatar?: string;
+}
+
 interface AIMatchingModalProps {
   visible: boolean;
   onClose: () => void;
   onGetRecommendations: (response: MatchResponse) => void;
+  elderlyProfiles?: ElderlyProfile[];
 }
 
 
@@ -110,7 +121,7 @@ const ratingRangeOptions = [
 ];
 
 
-export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMatchingModalProps) {
+export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderlyProfiles = [] }: AIMatchingModalProps) {
   const [userInfo, setUserInfo] = useState<UserInfo>({
     elderlyAge: '',
     healthStatus: 'moderate',
@@ -130,8 +141,10 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
   });
 
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0); // Start from step 0
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [showManualInput, setShowManualInput] = useState(false);
   const totalSteps = 6;
 
   // Animation values
@@ -194,6 +207,83 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
   };
 
 
+
+  const handleProfileSelect = (profileId: string | null) => {
+    setSelectedProfileId(profileId);
+  };
+
+  const handleManualInput = () => {
+    setShowManualInput(true);
+    setCurrentStep(1);
+  };
+
+  const handleConfirmProfile = async () => {
+    if (selectedProfileId) {
+      // Auto-fill info from selected profile
+      const profile = elderlyProfiles.find(p => p.id === selectedProfileId);
+      if (profile) {
+        setUserInfo(prev => ({
+          ...prev,
+          elderlyAge: profile.age.toString(),
+          healthStatus: profile.healthStatus === 'good' ? 'low' : profile.healthStatus === 'fair' ? 'moderate' : 'high',
+        }));
+        
+        // Start AI matching with profile data
+        setIsLoading(true);
+        
+        try {
+          // Simulate API call with profile data
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const requestBody = {
+            seeker_name: "Người dùng",
+            care_level: userInfo.careLevel,
+            health_status: profile.healthStatus === 'good' ? 'low' : profile.healthStatus === 'fair' ? 'moderate' : 'high',
+            elderly_age: profile.age,
+            caregiver_age_range: userInfo.caregiverAgeRange ? [
+              parseInt(userInfo.caregiverAgeRange.min),
+              parseInt(userInfo.caregiverAgeRange.max)
+            ] as [number, number] : null,
+            gender_preference: userInfo.genderPreference,
+            required_years_experience: userInfo.requiredYearsExperience ? parseInt(userInfo.requiredYearsExperience) : null,
+            overall_rating_range: userInfo.overallRatingRange ? [
+              userInfo.overallRatingRange.min,
+              userInfo.overallRatingRange.max
+            ] as [number, number] : null,
+            personality: userInfo.personality,
+            attitude: userInfo.attitude,
+            skills: {
+              required_skills: [...userInfo.requiredSkills, ...userInfo.customRequiredSkills],
+              priority_skills: [...userInfo.prioritySkills, ...userInfo.customPrioritySkills]
+            },
+            time_slots: userInfo.timeSlotGroups.flatMap(group => 
+              group.days.flatMap(day => 
+                group.timeSlots.map(slot => ({
+                  day: day.toLowerCase(),
+                  start: slot.start,
+                  end: slot.end
+                }))
+              )
+            ),
+            location: {
+              lat: 10.7350,
+              lon: 106.7200,
+              address: "Quận 7, TP.HCM"
+            },
+            budget_per_hour: parseInt(userInfo.budgetPerHour) || 150000, // Default budget
+          };
+
+          const response = await matchService.matchCaregivers(requestBody);
+          setIsLoading(false);
+          onGetRecommendations(response);
+        } catch (error: any) {
+          console.error('Error:', error);
+          setIsLoading(false);
+          Alert.alert('Lỗi', 'Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.');
+        }
+      }
+    }
+  };
 
   const handleNext = async () => {
     if (currentStep < totalSteps) {
@@ -294,9 +384,104 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
   };
 
   const handlePrevious = () => {
-    if (currentStep > 1) {
+    if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
     }
+  };
+
+  const renderStep0 = () => {
+    const getHealthStatusText = (status: string) => {
+      switch (status) {
+        case 'good': return 'Tốt';
+        case 'fair': return 'Trung bình';
+        case 'poor': return 'Yếu';
+        default: return 'Không xác định';
+      }
+    };
+
+    const getHealthStatusColor = (status: string) => {
+      switch (status) {
+        case 'good': return '#28a745';
+        case 'fair': return '#ffc107';
+        case 'poor': return '#dc3545';
+        default: return '#6c757d';
+      }
+    };
+
+    return (
+      <View style={styles.stepContent}>
+        <ThemedText style={styles.stepTitle}>Chọn hồ sơ người già</ThemedText>
+        <ThemedText style={styles.stepDescription}>
+          Chọn một hồ sơ người già hoặc nhập yêu cầu thủ công
+        </ThemedText>
+
+        {elderlyProfiles.length > 0 ? (
+          <ScrollView style={styles.profileList} showsVerticalScrollIndicator={false}>
+            {elderlyProfiles.map((profile) => (
+              <TouchableOpacity
+                key={profile.id}
+                style={[
+                  styles.profileCard,
+                  selectedProfileId === profile.id && styles.profileCardSelected
+                ]}
+                onPress={() => setSelectedProfileId(selectedProfileId === profile.id ? null : profile.id)}
+              >
+                <View style={styles.profileHeader}>
+                  <View style={styles.profileInfo}>
+                    <ThemedText style={[
+                      styles.profileName,
+                      selectedProfileId === profile.id && styles.profileNameSelected
+                    ]}>
+                      {profile.name}
+                    </ThemedText>
+                    <ThemedText style={[
+                      styles.profileAge,
+                      selectedProfileId === profile.id && styles.profileAgeSelected
+                    ]}>
+                      {profile.age} tuổi
+                    </ThemedText>
+                  </View>
+                  
+                  <View style={styles.selectionIndicator}>
+                    {selectedProfileId === profile.id ? (
+                      <Ionicons name="checkmark-circle" size={20} color="#4ECDC4" />
+                    ) : (
+                      <View style={styles.unselectedCircle} />
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.profileDetails}>
+                  <View style={styles.detailRow}>
+                    <Ionicons name="people" size={16} color="#9CA3AF" />
+                    <ThemedText style={styles.detailText}>
+                      Gia đình: {profile.family}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Ionicons name="pulse" size={16} color="#9CA3AF" />
+                    <View style={[styles.healthBadge, { backgroundColor: getHealthStatusColor(profile.healthStatus) + '20' }]}>
+                      <View style={[styles.healthDot, { backgroundColor: getHealthStatusColor(profile.healthStatus) }]} />
+                      <ThemedText style={[styles.healthStatusText, { color: getHealthStatusColor(profile.healthStatus) }]}>
+                        {getHealthStatusText(profile.healthStatus)}
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : null}
+
+        <TouchableOpacity
+          style={styles.manualInputButton}
+          onPress={handleManualInput}
+        >
+          <Ionicons name="add-circle-outline" size={24} color="#4ECDC4" />
+          <ThemedText style={styles.manualInputButtonText}>Nhập yêu cầu thủ công</ThemedText>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   const renderStep1 = () => (
@@ -696,6 +881,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
 
   const renderCurrentStep = () => {
     switch (currentStep) {
+      case 0: return renderStep0(); // Profile selection
       case 1: return renderStep1();
       case 2: return renderStep2();
       case 3: return renderStep3();
@@ -756,12 +942,13 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations }: AIMa
           )}
           <View style={styles.navigationSpacer} />
           <TouchableOpacity 
-            style={[styles.nextButton, isLoading && styles.nextButtonDisabled]} 
-            onPress={handleNext}
-            disabled={isLoading}
+            style={[styles.nextButton, (isLoading || (currentStep === 0 && !selectedProfileId && !showManualInput)) && styles.nextButtonDisabled]} 
+            onPress={currentStep === 0 ? handleConfirmProfile : handleNext}
+            disabled={isLoading || (currentStep === 0 && !selectedProfileId && !showManualInput)}
           >
             <ThemedText style={styles.nextButtonText}>
-              {currentStep === totalSteps ? 'Gợi ý từ AI' : 'Tiếp theo'}
+              {currentStep === 0 ? 'Xác nhận' : 
+               currentStep === totalSteps ? 'Gợi ý từ AI' : 'Tiếp theo'}
             </ThemedText>
             <Ionicons name="chevron-forward" size={20} color="white" />
           </TouchableOpacity>
@@ -1012,6 +1199,102 @@ const styles = StyleSheet.create({
   },
   nextButtonDisabled: {
     opacity: 0.6,
+  },
+  profileList: {
+    maxHeight: 400,
+    marginBottom: 16,
+  },
+  profileCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  profileCardSelected: {
+    borderColor: '#4ECDC4',
+    backgroundColor: '#F0FDFB',
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  profileNameSelected: {
+    color: '#4ECDC4',
+  },
+  profileAge: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  profileAgeSelected: {
+    color: '#4ECDC4',
+  },
+  selectionIndicator: {
+    marginLeft: 12,
+  },
+  unselectedCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+  },
+  profileDetails: {
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  healthBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 6,
+  },
+  healthDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  healthStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  manualInputButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0FDFB',
+    borderWidth: 1,
+    borderColor: '#4ECDC4',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  manualInputButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4ECDC4',
   },
   helpText: {
     fontSize: 14,

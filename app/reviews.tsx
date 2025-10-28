@@ -1,15 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  FlatList,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -81,6 +83,7 @@ export default function ReviewsScreen() {
   const [selectedReviewItem, setSelectedReviewItem] = useState<any>(null);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [images, setImages] = useState<string[]>([]); // New state for images
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedDetailItem, setSelectedDetailItem] = useState<any>(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -317,7 +320,62 @@ export default function ReviewsScreen() {
     setSelectedReviewItem(item);
     setRating(0);
     setComment('');
+    setImages([]); // Reset images
     setShowReviewModal(true);
+  };
+
+  const handleImagePicker = async () => {
+    Alert.alert(
+      'Chọn ảnh',
+      'Bạn muốn chọn từ thư viện hay chụp ảnh mới?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { text: 'Thư viện', onPress: handlePickFromLibrary },
+        { text: 'Chụp ảnh', onPress: handleTakePhoto },
+      ]
+    );
+  };
+
+  const handlePickFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Thông báo', 'Cần quyền truy cập thư viện ảnh');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets) {
+      const newImages = result.assets.map(asset => asset.uri);
+      setImages(prev => [...prev, ...newImages]);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Thông báo', 'Cần quyền truy cập camera');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets) {
+      const newImages = result.assets.map(asset => asset.uri);
+      setImages(prev => [...prev, ...newImages]);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleItemPress = (item: any) => {
@@ -900,6 +958,35 @@ export default function ReviewsScreen() {
                 numberOfLines={4}
                 textAlignVertical="top"
               />
+            </View>
+
+            {/* Image Upload Section */}
+            <View style={styles.imageSection}>
+              <ThemedText style={styles.imageSectionTitle}>Ảnh đính kèm (tùy chọn)</ThemedText>
+              <TouchableOpacity 
+                style={styles.addImageButton}
+                onPress={handleImagePicker}
+              >
+                <Ionicons name="camera-outline" size={20} color="#4ECDC4" />
+                <ThemedText style={styles.addImageButtonText}>Chọn ảnh hoặc chụp ảnh</ThemedText>
+              </TouchableOpacity>
+              
+              {/* Image List */}
+              {images.length > 0 && (
+                <View style={styles.imageListContainer}>
+                  {images.map((imageUri, index) => (
+                    <View key={index} style={styles.imageItemContainer}>
+                      <Image source={{ uri: imageUri }} style={styles.previewImage} />
+                      <TouchableOpacity 
+                        style={styles.removeImageButton}
+                        onPress={() => handleRemoveImage(index)}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#E74C3C" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </ScrollView>
 
@@ -2025,6 +2112,67 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     backgroundColor: '#f8f9fa',
     minHeight: 100,
+  },
+  // Image Upload Styles
+  imageSection: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  imageSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  addImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#4ECDC4',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#F0FDFB',
+    gap: 8,
+  },
+  addImageButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4ECDC4',
+  },
+  imageListContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    gap: 12,
+  },
+  imageItemContainer: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  previewImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 2,
   },
   // Submit Button Styles
   submitButton: {
