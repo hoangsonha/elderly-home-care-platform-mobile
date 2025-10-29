@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { ThemedText } from "@/components/themed-text";
 
 interface Message {
@@ -220,6 +221,9 @@ export default function ChatScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+      
+      {/* Bottom Navigation */}
+      <CaregiverBottomNav activeTab="home" />
     </SafeAreaView>
   );
 }
@@ -228,7 +232,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
-    paddingBottom: 100, // Space for navigation bar
   },
   header: {
     backgroundColor: "#4ECDC4",
@@ -274,7 +277,7 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: 16,
-    paddingBottom: 8,
+    paddingBottom: 160,
   },
   messageContainer: {
     marginBottom: 12,
@@ -331,6 +334,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: "#e9ecef",
+    marginBottom: 80,
   },
   inputWrapper: {
     flexDirection: "row",

@@ -1,214 +1,390 @@
-import React, { useState } from "react";
+import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import React from "react";
 import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { Checkbox } from "react-native-paper";
 
-const transactionsReceived = [
+// Mock data for transactions
+const transactionsData = [
   {
-    id: "#TX1008",
-    type: "Thanh toán lịch hẹn",
-    booking: "BK003",
-    time: "2025-09-16 13:30",
-    amount: 480000,
+    id: "1",
+    name: "Bà Nguyễn Thị Lan",
+    date: "25/10/2025",
+    time: "8:00-12:00",
+    amount: 1200000,
+    status: "pending", // pending, completed, withdrawn, refunded
+    statusText: "Chờ xử lí",
+    icon: "timer-sand",
+    iconColor: "#F59E0B",
+    iconBg: "#FEF3C7",
+    remaining: "18 giờ 30 phút",
   },
   {
-    id: "#TX1007",
-    type: "Thanh toán lịch hẹn",
-    booking: "BK002",
-    time: "2025-09-15 17:45",
-    amount: 330000,
+    id: "2",
+    name: "Ông Trần Văn Hùng",
+    date: "23/10/2025",
+    time: "14:00-17:00",
+    amount: 540000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
   },
   {
-    id: "#TX1006",
-    type: "Rút tiền",
-    booking: "—",
-    time: "2025-09-10 09:10",
-    amount: -500000,
-  },
-];
-
-const transactionsUpcoming = [
-  {
-    id: "#TX1012",
-    type: "Thanh toán dự kiến",
-    booking: "BK007",
-    time: "2025-09-22 18:00",
-    amount: 360000,
+    id: "3",
+    name: "Bà Mai Thị Hương",
+    date: "24/10/2025",
+    time: "8:00-12:00",
+    amount: 600000,
+    status: "pending",
+    statusText: "Chờ xử lí",
+    icon: "timer-sand",
+    iconColor: "#F59E0B",
+    iconBg: "#FEF3C7",
+    remaining: "10 giờ 15 phút",
   },
   {
-    id: "#TX1013",
-    type: "Thanh toán dự kiến",
-    booking: "BK008",
-    time: "2025-09-23 14:30",
-    amount: 440000,
+    id: "5",
+    name: "Bà Phạm Thị Lan",
+    date: "20/10/2025",
+    time: "8:00-12:00",
+    amount: 1200000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+  },
+  {
+    id: "6",
+    name: "Ông Lê Văn Sơn",
+    date: "25/10/2025",
+    time: "14:00-17:00",
+    amount: 600000,
+    status: "pending",
+    statusText: "Chờ xử lí",
+    icon: "timer-sand",
+    iconColor: "#F59E0B",
+    iconBg: "#FEF3C7",
+    remaining: "20 giờ 45 phút",
+  },
+  {
+    id: "7",
+    name: "Hoàn tiền - Khiếu nại",
+    date: "18/10/2025",
+    time: "Ông Nguyễn Văn B",
+    amount: -800000,
+    status: "refunded",
+    statusText: "Hoàn tiền",
+    icon: "close-circle",
+    iconColor: "#EF4444",
+    iconBg: "#FEE2E2",
   },
 ];
 
 export default function PaymentScreen() {
-  const [amount, setAmount] = useState("");
-  const [bank, setBank] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [accountName, setAccountName] = useState("");
-  const [note, setNote] = useState("");
-  const [checked, setChecked] = useState(false);
+  const navigation = useNavigation<any>();
+
+  // Calculate totals
+  const totalBalance = 6900000;
+  const availableBalance = 4500000;
+  const pendingBalance = 2400000;
+  const pendingCount = transactionsData.filter(t => t.status === "pending").length;
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'decimal',
+      minimumFractionDigits: 0,
+    }).format(Math.abs(amount)) + 'đ';
+  };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Info Section */}
-      <View style={styles.infoSection}>
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>Số dư khả dụng</Text>
-          <Text style={styles.infoValue}>2.400.000 ₫</Text>
-        </View>
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>Đã rút trong tháng</Text>
-          <Text style={styles.infoValue}>500.000 ₫</Text>
-        </View>
-        <View style={styles.infoBox}>
-          <Text style={styles.infoLabel}>Lần rút gần nhất</Text>
-          <Text style={styles.infoValue}>2025-09-10</Text>
-        </View>
-      </View>
-
-      {/* Withdraw Form */}
-      <View style={styles.formSection}>
-        <TextInput
-          style={styles.input}
-          placeholder="Nhập số tiền (tối thiểu 100,000đ)"
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Ngân hàng (VD: Vietcombank, ACB...)"
-          value={bank}
-          onChangeText={setBank}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Số tài khoản"
-          keyboardType="numeric"
-          value={accountNumber}
-          onChangeText={setAccountNumber}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Chủ tài khoản"
-          value={accountName}
-          onChangeText={setAccountName}
-        />
-        <TextInput
-          style={[styles.input, { height: 80 }]}
-          placeholder="Ghi chú (tùy chọn)"
-          multiline
-          value={note}
-          onChangeText={setNote}
-        />
-        <View style={styles.checkboxContainer}>
-          <Checkbox
-            status={checked ? "checked" : "unchecked"}
-            onPress={() => setChecked(!checked)}
-          />
-          <Text>Tôi xác nhận các thông tin là chính xác</Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.button, !checked && { backgroundColor: "#ccc" }]}
-          disabled={!checked}
-        >
-          <Text style={styles.buttonText}>Gửi yêu cầu rút tiền</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Transactions Received */}
-      <View style={styles.transactionSection}>
-        <Text style={styles.sectionTitle}>Giao dịch đã nhận</Text>
-        {transactionsReceived.map((tx) => (
-          <View key={tx.id} style={styles.transactionRow}>
-            <Text style={styles.txId}>{tx.id}</Text>
-            <Text>{tx.type}</Text>
-            <Text>{tx.time}</Text>
-            <Text style={{ color: tx.amount < 0 ? "red" : "green" }}>
-              {tx.amount.toLocaleString()} ₫
-            </Text>
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Balance Card */}
+        <View style={styles.balanceCard}>
+          <View style={styles.balanceHeader}>
+            <MaterialCommunityIcons name="wallet" size={20} color="#F59E0B" />
+            <Text style={styles.balanceLabel}>Tổng số dư</Text>
           </View>
-        ))}
-      </View>
-
-      {/* Transactions Upcoming */}
-      <View style={styles.transactionSection}>
-        <Text style={styles.sectionTitle}>Giao dịch sắp nhận</Text>
-        {transactionsUpcoming.map((tx) => (
-          <View key={tx.id} style={styles.transactionRow}>
-            <Text style={styles.txId}>{tx.id}</Text>
-            <Text>{tx.type}</Text>
-            <Text>{tx.time}</Text>
-            <Text style={{ color: "green" }}>
-              {tx.amount.toLocaleString()} ₫
-            </Text>
+          <Text style={styles.balanceAmount}>{formatCurrency(totalBalance)}</Text>
+          
+          <View style={styles.balanceDetails}>
+            <View style={styles.balanceDetailItem}>
+              <View style={styles.balanceDetailIcon}>
+                <MaterialCommunityIcons name="circle" size={12} color="#10B981" />
+              </View>
+              <View>
+                <Text style={styles.balanceDetailLabel}>Khả dụng</Text>
+                <Text style={styles.balanceDetailValue}>{formatCurrency(availableBalance)}</Text>
+              </View>
+            </View>
+            
+            <View style={styles.balanceDetailItem}>
+              <View style={styles.balanceDetailIcon}>
+                <MaterialCommunityIcons name="timer-sand" size={12} color="#F59E0B" />
+              </View>
+              <View>
+                <Text style={styles.balanceDetailLabel}>Chờ xử lí</Text>
+                <Text style={styles.balanceDetailValue}>{formatCurrency(pendingBalance)}</Text>
+              </View>
+            </View>
           </View>
-        ))}
-      </View>
-    </ScrollView>
+        </View>
+
+        {/* Action Button - Only Withdraw */}
+        {/* <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={styles.withdrawButton}
+            onPress={() => navigation.navigate("Rút tiền")}
+          >
+            <MaterialCommunityIcons name="cash-multiple" size={20} color="#FFFFFF" />
+            <Text style={styles.withdrawButtonText}>Rút tiền</Text>
+          </TouchableOpacity>
+        </View> */}
+
+        {/* Transaction History */}
+        <View style={styles.historySection}>
+          <View style={styles.historyHeader}>
+            <MaterialCommunityIcons name="clipboard-text-outline" size={20} color="#1E293B" />
+            <Text style={styles.historyTitle}>Lịch sử giao dịch</Text>
+          </View>
+
+          {transactionsData.map((transaction) => (
+            <View key={transaction.id} style={styles.transactionCard}>
+              <View style={[styles.transactionIcon, { backgroundColor: transaction.iconBg }]}>
+                <MaterialCommunityIcons 
+                  name={transaction.icon as any} 
+                  size={24} 
+                  color={transaction.iconColor} 
+                />
+              </View>
+
+              <View style={styles.transactionInfo}>
+                <Text style={styles.transactionName}>{transaction.name}</Text>
+                <Text style={styles.transactionDateTime}>
+                  {transaction.date} · {transaction.time}
+                </Text>
+                {transaction.remaining && (
+                  <View style={styles.remainingBadge}>
+                    <MaterialCommunityIcons name="clock-alert-outline" size={12} color="#DC2626" />
+                    <Text style={styles.remainingText}>Còn {transaction.remaining}</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.transactionRight}>
+                <Text style={[
+                  styles.transactionAmount,
+                  transaction.amount > 0 ? styles.amountPositive : styles.amountNegative
+                ]}>
+                  {transaction.amount > 0 ? '+' : ''}{formatCurrency(transaction.amount)}
+                </Text>
+                <Text style={[
+                  styles.transactionStatus,
+                  transaction.status === 'completed' && styles.statusCompleted,
+                  transaction.status === 'pending' && styles.statusPending,
+                  transaction.status === 'withdrawn' && styles.statusWithdrawn,
+                  transaction.status === 'refunded' && styles.statusRefunded,
+                ]}>
+                  {transaction.statusText}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <CaregiverBottomNav activeTab="income" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: "#fff",
-    paddingVertical: 48,
+    backgroundColor: "#5B9FD8",
   },
-  infoSection: {
+  scrollView: {
+    flex: 1,
+  },
+  balanceCard: {
+    backgroundColor: "#FFFFFF",
+    margin: 16,
+    marginTop: 60,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  balanceHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: "bold",
+    color: "#2196F3",
     marginBottom: 16,
   },
-  infoBox: {
-    flex: 1,
-    marginHorizontal: 4,
-    padding: 12,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  infoLabel: { fontSize: 12, color: "#888", marginBottom: 4 },
-  infoValue: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  formSection: { marginBottom: 24 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  checkboxContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  button: {
-    backgroundColor: "#0a74da",
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  buttonText: { color: "#fff", fontWeight: "bold" },
-  transactionSection: { marginBottom: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 8 },
-  transactionRow: {
+  balanceDetails: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    gap: 16,
   },
-  txId: { fontWeight: "bold" },
+  balanceDetailItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  balanceDetailIcon: {
+    width: 8,
+    height: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  balanceDetailLabel: {
+    fontSize: 12,
+    color: "#64748B",
+    marginBottom: 2,
+  },
+  balanceDetailValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1E293B",
+  },
+  actionsContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  withdrawButton: {
+    backgroundColor: "#5B9FD8",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  withdrawButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  historySection: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 100,
+    minHeight: 400,
+  },
+  historyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  transactionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  transactionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  transactionInfo: {
+    flex: 1,
+  },
+  transactionName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1E293B",
+    marginBottom: 4,
+  },
+  transactionDateTime: {
+    fontSize: 12,
+    color: "#64748B",
+    marginBottom: 4,
+  },
+  remainingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  remainingText: {
+    fontSize: 11,
+    color: "#DC2626",
+    fontWeight: "500",
+  },
+  transactionRight: {
+    alignItems: "flex-end",
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  amountPositive: {
+    color: "#10B981",
+  },
+  amountNegative: {
+    color: "#EF4444",
+  },
+  transactionStatus: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  statusCompleted: {
+    color: "#64748B",
+  },
+  statusPending: {
+    color: "#F59E0B",
+  },
+  statusWithdrawn: {
+    color: "#64748B",
+  },
+  statusRefunded: {
+    color: "#64748B",
+  },
 });

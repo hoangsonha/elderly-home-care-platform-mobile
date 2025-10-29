@@ -1,18 +1,19 @@
 // ExpertProfileScreen.js
+import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -508,6 +509,9 @@ export default function ExpertProfileScreen() {
           </View>
         </Modal>
       </ScrollView>
+      
+      {/* Bottom Navigation */}
+      <CaregiverBottomNav activeTab="profile" />
     </SafeAreaView>
   );
 }
