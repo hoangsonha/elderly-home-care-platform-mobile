@@ -29,7 +29,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    b. Open in Physical Device
 
    ```bash
-   Press 's' and Scan the QR in your phone with Expo
+   Scan the QR in your phone with Expo
    ```
 
 In the output, you'll find options to open the app in a
