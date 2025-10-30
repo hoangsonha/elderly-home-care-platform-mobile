@@ -11,6 +11,7 @@ interface ElderlyProfile {
   healthStatus: string;
   avatar: string;
   relationship: string;
+  gender?: 'male' | 'female';
 }
 
 interface ElderlyProfilesProps {
@@ -30,12 +31,12 @@ export function ElderlyProfiles({ profiles }: ElderlyProfilesProps) {
   }
   
   const handleViewAll = () => {
-    router.push('/elderly-list');
+    router.push('/careseeker/elderly-list');
   };
 
   const handleProfilePress = (profile: ElderlyProfile) => {
     router.push({
-      pathname: '/elderly-detail',
+      pathname: '/careseeker/elderly-detail',
       params: {
         profileId: profile.id,
         profileName: profile.name,
@@ -60,169 +61,146 @@ export function ElderlyProfiles({ profiles }: ElderlyProfilesProps) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: '#f0f0f0' }]}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="people-outline" size={24} color="#2c3e50" />
-          <ThemedText style={styles.title}>Hồ sơ người già</ThemedText>
-        </View>
-        
+    <ScrollView 
+      horizontal 
+      showsHorizontalScrollIndicator={false}
+      style={styles.profilesScrollView}
+      contentContainerStyle={styles.profilesContainer}
+    >
+      {profiles.map((profile) => (
         <TouchableOpacity
-          style={styles.viewAllButton}
-          onPress={handleViewAll}
-          activeOpacity={0.7}
+          key={profile.id}
+          style={styles.profileCard}
+          onPress={() => handleProfilePress(profile)}
+          activeOpacity={0.8}
         >
-          <ThemedText style={styles.viewAllText}>Xem tất cả</ThemedText>
-          <Ionicons name="chevron-forward" size={16} color="#4ECDC4" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.profilesScrollView}
-        contentContainerStyle={styles.profilesContainer}
-      >
-        {profiles.map((profile) => (
-          <TouchableOpacity
-            key={profile.id}
-            style={styles.profileCard}
-            onPress={() => handleProfilePress(profile)}
-            activeOpacity={0.8}
-          >
-             <View style={styles.profileImageContainer}>
-               <View style={styles.profileImage}>
-                 <ThemedText style={styles.profileImageText}>
-                   {profile.name.split(' ').map(n => n[0]).join('')}
-                 </ThemedText>
-               </View>
+           <View style={styles.profileImageContainer}>
+             <View style={[
+               styles.profileImage,
+               { backgroundColor: profile.gender === 'female' ? '#E91E63' : '#2196F3' }
+             ]}>
+               <ThemedText style={styles.profileImageText}>
+                 {profile.name.split(' ').pop()?.charAt(0)}
+               </ThemedText>
              </View>
+             {/* Gender indicator */}
+             <View style={[
+               styles.genderBadge,
+               { backgroundColor: profile.gender === 'female' ? '#E91E63' : '#2196F3' }
+             ]}>
+               <Ionicons 
+                 name={profile.gender === 'female' ? 'female' : 'male'} 
+                 size={12} 
+                 color="#FFFFFF" 
+               />
+             </View>
+           </View>
+          
+          <View style={styles.profileInfo}>
+            <ThemedText style={styles.profileName}>{profile.name}</ThemedText>
+            <ThemedText style={styles.profileAge}>{profile.age} tuổi</ThemedText>
             
-            <View style={styles.profileInfo}>
-              <ThemedText style={styles.profileName}>{profile.name}</ThemedText>
-              <ThemedText style={styles.profileAge}>{profile.age} tuổi</ThemedText>
-              
-              <View style={styles.healthStatusContainer}>
-                <View style={[
-                  styles.healthStatusDot, 
-                  { backgroundColor: getHealthStatusColor(profile.healthStatus) }
-                ]} />
-                <ThemedText style={[
-                  styles.healthStatusText,
-                  { color: getHealthStatusColor(profile.healthStatus) }
-                ]}>
-                  Sức khỏe {profile.healthStatus}
-                </ThemedText>
-              </View>
+            <View style={styles.healthStatusContainer}>
+              <View style={[
+                styles.healthStatusDot, 
+                { backgroundColor: getHealthStatusColor(profile.healthStatus) }
+              ]} />
+              <ThemedText style={[
+                styles.healthStatusText,
+                { color: getHealthStatusColor(profile.healthStatus) }
+              ]}>
+                Sức khỏe {profile.healthStatus}
+              </ThemedText>
             </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginTop: 20,
-    paddingHorizontal: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginLeft: 8,
-  },
-  viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    backgroundColor: '#f8f9fa',
-  },
-  viewAllText: {
-    color: '#4ECDC4',
-    fontSize: 14,
-    fontWeight: '500',
-    marginRight: 4,
-  },
   profilesScrollView: {
-    marginHorizontal: -8,
+    marginHorizontal: -20, // Negative margin to extend to edges
   },
   profilesContainer: {
-    paddingHorizontal: 8,
-    gap: 12,
+    paddingHorizontal: 20,
   },
   profileCard: {
-    width: 220,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 10,
-    elevation: 2,
+    width: 240,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    marginRight: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 70,
+    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#E8EBED',
   },
   profileImageContainer: {
     marginRight: 12,
+    position: 'relative',
   },
   profileImage: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#4ECDC4',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  genderBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
   profileImageText: {
     color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
   },
   profileInfo: {
     flex: 1,
     alignItems: 'flex-start',
   },
   profileName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 4,
   },
   profileAge: {
-    fontSize: 12,
-    color: '#7f8c8d',
-    marginBottom: 1,
+    fontSize: 13,
+    color: '#7F8C8D',
+    marginBottom: 6,
   },
   healthStatusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 1,
+    backgroundColor: 'white',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   healthStatusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginRight: 4,
+    marginRight: 6,
   },
   healthStatusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
 });

@@ -88,7 +88,7 @@ export default function ChatListScreen() {
       );
     }
     
-    router.push(`/chat?caregiverId=${conversation.caregiverId}&caregiverName=${conversation.caregiverName}`);
+    router.push(`/careseeker/chat?caregiverId=${conversation.caregiverId}&caregiverName=${conversation.caregiverName}`);
   };
 
   const handleMarkAllAsRead = () => {
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Space for navigation bar
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
   },
   unreadBadge: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     borderRadius: 10,
     minWidth: 20,
     height: 20,

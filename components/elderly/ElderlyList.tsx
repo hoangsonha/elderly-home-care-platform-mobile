@@ -68,68 +68,92 @@ export default function ElderlyList({
     }
   };
 
+  const getHealthIcon = (status: string) => {
+    switch (status) {
+      case 'good':
+        return 'checkmark-circle';
+      case 'average':
+        return 'alert-circle';
+      case 'critical':
+        return 'warning';
+      default:
+        return 'help-circle';
+    }
+  };
+
+  const getHealthBgColor = (status: string) => {
+    switch (status) {
+      case 'good':
+        return '#E8F5E9';
+      case 'average':
+        return '#FFF3E0';
+      case 'critical':
+        return '#FFEBEE';
+      default:
+        return '#F5F5F5';
+    }
+  };
+
   const renderElderlyCard = ({ item }: { item: ElderlyPerson }) => (
     <TouchableOpacity
       style={styles.elderlyCard}
       onPress={() => handlePersonPress(item)}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
     >
-      <View style={styles.cardContent}>
-        <View style={styles.topRow}>
-          <View style={styles.avatarContainer}>
-            {item.avatar ? (
-              <Image source={{ uri: item.avatar }} style={styles.avatar} />
-            ) : (
-              <View style={styles.defaultAvatar}>
-                <ThemedText style={styles.avatarText}>
-                  {item.name.split(' ').pop()?.charAt(0)}
-                </ThemedText>
-              </View>
-            )}
-            <View style={[styles.healthIndicator, { backgroundColor: getHealthStatusColor(item.healthStatus) }]} />
-          </View>
+      {/* Health Status Badge - Top Right */}
+      <View style={[styles.healthBadge, { backgroundColor: getHealthBgColor(item.healthStatus) }]}>
+        <Ionicons 
+          name={getHealthIcon(item.healthStatus)} 
+          size={16} 
+          color={getHealthStatusColor(item.healthStatus)} 
+        />
+      </View>
 
-          <View style={styles.personInfo}>
-            <View style={styles.nameRow}>
-              <ThemedText style={styles.personName} numberOfLines={1}>{item.name}</ThemedText>
-            </View>
-            
-            <View style={styles.familyRow}>
-              <TouchableOpacity
-                style={styles.chevronButton}
-                onPress={() => handlePersonPress(item)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="chevron-forward" size={20} color="#6c757d" />
-              </TouchableOpacity>
-            </View>
-          </View>
+      {/* Avatar */}
+      <View style={styles.avatarSection}>
+        <View style={[
+          styles.defaultAvatar,
+          { backgroundColor: item.gender === 'female' ? '#E91E63' : '#2196F3' }
+        ]}>
+          <ThemedText style={styles.avatarText}>
+            {item.name.split(' ').pop()?.charAt(0)}
+          </ThemedText>
+        </View>
+        {/* Gender indicator */}
+        <View style={[
+          styles.genderBadge,
+          { backgroundColor: item.gender === 'female' ? '#E91E63' : '#2196F3' }
+        ]}>
+          <Ionicons 
+            name={item.gender === 'female' ? 'female' : 'male'} 
+            size={14} 
+            color="#FFFFFF" 
+          />
+        </View>
+      </View>
 
+      {/* Info */}
+      <View style={styles.cardInfo}>
+        <ThemedText style={styles.personName} numberOfLines={1}>
+          {item.name}
+        </ThemedText>
+        
+        <View style={styles.infoRow}>
           <View style={styles.ageContainer}>
-            <ThemedText style={styles.personAge}>{item.age} tuổi</ThemedText>
+            <Ionicons name="calendar-outline" size={12} color="#95A5A6" />
+            <ThemedText style={styles.ageText}>{item.age} tuổi</ThemedText>
           </View>
         </View>
 
-        <View style={styles.bottomRow}>
-          {showCaregiverCount ? (
-            <View style={styles.caregiverBadge}>
-              <Ionicons name="people" size={12} color="#4ECDC4" />
-              <ThemedText style={styles.caregiverText}>
-                {item.currentCaregivers} người chăm sóc
-              </ThemedText>
-            </View>
-          ) : (
-            <View style={styles.emptySpace} />
-          )}
-          
-          <View style={[styles.healthStatusBadge, { 
-            backgroundColor: getHealthStatusColor(item.healthStatus) + '20',
-            borderColor: getHealthStatusColor(item.healthStatus) + '40'
-          }]}>
-            <ThemedText style={[styles.healthStatusText, { color: getHealthStatusColor(item.healthStatus) }]}>
-              Sức khỏe {getHealthStatusText(item.healthStatus)}
-            </ThemedText>
-          </View>
+        <View style={[styles.healthStatusRow, { backgroundColor: getHealthBgColor(item.healthStatus) }]}>
+          <Ionicons 
+            name={getHealthIcon(item.healthStatus)} 
+            size={14} 
+            color={getHealthStatusColor(item.healthStatus)} 
+          />
+          <ThemedText style={[styles.healthStatusText, { color: getHealthStatusColor(item.healthStatus) }]}>
+            {getHealthStatusText(item.healthStatus)}
+          </ThemedText>
         </View>
       </View>
     </TouchableOpacity>
@@ -144,43 +168,41 @@ export default function ElderlyList({
 
     return (
       <View style={styles.statsContainer}>
-        <View style={styles.statsHeader}>
-          <ThemedText style={styles.statsTitle}>Tổng quan</ThemedText>
-          <ThemedText style={styles.statsCount}>{data.length} người già</ThemedText>
-        </View>
-        
-        <View style={styles.healthStatusSection}>
-          <ThemedText style={styles.healthStatusTitle}>Sức khỏe</ThemedText>
-          <View style={styles.statsGrid}>
-          <View style={[styles.statCard, styles.goodStatCard]}>
-            <View style={styles.statHeader}>
-              <View style={[styles.statIcon, { backgroundColor: '#28a745' }]}>
-                <Ionicons name="checkmark-circle" size={16} color="white" />
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, { borderLeftColor: '#28a745' }]}>
+            <View style={styles.statContent}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#28a74515' }]}>
+                <Ionicons name="checkmark-circle" size={24} color="#28a745" />
               </View>
-              <ThemedText style={styles.statValue}>{goodCount}</ThemedText>
+              <View style={styles.statTextContainer}>
+                <ThemedText style={styles.statValue}>{goodCount}</ThemedText>
+                <ThemedText style={styles.statLabel}>Sức khỏe tốt</ThemedText>
+              </View>
             </View>
-            <ThemedText style={styles.statLabel}>Tốt</ThemedText>
           </View>
           
-          <View style={[styles.statCard, styles.fairStatCard]}>
-            <View style={styles.statHeader}>
-              <View style={[styles.statIcon, { backgroundColor: '#ffc107' }]}>
-                <Ionicons name="warning" size={16} color="white" />
+          <View style={[styles.statCard, { borderLeftColor: '#ffc107' }]}>
+            <View style={styles.statContent}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#ffc10715' }]}>
+                <Ionicons name="alert-circle-outline" size={24} color="#ffc107" />
               </View>
-              <ThemedText style={styles.statValue}>{fairCount}</ThemedText>
+              <View style={styles.statTextContainer}>
+                <ThemedText style={styles.statValue}>{fairCount}</ThemedText>
+                <ThemedText style={styles.statLabel}>Trung bình</ThemedText>
+              </View>
             </View>
-            <ThemedText style={styles.statLabel}>Trung bình</ThemedText>
           </View>
           
-          <View style={[styles.statCard, styles.poorStatCard]}>
-            <View style={styles.statHeader}>
-              <View style={[styles.statIcon, { backgroundColor: '#dc3545' }]}>
-                <Ionicons name="alert-circle" size={16} color="white" />
+          <View style={[styles.statCard, { borderLeftColor: '#dc3545' }]}>
+            <View style={styles.statContent}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#dc354515' }]}>
+                <Ionicons name="warning" size={24} color="#dc3545" />
               </View>
-              <ThemedText style={styles.statValue}>{poorCount}</ThemedText>
+              <View style={styles.statTextContainer}>
+                <ThemedText style={styles.statValue}>{poorCount}</ThemedText>
+                <ThemedText style={styles.statLabel}>Cần chú ý</ThemedText>
+              </View>
             </View>
-            <ThemedText style={styles.statLabel}>Yếu</ThemedText>
-          </View>
           </View>
         </View>
       </View>
@@ -205,9 +227,11 @@ export default function ElderlyList({
         data={data}
         renderItem={renderElderlyCard}
         keyExtractor={(item) => item.id}
+        numColumns={2}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={renderEmptyState}
+        columnWrapperStyle={styles.columnWrapper}
       />
     </View>
   );
@@ -216,42 +240,12 @@ export default function ElderlyList({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F5F7FA',
   },
   statsContainer: {
-    backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 12,
-    padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  statsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-  },
-  statsCount: {
-    fontSize: 14,
-    color: '#6c757d',
-  },
-  healthStatusSection: {
-    marginTop: 8,
-  },
-  healthStatusTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -259,181 +253,145 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 16,
-    alignItems: 'center',
+    borderLeftWidth: 4,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
-  goodStatCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#28a745',
-  },
-  fairStatCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#ffc107',
-  },
-  poorStatCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#dc3545',
-  },
-  statHeader: {
-    flexDirection: 'row',
+  statContent: {
     alignItems: 'center',
+  },
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
-  statIcon: {
+  statTextContainer: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#7F8C8D',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  listContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+  },
+  elderlyCard: {
+    width: (width - 44) / 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginBottom: 16,
+    padding: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    position: 'relative',
+  },
+  healthBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    position: 'relative',
+  },
+  genderBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 4,
     width: 24,
     height: 24,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6c757d',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  listContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  elderlyCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  cardContent: {
-    padding: 16,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-    position: 'relative',
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingLeft: 16,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 16,
+    borderWidth: 2,
+    borderColor: 'white',
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
   defaultAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#4ECDC4',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#667EEA',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     color: 'white',
   },
-  healthIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  personInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    marginBottom: 4,
+  cardInfo: {
+    alignItems: 'center',
   },
   personName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2c3e50',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  infoRow: {
+    marginBottom: 10,
   },
   ageContainer: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-  },
-  personAge: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontWeight: '500',
-  },
-  familyRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  healthStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  healthStatusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  healthBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  healthText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  caregiverBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e8f5e8',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
     gap: 4,
   },
-  caregiverText: {
+  ageText: {
     fontSize: 12,
-    color: '#4ECDC4',
-    fontWeight: '500',
+    color: '#95A5A6',
   },
-  chevronButton: {
-    padding: 8,
-    alignSelf: 'center',
+  healthStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 5,
   },
-  emptySpace: {
-    flex: 1,
+  healthStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

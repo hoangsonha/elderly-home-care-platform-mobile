@@ -12,8 +12,6 @@ import {
 
 import { ElderlyProfileSelector } from '@/components/elderly/ElderlyProfileSelector';
 import { ThemedText } from '@/components/themed-text';
-import { SimpleDatePicker } from '@/components/ui/SimpleDatePicker';
-import { SimpleTimePicker } from '@/components/ui/SimpleTimePicker';
 import { Task, TaskSelector } from '@/components/ui/TaskSelector';
 
 interface Caregiver {
@@ -39,22 +37,6 @@ interface ElderlyProfile {
   avatar?: string;
 }
 
-interface Participant {
-  id: string;
-  name: string;
-  email: string;
-  type: 'family' | 'external';
-  avatar?: string;
-}
-
-interface FamilyMember {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string;
-}
-
 interface BookingModalProps {
   visible: boolean;
   onClose: () => void;
@@ -67,147 +49,34 @@ type BookingType = 'immediate' | 'schedule';
 
 export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, immediateOnly = false }: BookingModalProps) {
   const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
-  const [bookingType, setBookingType] = useState<BookingType | null>(immediateOnly ? 'immediate' : null);
+  const [bookingType] = useState<BookingType>('immediate'); // Always immediate
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showHourPicker, setShowHourPicker] = useState(false);
-  const [showMinutePicker, setShowMinutePicker] = useState(false);
-  
-  // Set default time when date is selected
-  React.useEffect(() => {
-    if (immediateData?.selectedDate && immediateData?.durationType) {
-      const defaultHour = getDefaultHour();
-      const defaultMinute = getDefaultMinute(defaultHour);
-      
-      setImmediateData(prev => ({
-        ...prev,
-        startHour: defaultHour,
-        startMinute: defaultMinute
-      }));
-    }
-  }, [immediateData?.selectedDate, immediateData?.durationType]);
-  // Helper functions for time validation
-  const getCurrentTime = () => {
-    const now = new Date();
-    const hour = now.getHours().toString().padStart(2, '0');
-    const minute = now.getMinutes().toString().padStart(2, '0');
-    return { hour, minute };
-  };
 
-  const getMaxHour = () => {
-    const workHours = immediateData?.durationType === 'session' ? 4 : 8;
-    return 24 - workHours - 1; // Trừ thêm 1 để đảm bảo có đủ thời gian
-  };
-
-  const isToday = () => {
-    const today = new Date().toISOString().split('T')[0];
-    return immediateData?.selectedDate === today;
-  };
-
-  const getAvailableHours = () => {
-    const maxHour = getMaxHour();
-    const hours = [];
-    
-    for (let i = 0; i < 24; i++) {
-      const hour = i.toString().padStart(2, '0');
-      
-      if (isToday()) {
-        const currentTime = getCurrentTime();
-        const currentHour = parseInt(currentTime.hour);
-        const currentMinute = parseInt(currentTime.minute);
-        
-        // Nếu là giờ quá khứ, không cho phép chọn
-        if (i < currentHour) {
-          continue;
-        }
-        
-        // Nếu là giờ hiện tại, vẫn cho phép chọn (sẽ validate phút sau)
-        // Nếu là giờ tương lai, cho phép chọn
-      }
-      
-      // Kiểm tra giờ tối đa dựa trên loại
-      if (i > maxHour) {
-        continue;
-      }
-      
-      hours.push(hour);
+  // Service packages
+  const servicePackages = [
+    {
+      id: 'basic',
+      name: 'Gói cơ bản',
+      duration: 4,
+      price: 400000,
+      services: ['Chăm sóc cơ bản', 'Vệ sinh cá nhân', 'Hỗ trợ ăn uống']
+    },
+    {
+      id: 'standard',
+      name: 'Gói tiêu chuẩn',
+      duration: 8,
+      price: 750000,
+      services: ['Chăm sóc toàn diện', 'Vệ sinh cá nhân', 'Hỗ trợ ăn uống', 'Đi lại vận động', 'Uống thuốc đúng giờ']
+    },
+    {
+      id: 'premium',
+      name: 'Gói cao cấp',
+      duration: 12,
+      price: 1100000,
+      services: ['Chăm sóc 24/7', 'Vệ sinh cá nhân', 'Hỗ trợ ăn uống', 'Đi lại vận động', 'Uống thuốc đúng giờ', 'Theo dõi sức khỏe', 'Trò chuyện động viên']
     }
-    
-    return hours;
-  };
-
-  const getDefaultHour = () => {
-    if (isToday()) {
-      const currentTime = getCurrentTime();
-      const availableHours = getAvailableHours();
-      
-      // Nếu giờ hiện tại có trong danh sách available, dùng giờ hiện tại
-      if (availableHours.includes(currentTime.hour)) {
-        return currentTime.hour;
-      }
-      
-      // Nếu không, dùng giờ đầu tiên trong danh sách available
-      return availableHours[0] || '15';
-    }
-    
-    // Nếu không phải hôm nay, dùng giờ mặc định
-    return '15';
-  };
-
-  const getDefaultMinute = (selectedHour: string) => {
-    if (isToday()) {
-      const currentTime = getCurrentTime();
-      const currentHour = parseInt(currentTime.hour);
-      const selectedHourInt = parseInt(selectedHour);
-      
-      // Nếu chọn giờ hiện tại, dùng phút hiện tại + 30
-      if (selectedHourInt === currentHour) {
-        const currentMinute = parseInt(currentTime.minute);
-        const defaultMinute = Math.min(currentMinute + 30, 59);
-        return defaultMinute.toString().padStart(2, '0');
-      }
-    }
-    
-    // Mặc định là 00
-    return '00';
-  };
-  const getAvailableMinutes = (selectedHour: string) => {
-    const minutes = [];
-    const maxHour = getMaxHour();
-    const selectedHourInt = parseInt(selectedHour);
-    
-    // Nếu chọn giờ tối đa, chỉ cho phép chọn phút 00
-    if (selectedHourInt === maxHour) {
-      minutes.push('00');
-      return minutes;
-    }
-    
-    if (isToday()) {
-      const currentTime = getCurrentTime();
-      const currentHour = parseInt(currentTime.hour);
-      const currentMinute = parseInt(currentTime.minute);
-      
-      // Tính thời gian hiện tại tính bằng phút
-      const currentTimeInMinutes = currentHour * 60 + currentMinute;
-      
-      for (let i = 0; i < 60; i++) {
-        const minute = i.toString().padStart(2, '0');
-        const selectedTimeInMinutes = selectedHourInt * 60 + i;
-        
-        // Chỉ cho phép chọn nếu cách thời gian hiện tại ít nhất 30 phút
-        if (selectedTimeInMinutes > currentTimeInMinutes + 30) {
-          minutes.push(minute);
-        }
-      }
-    } else {
-      // Nếu không phải hôm nay, cho phép chọn tất cả phút
-      for (let i = 0; i < 60; i++) {
-        minutes.push(i.toString().padStart(2, '0'));
-      }
-    }
-    
-    return minutes;
-  };
+  ];
 
   // Immediate hire form data
   const [immediateData, setImmediateData] = useState({
@@ -231,141 +100,41 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     note: '',
   });
 
-  // Schedule meeting data
-  const [scheduleData, setScheduleData] = useState({
-    selectedDate: '',
-    startTime: '',
-    duration: '',
-    notes: '',
-    participants: [] as Participant[],
-  });
-
   // Modal states
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showAddParticipantModal, setShowAddParticipantModal] = useState(false);
-  const [showFamilyMembersModal, setShowFamilyMembersModal] = useState(false);
-  const [showExternalParticipantModal, setShowExternalParticipantModal] = useState(false);
-  const [externalEmail, setExternalEmail] = useState('');
-  const [foundExternalUser, setFoundExternalUser] = useState<any>(null);
-  const [familySearchQuery, setFamilySearchQuery] = useState('');
-  const [sendToFamilyMembers, setSendToFamilyMembers] = useState(false);
-
-  // Mock family members data
-  const familyMembers: FamilyMember[] = [
-    {
-      id: '1',
-      name: 'Nguyễn Văn A',
-      email: 'nguyenvana@email.com',
-      role: 'Con trai',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    },
-    {
-      id: '2',
-      name: 'Nguyễn Thị B',
-      email: 'nguyenthib@email.com',
-      role: 'Con gái',
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-    },
-    {
-      id: '3',
-      name: 'Nguyễn Văn C',
-      email: 'nguyenvanc@email.com',
-      role: 'Cháu trai',
-      avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=face',
-    },
-  ];
-
-  // Filtered family members based on search
-  const filteredFamilyMembers = familyMembers.filter(member =>
-    member.name.toLowerCase().includes(familySearchQuery.toLowerCase()) ||
-    member.email.toLowerCase().includes(familySearchQuery.toLowerCase()) ||
-    member.role.toLowerCase().includes(familySearchQuery.toLowerCase())
-  );
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showCustomLocationInput, setShowCustomLocationInput] = useState(false);
+  const [customLocation, setCustomLocation] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleClose = () => {
     setSelectedProfiles([]);
-    setBookingType(null);
     setCurrentStep(1);
     setIsSubmitting(false);
     setShowValidation(false);
-    setShowCalendar(false);
-    setShowTimePicker(false);
-    setShowAddParticipantModal(false);
-    setShowFamilyMembersModal(false);
-    setShowExternalParticipantModal(false);
-    setExternalEmail('');
-    setFoundExternalUser(null);
-    setFamilySearchQuery('');
-    setSendToFamilyMembers(false);
-    setScheduleData(prev => ({ ...prev, participants: [] }));
+    setShowLocationModal(false);
+    setShowCustomLocationInput(false);
+    setCustomLocation('');
     onClose();
   };
 
-  const handleAddParticipant = (type: 'family' | 'external') => {
-    if (type === 'family') {
-      setShowFamilyMembersModal(true);
-    } else {
-      setShowExternalParticipantModal(true);
+  const handleSelectLocation = (location: string) => {
+    setImmediateData(prev => ({ ...prev, workLocation: location }));
+    setShowLocationModal(false);
+    setShowCustomLocationInput(false);
+    setCustomLocation('');
+  };
+
+  const handleCustomLocationSelect = () => {
+    setShowLocationModal(false);
+    setShowCustomLocationInput(true);
+  };
+
+  const handleSaveCustomLocation = () => {
+    if (customLocation.trim()) {
+      setImmediateData(prev => ({ ...prev, workLocation: customLocation }));
+      setShowCustomLocationInput(false);
+      setCustomLocation('');
     }
-    setShowAddParticipantModal(false);
-  };
-
-  const handleAddFamilyMember = (member: FamilyMember) => {
-    const participant: Participant = {
-      id: member.id,
-      name: member.name,
-      email: member.email,
-      type: 'family',
-      avatar: member.avatar,
-    };
-    setScheduleData(prev => ({
-      ...prev,
-      participants: [...prev.participants, participant]
-    }));
-    setShowFamilyMembersModal(false);
-  };
-
-  const handleRemoveParticipant = (participantId: string) => {
-    setScheduleData(prev => ({
-      ...prev,
-      participants: prev.participants.filter(p => p.id !== participantId)
-    }));
-  };
-
-  const handleSearchExternalUser = () => {
-    if (!externalEmail.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập email');
-      return;
-    }
-
-    // Mock search - simulate API call
-    const mockUser = {
-      id: 'external_' + Date.now(),
-      name: 'Người dùng ngoài',
-      email: externalEmail,
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-    };
-    setFoundExternalUser(mockUser);
-  };
-
-  const handleAddExternalUser = () => {
-    if (!foundExternalUser) return;
-
-    const participant: Participant = {
-      id: foundExternalUser.id,
-      name: foundExternalUser.name,
-      email: foundExternalUser.email,
-      type: 'external',
-      avatar: foundExternalUser.avatar,
-    };
-    setScheduleData(prev => ({
-      ...prev,
-      participants: [...prev.participants, participant]
-    }));
-    setShowExternalParticipantModal(false);
-    setExternalEmail('');
-    setFoundExternalUser(null);
   };
 
   const [showValidation, setShowValidation] = useState(false);
@@ -385,43 +154,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
   };
 
   // Helper functions
-  const calculateEndTime = (startTime: string, durationMinutes: number) => {
-    if (!startTime || !durationMinutes) return '';
-    
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const startDate = new Date();
-    startDate.setHours(hours, minutes, 0, 0);
-    
-    const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
-    return `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
-  };
-
-  const handleDateSelect = (date: string) => {
-    setScheduleData(prev => ({ ...prev, selectedDate: date }));
-  };
-
-  const handleTimeSelect = (time: string) => {
-    setScheduleData(prev => ({ ...prev, startTime: time }));
-  };
-
-  const handleDurationChange = (duration: string) => {
-    // Only allow numbers
-    const numericValue = duration.replace(/[^0-9]/g, '');
-    
-    if (numericValue === '') {
-      setScheduleData(prev => ({ ...prev, duration: '' }));
-      return;
-    }
-    
-    const durationNum = parseInt(numericValue);
-    if (durationNum > 360) { // Max 6 hours = 360 minutes
-      Alert.alert('Lỗi', 'Thời lượng tối đa là 6 tiếng (360 phút)');
-      return;
-    }
-    
-    setScheduleData(prev => ({ ...prev, duration: numericValue }));
-  };
-
   // Format salary display
   const formatSalary = (salary: string) => {
     if (!salary) return '';
@@ -430,59 +162,60 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
   };
 
   const handleNext = () => {
+    console.log('=== handleNext called ===');
+    console.log('Current Step:', currentStep);
+    
     if (currentStep === 1) {
+      console.log('Step 1 validation');
+      console.log('Selected Profiles:', selectedProfiles);
+      
       if (!selectedProfiles || selectedProfiles.length === 0) {
+        console.log('Validation failed: No profiles selected');
         setShowValidation(true);
         return;
       }
+      
+      console.log('Step 1 validation passed, moving to step 2');
       setShowValidation(false);
       setCurrentStep(2);
+      
     } else if (currentStep === 2) {
-      if (!bookingType) {
-        Alert.alert('Thiếu thông tin', 'Vui lòng chọn loại đặt lịch');
+      console.log('Step 2 validation');
+      console.log('Selected Package:', immediateData.selectedPackage);
+      console.log('Work Location:', immediateData.workLocation);
+      
+      if (!immediateData.selectedPackage) {
+        console.log('Validation failed: No package selected');
+        Alert.alert('Thiếu thông tin', 'Vui lòng chọn gói dịch vụ');
         return;
       }
+      
+      console.log('Step 2 validation passed, moving to step 3');
       setCurrentStep(3);
-    } else if (currentStep === 3) {
-      if (bookingType === 'schedule') {
-        if (!scheduleData.selectedDate || !scheduleData.startTime || !scheduleData.duration) {
-          Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin đặt lịch hẹn');
-          return;
-        }
-      } else if (bookingType === 'immediate') {
-        console.log('Validation immediate data:', {
-          durationType: immediateData.durationType,
-          selectedDate: immediateData.selectedDate,
-          startHour: immediateData.startHour,
-          startMinute: immediateData.startMinute
-        });
-        
-        if (!immediateData.durationType || !immediateData.selectedDate || 
-            !immediateData.startHour || !immediateData.startMinute) {
-          Alert.alert('Thiếu thông tin', 'Vui lòng điền đầy đủ thông tin thuê ngay lập tức');
-          return;
-        }
-        setCurrentStep(4);
-      }
     }
   };
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
+    console.log('=== handleSubmit called ===');
+    console.log('Selected Package:', immediateData.selectedPackage);
+    console.log('Work Location:', immediateData.workLocation);
+    console.log('Selected Profiles:', selectedProfiles);
     
-    // Log checkbox value
-    console.log('Send to family members:', sendToFamilyMembers);
+    setIsSubmitting(true);
     
     // Simulate API call
     setTimeout(() => {
+      console.log('=== API call completed ===');
       setIsSubmitting(false);
-      if (bookingType === 'immediate') {
-        Alert.alert('Thành công', 'Đã gửi yêu cầu thuê ngay lập tức!');
-      } else {
-        Alert.alert('Thành công', `Đang gửi đi và chờ ${caregiver.name} chấp nhận`);
-      }
-      handleClose();
-    }, 2000);
+      console.log('Showing success modal');
+      setShowSuccessModal(true);
+    }, 1500);
+  };
+
+  const handleSuccessClose = () => {
+    console.log('Success modal closed');
+    setShowSuccessModal(false);
+    handleClose();
   };
 
   const renderStep1 = () => (
@@ -496,51 +229,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     </View>
   );
 
-  const renderStep2 = () => (
-    <View style={styles.stepContent}>
-      <View style={styles.titleContainer}>
-        <ThemedText style={styles.stepTitle}>Chọn loại đặt lịch</ThemedText>
-        <ThemedText style={styles.requiredMark}>*</ThemedText>
-      </View>
-      
-      <TouchableOpacity
-        style={[
-          styles.optionCard,
-          bookingType === 'immediate' && styles.optionCardSelected
-        ]}
-        onPress={() => setBookingType('immediate')}
-      >
-        <View style={styles.optionContent}>
-          <Ionicons 
-            name="flash" 
-            size={32} 
-            color={bookingType === 'immediate' ? '#4ECDC4' : '#6c757d'} 
-          />
-          <View style={styles.optionText}>
-            <ThemedText style={[
-              styles.optionTitle,
-              bookingType === 'immediate' && styles.optionTitleSelected
-            ]}>
-              Thuê theo ngày
-            </ThemedText>
-            <ThemedText style={[
-              styles.optionDescription,
-              bookingType === 'immediate' && styles.optionDescriptionSelected
-            ]}>
-              Bắt đầu chăm sóc ngay sau khi được chấp nhận
-            </ThemedText>
-          </View>
-        </View>
-        {bookingType === 'immediate' && (
-          <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
-        )}
-      </TouchableOpacity>
-
-    </View>
-  );
-
-  const renderStep3 = () => {
-    if (bookingType === 'immediate') {
+  const renderStep2 = () => {
       return (
         <View style={styles.stepContent}>
           <ThemedText style={styles.stepTitle}>Thông tin thuê ngay lập tức</ThemedText>
@@ -565,464 +254,83 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                   <View style={styles.labelContainer}>
                     <ThemedText style={styles.inputLabel}>Địa điểm làm việc</ThemedText>
                     <ThemedText style={styles.requiredMark}>*</ThemedText>
-                </View>
-
-                  <TouchableOpacity style={styles.locationSelector}>
-                    <View style={styles.locationContent}>
-                      <Ionicons name="location" size={20} color="#FECA57" />
-                      <View style={styles.locationTextContainer}>
-                        <ThemedText style={styles.locationTitle}>Địa chỉ người già</ThemedText>
-                        <ThemedText style={styles.locationAddress}>
-                          {immediateData.workLocation || "123 Đường ABC, Quận 1, TP.HCM"}
-                        </ThemedText>
                   </View>
+
+                  <TouchableOpacity 
+                    style={styles.locationSelector}
+                    onPress={() => setShowLocationModal(true)}
+                  >
+                    <View style={styles.locationContent}>
+                      <Ionicons name="location" size={20} color="white" />
+                      <View style={styles.locationTextContainer}>
+                        <ThemedText style={styles.locationTitle}>
+                          {immediateData.workLocation ? 'Địa chỉ đã chọn' : 'Chọn địa điểm làm việc'}
+                        </ThemedText>
+                        {immediateData.workLocation && (
+                          <ThemedText style={styles.locationAddress}>
+                            {immediateData.workLocation}
+                          </ThemedText>
+                        )}
+                      </View>
                     </View>
-                    <TouchableOpacity 
-                      style={styles.changeLocationButton}
-                      onPress={() => {
-                        // TODO: Implement location change
-                        console.log('Change location');
-                      }}
-                    >
-                      <Ionicons name="chevron-forward" size={16} color="#FECA57" />
-                    </TouchableOpacity>
+                    <Ionicons name="chevron-forward" size={20} color="white" />
                   </TouchableOpacity>
                 </View>
               </View>
             )}
           </View>
 
-          {/* Section 2: Work Time */}
+          {/* Section 2: Service Package */}
           <View style={styles.sectionContainer}>
-            <TouchableOpacity 
-              style={styles.sectionHeader}
-              onPress={() => toggleSection('workTime')}
-            >
-              <ThemedText style={styles.sectionTitle}>⏰ Thời gian làm việc</ThemedText>
-              <Ionicons 
-                name={expandedSections.workTime ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#4ECDC4" 
-              />
-            </TouchableOpacity>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>📦 Chọn gói dịch vụ</ThemedText>
+            </View>
             
-            {expandedSections.workTime && (
-              <View style={styles.sectionContent}>
-                {/* Duration Type Selection */}
-                <View style={styles.inputGroup}>
-                  <ThemedText style={styles.inputLabel}>Chọn thời lượng</ThemedText>
-                  <View style={styles.durationTypeContainer}>
-                    <TouchableOpacity 
-                      style={[
-                        styles.durationTypeOption,
-                        immediateData.durationType === 'session' && styles.durationTypeOptionSelected
-                      ]}
-                      onPress={() => setImmediateData(prev => ({ ...prev, durationType: 'session' }))}
-                    >
-                      <ThemedText style={[
-                        styles.durationTypeText,
-                        immediateData.durationType === 'session' && styles.durationTypeTextSelected
-                      ]}>
-                        Theo buổi
-                      </ThemedText>
-                      <ThemedText style={[
-                        styles.durationTypeSubtext,
-                        immediateData.durationType === 'session' && styles.durationTypeSubtextSelected
-                      ]}>
-                        Tối đa 4h/ngày
-                      </ThemedText>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={[
-                        styles.durationTypeOption,
-                        immediateData.durationType === 'day' && styles.durationTypeOptionSelected
-                      ]}
-                      onPress={() => setImmediateData(prev => ({ ...prev, durationType: 'day' }))}
-                    >
-                      <ThemedText style={[
-                        styles.durationTypeText,
-                        immediateData.durationType === 'day' && styles.durationTypeTextSelected
-                      ]}>
-                        Theo ngày
-                      </ThemedText>
-                      <ThemedText style={[
-                        styles.durationTypeSubtext,
-                        immediateData.durationType === 'day' && styles.durationTypeSubtextSelected
-                      ]}>
-                        Tối đa 8h/ngày
-                      </ThemedText>
-                    </TouchableOpacity>
-                </View>
-                </View>
-
-                {/* Date Selection - Only show if duration type is selected */}
-                {immediateData.durationType && (
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Chọn ngày làm việc</ThemedText>
-                    <View style={styles.dateSelectionContainer}>
-                      <View style={styles.dateSelectionHeader}>
-                        <ThemedText style={styles.dateSelectionTitle}>Chọn ngày làm việc</ThemedText>
-                        <ThemedText style={styles.dateSelectionMonth}>Tháng 10/2025</ThemedText>
+            <View style={styles.sectionContent}>
+              <View style={styles.packagesContainer}>
+                {servicePackages.map((pkg) => (
+                  <TouchableOpacity
+                    key={pkg.id}
+                    style={[
+                      styles.packageCard,
+                      immediateData.selectedPackage === pkg.id && styles.packageCardSelected
+                    ]}
+                    onPress={() => setImmediateData(prev => ({ ...prev, selectedPackage: pkg.id }))}
+                  >
+                    {immediateData.selectedPackage === pkg.id && (
+                      <View style={styles.packageCheckmark}>
+                        <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
                       </View>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateScrollView}>
-                        <View style={styles.dateCardsContainer}>
-                          {Array.from({ length: 7 }, (_, index) => {
-                            const date = new Date();
-                            date.setDate(date.getDate() + index);
-                            const dayName = date.toLocaleDateString('vi-VN', { weekday: 'short' });
-                            const dayNumber = date.getDate();
-                            const month = date.getMonth() + 1;
-                            const isSelected = immediateData.selectedDate === date.toISOString().split('T')[0];
-                            
-                            return (
-                              <TouchableOpacity
-                                key={index}
-                                style={[
-                                  styles.dateCard,
-                                  isSelected && styles.dateCardSelected
-                                ]}
-                                onPress={() => setImmediateData(prev => ({ 
-                                  ...prev, 
-                                  selectedDate: date.toISOString().split('T')[0] 
-                                }))}
-                              >
-                                <ThemedText style={[
-                                  styles.dateCardDay,
-                                  isSelected && styles.dateCardDaySelected
-                                ]}>
-                                  {dayName}
-                                </ThemedText>
-                                <ThemedText style={[
-                                  styles.dateCardNumber,
-                                  isSelected && styles.dateCardNumberSelected
-                                ]}>
-                                  {dayNumber}/{month}
-                                </ThemedText>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                      </ScrollView>
-                    </View>
-              </View>
-            )}
-
-                {/* Start Time Selection - Only show if date is selected */}
-                {immediateData.selectedDate && (
-                  <View style={styles.inputGroup}>
-                    {/* Warning message if booking today is not possible */}
-                    {isToday() && getAvailableHours().length === 0 && (
-                      <View style={styles.warningContainer}>
-                        <Ionicons name="warning" size={20} color="#E74C3C" />
-                        <ThemedText style={styles.warningText}>
-                          Không thể đặt lịch hôm nay do không đủ thời gian làm việc
-                        </ThemedText>
-          </View>
                     )}
                     
-                    <View style={styles.startTimeContainer}>
-                      <View style={styles.startTimeLabel}>
-                        <Ionicons name="time" size={20} color="#E74C3C" />
-                        <ThemedText style={styles.startTimeLabelText}>Chọn giờ bắt đầu</ThemedText>
+                    <ThemedText style={styles.packageName}>{pkg.name}</ThemedText>
+                    
+                    <View style={styles.packageDetails}>
+                      <View style={styles.packageDetailItem}>
+                        <Ionicons name="time-outline" size={16} color="#6c757d" />
+                        <ThemedText style={styles.packageDetailText}>{pkg.duration}h</ThemedText>
                       </View>
-                      <View style={styles.timePickerContainer}>
-                        {/* Hour Input */}
-            <TouchableOpacity 
-                          style={[
-                            styles.timeInputBox,
-                            getAvailableHours().length === 0 && styles.timeInputBoxDisabled
-                          ]}
-                          onPress={() => {
-                            if (getAvailableHours().length > 0) {
-                              setShowHourPicker(!showHourPicker);
-                            }
-                          }}
-                          disabled={getAvailableHours().length === 0}
-                        >
-                          <ThemedText style={[
-                            styles.timeInputText,
-                            getAvailableHours().length === 0 && styles.timeInputTextDisabled
-                          ]}>
-                            {immediateData.startHour || getDefaultHour()}
-                          </ThemedText>
-            </TouchableOpacity>
-            
-                        <ThemedText style={styles.timeSeparator}>:</ThemedText>
-                        
-                        {/* Minute Input */}
-                        <TouchableOpacity 
-                          style={[
-                            styles.timeInputBox,
-                            getAvailableMinutes(immediateData?.startHour || '').length === 0 && styles.timeInputBoxDisabled
-                          ]}
-                          onPress={() => {
-                            if (getAvailableMinutes(immediateData?.startHour || '').length > 0) {
-                              setShowMinutePicker(!showMinutePicker);
-                            }
-                          }}
-                          disabled={getAvailableMinutes(immediateData?.startHour || '').length === 0}
-                        >
-                          <ThemedText style={[
-                            styles.timeInputText,
-                            getAvailableMinutes(immediateData?.startHour || '').length === 0 && styles.timeInputTextDisabled
-                          ]}>
-                            {immediateData?.startMinute || getDefaultMinute(immediateData?.startHour || getDefaultHour())}
-                          </ThemedText>
-                        </TouchableOpacity>
-                </View>
-                      
-                      {/* Hour Picker Modal */}
-                      <Modal
-                        visible={showHourPicker}
-                        transparent={true}
-                        animationType="slide"
-                        onRequestClose={() => setShowHourPicker(false)}
-                      >
-                        <View style={styles.modalOverlay}>
-                          <View style={styles.modalContent}>
-                            <View style={styles.pickerHeader}>
-                              <ThemedText style={styles.pickerTitle}>Chọn giờ</ThemedText>
-                              <TouchableOpacity onPress={() => setShowHourPicker(false)}>
-                                <Ionicons name="close" size={24} color="#6c757d" />
-                              </TouchableOpacity>
-                            </View>
-                            <ScrollView 
-                              style={styles.pickerScroll}
-                              contentContainerStyle={styles.pickerContent}
-                              showsVerticalScrollIndicator={false}
-                              snapToInterval={40}
-                              decelerationRate="fast"
-                            >
-                              {getAvailableHours().map((hour, index) => {
-                                const isSelected = immediateData?.startHour === hour;
-                                return (
-                                  <TouchableOpacity
-                                    key={index}
-                                    style={[
-                                      styles.pickerItem,
-                                      isSelected && styles.pickerItemSelected
-                                    ]}
-                                    onPress={() => {
-                                      const maxHour = getMaxHour();
-                                      const selectedHourInt = parseInt(hour);
-                                      
-                                      // Nếu chọn giờ tối đa, tự động set phút về 00
-                                      if (selectedHourInt === maxHour) {
-                                        setImmediateData(prev => ({ 
-                                          ...prev, 
-                                          startHour: hour,
-                                          startMinute: '00'
-                                        }));
-                                      } else {
-                                        setImmediateData(prev => ({ ...prev, startHour: hour }));
-                                      }
-                                      setShowHourPicker(false);
-                                    }}
-                                  >
-                                    <ThemedText style={[
-                                      styles.pickerText,
-                                      isSelected && styles.pickerTextSelected
-                                    ]}>
-                                      {hour}
-                                    </ThemedText>
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </ScrollView>
-                          </View>
-                        </View>
-                      </Modal>
-                      
-                      {/* Minute Picker Modal */}
-                      <Modal
-                        visible={showMinutePicker}
-                        transparent={true}
-                        animationType="slide"
-                        onRequestClose={() => setShowMinutePicker(false)}
-                      >
-                        <View style={styles.modalOverlay}>
-                          <View style={styles.modalContent}>
-                            <View style={styles.pickerHeader}>
-                              <ThemedText style={styles.pickerTitle}>Chọn phút</ThemedText>
-                              <TouchableOpacity onPress={() => setShowMinutePicker(false)}>
-                                <Ionicons name="close" size={24} color="#6c757d" />
-                              </TouchableOpacity>
-                            </View>
-                            <ScrollView 
-                              style={styles.pickerScroll}
-                              contentContainerStyle={styles.pickerContent}
-                              showsVerticalScrollIndicator={false}
-                              snapToInterval={40}
-                              decelerationRate="fast"
-                            >
-                              {getAvailableMinutes(immediateData?.startHour || '').map((minute, index) => {
-                                const isSelected = immediateData?.startMinute === minute;
-                                return (
-                                  <TouchableOpacity
-                                    key={index}
-                                    style={[
-                                      styles.pickerItem,
-                                      isSelected && styles.pickerItemSelected
-                                    ]}
-                                    onPress={() => {
-                                      setImmediateData(prev => ({ ...prev, startMinute: minute }));
-                                      setShowMinutePicker(false);
-                                    }}
-                                  >
-                                    <ThemedText style={[
-                                      styles.pickerText,
-                                      isSelected && styles.pickerTextSelected
-                                    ]}>
-                                      {minute}
-                                    </ThemedText>
-                                  </TouchableOpacity>
-                                );
-                              })}
-                            </ScrollView>
-                          </View>
-                        </View>
-                      </Modal>
+                      <ThemedText style={styles.packagePrice}>
+                        {pkg.price.toLocaleString('vi-VN')} VNĐ
+                      </ThemedText>
                     </View>
-                  </View>
-                )}
-
-                {/* Summary - Only show if all fields are filled */}
-                {immediateData.durationType && immediateData.selectedDate && immediateData.startHour && immediateData.startMinute && (
-                  <View style={styles.inputGroup}>
-                    <View style={styles.summaryContainer}>
-                      <ThemedText style={styles.summaryTitle}>Tóm tắt đặt lịch</ThemedText>
-                      
-                      <View style={styles.summaryRow}>
-                        <ThemedText style={styles.summaryLabel}>Loại:</ThemedText>
-                        <ThemedText style={styles.summaryValue}>
-                          {immediateData.durationType === 'session' ? 'Theo buổi' : 'Theo ngày'}
-                        </ThemedText>
-                      </View>
-                      
-                      <View style={styles.summaryRow}>
-                        <ThemedText style={styles.summaryLabel}>Ngày:</ThemedText>
-                        <ThemedText style={styles.summaryValue}>
-                          {new Date(immediateData.selectedDate).toLocaleDateString('vi-VN')}
-                        </ThemedText>
-                      </View>
-                      
-                      <View style={styles.summaryRow}>
-                        <ThemedText style={styles.summaryLabel}>Thời gian:</ThemedText>
-                        <ThemedText style={styles.summaryValue}>
-                          {immediateData.startHour}:{immediateData.startMinute} - {(() => {
-                            const startHour = parseInt(immediateData.startHour || '15');
-                            const startMinute = parseInt(immediateData.startMinute || '30');
-                            const workHours = immediateData.durationType === 'session' ? 4 : 8;
-                            
-                            let endHour = startHour + workHours;
-                            let endMinute = startMinute;
-                            
-                            if (endHour >= 24) {
-                              endHour = endHour - 24;
-                            }
-                            
-                            return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-                          })()}
-                        </ThemedText>
-                      </View>
-                      
-                      <View style={styles.summaryRow}>
-                        <ThemedText style={styles.summaryLabel}>Tổng tiền:</ThemedText>
-                        <ThemedText style={styles.summaryPrice}>
-                          {(() => {
-                            const workHours = immediateData.durationType === 'session' ? 4 : 8;
-                            const hourlyRate = 100000; // Mock rate
-                            const totalAmount = workHours * hourlyRate;
-                            return `${totalAmount.toLocaleString('vi-VN')} VNĐ`;
-                          })()}
-                        </ThemedText>
-                      </View>
+                    
+                    <View style={styles.packageServices}>
+                      <ThemedText style={styles.packageServicesTitle}>Dịch vụ bao gồm:</ThemedText>
+                      {pkg.services.map((service, index) => (
+                        <View key={index} style={styles.packageServiceItem}>
+                          <Ionicons name="checkmark" size={16} color="#27AE60" />
+                          <ThemedText style={styles.packageServiceText}>{service}</ThemedText>
+                        </View>
+                      ))}
                     </View>
-                  </View>
-                )}
+                  </TouchableOpacity>
+                ))}
               </View>
-            )}
+            </View>
           </View>
 
-          {/* Section 4: Tasks */}
-          <View style={styles.sectionContainer}>
-            <TouchableOpacity 
-              style={styles.sectionHeader}
-              onPress={() => toggleSection('tasks')}
-            >
-              <ThemedText style={styles.sectionTitle}>📝 Nhiệm vụ</ThemedText>
-              <Ionicons 
-                name={expandedSections.tasks ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#4ECDC4" 
-              />
-            </TouchableOpacity>
-            
-            {expandedSections.tasks && (
-              <View style={styles.sectionContent}>
-                {/* Check if work time is selected */}
-                {!immediateData?.durationType || !immediateData?.selectedDate || !immediateData?.startHour || !immediateData?.startMinute ? (
-                  <View style={styles.warningContainer}>
-                    <Ionicons name="information-circle" size={20} color="#4ECDC4" />
-                    <ThemedText style={styles.warningText}>
-                      Vui lòng chọn thời gian làm việc trước khi thêm nhiệm vụ
-                    </ThemedText>
-                  </View>
-                ) : (
-                  <>
-                <View style={styles.labelContainer}>
-                  <ThemedText style={styles.inputLabel}>Thêm nhiệm vụ cụ thể</ThemedText>
-                  <ThemedText style={styles.requiredMark}>*</ThemedText>
-                </View>
-                <TaskSelector
-                  tasks={immediateData.tasks || []}
-                  onTasksChange={(tasks) => setImmediateData(prev => ({ ...prev, tasks }))}
-                  durationType={immediateData.durationType}
-                      durationValue={immediateData.durationType === 'session' ? '4' : '8'}
-                      startDate={immediateData.selectedDate}
-                      endDate={immediateData.selectedDate}
-                      startTime={immediateData.startHour ? `${immediateData.startHour}:${immediateData.startMinute}` : ''}
-                      endTime={(() => {
-                        const startHour = parseInt(immediateData.startHour || '15');
-                        const startMinute = parseInt(immediateData.startMinute || '30');
-                        const workHours = immediateData.durationType === 'session' ? 4 : 8;
-                        
-                        let endHour = startHour + workHours;
-                        let endMinute = startMinute;
-                        
-                        if (endHour >= 24) {
-                          endHour = endHour - 24;
-                        }
-                        
-                        return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-                      })()}
-                      workingTimeSlots={[`${immediateData.startHour}:${immediateData.startMinute}-${(() => {
-                        const startHour = parseInt(immediateData.startHour || '15');
-                        const startMinute = parseInt(immediateData.startMinute || '30');
-                        const workHours = immediateData.durationType === 'session' ? 4 : 8;
-                        
-                        let endHour = startHour + workHours;
-                        let endMinute = startMinute;
-                        
-                        if (endHour >= 24) {
-                          endHour = endHour - 24;
-                        }
-                        
-                        return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-                      })()}`]}
-                      selectedWorkingDays={[immediateData.selectedDate]}
-                  onValidationError={(message) => {
-                    Alert.alert('Thông báo', message);
-                  }}
-                />
-                  </>
-                )}
-              </View>
-            )}
-          </View>
-
-          {/* Section 5: Note */}
+          {/* Section 3: Note */}
           <View style={styles.sectionContainer}>
             <TouchableOpacity
               style={styles.sectionHeader}
@@ -1061,139 +369,11 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
 
         </View>
       );
-    } else {
-      const endTime = calculateEndTime(scheduleData.startTime, parseInt(scheduleData.duration) || 0);
-      
-      return (
-        <View style={styles.stepContent}>
-          <ThemedText style={styles.stepTitle}>Đặt lịch hẹn trước</ThemedText>
-          
-          <View style={styles.inputGroup}>
-            <View style={styles.labelContainer}>
-              <ThemedText style={styles.inputLabel}>Ngày hẹn</ThemedText>
-              <ThemedText style={styles.requiredMark}>*</ThemedText>
-            </View>
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowCalendar(true)}
-            >
-              <ThemedText style={[
-                styles.pickerButtonText,
-                !scheduleData.selectedDate && styles.placeholderText
-              ]}>
-                {scheduleData.selectedDate 
-                  ? new Date(scheduleData.selectedDate).toLocaleDateString('vi-VN')
-                  : 'Chọn ngày hẹn'
-                }
-              </ThemedText>
-              <Ionicons name="calendar-outline" size={20} color="#4ECDC4" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.labelContainer}>
-              <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
-              <ThemedText style={styles.requiredMark}>*</ThemedText>
-            </View>
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <ThemedText style={[
-                styles.pickerButtonText,
-                !scheduleData.startTime && styles.placeholderText
-              ]}>
-                {scheduleData.startTime || 'Chọn giờ bắt đầu'}
-              </ThemedText>
-              <Ionicons name="time-outline" size={20} color="#4ECDC4" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.labelContainer}>
-              <ThemedText style={styles.inputLabel}>Thời lượng (phút)</ThemedText>
-              <ThemedText style={styles.requiredMark}>*</ThemedText>
-            </View>
-            <TextInput
-              style={styles.textInput}
-              value={scheduleData.duration}
-              onChangeText={handleDurationChange}
-              placeholder="Nhập số phút (tối đa 360 phút)"
-              keyboardType="numeric"
-              placeholderTextColor="#999"
-              maxLength={3}
-            />
-            {scheduleData.startTime && scheduleData.duration && endTime && (
-              <ThemedText style={styles.timeRangeText}>
-                Khung thời gian: {scheduleData.startTime} - {endTime}
-              </ThemedText>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.labelContainer}>
-              <ThemedText style={styles.inputLabel}>Thành viên tham gia</ThemedText>
-            </View>
-            
-            {/* Participants List */}
-            {scheduleData.participants.length > 0 && (
-              <View style={styles.participantsList}>
-                {scheduleData.participants.map((participant) => (
-                  <View key={participant.id} style={styles.participantItem}>
-                    <View style={styles.participantInfo}>
-                      <View style={styles.participantAvatar}>
-                        <ThemedText style={styles.participantAvatarText}>
-                          {participant.name ? participant.name.split(' ').pop()?.charAt(0) : '?'}
-                        </ThemedText>
-                      </View>
-                      <View style={styles.participantDetails}>
-                        <ThemedText style={styles.participantName}>{participant.name}</ThemedText>
-                        <ThemedText style={styles.participantEmail}>{participant.email}</ThemedText>
-                        <ThemedText style={styles.participantType}>
-                          {participant.type === 'family' ? 'Thành viên gia đình' : 'Người ngoài'}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.removeParticipantButton}
-                      onPress={() => handleRemoveParticipant(participant.id)}
-                    >
-                      <Ionicons name="close-circle" size={20} color="#ff4757" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Add Participant Button */}
-            <TouchableOpacity
-              style={styles.addParticipantButton}
-              onPress={() => setShowAddParticipantModal(true)}
-            >
-              <Ionicons name="add-circle-outline" size={20} color="#4ECDC4" />
-              <ThemedText style={styles.addParticipantText}>Thêm thành viên</ThemedText>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.inputLabel}>Ghi chú thêm</ThemedText>
-            <TextInput
-              style={[styles.textInput, styles.textArea]}
-              value={scheduleData.notes}
-              onChangeText={(text) => setScheduleData(prev => ({ ...prev, notes: text }))}
-              placeholder="Mô tả thêm về cuộc hẹn..."
-              multiline
-              numberOfLines={3}
-              placeholderTextColor="#999"
-            />
-          </View>
-        </View>
-      );
-    }
   };
 
-  const renderStep4 = () => {
-    console.log('Rendering Step 4 - immediateData:', immediateData);
+  const renderStep3 = () => {
+    console.log('=== Rendering Step 3 (Review) ===');
+    console.log('immediateData:', immediateData);
     return (
       <View style={styles.stepContent}>
         <ThemedText style={styles.stepTitle}>Xem trước thông tin</ThemedText>
@@ -1205,45 +385,14 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
             <ThemedText style={styles.reviewValue}>
               {immediateData?.workLocation || 'Chưa chọn'}
             </ThemedText>
-              </View>
-
-          {/* Duration Type */}
-          <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>⏰ Loại thuê:</ThemedText>
-            <ThemedText style={styles.reviewValue}>
-              {immediateData?.durationType === 'session' ? 'Theo buổi (4h)' : 
-               immediateData?.durationType === 'day' ? 'Theo ngày (8h)' : 'Chưa chọn'}
-              </ThemedText>
           </View>
 
-          {/* Selected Date */}
+          {/* Selected Package */}
           <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>📅 Ngày làm việc:</ThemedText>
+            <ThemedText style={styles.reviewLabel}>📦 Gói dịch vụ:</ThemedText>
             <ThemedText style={styles.reviewValue}>
-              {immediateData?.selectedDate ? 
-                new Date(immediateData.selectedDate).toLocaleDateString('vi-VN') : 'Chưa chọn'}
-            </ThemedText>
-        </View>
-
-          {/* Work Time */}
-          <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>🕐 Thời gian làm việc:</ThemedText>
-            <ThemedText style={styles.reviewValue}>
-              {immediateData?.startHour && immediateData?.startMinute ? 
-                `${immediateData.startHour}:${immediateData.startMinute} - ${(() => {
-                  const startHour = parseInt(immediateData.startHour);
-                  const startMinute = parseInt(immediateData.startMinute);
-                  const workHours = immediateData.durationType === 'session' ? 4 : 8;
-                  
-                  let endHour = startHour + workHours;
-                  let endMinute = startMinute;
-                  
-                  if (endHour >= 24) {
-                    endHour = endHour - 24;
-                  }
-                  
-                  return `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-                })()}` : 'Chưa chọn'}
+              {immediateData?.selectedPackage ? 
+                servicePackages.find(p => p.id === immediateData.selectedPackage)?.name : 'Chưa chọn'}
             </ThemedText>
           </View>
 
@@ -1251,17 +400,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
           <View style={styles.reviewItem}>
             <ThemedText style={styles.reviewLabel}>💰 Tổng chi phí:</ThemedText>
             <ThemedText style={styles.reviewValue}>
-              {immediateData?.startHour && immediateData?.startMinute && immediateData?.durationType ? 
-                `${(immediateData.durationType === 'session' ? 4 : 8) * 100000} VNĐ` : 'Chưa tính'}
-            </ThemedText>
-          </View>
-
-          {/* Tasks */}
-          <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>📝 Nhiệm vụ:</ThemedText>
-            <ThemedText style={styles.reviewValue}>
-              {immediateData?.tasks && immediateData.tasks.length > 0 ? 
-                `${immediateData.tasks.length} nhiệm vụ đã thêm` : 'Chưa thêm nhiệm vụ'}
+              {immediateData?.selectedPackage ? 
+                `${servicePackages.find(p => p.id === immediateData.selectedPackage)?.price.toLocaleString('vi-VN')} VNĐ` : 'Chưa tính'}
             </ThemedText>
           </View>
 
@@ -1278,13 +418,22 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
   };
 
   const renderCurrentStep = () => {
+    console.log('=== renderCurrentStep ===');
     console.log('Current step:', currentStep);
+    
     switch (currentStep) {
-      case 1: return renderStep1();
-      case 2: return renderStep2();
-      case 3: return renderStep3();
-      case 4: return renderStep4();
-      default: return renderStep1();
+      case 1: 
+        console.log('Rendering Step 1');
+        return renderStep1();
+      case 2: 
+        console.log('Rendering Step 2');
+        return renderStep2();
+      case 3: 
+        console.log('Rendering Step 3');
+        return renderStep3();
+      default: 
+        console.log('Default: Rendering Step 1');
+        return renderStep1();
     }
   };
 
@@ -1337,13 +486,26 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
           
           <TouchableOpacity 
             style={styles.nextButton} 
-            onPress={currentStep === 3 ? handleNext : currentStep === 4 ? handleSubmit : handleNext}
+            onPress={() => {
+              console.log('=== Button clicked ===');
+              console.log('Current Step:', currentStep);
+              console.log('Is Submitting:', isSubmitting);
+              
+              if (currentStep === 1) {
+                handleNext();
+              } else if (currentStep === 2) {
+                handleNext();
+              } else if (currentStep === 3) {
+                console.log('Calling handleSubmit');
+                handleSubmit();
+              }
+            }}
             disabled={isSubmitting}
           >
             <ThemedText style={styles.nextButtonText}>
               {isSubmitting ? 'Đang xử lý...' : 
-               currentStep === 3 ? 'Xem trước' : 
-               currentStep === 4 ? 'Xác nhận' : 'Tiếp theo'}
+               currentStep === 2 ? 'Xem trước' : 
+               currentStep === 3 ? 'Xác nhận' : 'Tiếp theo'}
             </ThemedText>
             {!isSubmitting && (
               <Ionicons name="chevron-forward" size={20} color="white" />
@@ -1351,273 +513,163 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
           </TouchableOpacity>
         </View>
 
-        {/* Simple Date Picker Modal */}
-        <SimpleDatePicker
-          visible={showCalendar}
-          onClose={() => setShowCalendar(false)}
-          onDateSelect={handleDateSelect}
-          selectedDate={scheduleData.selectedDate}
-        />
-
-        {/* Simple Time Picker Modal */}
-        <SimpleTimePicker
-          visible={showTimePicker}
-          onClose={() => setShowTimePicker(false)}
-          onTimeSelect={handleTimeSelect}
-          selectedTime={scheduleData.startTime}
-        />
-
-        {/* Add Participant Options Modal */}
+        {/* Location Selection Modal */}
         <Modal
-          visible={showAddParticipantModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowAddParticipantModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.addParticipantModal}>
-              <View style={styles.modalHeader}>
-                <View style={styles.modalTitleContainer}>
-                  <Ionicons name="people" size={24} color="#4ECDC4" />
-                  <ThemedText style={styles.modalTitle}>Thêm thành viên tham gia</ThemedText>
-                </View>
-                <TouchableOpacity onPress={() => setShowAddParticipantModal(false)}>
-                  <Ionicons name="close" size={24} color="#6c757d" />
-                </TouchableOpacity>
-              </View>
-
-              <ThemedText style={styles.modalSubtitle}>
-                Chọn cách thêm thành viên vào cuộc họp
-              </ThemedText>
-
-              <View style={styles.participantOptions}>
-                <TouchableOpacity
-                  style={styles.participantOption}
-                  onPress={() => handleAddParticipant('family')}
-                >
-                  <View style={styles.participantOptionIcon}>
-                    <Ionicons name="people" size={28} color="#4ECDC4" />
-                  </View>
-                  <View style={styles.participantOptionText}>
-                    <ThemedText style={styles.participantOptionTitle}>Thành viên gia đình</ThemedText>
-                    <ThemedText style={styles.participantOptionSubtitle}>
-                      Chọn từ các thành viên trong gia đình
-                    </ThemedText>
-                  </View>
-                  <View style={styles.participantOptionArrow}>
-                    <Ionicons name="chevron-forward" size={20} color="#4ECDC4" />
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.participantOption}
-                  onPress={() => handleAddParticipant('external')}
-                >
-                  <View style={styles.participantOptionIcon}>
-                    <Ionicons name="person-add" size={28} color="#4ECDC4" />
-                  </View>
-                  <View style={styles.participantOptionText}>
-                    <ThemedText style={styles.participantOptionTitle}>Người ngoài</ThemedText>
-                    <ThemedText style={styles.participantOptionSubtitle}>
-                      Thêm người không thuộc gia đình
-                    </ThemedText>
-                  </View>
-                  <View style={styles.participantOptionArrow}>
-                    <Ionicons name="chevron-forward" size={20} color="#4ECDC4" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Family Members Modal */}
-        <Modal
-          visible={showFamilyMembersModal}
+          visible={showLocationModal}
           transparent
           animationType="slide"
-          onRequestClose={() => setShowFamilyMembersModal(false)}
+          onRequestClose={() => setShowLocationModal(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.familyMembersModal}>
+            <View style={styles.locationModal}>
               <View style={styles.modalHeader}>
-                <TouchableOpacity 
-                  style={styles.backButton}
-                  onPress={() => {
-                    setShowFamilyMembersModal(false);
-                    setShowAddParticipantModal(true);
-                    setFamilySearchQuery('');
-                  }}
-                >
-                  <Ionicons name="arrow-back" size={24} color="#4ECDC4" />
-                </TouchableOpacity>
-                <ThemedText style={styles.modalTitle}>Thành viên gia đình</ThemedText>
-                <TouchableOpacity onPress={() => setShowFamilyMembersModal(false)}>
+                <ThemedText style={styles.modalTitle}>Chọn địa điểm làm việc</ThemedText>
+                <TouchableOpacity onPress={() => setShowLocationModal(false)}>
                   <Ionicons name="close" size={24} color="#6c757d" />
                 </TouchableOpacity>
               </View>
 
-              {/* Search Bar */}
-              <View style={styles.searchContainer}>
-                <View style={styles.searchInputContainer}>
-                  <Ionicons name="search" size={20} color="#6c757d" style={styles.searchIcon} />
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Tìm kiếm thành viên..."
-                    value={familySearchQuery}
-                    onChangeText={setFamilySearchQuery}
-                    placeholderTextColor="#999"
-                  />
-                  {familySearchQuery.length > 0 && (
-                    <TouchableOpacity
-                      style={styles.clearSearchButton}
-                      onPress={() => setFamilySearchQuery('')}
-                    >
-                      <Ionicons name="close-circle" size={20} color="#6c757d" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              <ScrollView style={styles.familyMembersList} showsVerticalScrollIndicator={false}>
-                {filteredFamilyMembers.length > 0 ? (
-                  filteredFamilyMembers.map((member) => (
-                    <TouchableOpacity
-                      key={member.id}
-                      style={styles.familyMemberItem}
-                      onPress={() => handleAddFamilyMember(member)}
-                    >
-                      <View style={styles.familyMemberAvatar}>
-                        <ThemedText style={styles.familyMemberAvatarText}>
-                          {member.name ? member.name.split(' ').pop()?.charAt(0) : '?'}
-                        </ThemedText>
-                      </View>
-                      <View style={styles.familyMemberDetails}>
-                        <ThemedText style={styles.familyMemberName}>{member.name}</ThemedText>
-                        <ThemedText style={styles.familyMemberRole}>{member.role}</ThemedText>
-                        <ThemedText style={styles.familyMemberEmail}>{member.email}</ThemedText>
-                      </View>
-                      <View style={styles.addButtonContainer}>
-                        <Ionicons name="add-circle" size={28} color="#4ECDC4" />
-                      </View>
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="people-outline" size={48} color="#6c757d" />
-                    <ThemedText style={styles.emptyStateTitle}>Không tìm thấy thành viên</ThemedText>
-                    <ThemedText style={styles.emptyStateSubtitle}>
-                      Thử tìm kiếm với từ khóa khác
-                    </ThemedText>
+              <ScrollView style={styles.locationList} showsVerticalScrollIndicator={false}>
+                {/* Addresses from selected elderly profiles */}
+                {selectedProfiles.length > 0 && (
+                  <View style={styles.locationSection}>
+                    <ThemedText style={styles.locationSectionTitle}>Địa chỉ người thân</ThemedText>
+                    {elderlyProfiles
+                      .filter(profile => selectedProfiles.includes(profile.id))
+                      .map((profile) => (
+                        <TouchableOpacity
+                          key={profile.id}
+                          style={[
+                            styles.locationOption,
+                            immediateData.workLocation === profile.address && styles.locationOptionSelected
+                          ]}
+                          onPress={() => handleSelectLocation(profile.address)}
+                        >
+                          <View style={styles.locationOptionContent}>
+                            <View style={styles.locationOptionIcon}>
+                              <Ionicons name="home" size={24} color="#4ECDC4" />
+                            </View>
+                            <View style={styles.locationOptionText}>
+                              <ThemedText style={styles.locationOptionName}>{profile.name}</ThemedText>
+                              <ThemedText style={styles.locationOptionAddress}>{profile.address}</ThemedText>
+                            </View>
+                          </View>
+                          {immediateData.workLocation === profile.address && (
+                            <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
                   </View>
                 )}
+
+                {/* Custom location option */}
+                <View style={styles.locationSection}>
+                  <ThemedText style={styles.locationSectionTitle}>Địa chỉ khác</ThemedText>
+                  <TouchableOpacity
+                    style={styles.locationOption}
+                    onPress={handleCustomLocationSelect}
+                  >
+                    <View style={styles.locationOptionContent}>
+                      <View style={styles.locationOptionIcon}>
+                        <Ionicons name="add-circle" size={24} color="#4ECDC4" />
+                      </View>
+                      <View style={styles.locationOptionText}>
+                        <ThemedText style={styles.locationOptionName}>Nhập địa chỉ khác</ThemedText>
+                        <ThemedText style={styles.locationOptionAddress}>Nhập địa chỉ tùy chỉnh</ThemedText>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#6c757d" />
+                  </TouchableOpacity>
+                </View>
               </ScrollView>
             </View>
           </View>
         </Modal>
 
-        {/* External Participant Modal */}
+        {/* Custom Location Input Modal */}
         <Modal
-          visible={showExternalParticipantModal}
+          visible={showCustomLocationInput}
           transparent
           animationType="slide"
-          onRequestClose={() => setShowExternalParticipantModal(false)}
+          onRequestClose={() => {
+            setShowCustomLocationInput(false);
+            setCustomLocation('');
+          }}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.externalParticipantModal}>
+            <View style={styles.customLocationModal}>
               <View style={styles.modalHeader}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.backButton}
                   onPress={() => {
-                    setShowExternalParticipantModal(false);
-                    setShowAddParticipantModal(true);
-                    setExternalEmail('');
-                    setFoundExternalUser(null);
+                    setShowCustomLocationInput(false);
+                    setShowLocationModal(true);
+                    setCustomLocation('');
                   }}
                 >
                   <Ionicons name="arrow-back" size={24} color="#4ECDC4" />
                 </TouchableOpacity>
-                <ThemedText style={styles.modalTitle}>Thêm người ngoài</ThemedText>
-                <TouchableOpacity onPress={() => setShowExternalParticipantModal(false)}>
+                <ThemedText style={styles.modalTitle}>Nhập địa chỉ</ThemedText>
+                <TouchableOpacity onPress={() => {
+                  setShowCustomLocationInput(false);
+                  setCustomLocation('');
+                }}>
                   <Ionicons name="close" size={24} color="#6c757d" />
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.externalParticipantContent}>
-                {/* Search Section */}
-                <View style={styles.searchSection}>
-                  <ThemedText style={styles.sectionTitle}>Tìm kiếm người dùng</ThemedText>
-                  <View style={styles.searchInputContainer}>
-                    <Ionicons name="mail" size={20} color="#6c757d" style={styles.searchIcon} />
-                    <TextInput
-                      style={styles.searchInput}
-                      value={externalEmail}
-                      onChangeText={setExternalEmail}
-                      placeholder="Nhập email người tham gia..."
-                      keyboardType="email-address"
-                      placeholderTextColor="#999"
-                    />
-                    {externalEmail.length > 0 && (
-                      <TouchableOpacity
-                        style={styles.clearSearchButton}
-                        onPress={() => {
-                          setExternalEmail('');
-                          setFoundExternalUser(null);
-                        }}
-                      >
-                        <Ionicons name="close-circle" size={20} color="#6c757d" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
+              <View style={styles.customLocationContent}>
+                <ThemedText style={styles.inputLabel}>Địa chỉ làm việc</ThemedText>
+                <TextInput
+                  style={styles.customLocationInput}
+                  value={customLocation}
+                  onChangeText={setCustomLocation}
+                  placeholder="Nhập địa chỉ đầy đủ..."
+                  placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={3}
+                />
 
-                  <TouchableOpacity
-                    style={[styles.searchButton, !externalEmail.trim() && styles.disabledButton]}
-                    onPress={handleSearchExternalUser}
-                    disabled={!externalEmail.trim()}
-                  >
-                    <Ionicons name="search" size={20} color="white" />
-                    <ThemedText style={styles.searchButtonText}>Tìm kiếm</ThemedText>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Results Section */}
-                {foundExternalUser && (
-                  <View style={styles.resultsSection}>
-                    <ThemedText style={styles.sectionTitle}>Kết quả tìm kiếm</ThemedText>
-                    <View style={styles.foundUserCard}>
-                      <View style={styles.foundUserInfo}>
-                        <View style={styles.foundUserAvatar}>
-                          <ThemedText style={styles.foundUserAvatarText}>
-                            {foundExternalUser.name ? foundExternalUser.name.split(' ').pop()?.charAt(0) : '?'}
-                          </ThemedText>
-                        </View>
-                        <View style={styles.foundUserDetails}>
-                          <ThemedText style={styles.foundUserName}>{foundExternalUser.name}</ThemedText>
-                          <ThemedText style={styles.foundUserEmail}>{foundExternalUser.email}</ThemedText>
-                          <ThemedText style={styles.foundUserType}>Người dùng ngoài</ThemedText>
-                        </View>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.addFoundUserButton}
-                        onPress={handleAddExternalUser}
-                      >
-                        <Ionicons name="add-circle" size={28} color="#4ECDC4" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-
-                {/* Empty State */}
-                {!foundExternalUser && externalEmail.length === 0 && (
-                  <View style={styles.emptyState}>
-                    <Ionicons name="person-add-outline" size={48} color="#6c757d" />
-                    <ThemedText style={styles.emptyStateTitle}>Thêm người ngoài</ThemedText>
-                    <ThemedText style={styles.emptyStateSubtitle}>
-                      Nhập email để tìm kiếm và thêm người tham gia
-                    </ThemedText>
-                  </View>
-                )}
+                <TouchableOpacity
+                  style={[styles.saveLocationButton, !customLocation.trim() && styles.disabledButton]}
+                  onPress={handleSaveCustomLocation}
+                  disabled={!customLocation.trim()}
+                >
+                  <Ionicons name="checkmark-circle" size={20} color="white" />
+                  <ThemedText style={styles.saveLocationButtonText}>Xác nhận</ThemedText>
+                </TouchableOpacity>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Success Modal */}
+        <Modal
+          visible={showSuccessModal}
+          transparent
+          animationType="fade"
+          onRequestClose={handleSuccessClose}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.successModal}>
+              <View style={styles.successIconContainer}>
+                <Ionicons name="checkmark-circle" size={80} color="#27AE60" />
+              </View>
+              
+              <ThemedText style={styles.successTitle}>Đặt lịch thành công! 🎉</ThemedText>
+              
+              <ThemedText style={styles.successMessage}>
+                Yêu cầu thuê ngay lập tức của bạn đã được gửi đi.
+                {'\n\n'}
+                Nhân viên chăm sóc sẽ liên hệ với bạn trong thời gian sớm nhất.
+              </ThemedText>
+              
+              <TouchableOpacity 
+                style={styles.successButton}
+                onPress={handleSuccessClose}
+              >
+                <ThemedText style={styles.successButtonText}>Đóng</ThemedText>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -1885,77 +937,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 16,
   },
-  // Participant styles
-  participantsList: {
-    marginBottom: 12,
-  },
-  participantItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  participantInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  participantAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4ECDC4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  participantAvatarText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  participantDetails: {
-    flex: 1,
-  },
-  participantName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 2,
-  },
-  participantEmail: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginBottom: 2,
-  },
-  participantType: {
-    fontSize: 12,
-    color: '#4ECDC4',
-    fontWeight: '500',
-  },
-  removeParticipantButton: {
-    padding: 4,
-  },
-  addParticipantButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#4ECDC4',
-    borderStyle: 'dashed',
-    gap: 8,
-  },
-  addParticipantText: {
-    fontSize: 14,
-    color: '#4ECDC4',
-    fontWeight: '500',
-  },
   // Modal styles
   modalOverlay: {
     flex: 1,
@@ -1969,308 +950,6 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '90%',
     maxWidth: 400,
-  },
-  addParticipantModal: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 24,
-    width: '90%',
-    maxWidth: 450,
-    minHeight: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 8,
-  },
-  modalTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#6c757d',
-    marginBottom: 32,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 8,
-  },
-  backButton: {
-    padding: 8,
-    marginLeft: -8,
-  },
-  participantOptions: {
-    gap: 20,
-    paddingHorizontal: 8,
-  },
-  participantOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    minHeight: 80,
-  },
-  participantOptionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#E8F8F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 20,
-  },
-  participantOptionText: {
-    flex: 1,
-  },
-  participantOptionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 8,
-  },
-  participantOptionSubtitle: {
-    fontSize: 14,
-    color: '#6c757d',
-    lineHeight: 20,
-  },
-  participantOptionArrow: {
-    marginLeft: 12,
-    padding: 4,
-  },
-  // Family members modal
-  familyMembersModal: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    height: 48,
-    fontSize: 16,
-    color: '#2c3e50',
-  },
-  clearSearchButton: {
-    padding: 4,
-  },
-  familyMembersList: {
-    maxHeight: 300,
-    paddingHorizontal: 20,
-  },
-  familyMemberItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  familyMemberAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#4ECDC4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  familyMemberAvatarText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  familyMemberDetails: {
-    flex: 1,
-  },
-  familyMemberName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 4,
-  },
-  familyMemberRole: {
-    fontSize: 14,
-    color: '#4ECDC4',
-    marginBottom: 2,
-    fontWeight: '500',
-  },
-  familyMemberEmail: {
-    fontSize: 12,
-    color: '#6c757d',
-  },
-  addButtonContainer: {
-    padding: 4,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtitle: {
-    fontSize: 14,
-    color: '#6c757d',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  // External participant modal
-  externalParticipantModal: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  externalParticipantContent: {
-    padding: 20,
-    gap: 24,
-  },
-  searchSection: {
-    gap: 16,
-  },
-  resultsSection: {
-    gap: 16,
-  },
-  searchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4ECDC4',
-    borderRadius: 12,
-    padding: 16,
-    gap: 8,
-    shadowColor: '#4ECDC4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  disabledButton: {
-    backgroundColor: '#e9ecef',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  searchButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-  foundUserCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: '#4ECDC4',
-    shadowColor: '#4ECDC4',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  foundUserInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 16,
-  },
-  foundUserAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#4ECDC4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  foundUserAvatarText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  foundUserDetails: {
-    flex: 1,
-  },
-  foundUserName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 4,
-  },
-  foundUserEmail: {
-    fontSize: 14,
-    color: '#6c757d',
-    marginBottom: 2,
-  },
-  foundUserType: {
-    fontSize: 12,
-    color: '#4ECDC4',
-    fontWeight: '500',
-  },
-  addFoundUserButton: {
-    padding: 8,
   },
   // Checkbox styles
   checkboxContainer: {
@@ -2688,5 +1367,244 @@ const styles = StyleSheet.create({
     color: '#495057',
     flex: 1,
     flexWrap: 'wrap',
+  },
+  // Package Styles
+  packagesContainer: {
+    gap: 16,
+  },
+  packageCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  packageCardSelected: {
+    borderColor: '#27AE60',
+    backgroundColor: '#f0fdf4',
+    shadowColor: '#27AE60',
+    shadowOpacity: 0.15,
+  },
+  packageCheckmark: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 1,
+  },
+  packageName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  packageDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  packageDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  packageDetailText: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  packagePrice: {
+    fontSize: 16,
+    color: '#27AE60',
+    fontWeight: 'bold',
+  },
+  packageServices: {
+    gap: 8,
+  },
+  packageServicesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  packageServiceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  packageServiceText: {
+    fontSize: 14,
+    color: '#495057',
+    flex: 1,
+  },
+  // Location Modal Styles
+  locationModal: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  locationList: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  locationSection: {
+    marginBottom: 24,
+  },
+  locationSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4ECDC4',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  locationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+  },
+  locationOptionSelected: {
+    borderColor: '#27AE60',
+    backgroundColor: '#f0fdf4',
+  },
+  locationOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationOptionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E8F8F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  locationOptionText: {
+    flex: 1,
+  },
+  locationOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  locationOptionAddress: {
+    fontSize: 14,
+    color: '#6c757d',
+    lineHeight: 20,
+  },
+  // Custom Location Modal Styles
+  customLocationModal: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  customLocationContent: {
+    padding: 20,
+  },
+  customLocationInput: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#2c3e50',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  saveLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4ECDC4',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+  },
+  saveLocationButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  // Success Modal Styles
+  successModal: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 32,
+    width: '85%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  successIconContainer: {
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  successMessage: {
+    fontSize: 16,
+    color: '#6c757d',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  successButton: {
+    backgroundColor: '#27AE60',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#27AE60',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  successButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
   },
 });

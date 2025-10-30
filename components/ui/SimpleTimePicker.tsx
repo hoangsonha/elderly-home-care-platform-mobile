@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 16,
-    color: '#4ECDC4',
+    color: '#30A0E0',
     fontWeight: '600',
   },
   pickerRow: {
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   pickerItemSelected: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
   },
   pickerItemText: {
     fontSize: 18,
@@ -259,6 +259,6 @@ const styles = StyleSheet.create({
   previewText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4ECDC4',
+    color: '#30A0E0',
   },
 });

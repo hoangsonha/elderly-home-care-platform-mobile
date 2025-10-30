@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
     paddingHorizontal: 16,
     paddingVertical: 12,
     elevation: 4,
@@ -638,13 +638,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioCircleSelected: {
-    borderColor: '#4ECDC4',
+    borderColor: '#30A0E0',
   },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
   },
   radioLabel: {
     fontSize: 16,
@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   nextButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,

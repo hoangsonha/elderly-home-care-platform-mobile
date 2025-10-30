@@ -14,12 +14,10 @@ import ChatScreen from "@/app/caregiver/chat";
 import ChatListScreen from "@/app/caregiver/chat-list";
 import ComplaintScreen from "@/app/caregiver/complaint";
 import ExpertProfileScreen from "@/app/caregiver/expert-profile";
-import PaymentScreen from "@/app/caregiver/payment";
 import PersonalScreen from "@/app/caregiver/personal";
 import TrainingCourseDetail from "@/app/caregiver/training-course-detail";
 import TrainingCoursesMobile from "@/app/caregiver/training-courses";
 import VideoCallScreen from "@/app/caregiver/video-call";
-import CaregiverWithdrawScreen from "@/app/caregiver/withdraw";
 
 const Drawer = createDrawerNavigator();
 
@@ -47,12 +45,6 @@ const features = [
     title: "Yêu cầu dịch vụ",
     icon: "clipboard-list",
     component: Booking,
-  },
-  {
-    id: "payments",
-    title: "Thanh toán",
-    icon: "credit-card-outline",
-    component: PaymentScreen,
   },
   {
     id: "chatlist",
@@ -336,35 +328,6 @@ export default function CaregiverSidebar() {
           options={{
             drawerItemStyle: { height: 0 },
           }}
-        />
-
-        {/* Rút tiền - hidden from drawer */}
-        <Drawer.Screen
-          name="Rút tiền"
-          component={CaregiverWithdrawScreen}
-          options={({ navigation }) => ({
-            drawerItemStyle: { height: 0 },
-            headerShown: true,
-            headerStyle: {
-              backgroundColor: "#26C6DA",
-            },
-            headerTintColor: "#fff",
-            headerTitleStyle: {
-              fontWeight: "bold",
-            },
-            headerLeft: () => (
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={{ marginLeft: 15 }}
-              >
-                <MaterialCommunityIcons
-                  name="arrow-left"
-                  size={28}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            ),
-          })}
         />
 
         {/* Logout riêng */}

@@ -158,7 +158,7 @@ export default function HiringHistoryScreen() {
       <View style={styles.cardFooter}>
         <TouchableOpacity style={styles.viewDetailButton}>
           <ThemedText style={styles.viewDetailText}>Xem chi tiết</ThemedText>
-          <Ionicons name="arrow-forward" size={16} color="#4ECDC4" />
+          <Ionicons name="arrow-forward" size={16} color="#30A0E0" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -326,8 +326,8 @@ const styles = StyleSheet.create({
     borderColor: '#E8E8E8',
   },
   activeFilterTab: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
+    borderColor: '#30A0E0',
   },
   filterText: {
     fontSize: 14,
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   },
   viewDetailText: {
     fontSize: 14,
-    color: '#4ECDC4',
+    color: '#30A0E0',
     fontWeight: '600',
     marginRight: 4,
   },

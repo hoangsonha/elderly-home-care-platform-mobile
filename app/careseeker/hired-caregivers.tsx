@@ -137,7 +137,7 @@ export default function HiredCaregiversScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return '#4ECDC4';
+      case 'active': return '#30A0E0';
       case 'paused': return '#FECA57';
       case 'completed': return '#6C757D';
       default: return '#6C757D';
@@ -215,7 +215,7 @@ export default function HiredCaregiversScreen() {
             style={styles.chatButton}
             onPress={() => handleChatPress(item)}
           >
-            <Ionicons name="chatbubble-outline" size={20} color="#4ECDC4" />
+            <Ionicons name="chatbubble-outline" size={20} color="#30A0E0" />
             <ThemedText style={styles.chatButtonText}>Chat</ThemedText>
           </TouchableOpacity>
         </View>
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 16,
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
   },
   tabText: {
     fontSize: 14,
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4ECDC4',
+    color: '#30A0E0',
   },
   statLabel: {
     fontSize: 12,
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   },
   caringForLabel: {
     fontSize: 12,
-    color: '#4ECDC4',
+    color: '#30A0E0',
     fontWeight: '500',
     marginRight: 8,
   },
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   },
   caringForName: {
     fontSize: 12,
-    color: '#4ECDC4',
+    color: '#30A0E0',
     fontWeight: '500',
     marginBottom: 2,
   },
@@ -518,11 +518,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#f8f9fa',
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#30A0E0',
   },
   chatButtonText: {
     fontSize: 14,
-    color: '#4ECDC4',
+    color: '#30A0E0',
     fontWeight: '600',
     marginLeft: 6,
   },

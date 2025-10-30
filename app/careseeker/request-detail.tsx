@@ -106,7 +106,7 @@ export default function RequestDetailScreen() {
       case 'accepted': return '#48CAE4';
       case 'rejected': return '#FF6B6B';
       case 'cancelled': return '#6C757D';
-      case 'completed': return '#4ECDC4';
+      case 'completed': return '#30A0E0';
       default: return '#6C757D';
     }
   };
@@ -124,7 +124,7 @@ export default function RequestDetailScreen() {
 
   const getPriorityColor = (priority: RequestPriority) => {
     switch (priority) {
-      case 'low': return '#4ECDC4';
+      case 'low': return '#30A0E0';
       case 'medium': return '#FECA57';
       case 'high': return '#FF6B6B';
       case 'urgent': return '#E74C3C';
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 16,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   totalAmount: {
-    color: '#4ECDC4',
+    color: '#30A0E0',
     fontWeight: 'bold',
   },
   messageItem: {
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   acceptButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
   },
   rejectButton: {
     backgroundColor: '#FF6B6B',

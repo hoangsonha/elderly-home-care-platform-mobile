@@ -162,7 +162,7 @@ export function DurationSelector({
       case 'unlimited':
         return (
           <View style={styles.unlimitedContainer}>
-            <Ionicons name="infinite" size={24} color="#4ECDC4" />
+            <Ionicons name="infinite" size={24} color="#30A0E0" />
             <ThemedText style={styles.unlimitedText}>
               Không giới hạn thời gian
             </ThemedText>
@@ -197,7 +197,7 @@ export function DurationSelector({
             ]}>
               {startDate ? new Date(startDate).toLocaleDateString('vi-VN') : 'Chọn ngày bắt đầu'}
             </ThemedText>
-            <Ionicons name="calendar-outline" size={20} color="#4ECDC4" />
+            <Ionicons name="calendar-outline" size={20} color="#30A0E0" />
           </TouchableOpacity>
         </View>
 
@@ -218,7 +218,7 @@ export function DurationSelector({
               ]}>
                 {startTime || 'Chọn giờ bắt đầu'}
               </ThemedText>
-              <Ionicons name="time-outline" size={20} color="#4ECDC4" />
+              <Ionicons name="time-outline" size={20} color="#30A0E0" />
             </TouchableOpacity>
           </View>
         )}
@@ -240,7 +240,7 @@ export function DurationSelector({
               ]}>
                 {endDate ? new Date(endDate).toLocaleDateString('vi-VN') : 'Chọn ngày kết thúc'}
               </ThemedText>
-              <Ionicons name="calendar-outline" size={20} color="#4ECDC4" />
+              <Ionicons name="calendar-outline" size={20} color="#30A0E0" />
             </TouchableOpacity>
           </View>
         )}
@@ -262,7 +262,7 @@ export function DurationSelector({
               ]}>
                 {endTime || 'Chọn giờ kết thúc'}
               </ThemedText>
-              <Ionicons name="time-outline" size={20} color="#4ECDC4" />
+              <Ionicons name="time-outline" size={20} color="#30A0E0" />
             </TouchableOpacity>
           </View>
         )}
@@ -358,8 +358,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   durationTypeButtonSelected: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
+    borderColor: '#30A0E0',
   },
   durationTypeButtonText: {
     fontSize: 14,
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   },
   durationDisplay: {
     fontSize: 14,
-    color: '#4ECDC4',
+    color: '#30A0E0',
     marginTop: 6,
     fontWeight: '600',
   },
@@ -412,11 +412,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0fdfa',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#30A0E0',
   },
   unlimitedText: {
     fontSize: 16,
-    color: '#4ECDC4',
+    color: '#30A0E0',
     fontWeight: '600',
     marginLeft: 8,
   },

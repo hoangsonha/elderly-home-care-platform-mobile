@@ -111,9 +111,9 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
       default:
         return {
           backgroundColor: '#f8f9ff',
-          borderColor: '#4ECDC4',
+          borderColor: '#30A0E0',
           iconName: 'information-circle' as const,
-          iconColor: '#4ECDC4',
+          iconColor: '#30A0E0',
           textColor: '#2c3e50',
         };
     }

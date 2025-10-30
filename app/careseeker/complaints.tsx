@@ -505,11 +505,11 @@ export default function ComplaintsScreen() {
   };
 
   const handleComplaintPress = (complaint: Complaint) => {
-    router.push(`/complaint-detail?id=${complaint.id}`);
+    router.push(`/careseeker/complaint-detail?id=${complaint.id}`);
   };
 
   const handleCreateComplaint = () => {
-    router.push('/create-complaint');
+    router.push('/careseeker/create-complaint');
   };
 
   const renderComplaintCard = ({ item }: { item: Complaint }) => (

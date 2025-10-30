@@ -44,7 +44,7 @@ export default function RequestsScreen() {
     // Navigate to chat with specific caregiver
     console.log('Chat with:', caregiver.name);
     router.push({
-      pathname: '/chat',
+      pathname: '/careseeker/chat',
       params: {
         caregiverId: caregiver.id,
         caregiverName: caregiver.name,

@@ -48,10 +48,9 @@ export default function LoginScreen() {
     setTimeout(() => {
       if (userData.role === "Caregiver") {
         router.replace("/caregiver");
-      } else if (userData.role === "Care Seeker") {
-        router.replace("/profile-setup");
       } else {
-        router.replace("/dashboard");
+        // Care Seeker và các role khác đều đi thẳng đến dashboard
+        router.replace("/careseeker/dashboard");
       }
     }, 1000);
   };

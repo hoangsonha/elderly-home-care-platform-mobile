@@ -11,7 +11,7 @@ interface RequestNotificationProps {
 
 export function RequestNotification({ requestCount, visible }: RequestNotificationProps) {
   const handleViewRequests = () => {
-    router.push('/requests');
+    router.push('/careseeker/requests');
   };
 
   if (!visible || requestCount === 0) {

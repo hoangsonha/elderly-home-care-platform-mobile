@@ -98,7 +98,6 @@ const filterOptions: FilterOption[] = [
   { id: 'all', label: 'Tất cả', icon: 'grid' },
   { id: 'nearby', label: 'Gần nhất', icon: 'location' },
   { id: 'topRated', label: 'Đánh giá cao', icon: 'star' },
-  { id: 'verified', label: 'Đã xác thực', icon: 'shield-checkmark' },
 ];
 
 export default function CaregiverSearchScreen() {
@@ -149,12 +148,12 @@ export default function CaregiverSearchScreen() {
   ];
 
   const handleCaregiverPress = (caregiver: Caregiver) => {
-    router.push('/caregiver-detail');
+    router.push('/careseeker/caregiver-detail');
   };
 
   const handleChatPress = (caregiver: Caregiver) => {
     router.push({
-      pathname: '/chat',
+      pathname: '/careseeker/chat',
       params: {
         caregiverId: caregiver.id,
         caregiverName: caregiver.name,
@@ -367,7 +366,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Space for navigation bar
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -411,7 +410,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,

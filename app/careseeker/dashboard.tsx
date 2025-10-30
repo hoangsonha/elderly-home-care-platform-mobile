@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 
 import { EmergencyAlert } from '@/components/alerts/EmergencyAlert';
+import { BookingModal } from '@/components/caregiver/BookingModal';
+import { RecommendedCaregivers } from '@/components/caregiver/RecommendedCaregivers';
 import { ElderlyProfiles } from '@/components/elderly/ElderlyProfiles';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { RequestNotification } from '@/components/notifications/RequestNotification';
@@ -35,33 +37,6 @@ interface ServiceModule {
   route?: string;
 }
 
-// Các tính năng khác
-const otherFeatures: ServiceModule[] = [
-  {
-    id: 'complaints-feature',
-    title: 'Khiếu nại',
-    icon: 'chatbubble-ellipses',
-    color: '#E74C3C',
-    description: 'Quản lý khiếu nại và tố cáo',
-    route: '/complaints',
-  },
-  {
-    id: 'reviews-feature',
-    title: 'Đánh giá',
-    icon: 'star',
-    color: '#A8E6CF',
-    description: 'Đánh giá chất lượng dịch vụ',
-    route: '/reviews',
-  },
-  {
-    id: 'app-info',
-    title: 'Thông tin app',
-    icon: 'information-circle',
-    color: '#3498DB',
-    description: 'Thông tin về ứng dụng',
-    route: '/app-info',
-  }
-];
 
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
@@ -72,10 +47,12 @@ export default function DashboardScreen() {
   const [showAddElderlyModal, setShowAddElderlyModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedCaregiver, setSelectedCaregiver] = useState<any>(null);
   
-  // Request notification data
-  const requestCount = 3; // Sample data
-  const showRequestNotification = true;
+  // Request notification data - TODO: Fetch from API
+  const requestCount = 0; // Set to 0 to hide mock notification
+  const showRequestNotification = false; // Only show when there are real requests
   
   // Emergency alert data
   const emergencyAlert = {
@@ -142,34 +119,46 @@ export default function DashboardScreen() {
     },
   ];
   
+  // Handle booking press
+  const handleBookPress = (caregiver: any) => {
+    setSelectedCaregiver(caregiver);
+    setShowBookingModal(true);
+  };
+
   // Sample elderly profiles data
   const elderlyProfiles = [
     {
       id: '1',
       name: 'Bà Nguyễn Thị Lan',
       age: 75,
-      healthStatus: 'Tốt',
       avatar: 'https://via.placeholder.com/60x60/4ECDC4/FFFFFF?text=NL',
       relationship: 'Bà nội',
       gender: 'female' as const,
+      currentCaregivers: 1,
+      family: 'Gia đình Nguyễn',
+      healthStatus: 'good' as const,
     },
     {
       id: '2',
       name: 'Ông Trần Văn Minh',
       age: 82,
-      healthStatus: 'Khá',
+      healthStatus: 'fair' as const,
       avatar: 'https://via.placeholder.com/60x60/27AE60/FFFFFF?text=TM',
       relationship: 'Ông ngoại',
       gender: 'male' as const,
+      currentCaregivers: 0,
+      family: 'Gia đình Trần',
     },
     {
       id: '3',
       name: 'Bà Lê Thị Hoa',
       age: 68,
-      healthStatus: 'Tốt',
+      healthStatus: 'good' as const,
       avatar: 'https://via.placeholder.com/60x60/F39C12/FFFFFF?text=LH',
       relationship: 'Bà ngoại',
       gender: 'female' as const,
+      currentCaregivers: 2,
+      family: 'Gia đình Lê',
     },
     {
       id: '4',
@@ -181,37 +170,78 @@ export default function DashboardScreen() {
       gender: 'male' as const,
     },
   ];
+  
+  // Recommended caregivers - Fixed data
+  const recommendedCaregivers = [
+    {
+      id: '1',
+      name: 'Mai',
+      age: 35,
+      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+      rating: 4.9,
+      gender: 'female' as const,
+      specialties: ['Cao đẳng Điều dưỡng', 'Chăm sóc đái tháo đường'],
+    },
+    {
+      id: '2',
+      name: 'Hùng',
+      age: 42,
+      avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&h=150&fit=crop&crop=face',
+      rating: 4.8,
+      gender: 'male' as const,
+      specialties: ['Vật lý trị liệu', 'Phục hồi chức năng'],
+    },
+    {
+      id: '3',
+      name: 'Linh',
+      age: 28,
+      avatar: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=150&h=150&fit=crop&crop=face',
+      rating: 4.7,
+      gender: 'female' as const,
+      specialties: ['Chăm sóc sau phẫu thuật', 'Y tế tại nhà'],
+    },
+    {
+      id: '4',
+      name: 'Nam',
+      age: 38,
+      avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=face',
+      rating: 4.8,
+      gender: 'male' as const,
+      specialties: ['Chăm sóc bệnh Alzheimer', 'Hỗ trợ di chuyển'],
+    },
+  ];
+  
   const [notifications, setNotifications] = useState([
     {
       id: '1',
-      title: 'Yêu cầu mới',
-      message: 'Bà Nguyễn Thị Lan đã gửi yêu cầu chăm sóc cho ngày mai',
+      title: 'Yêu cầu được chấp nhận',
+      message: 'Chị Nguyễn Thị Mai đã chấp nhận yêu cầu chăm sóc của bạn',
       time: '5 phút trước',
-      type: 'info' as const,
+      type: 'success' as const,
       isRead: false,
     },
     {
       id: '2',
-      title: 'Xác nhận lịch',
-      message: 'Lịch chăm sóc với Trần Văn Nam đã được xác nhận',
+      title: 'Lịch hẹn sắp tới',
+      message: 'Bạn có lịch hẹn với Trần Văn Nam vào lúc 14:00 hôm nay',
       time: '1 giờ trước',
-      type: 'success' as const,
+      type: 'info' as const,
       isRead: false,
     },
     {
       id: '3',
       title: 'Nhắc nhở',
-      message: 'Có 2 task chưa hoàn thành trong ngày hôm nay',
+      message: 'Đừng quên đánh giá dịch vụ chăm sóc tuần vừa qua',
       time: '2 giờ trước',
-      type: 'warning' as const,
+      type: 'reminder' as const,
       isRead: true,
     },
     {
       id: '4',
-      title: 'Thanh toán',
-      message: 'Thanh toán tháng 12 đã được xử lý thành công',
+      title: 'Yêu cầu bị từ chối',
+      message: 'Anh Lê Văn Đức không thể nhận yêu cầu chăm sóc của bạn',
       time: '1 ngày trước',
-      type: 'success' as const,
+      type: 'info' as const,
       isRead: true,
     },
     {
@@ -287,133 +317,82 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.fullContainer} showsVerticalScrollIndicator={false}>
-      {/* Header with Wallet */}
+      {/* Header - bTaskee Style */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={styles.logoContainer}>
+          <View style={styles.headerLeft}>
             <TouchableOpacity style={styles.avatarButton} onPress={handleProfilePress}>
               <View style={styles.userAvatar}>
-                <Ionicons name="person" size={24} color="white" />
+                <Ionicons name="person" size={20} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
             <View style={styles.greetingContainer}>
-              <ThemedText style={styles.greeting}>Xin chào,</ThemedText>
-              <ThemedText style={styles.userName}>{user?.name || user?.email?.split('@')[0] || 'Bạn'}!</ThemedText>
+              <ThemedText style={styles.greeting}>Xin chào!</ThemedText>
+              <ThemedText style={styles.userName}>{user?.name || user?.email?.split('@')[0] || 'Người dùng'}</ThemedText>
             </View>
           </View>
-          
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => setShowNotificationModal(true)}
-          >
-            <Ionicons name="notifications" size={24} color="white" />
-            {notifications.filter(notif => !notif.isRead).length > 0 && (
-              <View style={styles.notificationBadge}>
-                <ThemedText style={styles.badgeText}>
-                  {notifications.filter(notif => !notif.isRead).length > 99 
-                    ? '99+' 
-                    : notifications.filter(notif => !notif.isRead).length}
-                </ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
         </View>
-
       </View>
 
-      {/* Quick Access Cards with Background */}
-      <View style={styles.quickAccessWrapper}>
-        <View style={styles.quickAccessContainer}>
-          <TouchableOpacity 
-            style={[styles.quickAccessCard, { backgroundColor: '#E8F4F8' }]}
-            onPress={() => router.push('/caregiver-search' as any)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.quickAccessIcon, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="search" size={28} color="#2196F3" />
-            </View>
-            <View style={styles.quickAccessTextContainer}>
-              <ThemedText style={styles.quickAccessTitle}>Tìm người</ThemedText>
-              <ThemedText style={styles.quickAccessSubtitle}>chăm sóc</ThemedText>
-            </View>
-          </TouchableOpacity>
+      {/* Main Content */}
+      <View style={styles.mainContent}>
+        {/* Emergency Alert */}
+        {emergencyAlertVisible && (
+          <View style={styles.emergencyContainer}>
+            <EmergencyAlert 
+              alert={emergencyAlert}
+              visible={emergencyAlertVisible}
+              onDismiss={hideEmergencyAlert}
+            />
+          </View>
+        )}
 
-          <TouchableOpacity 
-            style={[styles.quickAccessCard, { backgroundColor: '#F5E6F9' }]}
-            onPress={() => router.push('/appointments')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.quickAccessIcon, { backgroundColor: '#F3E5F5' }]}>
-              <Ionicons name="calendar" size={28} color="#9C27B0" />
-            </View>
-            <View style={styles.quickAccessTextContainer}>
-              <ThemedText style={[styles.quickAccessTitle, { color: '#9C27B0' }]}>Lịch hẹn</ThemedText>
-              <ThemedText style={[styles.quickAccessSubtitle, { color: '#BA68C8' }]}>của tôi</ThemedText>
-            </View>
-          </TouchableOpacity>
-        </View>
+        {/* Request Notification */}
+        {showRequestNotification && requestCount > 0 && (
+          <View style={styles.requestNotificationContainer}>
+            <RequestNotification 
+              requestCount={requestCount} 
+              visible={showRequestNotification} 
+            />
+          </View>
+        )}
+
+        {/* Recommended Caregivers */}
+        <RecommendedCaregivers 
+          caregivers={recommendedCaregivers} 
+          onBookPress={handleBookPress}
+        />
+
+        {/* Elderly Profiles - Compact */}
+        <View style={styles.elderlySection}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Hồ sơ người già</ThemedText>
+            <TouchableOpacity onPress={() => router.push('/careseeker/elderly-list')}>
+              <ThemedText style={styles.seeAllText}>Xem tất cả →</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <ElderlyProfiles profiles={elderlyProfiles.slice(0, 3)} />
         </View>
 
-        {/* Service Modules Grid */}
-        <View style={styles.modulesContainer}>
-          {/* Emergency Alert - Hiển thị khi được trigger */}
-          <EmergencyAlert 
-            alert={emergencyAlert}
-            visible={emergencyAlertVisible}
-            onDismiss={hideEmergencyAlert}
-          />
-          
-          {/* Chỉ hiển thị các component khác khi KHÔNG có emergency alert */}
-          {!emergencyAlertVisible && (
-            <>
-              {/* Request Notification */}
-              <View style={styles.requestNotificationContainer}>
-                <RequestNotification 
-                  requestCount={requestCount} 
-                  visible={showRequestNotification} 
-                />
-              </View>
-              
-              {/* Appointment Schedule */}
-              <View style={styles.appointmentContainer}>
-                <AppointmentScheduleToday appointments={appointments} />
-              </View>
-              
-              {/* Elderly Profiles */}
-              <View style={styles.elderlyProfilesContainer}>
-                <ElderlyProfiles profiles={elderlyProfiles} />
-              </View>
-              
-              {/* Các tính năng khác */}
-              <View style={styles.otherFeaturesSection}>
-                <ThemedText style={styles.otherFeaturesTitle}>Các tính năng khác</ThemedText>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.featuresScrollView}
-                  contentContainerStyle={styles.featuresScrollContent}
-                >
-                  {otherFeatures.map((feature, index) => (
-                    <TouchableOpacity
-                      key={feature.id}
-                      style={styles.featureCardLarge}
-                      onPress={() => handleModulePress(feature)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.featureImageContainer}>
-                        <Ionicons name={feature.icon as any} size={28} color={feature.color} />
-                      </View>
-                      <ThemedText style={styles.featureTitleLarge}>
-                        {feature.title}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </>
-          )}
-          
-        </View>
+        {/* Appointment Today - Compact */}
+        {appointments.length > 0 && (
+          <View style={styles.appointmentSection}>
+            <ThemedText style={styles.sectionTitle}>Lịch hẹn hôm nay</ThemedText>
+            <AppointmentScheduleToday appointments={appointments.slice(0, 2)} />
+            {appointments.length > 2 && (
+              <TouchableOpacity 
+                style={styles.viewMoreButton}
+                onPress={() => router.push('/careseeker/appointments')}
+              >
+                <ThemedText style={styles.viewMoreText}>
+                  Xem thêm {appointments.length - 2} lịch hẹn khác
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+      </View>
 
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
@@ -442,7 +421,7 @@ export default function DashboardScreen() {
             {/* App Info */}
             <View style={styles.appInfoSection}>
               <View style={styles.appInfoLogo}>
-                <Ionicons name="heart" size={32} color="#4ECDC4" />
+                <Ionicons name="heart" size={32} color="#68C2E8" />
               </View>
               <ThemedText style={styles.appInfoTitle}>
                 Elder Care Connect
@@ -455,17 +434,17 @@ export default function DashboardScreen() {
             {/* Quick Stats */}
             <View style={styles.appInfoStatsSection}>
               <View style={styles.appInfoStatItem}>
-                <Ionicons name="people" size={24} color="#4ECDC4" />
+                <Ionicons name="people" size={24} color="#68C2E8" />
                 <ThemedText style={styles.appInfoStatNumber}>1000+</ThemedText>
                 <ThemedText style={styles.appInfoStatLabel}>Người chăm sóc</ThemedText>
               </View>
               <View style={styles.appInfoStatItem}>
-                <Ionicons name="home" size={24} color="#4ECDC4" />
+                <Ionicons name="home" size={24} color="#68C2E8" />
                 <ThemedText style={styles.appInfoStatNumber}>500+</ThemedText>
                 <ThemedText style={styles.appInfoStatLabel}>Gia đình</ThemedText>
               </View>
               <View style={styles.appInfoStatItem}>
-                <Ionicons name="star" size={24} color="#4ECDC4" />
+                <Ionicons name="star" size={24} color="#68C2E8" />
                 <ThemedText style={styles.appInfoStatNumber}>4.9</ThemedText>
                 <ThemedText style={styles.appInfoStatLabel}>Đánh giá</ThemedText>
               </View>
@@ -523,7 +502,7 @@ export default function DashboardScreen() {
             <TouchableOpacity activeOpacity={1}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalAvatar}>
-                  <Ionicons name="person" size={40} color="#4ECDC4" />
+                  <Ionicons name="person" size={40} color="#68C2E8" />
                 </View>
                 <ThemedText style={styles.modalName}>
                   {user?.name || 'Người dùng'}
@@ -630,6 +609,19 @@ export default function DashboardScreen() {
         onCancel={() => setShowLogoutModal(false)}
       />
 
+      {/* Booking Modal */}
+      {selectedCaregiver && (
+        <BookingModal
+          visible={showBookingModal}
+          onClose={() => {
+            setShowBookingModal(false);
+            setSelectedCaregiver(null);
+          }}
+          caregiver={selectedCaregiver}
+          elderlyProfiles={elderlyProfiles}
+        />
+      )}
+
       {/* Navigation Bar */}
       <SimpleNavBar />
     </View>
@@ -639,159 +631,113 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F5F7FA',
   },
   fullContainer: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
+  // Header - bTaskee Style
   header: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 60,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingBottom: 20,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    minHeight: 56,
   },
-  logoContainer: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  greetingContainer: {
-    marginLeft: 12,
+    flex: 1,
   },
   avatarButton: {
-    marginRight: 12,
+    marginRight: 14,
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  greetingContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   greeting: {
     fontSize: 14,
-    color: 'white',
-    opacity: 0.9,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 3,
   },
   userName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: 'white',
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  notificationButton: {
-    padding: 8,
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -2,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
-    paddingHorizontal: 6,
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 11,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    lineHeight: 12,
-  },
-  content: {
+  // Main Content
+  mainContent: {
     flex: 1,
+    backgroundColor: '#F5F7FA',
   },
-  modulesContainer: {
-    flex: 1,
-    backgroundColor: 'white',
-    paddingHorizontal: 8,
-    paddingBottom: 20,
+  emergencyContainer: {
+    marginTop: 16,
+    marginHorizontal: 16,
   },
-  modulesGrid: {
-    flexDirection: 'column',
-    gap: 20,
+  requestNotificationContainer: {
+    marginTop: 16,
+    marginHorizontal: 16,
   },
-  singleModuleContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2C3E50',
     marginBottom: 20,
+    paddingHorizontal: 4,
   },
-  regularModulesGrid: {
+  // Elderly Section
+  elderlySection: {
+    marginTop: 16,
+    backgroundColor: '#FFFFFF',
+    paddingTop: 20,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+  },
+  sectionHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 20,
-  },
-  moduleCard: {
-    borderRadius: 16,
-    padding: 16,
-    minHeight: 110,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  moduleContent: {
-    flex: 1,
     justifyContent: 'space-between',
-  },
-  moduleHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    marginVertical: 8,
-  },
-  moduleIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  moduleTitle: {
+  seeAllText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: 'white',
-    flex: 1,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontWeight: '600',
+    color: '#68C2E8',
   },
-  moduleDescriptionContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
+  // Appointment Section
+  appointmentSection: {
+    marginTop: 16,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
   },
-  moduleDescription: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 15,
-    textAlign: 'left',
-    fontWeight: '400',
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
+  viewMoreButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+    borderRadius: 8,
+  },
+  viewMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#68C2E8',
   },
   footer: {
     backgroundColor: '#2c3e50',
@@ -886,7 +832,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: 12,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     textDecorationLine: 'underline',
   },
   modalOverlay: {
@@ -921,7 +867,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
     borderWidth: 3,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
   },
   modalName: {
     fontSize: 20,
@@ -963,68 +909,6 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 20,
-  },
-  // Container styles for better spacing
-  requestNotificationContainer: {
-    marginBottom: 24,
-  },
-  appointmentContainer: {
-    marginBottom: 24,
-  },
-  elderlyProfilesContainer: {
-    marginBottom: 24,
-  },
-  // Other Features Styles
-  otherFeaturesSection: {
-    marginTop: 16,
-    marginBottom: 120, // Thêm margin bottom để tránh đụng nav
-    paddingHorizontal: 20,
-  },
-  otherFeaturesTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2C3E50',
-    marginBottom: 12,
-  },
-  featuresScrollView: {
-    marginTop: 16,
-  },
-  featuresScrollContent: {
-    paddingHorizontal: 4,
-  },
-  featureCardLarge: {
-    width: 120,
-    height: 140,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    marginHorizontal: 6,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-  },
-  featureImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#F8F9FA',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  featureTitleLarge: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2C3E50',
-    textAlign: 'center',
   },
   notificationOverlay: {
     position: 'absolute',
@@ -1085,7 +969,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
   },
   bannerContent: {
     flex: 1,
@@ -1106,7 +990,7 @@ const styles = StyleSheet.create({
   },
   // Duplicate styles - removed
   // findNowButton: {
-  //   backgroundColor: '#4ECDC4',
+  //   backgroundColor: '#68C2E8',
   //   borderRadius: 12,
   //   paddingVertical: 12,
   //   paddingHorizontal: 20,
@@ -1115,7 +999,7 @@ const styles = StyleSheet.create({
   //   justifyContent: 'center',
   //   alignSelf: 'flex-start',
   //   elevation: 2,
-  //   shadowColor: '#4ECDC4',
+  //   shadowColor: '#68C2E8',
   //   shadowOffset: { width: 0, height: 2 },
   //   shadowOpacity: 0.3,
   //   shadowRadius: 4,
@@ -1138,7 +1022,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 20,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
   },
   appInfoCloseButton: {
     width: 40,
@@ -1168,7 +1052,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -1239,60 +1123,7 @@ const styles = StyleSheet.create({
   },
   appInfoLink: {
     fontSize: 12,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     textDecorationLine: 'underline',
-  },
-  // Quick Access Cards
-  quickAccessWrapper: {
-    backgroundColor: 'white',
-    paddingTop: 16,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    marginTop: -15,
-    borderRadius: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    marginLeft: 20,
-    marginRight: 20,
-    marginBottom: 20,
-  },
-  quickAccessContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  quickAccessCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  quickAccessIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  quickAccessTextContainer: {
-    flex: 1,
-  },
-  quickAccessTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-  quickAccessSubtitle: {
-    fontSize: 11,
-    color: '#64B5F6',
   },
 });
