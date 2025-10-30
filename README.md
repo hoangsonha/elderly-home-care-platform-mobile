@@ -16,16 +16,20 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
-3. Open in Android Virtual Emulator
+3. Choose 2 option to complete
 
+   a. Android Virtual Emulator
+   
    ```bash
    Press 'a'
    ```
 
-4. Open in Android
+      or
+
+   b. Open in Physical Device
 
    ```bash
-   Press 's' and Scan the QR in your Android with Expo
+   Press 's' and Scan the QR in your phone with Expo
    ```
 
 In the output, you'll find options to open the app in a
