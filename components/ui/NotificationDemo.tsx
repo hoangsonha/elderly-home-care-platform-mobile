@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffc107',
   },
   infoButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#30A0E0',
   },
   primaryButton: {
     backgroundColor: '#007bff',

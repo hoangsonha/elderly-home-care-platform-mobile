@@ -9,7 +9,7 @@ interface Notification {
   title: string;
   message: string;
   time: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: 'info' | 'success' | 'warning' | 'error' | 'reminder';
   isRead: boolean;
 }
 
@@ -77,6 +77,8 @@ export function NotificationPanel({
         return 'warning';
       case 'error':
         return 'alert-circle';
+      case 'reminder':
+        return 'star';
       default:
         return 'information-circle';
     }
@@ -90,6 +92,8 @@ export function NotificationPanel({
         return '#FECA57';
       case 'error':
         return '#FF6B6B';
+      case 'reminder':
+        return '#FFD700';
       default:
         return '#4ECDC4';
     }

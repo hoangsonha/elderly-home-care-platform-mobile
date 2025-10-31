@@ -8,11 +8,13 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Contact {
   name: string;
   relationship: string;
   phone: string;
+  useMyPhone?: boolean;
 }
 
 interface DynamicContactListProps {
@@ -26,11 +28,13 @@ export function DynamicContactList({
   onContactsChange,
   maxItems = 5,
 }: DynamicContactListProps) {
+  const { user } = useAuth();
+  
   const addContact = () => {
     if (contacts.length < maxItems) {
       onContactsChange([
         ...contacts,
-        { name: '', relationship: '', phone: '' },
+        { name: '', relationship: '', phone: '', useMyPhone: false },
       ]);
     }
   };
@@ -40,9 +44,20 @@ export function DynamicContactList({
     onContactsChange(newContacts);
   };
 
-  const updateContact = (index: number, field: keyof Contact, value: string) => {
+  const updateContact = (index: number, field: keyof Contact, value: string | boolean) => {
     const newContacts = [...contacts];
     newContacts[index] = { ...newContacts[index], [field]: value };
+    onContactsChange(newContacts);
+  };
+
+  const toggleUseMyPhone = (index: number) => {
+    const newContacts = [...contacts];
+    const useMyPhone = !newContacts[index].useMyPhone;
+    newContacts[index] = { 
+      ...newContacts[index], 
+      useMyPhone,
+      phone: useMyPhone ? (user?.phone || '') : ''
+    };
     onContactsChange(newContacts);
   };
 
@@ -103,13 +118,31 @@ export function DynamicContactList({
                 <ThemedText style={styles.inputLabel}>Số điện thoại</ThemedText>
                 <ThemedText style={styles.requiredMark}>*</ThemedText>
               </View>
+              
+              {/* Option to use own phone */}
+              <TouchableOpacity 
+                style={styles.useMyPhoneOption}
+                onPress={() => toggleUseMyPhone(index)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, contact.useMyPhone && styles.checkboxActive]}>
+                  {contact.useMyPhone && (
+                    <Ionicons name="checkmark" size={16} color="white" />
+                  )}
+                </View>
+                <ThemedText style={styles.useMyPhoneText}>
+                  Dùng số điện thoại của tôi
+                </ThemedText>
+              </TouchableOpacity>
+              
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, contact.useMyPhone && styles.textInputDisabled]}
                 value={contact.phone}
                 onChangeText={(text) => updateContact(index, 'phone', text)}
-                placeholder="Ví dụ: 0901234567"
+                placeholder={contact.useMyPhone ? "Số điện thoại của bạn" : "Ví dụ: 0901234567"}
                 placeholderTextColor="#999"
                 keyboardType="phone-pad"
+                editable={!contact.useMyPhone}
               />
             </View>
           </View>
@@ -204,13 +237,43 @@ const styles = StyleSheet.create({
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#2c3e50',
+    borderColor: '#E8EBED',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: '#2C3E50',
     backgroundColor: 'white',
+  },
+  textInputDisabled: {
+    backgroundColor: '#F5F7FA',
+    color: '#7F8C8D',
+  },
+  useMyPhoneOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingVertical: 8,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#E8EBED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    backgroundColor: 'white',
+  },
+  checkboxActive: {
+    backgroundColor: '#4ECDC4',
+    borderColor: '#4ECDC4',
+  },
+  useMyPhoneText: {
+    fontSize: 14,
+    color: '#2C3E50',
+    fontWeight: '500',
   },
   emptyState: {
     padding: 20,

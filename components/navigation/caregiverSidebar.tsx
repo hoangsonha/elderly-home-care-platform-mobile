@@ -21,7 +21,6 @@ import SettingsScreen from "@/app/caregiver/settings";
 import TrainingCourseDetail from "@/app/caregiver/training-course-detail";
 import TrainingCoursesMobile from "@/app/caregiver/training-courses";
 import VideoCallScreen from "@/app/caregiver/video-call";
-import CaregiverWithdrawScreen from "@/app/caregiver/withdraw";
 
 const Drawer = createDrawerNavigator();
 
@@ -49,12 +48,6 @@ const features = [
     title: "Yêu cầu dịch vụ",
     icon: "clipboard-list",
     component: Booking,
-  },
-  {
-    id: "payments",
-    title: "Thanh toán",
-    icon: "credit-card-outline",
-    component: PaymentScreen,
   },
   {
     id: "chatlist",

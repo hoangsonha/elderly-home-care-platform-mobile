@@ -171,16 +171,73 @@ export default function AddElderlyScreen() {
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
 
-  const totalSteps = 8;
+  const totalSteps = 5;
+
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1: // Thông tin cá nhân
+        if (!profile.personalInfo.name.trim()) {
+          showErrorTooltip('Vui lòng nhập họ và tên');
+          return false;
+        }
+        if (!profile.personalInfo.age.trim()) {
+          showErrorTooltip('Vui lòng nhập tuổi');
+          return false;
+        }
+        const age = parseInt(profile.personalInfo.age);
+        if (isNaN(age) || age < 50 || age > 120) {
+          showErrorTooltip('Tuổi phải là số từ 50 đến 120');
+          return false;
+        }
+        if (!profile.personalInfo.gender) {
+          showErrorTooltip('Vui lòng chọn giới tính');
+          return false;
+        }
+        return true;
+      
+      case 2: // Sinh hoạt & Chăm sóc
+        // Optional fields, always valid
+        return true;
+      
+      case 3: // Sở thích & Liên hệ
+        // Check if emergency contacts are valid
+        for (let i = 0; i < profile.emergencyContacts.length; i++) {
+          const contact = profile.emergencyContacts[i];
+          if (!contact.name.trim()) {
+            showErrorTooltip(`Liên hệ ${i + 1}: Vui lòng nhập họ tên`);
+            return false;
+          }
+          if (!contact.relationship.trim()) {
+            showErrorTooltip(`Liên hệ ${i + 1}: Vui lòng nhập mối quan hệ`);
+            return false;
+          }
+          if (!contact.phone.trim()) {
+            showErrorTooltip(`Liên hệ ${i + 1}: Vui lòng nhập số điện thoại`);
+            return false;
+          }
+          // Validate phone format (10 digits starting with 0)
+          const phoneRegex = /^0\d{9}$/;
+          if (!phoneRegex.test(contact.phone.trim())) {
+            showErrorTooltip(`Liên hệ ${i + 1}: Số điện thoại không hợp lệ (phải là 10 số bắt đầu bằng 0)`);
+            return false;
+          }
+        }
+        return true;
+      
+      case 4: // Môi trường sống
+        // Optional fields, always valid
+        return true;
+      
+      default:
+        return true;
+    }
+  };
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
-      // Validate before going to preview step
-      if (currentStep === totalSteps - 1) {
-        // Validate required fields
-        if (!profile.personalInfo.name || !profile.personalInfo.age) {
-          showErrorTooltip('Vui lòng điền đầy đủ thông tin cơ bản');
-          setCurrentStep(1);
+      // Validate current step before moving to next
+      if (currentStep < totalSteps - 1) {
+        if (!validateStep(currentStep)) {
           return;
         }
       }
@@ -191,15 +248,7 @@ export default function AddElderlyScreen() {
 
   const handlePrevious = () => {
     if (currentStep > 1) {
-      if (currentStep === 8) {
-        // Từ preview quay về step 7 (emergency contacts)
-        setCurrentStep(7);
-      } else if (currentStep === 2) {
-        // Từ personal info quay về step 1 (personal info)
-        setCurrentStep(1);
-      } else {
-        setCurrentStep(currentStep - 1);
-      }
+      setCurrentStep(currentStep - 1);
     }
   };
 
@@ -240,30 +289,12 @@ export default function AddElderlyScreen() {
   };
 
   const handleSave = () => {
-    // Validate family selection
-    if (!familySelectionType) {
-      showErrorTooltip('Vui lòng chọn gia đình');
-      setCurrentStep(8);
-      return;
-    }
-    
-    if (familySelectionType === 'create' && !newFamilyData.name.trim()) {
-      showErrorTooltip('Vui lòng nhập tên gia đình');
-      setCurrentStep(8);
-      return;
-    }
-    
-    if (familySelectionType === 'select' && !selectedFamily) {
-      showErrorTooltip('Vui lòng chọn gia đình');
-      setCurrentStep(8);
-      return;
-    }
-
-    // Validate required fields
-    if (!profile.personalInfo.name || !profile.personalInfo.age) {
-      showErrorTooltip('Vui lòng điền đầy đủ thông tin cơ bản');
-      setCurrentStep(1);
-      return;
+    // Validate all steps
+    for (let step = 1; step <= 4; step++) {
+      if (!validateStep(step)) {
+        setCurrentStep(step);
+        return;
+      }
     }
 
     // Save profile logic here
@@ -275,17 +306,26 @@ export default function AddElderlyScreen() {
     }, 2000);
   };
 
+  const getStepName = (step: number) => {
+    const stepNames = [
+      'Thông tin cá nhân',
+      'Sinh hoạt & Chăm sóc',
+      'Sở thích & Liên hệ',
+      'Môi trường sống',
+      'Xem trước'
+    ];
+    return stepNames[step - 1] || '';
+  };
+
   const renderStepIndicator = () => (
-    <View style={styles.stepIndicator}>
-      {Array.from({ length: totalSteps }, (_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.stepDot,
-            index + 1 <= currentStep && styles.stepDotActive,
-          ]}
-        />
-      ))}
+    <View style={styles.stepIndicatorContainer}>
+      <View style={styles.stepInfo}>
+        <ThemedText style={styles.stepNumber}>Bước {currentStep}/{totalSteps}</ThemedText>
+        <ThemedText style={styles.stepName}>{getStepName(currentStep)}</ThemedText>
+      </View>
+      <View style={styles.progressBarContainer}>
+        <View style={[styles.progressBar, { width: `${(currentStep / totalSteps) * 100}%` }]} />
+      </View>
     </View>
   );
 
@@ -306,7 +346,7 @@ export default function AddElderlyScreen() {
             onPress={() => setFamilySelectionType('create')}
           >
             <View style={styles.familyOptionIcon}>
-              <Ionicons name="add-circle" size={32} color="#4ECDC4" />
+              <Ionicons name="add-circle" size={32} color="#68C2E8" />
             </View>
             <View style={styles.familyOptionContent}>
               <ThemedText style={styles.familyOptionTitle}>Tạo mới gia đình</ThemedText>
@@ -322,7 +362,7 @@ export default function AddElderlyScreen() {
             onPress={() => setFamilySelectionType('select')}
           >
             <View style={styles.familyOptionIcon}>
-              <Ionicons name="people" size={32} color="#4ECDC4" />
+              <Ionicons name="people" size={32} color="#68C2E8" />
             </View>
             <View style={styles.familyOptionContent}>
               <ThemedText style={styles.familyOptionTitle}>Chọn gia đình có sẵn</ThemedText>
@@ -344,7 +384,7 @@ export default function AddElderlyScreen() {
               setFamilySearchQuery('');
             }}
           >
-            <Ionicons name="arrow-back" size={20} color="#4ECDC4" />
+            <Ionicons name="arrow-back" size={20} color="#68C2E8" />
             <ThemedText style={styles.backToOptionsText}>Quay lại</ThemedText>
           </TouchableOpacity>
           
@@ -374,7 +414,7 @@ export default function AddElderlyScreen() {
                 
                 <View style={styles.creatorItem}>
                   <View style={styles.memberInfo}>
-                    <Ionicons name="person" size={20} color="#4ECDC4" />
+                    <Ionicons name="person" size={20} color="#68C2E8" />
                     <View style={styles.memberDetails}>
                       <ThemedText style={styles.memberName}>Bạn</ThemedText>
                       <ThemedText style={styles.memberRole}>Quản trị viên</ThemedText>
@@ -433,7 +473,7 @@ export default function AddElderlyScreen() {
                           <ThemedText style={styles.familyItemName}>{family.name}</ThemedText>
                           <View style={[
                             styles.roleBadge,
-                            { backgroundColor: family.userRole === 'admin_family' ? '#4ECDC4' : '#6c757d' }
+                            { backgroundColor: family.userRole === 'admin_family' ? '#68C2E8' : '#6c757d' }
                           ]}>
                             <ThemedText style={styles.roleBadgeText}>
                               {family.userRole === 'admin_family' ? 'Quản trị viên' : 'Thành viên'}
@@ -443,7 +483,7 @@ export default function AddElderlyScreen() {
                         <ThemedText style={styles.familyItemDescription}>{family.description}</ThemedText>
                         <View style={styles.familyItemStats}>
                           <View style={styles.statItem}>
-                            <Ionicons name="people" size={16} color="#4ECDC4" />
+                            <Ionicons name="people" size={16} color="#68C2E8" />
                             <ThemedText style={styles.statText}>{family.memberCount} thành viên</ThemedText>
                           </View>
                           <View style={styles.statItem}>
@@ -453,7 +493,7 @@ export default function AddElderlyScreen() {
                         </View>
                       </View>
                       {selectedFamily?.id === family.id && (
-                        <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
+                        <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
                       )}
                     </TouchableOpacity>
                   ))}
@@ -478,7 +518,8 @@ export default function AddElderlyScreen() {
 
   const renderPersonalInfo = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Thông tin cơ bản</ThemedText>
+      <ThemedText style={styles.stepTitle}>Thông tin cá nhân</ThemedText>
+      <ThemedText style={styles.stepDescription}>Thông tin cơ bản và y tế</ThemedText>
       
       <View style={styles.inputGroup}>
         <View style={styles.labelContainer}>
@@ -514,7 +555,10 @@ export default function AddElderlyScreen() {
           />
         </View>
         <View style={styles.inputGroupHalf}>
-          <ThemedText style={styles.inputLabel}>Giới tính</ThemedText>
+          <View style={styles.labelContainer}>
+            <ThemedText style={styles.inputLabel}>Giới tính</ThemedText>
+            <ThemedText style={styles.requiredMark}>*</ThemedText>
+          </View>
           <View style={styles.genderContainer}>
             <TouchableOpacity
               style={[
@@ -550,35 +594,6 @@ export default function AddElderlyScreen() {
         </View>
       </View>
 
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Số điện thoại</ThemedText>
-        <TextInput
-          style={styles.textInput}
-          value={profile.personalInfo.phoneNumber}
-          onChangeText={(text) => setProfile(prev => ({
-            ...prev,
-            personalInfo: { ...prev.personalInfo, phoneNumber: text }
-          }))}
-          placeholder="Nhập số điện thoại"
-          keyboardType="phone-pad"
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Địa chỉ</ThemedText>
-        <TextInput
-          style={[styles.textInput, styles.textArea]}
-          value={profile.personalInfo.address}
-          onChangeText={(text) => setProfile(prev => ({
-            ...prev,
-            personalInfo: { ...prev.personalInfo, address: text }
-          }))}
-          placeholder="Nhập địa chỉ"
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
       <View style={styles.inputRow}>
         <View style={styles.inputGroupHalf}>
           <ThemedText style={styles.inputLabel}>Cân nặng</ThemedText>
@@ -607,12 +622,12 @@ export default function AddElderlyScreen() {
           />
         </View>
       </View>
-    </View>
-  );
 
-  const renderMedicalInfo = () => (
-    <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Thông tin y tế</ThemedText>
+      {/* Medical Info - Integrated */}
+      <View style={styles.sectionDivider} />
+      <View style={styles.subsectionHeader}>
+        <ThemedText style={styles.sectionTitle}>Thông tin y tế</ThemedText>
+      </View>
       
       <View style={styles.inputGroup}>
         <DynamicInputList
@@ -676,7 +691,12 @@ export default function AddElderlyScreen() {
 
   const renderIndependenceLevel = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Mức độ tự lập</ThemedText>
+      <ThemedText style={styles.stepTitle}>Sinh hoạt & Chăm sóc</ThemedText>
+      <ThemedText style={styles.stepDescription}>Khả năng tự lập và nhu cầu chăm sóc</ThemedText>
+      
+      <View style={styles.subsectionHeader}>
+        <ThemedText style={styles.sectionTitle}>Mức độ tự lập</ThemedText>
+      </View>
       
       {Object.entries(profile.independenceLevel).map(([key, value]) => (
         <View key={key} style={styles.independenceItem}>
@@ -716,12 +736,12 @@ export default function AddElderlyScreen() {
           </View>
         </View>
       ))}
-    </View>
-  );
 
-  const renderCareNeeds = () => (
-    <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Nhu cầu chăm sóc</ThemedText>
+      {/* Care Needs - Integrated */}
+      <View style={styles.sectionDivider} />
+      <View style={styles.subsectionHeader}>
+        <ThemedText style={styles.sectionTitle}>Nhu cầu chăm sóc</ThemedText>
+      </View>
       
       <View style={styles.inputGroup}>
         <DynamicInputList
@@ -742,7 +762,8 @@ export default function AddElderlyScreen() {
 
   const renderPreferences = () => (
     <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Sở thích và sở thích</ThemedText>
+      <ThemedText style={styles.stepTitle}>Sở thích & Liên hệ</ThemedText>
+      <ThemedText style={styles.stepDescription}>Thông tin về sở thích và người liên hệ khẩn cấp</ThemedText>
       
       <View style={styles.inputGroup}>
         <DynamicInputList
@@ -788,12 +809,26 @@ export default function AddElderlyScreen() {
           title="Món ăn yêu thích"
         />
       </View>
+
+      {/* Emergency Contacts - Integrated */}
+      <View style={styles.sectionDivider} />
+      
+      <View style={styles.inputGroup}>
+        <DynamicContactList
+          contacts={profile.emergencyContacts}
+          onContactsChange={(contacts) => setProfile(prev => ({
+            ...prev,
+            emergencyContacts: contacts
+          }))}
+        />
+      </View>
     </View>
   );
 
   const renderEnvironment = () => (
     <View style={styles.stepContent}>
       <ThemedText style={styles.stepTitle}>Môi trường sống</ThemedText>
+      <ThemedText style={styles.stepDescription}>Nơi ở và điều kiện sinh hoạt</ThemedText>
       
       <View style={styles.inputGroup}>
         <ThemedText style={styles.inputLabel}>Loại nhà ở</ThemedText>
@@ -860,32 +895,13 @@ export default function AddElderlyScreen() {
     </View>
   );
 
-  const renderEmergencyContacts = () => (
-    <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Liên hệ</ThemedText>
-      
-      <View style={styles.inputGroup}>
-        <DynamicContactList
-          contacts={profile.emergencyContacts}
-          onContactsChange={(contacts) => setProfile(prev => ({
-            ...prev,
-            emergencyContacts: contacts
-          }))}
-        />
-      </View>
-    </View>
-  );
-
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1: return renderPersonalInfo();
-      case 2: return renderMedicalInfo();
-      case 3: return renderIndependenceLevel();
-      case 4: return renderCareNeeds();
-      case 5: return renderPreferences();
-      case 6: return renderEnvironment();
-      case 7: return renderEmergencyContacts();
-      case 8: return (
+      case 2: return renderIndependenceLevel();
+      case 3: return renderPreferences();
+      case 4: return renderEnvironment();
+      case 5: return (
         <View style={styles.stepContent}>
           <ThemedText style={styles.stepTitle}>Xem trước hồ sơ</ThemedText>
           
@@ -905,12 +921,12 @@ export default function AddElderlyScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+          <Ionicons name="arrow-back" size={24} color="#2C3E50" />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
-          <ThemedText style={styles.headerTitle}>Tạo hồ sơ người già</ThemedText>
-          <ThemedText style={styles.headerSubtitle}>Thông tin chi tiết và đầy đủ</ThemedText>
+          <ThemedText style={styles.headerTitle}>Tạo hồ sơ</ThemedText>
+          <ThemedText style={styles.headerSubtitle}>Thông tin người già</ThemedText>
         </View>
 
         <View style={styles.placeholder} />
@@ -928,7 +944,7 @@ export default function AddElderlyScreen() {
       <View style={styles.navigation}>
         {currentStep > 1 && (
           <TouchableOpacity style={styles.previousButton} onPress={handlePrevious}>
-            <Ionicons name="chevron-back" size={20} color="#4ECDC4" />
+            <Ionicons name="chevron-back" size={20} color="#68C2E8" />
             <ThemedText style={styles.previousButtonText}>
               {currentStep === totalSteps ? 'Chỉnh sửa' : 'Trước'}
             </ThemedText>
@@ -1014,68 +1030,106 @@ export default function AddElderlyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-    paddingBottom: 100, // Space for navigation bar
+    backgroundColor: '#F5F7FA',
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#FFFFFF',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
     padding: 8,
+    backgroundColor: '#F5F7FA',
+    borderRadius: 8,
   },
   headerContent: {
     flex: 1,
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2C3E50',
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    color: '#7F8C8D',
     marginTop: 2,
   },
   placeholder: {
     width: 40,
   },
-  stepIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
+  stepIndicatorContainer: {
     backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
-  stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#e9ecef',
-    marginHorizontal: 4,
+  stepInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  stepDotActive: {
-    backgroundColor: '#4ECDC4',
+  stepNumber: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#68C2E8',
+  },
+  stepName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2C3E50',
+  },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: '#E8EBED',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#68C2E8',
+    borderRadius: 2,
   },
   content: {
     flex: 1,
   },
   stepContent: {
     padding: 20,
+    paddingTop: 24,
   },
   stepTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 20,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 8,
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#E8EBED',
+    marginVertical: 24,
+  },
+  subsectionHeader: {
+    marginBottom: 8,
   },
   inputGroup: {
     marginBottom: 20,
@@ -1091,7 +1145,8 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#2C3E50',
+    marginBottom: 8,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -1107,10 +1162,12 @@ const styles = StyleSheet.create({
   textInput: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#E8EBED',
+    color: '#2C3E50',
   },
   textArea: {
     height: 80,
@@ -1122,24 +1179,25 @@ const styles = StyleSheet.create({
   },
   genderButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f8f9fa',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'white',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderWidth: 1.5,
+    borderColor: '#E8EBED',
   },
   genderButtonActive: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#E8F6F3',
+    borderColor: '#68C2E8',
   },
   genderText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6c757d',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#7F8C8D',
   },
   genderTextActive: {
-    color: 'white',
+    color: '#68C2E8',
   },
   independenceItem: {
     marginBottom: 20,
@@ -1156,24 +1214,25 @@ const styles = StyleSheet.create({
   },
   independenceButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: 'white',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderWidth: 1.5,
+    borderColor: '#E8EBED',
   },
   independenceButtonActive: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#E8F6F3',
+    borderColor: '#68C2E8',
   },
   independenceButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6c757d',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7F8C8D',
   },
   independenceButtonTextActive: {
-    color: 'white',
+    color: '#68C2E8',
   },
   careNeedItem: {
     flexDirection: 'row',
@@ -1207,8 +1266,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
+    borderColor: '#68C2E8',
   },
   houseTypeContainer: {
     flexDirection: 'row',
@@ -1224,8 +1283,8 @@ const styles = StyleSheet.create({
     borderColor: '#e9ecef',
   },
   houseTypeButtonActive: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
+    borderColor: '#68C2E8',
   },
   houseTypeText: {
     fontSize: 14,
@@ -1239,24 +1298,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
+    paddingTop: 16,
     backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: '#F0F0F0',
+    gap: 12,
   },
   previousButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#4ECDC4',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E8EBED',
+    backgroundColor: 'white',
   },
   previousButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#4ECDC4',
-    marginLeft: 8,
+    color: '#2C3E50',
+    marginLeft: 6,
   },
   navigationSpacer: {
     flex: 1,
@@ -1264,30 +1326,40 @@ const styles = StyleSheet.create({
   nextButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#68C2E8',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#68C2E8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   nextButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: 'white',
-    marginRight: 8,
+    marginRight: 6,
   },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#28a745',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#27AE60',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#27AE60',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: 'white',
-    marginLeft: 8,
+    marginLeft: 6,
   },
   // Family selection styles
   stepSubtitle: {
@@ -1316,7 +1388,7 @@ const styles = StyleSheet.create({
   backToOptionsText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#4ECDC4',
+    color: '#68C2E8',
     marginLeft: 8,
   },
   familyOption: {
@@ -1362,7 +1434,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1427,7 +1499,7 @@ const styles = StyleSheet.create({
     borderColor: '#e9ecef',
   },
   familyItemSelected: {
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
     backgroundColor: '#f0fdfa',
   },
   familyItemContent: {
@@ -1540,7 +1612,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -1594,7 +1666,7 @@ const styles = StyleSheet.create({
   familyPreviewName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#4ECDC4',
+    color: '#68C2E8',
     marginBottom: 8,
   },
   familyPreviewDescription: {

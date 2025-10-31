@@ -38,14 +38,6 @@ interface ServiceModule {
 // Các tính năng khác
 const otherFeatures: ServiceModule[] = [
   {
-    id: "payments-feature",
-    title: "Thanh toán",
-    icon: "card",
-    color: "#27AE60",
-    description: "Quản lý thanh toán dịch vụ",
-    route: "/payments",
-  },
-  {
     id: "complaints-feature",
     title: "Khiếu nại",
     icon: "warning",

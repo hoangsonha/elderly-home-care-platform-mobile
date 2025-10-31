@@ -179,7 +179,7 @@ export default function AppointmentsScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'upcoming':
-        return '#3498DB';
+        return '#68C2E8';
       case 'completed':
         return '#27AE60';
       case 'cancelled':
@@ -340,7 +340,7 @@ export default function AppointmentsScreen() {
                     <Ionicons 
                       name="videocam" 
                       size={20} 
-                      color={(selectedAppointment.status === 'completed' || selectedAppointment.status === 'cancelled') ? '#95A5A6' : '#3498DB'} 
+                      color={(selectedAppointment.status === 'completed' || selectedAppointment.status === 'cancelled') ? '#95A5A6' : '#68C2E8'} 
                     />
                     <ThemedText style={[
                       styles.meetLinkText,
@@ -419,7 +419,7 @@ export default function AppointmentsScreen() {
                     style={styles.reviewButton}
                     onPress={() => {
                       setShowDetailModal(false);
-                      router.push('/reviews');
+                      router.push('/careseeker/reviews');
                     }}
                   >
                     <Ionicons name="star" size={20} color="white" />
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Space for navigation bar
   },
   header: {
-    backgroundColor: '#3498DB',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabActive: {
-    backgroundColor: '#3498DB',
+    backgroundColor: '#68C2E8',
   },
   tabText: {
     fontSize: 14,
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#3498DB',
+    borderLeftColor: '#68C2E8',
   },
   notesText: {
     fontSize: 14,
@@ -754,12 +754,12 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#3498DB',
+    borderLeftColor: '#68C2E8',
     gap: 12,
   },
   meetLinkText: {
     fontSize: 14,
-    color: '#3498DB',
+    color: '#68C2E8',
     flex: 1,
   },
   meetLinkDisabled: {
@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#3498DB',
+    borderLeftColor: '#68C2E8',
   },
   contentText: {
     fontSize: 14,
@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#3498DB',
+    backgroundColor: '#68C2E8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   youBadge: {
-    backgroundColor: '#3498DB',
+    backgroundColor: '#68C2E8',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,

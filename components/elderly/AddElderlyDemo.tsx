@@ -7,7 +7,7 @@ import { ThemedText } from '../themed-text';
 
 export const AddElderlyDemo: React.FC = () => {
   const handleNavigateToAddElderly = () => {
-    router.push('/add-elderly');
+    router.push('/careseeker/add-elderly');
   };
 
   return (

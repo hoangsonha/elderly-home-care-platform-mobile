@@ -31,7 +31,7 @@ export default function ProfileSetupScreen() {
   useEffect(() => {
     if (user?.hasCompletedProfile) {
       // User already has profile, redirect to dashboard
-      router.replace('/dashboard');
+      router.replace('/careseeker/dashboard');
     } else if (user?.name) {
       // Pre-fill form with existing data if any
       setName(user.name);
@@ -83,7 +83,7 @@ export default function ProfileSetupScreen() {
 
       // Close modal and navigate to dashboard
       setShowSuccessModal(false);
-      router.replace('/dashboard');
+      router.replace('/careseeker/dashboard');
     } catch (error) {
       Alert.alert('Lỗi', 'Có lỗi xảy ra khi lưu thông tin');
     } finally {

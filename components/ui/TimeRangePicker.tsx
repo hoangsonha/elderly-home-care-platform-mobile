@@ -425,7 +425,7 @@ export function TimeRangePicker({
 
       {availableRanges && availableRanges.length > 0 && (
         <TouchableOpacity style={styles.addButton} onPress={handleAddTimeRange}>
-          <Ionicons name="add-circle" size={20} color="#4ECDC4" />
+          <Ionicons name="add-circle" size={20} color="#68C2E8" />
           <ThemedText style={styles.addButtonText}>Thêm khung giờ cụ thể</ThemedText>
         </TouchableOpacity>
       )}
@@ -442,7 +442,7 @@ export function TimeRangePicker({
               style={styles.editButton}
               onPress={() => handleEditTimeRange(range)}
             >
-              <Ionicons name="pencil" size={16} color="#4ECDC4" />
+              <Ionicons name="pencil" size={16} color="#68C2E8" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.removeButton}
@@ -471,12 +471,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#f0fdfa',
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
     alignSelf: 'flex-start',
   },
   addButtonText: {
     marginLeft: 8,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     fontWeight: '600',
   },
   timeRangeItem: {
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     fontSize: 16,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     fontWeight: '600',
   },
   timePickerContainer: {
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeOptionSelected: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
   },
   timeOptionText: {
     fontSize: 16,

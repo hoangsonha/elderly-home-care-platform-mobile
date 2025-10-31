@@ -28,25 +28,19 @@ const navItems: NavItem[] = [
     id: 'home',
     label: 'Trang chủ',
     icon: 'home',
-    route: '/dashboard',
+    route: '/careseeker/dashboard',
   },
   {
     id: 'services',
     label: 'Dịch vụ',
     icon: 'medical',
-    route: '/caregiver-search',
+    route: '/careseeker/caregiver-search',
   },
   {
     id: 'requests',
     label: 'Yêu cầu',
     icon: 'document-text',
-    route: '/requests',
-  },
-  {
-    id: 'wallet',
-    label: 'Ví tiền',
-    icon: 'wallet',
-    route: '/payments',
+    route: '/careseeker/requests',
   },
 ];
 

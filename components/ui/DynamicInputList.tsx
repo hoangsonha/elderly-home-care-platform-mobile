@@ -47,7 +47,7 @@ export function DynamicInputList({
         <ThemedText style={styles.title}>{title}</ThemedText>
         {items.length < maxItems && (
           <TouchableOpacity style={styles.addButton} onPress={addItem}>
-            <Ionicons name="add" size={20} color="#4ECDC4" />
+            <Ionicons name="add" size={20} color="#30A0E0" />
           </TouchableOpacity>
         )}
       </View>
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#30A0E0',
   },
   itemsContainer: {
     gap: 8,
