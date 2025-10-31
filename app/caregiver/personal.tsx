@@ -1,13 +1,16 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { useAuth } from "@/contexts/AuthContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { router } from "expo-router";
 import React from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // Types
@@ -97,6 +100,7 @@ const profileSections: MenuSection[] = [
 
 export default function PersonalScreen() {
   const navigation = useNavigation<any>();
+  const { logout } = useAuth();
 
   const handleMenuPress = (itemId: string) => {
     console.log("Menu item pressed:", itemId);
@@ -115,8 +119,21 @@ export default function PersonalScreen() {
         navigation.navigate("Cài đặt");
         break;
       case "logout":
-        // TODO: Implement logout
-        console.log("Logout clicked");
+        Alert.alert(
+          "Xác nhận đăng xuất",
+          "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?",
+          [
+            { text: "Hủy", style: "cancel" },
+            {
+              text: "Đăng xuất",
+              style: "destructive",
+              onPress: () => {
+                logout();
+                router.replace("/(tabs)");
+              },
+            },
+          ]
+        );
         break;
       default:
         console.log("Menu item not implemented:", itemId);

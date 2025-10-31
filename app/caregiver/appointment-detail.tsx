@@ -1,29 +1,34 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { getAppointmentHasReviewed, getAppointmentStatus, markAppointmentAsReviewed, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
-// Mock data
-const appointmentData = {
-  id: "APT001",
-  status: "in-progress", // new, pending, confirmed, in-progress, completed, cancelled, rejected
-  date: "2024-01-15",
-  timeSlot: "08:00 - 12:00",
-  duration: "4 giờ",
-  packageType: "Gói Chuyên sâu",
-  
-  // Elderly Info
-  elderly: {
-    id: "E001",
-    name: "Bà Nguyễn Thị Lan",
+// Mock data - Multiple appointments
+export const appointmentsDataMap: { [key: string]: any } = {
+  "1": {
+    id: "APT001",
+    status: "in-progress", // new, pending, confirmed, in-progress, completed, cancelled, rejected
+    date: "2025-10-25",
+    timeSlot: "08:00 - 16:00",
+    duration: "8 giờ",
+    packageType: "Gói Cao Cấp",
+    
+    // Elderly Info
+    elderly: {
+      id: "E001",
+      name: "Bà Nguyễn Thị Lan",
     age: 75,
     gender: "Nữ",
     avatar: "https://via.placeholder.com/100",
@@ -169,14 +174,327 @@ const appointmentData = {
   
   // Special Instructions
   specialInstructions: "Bà có biến chứng tiểu đường, cần chú ý chế độ ăn nhạt, ít đường. Tránh để bà ngồi một chỗ quá lâu.",
+  },
+  "2": {
+    id: "APT002",
+    status: "pending",
+    date: "2025-10-26",
+    timeSlot: "08:00 - 16:00",
+    duration: "8 giờ",
+    packageType: "Gói Tiêu Chuẩn",
+    
+    elderly: {
+      id: "E002",
+      name: "Ông Trần Văn Hùng",
+      age: 68,
+      gender: "Nam",
+      avatar: "https://via.placeholder.com/100",
+      address: "456 Lê Văn Việt, P. Tăng Nhơn Phú A, Q.9, TP.HCM",
+      phone: "0909456789",
+      
+      bloodType: "A+",
+      healthCondition: "Đau khớp, Tim mạch",
+      underlyingDiseases: ["Viêm khớp", "Tăng huyết áp nhẹ"],
+      medications: [
+        {
+          name: "Glucosamine 1500mg",
+          dosage: "1 viên",
+          frequency: "1 lần/ngày (sáng)",
+        },
+      ],
+      allergies: ["Không"],
+      specialConditions: ["Cần hỗ trợ vận động nhẹ nhàng", "Tránh vận động mạnh"],
+      
+      independenceLevel: {
+        eating: "independent",
+        bathing: "assisted",
+        mobility: "assisted",
+        toileting: "independent",
+        dressing: "assisted",
+      },
+      
+      livingEnvironment: {
+        houseType: "apartment",
+        livingWith: ["Vợ"],
+        accessibility: ["Có thang máy", "Tay vịn hành lang"],
+      },
+      
+      hobbies: ["Đọc báo", "Nghe radio"],
+      favoriteActivities: ["Đi dạo buổi sáng"],
+      foodPreferences: ["Cơm", "Thịt hầm", "Canh rau"],
+      
+      emergencyContact: {
+        name: "Trần Thị C",
+        relationship: "Vợ",
+        phone: "0912345679",
+      },
+    },
+    
+    tasks: {
+      fixed: [
+        {
+          id: "F1",
+          time: "14:00",
+          title: "Đo huyết áp",
+          description: "Đo và ghi chép chỉ số huyết áp",
+          completed: false,
+          required: true,
+        },
+        {
+          id: "F2",
+          time: "14:30",
+          title: "Hỗ trợ vận động nhẹ",
+          description: "Đi bộ trong nhà 15 phút",
+          completed: false,
+          required: true,
+        },
+        {
+          id: "F3",
+          time: "15:30",
+          title: "Uống thuốc",
+          description: "Nhắc nhở và hỗ trợ uống thuốc",
+          completed: false,
+          required: true,
+        },
+      ],
+      flexible: [
+        {
+          id: "FL1",
+          title: "Trò chuyện, đọc báo",
+          description: "Dành thời gian trò chuyện và đọc báo cùng",
+          completed: false,
+        },
+      ],
+      optional: [
+        {
+          id: "O1",
+          title: "Massage nhẹ tay chân",
+          description: "Massage nhẹ nhàng để giảm đau khớp",
+          completed: false,
+        },
+      ],
+    },
+    
+    notes: [
+      {
+        id: "N1",
+        time: "13:50",
+        author: "Caregiver",
+        content: "Đã liên hệ xác nhận, sẽ đến đúng giờ",
+        type: "info",
+      },
+    ],
+    
+    specialInstructions: "Ông có vấn đề về khớp, cần hỗ trợ nhẹ nhàng. Tránh để ông đứng hoặc ngồi quá lâu.",
+  },
+  "3": {
+    id: "APT003",
+    status: "new",
+    date: "2025-10-27",
+    timeSlot: "08:00 - 12:00",
+    duration: "4 giờ",
+    packageType: "Gói Cơ Bản",
+    
+    elderly: {
+      id: "E003",
+      name: "Bà Lê Thị Hoa",
+      age: 82,
+      gender: "Nữ",
+      avatar: "https://via.placeholder.com/100",
+      address: "789 Pasteur, P. Bến Nghé, Q.1, TP.HCM",
+      phone: "0909789123",
+      
+      bloodType: "B+",
+      healthCondition: "Suy giảm trí nhớ nhẹ",
+      underlyingDiseases: ["Suy giảm trí nhớ", "Loãng xương"],
+      medications: [
+        {
+          name: "Canxi 500mg",
+          dosage: "1 viên",
+          frequency: "1 lần/ngày (sáng)",
+        },
+      ],
+      allergies: ["Không"],
+      specialConditions: ["Cần nhắc nhở thường xuyên", "Theo dõi sát để tránh ngã"],
+      
+      independenceLevel: {
+        eating: "assisted",
+        bathing: "dependent",
+        mobility: "assisted",
+        toileting: "assisted",
+        dressing: "dependent",
+      },
+      
+      livingEnvironment: {
+        houseType: "private_house",
+        livingWith: ["Con gái"],
+        accessibility: ["Tay vịn cầu thang", "Phòng tắm có ghế"],
+      },
+      
+      hobbies: ["Nghe nhạc", "Xem ảnh gia đình"],
+      favoriteActivities: ["Ngồi trong vườn"],
+      foodPreferences: ["Cháo", "Súp", "Trái cây mềm"],
+      
+      emergencyContact: {
+        name: "Lê Thị D",
+        relationship: "Con gái",
+        phone: "0912345680",
+      },
+    },
+    
+    tasks: {
+      fixed: [
+        {
+          id: "F1",
+          time: "08:00",
+          title: "Hỗ trợ vệ sinh cá nhân",
+          description: "Giúp đỡ tắm rửa, thay quần áo",
+          completed: false,
+          required: true,
+        },
+        {
+          id: "F2",
+          time: "09:00",
+          title: "Chuẩn bị bữa sáng",
+          description: "Cháo thịt băm, dễ nuốt",
+          completed: false,
+          required: true,
+        },
+        {
+          id: "F3",
+          time: "10:00",
+          title: "Uống thuốc",
+          description: "Nhắc nhở uống canxi",
+          completed: false,
+          required: true,
+        },
+      ],
+      flexible: [
+        {
+          id: "FL1",
+          title: "Trò chuyện, xem ảnh",
+          description: "Kích thích trí nhớ qua ảnh gia đình",
+          completed: false,
+        },
+        {
+          id: "FL2",
+          title: "Dọn dẹp phòng",
+          description: "Lau dọn, sắp xếp đồ đạc",
+          completed: false,
+        },
+      ],
+      optional: [
+        {
+          id: "O1",
+          title: "Ngồi trong vườn",
+          description: "Đưa ra vườn hít thở không khí trong lành",
+          completed: false,
+        },
+      ],
+    },
+    
+    notes: [],
+    
+    specialInstructions: "Bà có suy giảm trí nhớ nhẹ, cần nhắc nhở nhẹ nhàng và kiên nhẫn. Theo dõi sát để tránh ngã.",
+  },
 };
 
 export default function AppointmentDetailScreen() {
-  const router = useRouter();
+  const navigation = useNavigation();
+  const route = useRoute();
+  const params = route.params as { appointmentId?: string; fromScreen?: string } | undefined;
+  const appointmentId = params?.appointmentId || "1";
+  const fromScreen = params?.fromScreen;
+  
+  // Get appointment data based on appointmentId
+  const appointmentData = appointmentsDataMap[appointmentId] || appointmentsDataMap["1"];
+  
   const [selectedTab, setSelectedTab] = useState<"tasks" | "notes">("tasks");
   const [tasks, setTasks] = useState(appointmentData.tasks);
-  // Có thể thay đổi status này để test các trạng thái khác: "new", "pending", "confirmed", "in-progress", "completed"
-  const [status, setStatus] = useState(appointmentData.status);
+  // Get status from global store first, fallback to appointmentData.status
+  const initialGlobalStatus = getAppointmentStatus(appointmentId);
+  const [status, setStatus] = useState(initialGlobalStatus || appointmentData.status);
+  
+  // Check if already reviewed
+  const initialHasReviewed = getAppointmentHasReviewed(appointmentId);
+  const [hasReviewed, setHasReviewed] = useState(initialHasReviewed);
+  
+  // Notes state
+  const [notes, setNotes] = useState(appointmentData.notes);
+  const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState("");
+
+  // Setup header back button based on fromScreen param
+  useEffect(() => {
+    const handleBack = () => {
+      if (fromScreen) {
+        // Navigate to specific screen based on fromScreen param
+        switch (fromScreen) {
+          case "dashboard":
+            (navigation.navigate as any)("Trang chủ");
+            break;
+          case "booking":
+            (navigation.navigate as any)("Yêu cầu dịch vụ");
+            break;
+          case "availability":
+            (navigation.navigate as any)("Quản lý lịch");
+            break;
+          default:
+            navigation.goBack();
+        }
+      } else {
+        // Fallback to goBack if no fromScreen param
+        navigation.goBack();
+      }
+    };
+
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={handleBack}
+          style={{ marginLeft: 15 }}
+        >
+          <MaterialCommunityIcons
+            name="arrow-left"
+            size={28}
+            color="#fff"
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, fromScreen]);
+
+  // Update tasks and status when appointmentId changes
+  useEffect(() => {
+    setTasks(appointmentData.tasks);
+    // Get status from global store first, fallback to appointmentData.status
+    const globalStatus = getAppointmentStatus(appointmentId);
+    setStatus(globalStatus || appointmentData.status);
+    setNotes(appointmentData.notes);
+  }, [appointmentId, appointmentData.tasks, appointmentData.status, appointmentData.notes]);
+
+  // Sync status and review status from global store when component mounts or refocuses
+  useEffect(() => {
+    const syncData = () => {
+      const globalStatus = getAppointmentStatus(appointmentId);
+      if (globalStatus) {
+        setStatus(globalStatus);
+      }
+      const globalHasReviewed = getAppointmentHasReviewed(appointmentId);
+      setHasReviewed(globalHasReviewed);
+    };
+    
+    syncData();
+    
+    // Subscribe to status changes
+    const unsubscribe = subscribeToStatusChanges(() => {
+      syncData();
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, [appointmentId]);
 
   const toggleTaskComplete = (category: "fixed" | "flexible" | "optional", taskId: string) => {
     setTasks((prev) => ({
@@ -232,32 +550,153 @@ export default function AppointmentDetailScreen() {
   // Xử lý các action buttons
   const handleAccept = () => {
     alert("Đã chấp nhận lịch hẹn");
-    setStatus("pending");
+    const newStatus = "pending";
+    setStatus(newStatus);
+    updateAppointmentStatus(appointmentId, newStatus);
   };
 
   const handleReject = () => {
     alert("Đã từ chối lịch hẹn");
-    setStatus("rejected");
+    const newStatus = "rejected";
+    setStatus(newStatus);
+    updateAppointmentStatus(appointmentId, newStatus);
+  };
+
+  // Check if there's a conflict with other in-progress appointments
+  const checkStartConflict = (targetAppointmentId: string) => {
+    const targetAppointment = appointmentsDataMap[targetAppointmentId];
+    if (!targetAppointment) return null;
+
+    const targetContact = targetAppointment.elderly?.emergencyContact;
+    const targetAddress = targetAppointment.elderly?.address;
+
+    // Check all appointments (except current one) that are in-progress
+    for (const [id, appointment] of Object.entries(appointmentsDataMap)) {
+      if (id === targetAppointmentId) continue;
+
+      const globalStatus = getAppointmentStatus(id);
+      const currentStatus = globalStatus || appointment.status;
+
+      // If another appointment is in-progress
+      if (currentStatus === "in-progress") {
+        const otherContact = appointment.elderly?.emergencyContact;
+        const otherAddress = appointment.elderly?.address;
+
+        // Check if same contact (prefer phone number, fallback to name)
+        const sameContact = targetContact?.phone && otherContact?.phone
+          ? targetContact.phone === otherContact.phone
+          : targetContact?.name === otherContact?.name;
+        
+        // Normalize addresses for comparison (remove extra spaces, case insensitive)
+        const normalizeAddress = (addr: string) => addr?.trim().toLowerCase() || "";
+        const sameAddress = normalizeAddress(targetAddress) === normalizeAddress(otherAddress);
+
+        // Only allow if same contact AND same address
+        if (!(sameContact && sameAddress)) {
+          return {
+            conflictingAppointmentId: id,
+            conflictingElderlyName: appointment.elderly?.name || "Không xác định",
+            conflictingAddress: otherAddress || "Không xác định",
+          };
+        }
+      }
+    }
+
+    return null; // No conflict
   };
 
   const handleStart = () => {
-    alert("Bắt đầu thực hiện công việc");
-    setStatus("in-progress");
+    // Validate: Check if there's another in-progress appointment
+    const conflict = checkStartConflict(appointmentId);
+    
+    if (conflict) {
+      Alert.alert(
+        "Không thể bắt đầu lịch hẹn",
+        `Bạn đang thực hiện lịch hẹn với ${conflict.conflictingElderlyName} tại ${conflict.conflictingAddress}.\n\nBạn chỉ có thể bắt đầu lịch hẹn mới khi:\n• Cùng người đặt (liên hệ khẩn cấp)\n• Cùng địa chỉ\n\nVui lòng hoàn thành lịch hẹn hiện tại trước.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    Alert.alert("Bắt đầu công việc", "Xác nhận bắt đầu thực hiện công việc?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Bắt đầu",
+        onPress: () => {
+          const newStatus = "in-progress";
+          setStatus(newStatus);
+          updateAppointmentStatus(appointmentId, newStatus);
+          alert("Đã bắt đầu thực hiện công việc");
+        },
+      },
+    ]);
   };
 
   const handleCancel = () => {
     alert("Đã hủy lịch hẹn");
-    setStatus("cancelled");
+    const newStatus = "cancelled";
+    setStatus(newStatus);
+    updateAppointmentStatus(appointmentId, newStatus);
   };
 
   const handleComplete = () => {
-    alert("Đã hoàn thành ca làm việc");
-    setStatus("completed");
+    // Validate: Kiểm tra tất cả task cố định (fixed) đã hoàn thành chưa
+    const incompleteFixedTasks = tasks.fixed.filter(task => !task.completed);
+    
+    // Validate: Kiểm tra tất cả task linh hoạt (flexible) đã hoàn thành chưa
+    const incompleteFlexibleTasks = tasks.flexible.filter(task => !task.completed);
+    
+    if (incompleteFixedTasks.length > 0 || incompleteFlexibleTasks.length > 0) {
+      const missingTasks = [];
+      if (incompleteFixedTasks.length > 0) {
+        missingTasks.push("Nhiệm vụ cố định:");
+        incompleteFixedTasks.forEach(t => missingTasks.push(`• ${t.title}`));
+      }
+      if (incompleteFlexibleTasks.length > 0) {
+        missingTasks.push("Nhiệm vụ linh hoạt:");
+        incompleteFlexibleTasks.forEach(t => missingTasks.push(`• ${t.title}`));
+      }
+      
+      Alert.alert(
+        "Chưa hoàn thành nhiệm vụ",
+        `Vui lòng hoàn thành tất cả nhiệm vụ cố định và linh hoạt trước khi kết thúc ca!\n\nCòn thiếu:\n${missingTasks.join("\n")}`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
+    // Confirm trước khi hoàn thành
+    Alert.alert(
+      "Xác nhận hoàn thành",
+      "Bạn có chắc chắn muốn hoàn thành ca làm việc này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        { 
+          text: "Hoàn thành", 
+          onPress: () => {
+            const newStatus = "completed";
+            setStatus(newStatus);
+            updateAppointmentStatus(appointmentId, newStatus);
+            Alert.alert("Thành công", "Đã hoàn thành ca làm việc");
+          }
+        }
+      ]
+    );
   };
 
   const handleReview = () => {
-    alert("Chuyển đến trang đánh giá");
-    // router.push("/caregiver/review");
+    if (hasReviewed) {
+      // Đã đánh giá rồi - Xem đánh giá
+      alert("Xem đánh giá đã gửi");
+      // router.push("/caregiver/review/view");
+    } else {
+      // Chưa đánh giá - Đánh giá mới
+      alert("Chuyển đến trang đánh giá");
+      // Sau khi đánh giá xong, mark as reviewed
+      markAppointmentAsReviewed(appointmentId);
+      setHasReviewed(true);
+      // router.push("/caregiver/review");
+    }
   };
 
   const handleComplaint = () => {
@@ -270,11 +709,62 @@ export default function AppointmentDetailScreen() {
     // router.push("/caregiver/chat");
   };
 
+  // Note handlers
+  const canAddNote = status === "in-progress" || status === "confirmed";
+
+  const handleOpenNoteModal = () => {
+    if (!canAddNote) {
+      alert("Chỉ có thể thêm ghi chú khi đang thực hiện công việc");
+      return;
+    }
+    setIsNoteModalVisible(true);
+  };
+
+  const handleCloseNoteModal = () => {
+    setIsNoteModalVisible(false);
+    setNewNoteContent("");
+  };
+
+  const handleSaveNote = () => {
+    if (newNoteContent.trim() === "") {
+      alert("Vui lòng nhập nội dung ghi chú");
+      return;
+    }
+
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    
+    const newNote = {
+      id: `N${notes.length + 1}`,
+      time: timeStr,
+      author: "Caregiver",
+      content: newNoteContent.trim(),
+      type: "info",
+    };
+
+    setNotes([newNote, ...notes]);
+    handleCloseNoteModal();
+    alert("Đã thêm ghi chú mới");
+  };
+
+  // Check if can cancel booking (more than 3 days before appointment)
+  const canCancelBooking = () => {
+    const appointmentDate = new Date(appointmentData.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    appointmentDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = appointmentDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 3;
+  };
+
   // Render bottom action buttons dựa trên trạng thái
   const renderBottomActions = () => {
     switch (status) {
       case "new":
-        // Yêu cầu mới: Chấp nhận / Từ chối
+        // Yêu cầu mới: Từ chối / Chấp nhận
         return (
           <View style={styles.bottomActions}>
             <TouchableOpacity 
@@ -295,7 +785,8 @@ export default function AppointmentDetailScreen() {
         );
       
       case "pending":
-        // Chờ thực hiện: Nhắn tin / Hủy / Bắt đầu
+        // Chờ thực hiện: Nhắn tin / (Hủy nếu còn >= 3 ngày) / Bắt đầu
+        const showCancelButton = canCancelBooking();
         return (
           <View style={styles.bottomActions}>
             <TouchableOpacity 
@@ -305,13 +796,15 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="chatbubble-outline" size={20} color="#10B981" />
               <Text style={styles.actionButtonSecondaryText}>Nhắn tin</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.actionButtonWarning}
-              onPress={handleCancel}
-            >
-              <Ionicons name="close-circle-outline" size={20} color="#fff" />
-              <Text style={styles.actionButtonWarningText}>Hủy</Text>
-            </TouchableOpacity>
+            {showCancelButton && (
+              <TouchableOpacity 
+                style={styles.actionButtonWarning}
+                onPress={handleCancel}
+              >
+                <Ionicons name="close-circle-outline" size={20} color="#fff" />
+                <Text style={styles.actionButtonWarningText}>Hủy</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity 
               style={styles.actionButtonPrimary}
               onPress={handleStart}
@@ -324,7 +817,7 @@ export default function AppointmentDetailScreen() {
       
       case "confirmed":
       case "in-progress":
-        // Đang thực hiện: Nhắn tin / Hoàn thành
+        // Đang thực hiện: Nhắn tin / Hoàn thành ca
         return (
           <View style={styles.bottomActions}>
             <TouchableOpacity 
@@ -345,7 +838,7 @@ export default function AppointmentDetailScreen() {
         );
       
       case "completed":
-        // Đã hoàn thành: Khiếu nại / Đánh giá
+        // Đã hoàn thành: Khiếu nại / Đánh giá hoặc Xem đánh giá
         return (
           <View style={styles.bottomActions}>
             <TouchableOpacity 
@@ -359,8 +852,10 @@ export default function AppointmentDetailScreen() {
               style={styles.actionButtonPrimary}
               onPress={handleReview}
             >
-              <Ionicons name="star" size={20} color="#fff" />
-              <Text style={styles.actionButtonPrimaryText}>Đánh giá</Text>
+              <Ionicons name={hasReviewed ? "eye-outline" : "star"} size={20} color="#fff" />
+              <Text style={styles.actionButtonPrimaryText}>
+                {hasReviewed ? "Xem đánh giá" : "Đánh giá"}
+              </Text>
             </TouchableOpacity>
           </View>
         );
@@ -397,50 +892,59 @@ export default function AppointmentDetailScreen() {
     task: any,
     category: "fixed" | "flexible" | "optional",
     showTime: boolean = false
-  ) => (
-    <TouchableOpacity
-      key={task.id}
-      style={styles.taskCard}
-      onPress={() => toggleTaskComplete(category, task.id)}
-    >
-      <View style={styles.taskHeader}>
-        <View style={styles.taskLeft}>
-          <View
-            style={[
-              styles.checkbox,
-              task.completed && styles.checkboxCompleted,
-            ]}
-          >
-            {task.completed && (
-              <Ionicons name="checkmark" size={16} color="#fff" />
-            )}
-          </View>
-          <View style={styles.taskInfo}>
-            {showTime && (
-              <View style={styles.taskTimeContainer}>
-                <Ionicons name="time-outline" size={14} color="#10B981" />
-                <Text style={styles.taskTime}>{task.time}</Text>
-                {task.required && (
-                  <View style={styles.requiredBadge}>
-                    <Text style={styles.requiredText}>Bắt buộc</Text>
-                  </View>
-                )}
-              </View>
-            )}
-            <Text
+  ) => {
+    // Chỉ cho phép tick task khi đang thực hiện
+    const canEditTask = status === "in-progress" || status === "confirmed";
+    
+    return (
+      <TouchableOpacity
+        key={task.id}
+        style={[styles.taskCard, !canEditTask && styles.taskCardDisabled]}
+        onPress={() => canEditTask && toggleTaskComplete(category, task.id)}
+        disabled={!canEditTask}
+        activeOpacity={canEditTask ? 0.7 : 1}
+      >
+        <View style={styles.taskHeader}>
+          <View style={styles.taskLeft}>
+            <View
               style={[
-                styles.taskTitle,
-                task.completed && styles.taskTitleCompleted,
+                styles.checkbox,
+                task.completed && styles.checkboxCompleted,
+                !canEditTask && styles.checkboxDisabled,
               ]}
             >
-              {task.title}
-            </Text>
-            <Text style={styles.taskDescription}>{task.description}</Text>
+              {task.completed && (
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              )}
+            </View>
+            <View style={styles.taskInfo}>
+              {showTime && (
+                <View style={styles.taskTimeContainer}>
+                  <Ionicons name="time-outline" size={14} color={canEditTask ? "#10B981" : "#9CA3AF"} />
+                  <Text style={[styles.taskTime, !canEditTask && styles.textDisabled]}>{task.time}</Text>
+                  {task.required && (
+                    <View style={styles.requiredBadge}>
+                      <Text style={styles.requiredText}>Bắt buộc</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+              <Text
+                style={[
+                  styles.taskTitle,
+                  task.completed && styles.taskTitleCompleted,
+                  !canEditTask && styles.textDisabled,
+                ]}
+              >
+                {task.title}
+              </Text>
+              <Text style={[styles.taskDescription, !canEditTask && styles.textDisabled]}>{task.description}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -450,11 +954,11 @@ export default function AppointmentDetailScreen() {
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: getStatusColor(appointmentData.status) },
+              { backgroundColor: getStatusColor(status) },
             ]}
           >
             <Text style={styles.statusText}>
-              {getStatusText(appointmentData.status)}
+              {getStatusText(status)}
             </Text>
           </View>
           <Text style={styles.appointmentId}>#{appointmentData.id}</Text>
@@ -793,12 +1297,25 @@ export default function AppointmentDetailScreen() {
         {/* Notes Tab */}
         {selectedTab === "notes" && (
           <View style={styles.section}>
-            <TouchableOpacity style={styles.addNoteButton}>
-              <Ionicons name="add-circle" size={20} color="#10B981" />
-              <Text style={styles.addNoteText}>Thêm ghi chú mới</Text>
+            <TouchableOpacity 
+              style={[
+                styles.addNoteButton,
+                !canAddNote && styles.addNoteButtonDisabled
+              ]}
+              onPress={handleOpenNoteModal}
+              disabled={!canAddNote}
+              activeOpacity={canAddNote ? 0.7 : 1}
+            >
+              <Ionicons name="add-circle" size={20} color={canAddNote ? "#10B981" : "#9CA3AF"} />
+              <Text style={[
+                styles.addNoteText,
+                !canAddNote && styles.addNoteTextDisabled
+              ]}>
+                {canAddNote ? "Thêm ghi chú mới" : "Chỉ có thể thêm ghi chú khi đang thực hiện"}
+              </Text>
             </TouchableOpacity>
 
-            {appointmentData.notes.map((note) => (
+            {notes.map((note) => (
               <View key={note.id} style={styles.noteCard}>
                 <View style={styles.noteHeader}>
                   <View style={styles.noteAuthor}>
@@ -817,7 +1334,7 @@ export default function AppointmentDetailScreen() {
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 180 }} />
 
     </ScrollView>
 
@@ -825,7 +1342,56 @@ export default function AppointmentDetailScreen() {
     {renderBottomActions()}
 
     {/* Bottom Navigation - No active tab for detail page */}
-  <CaregiverBottomNav activeTab="jobs" />
+    <CaregiverBottomNav activeTab="jobs" />
+
+    {/* Add Note Modal */}
+    <Modal
+      visible={isNoteModalVisible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleCloseNoteModal}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Thêm ghi chú mới</Text>
+            <TouchableOpacity onPress={handleCloseNoteModal}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalBody}>
+            <Text style={styles.modalLabel}>Nội dung ghi chú</Text>
+            <TextInput
+              style={styles.modalTextInput}
+              placeholder="Nhập nội dung ghi chú..."
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={6}
+              textAlignVertical="top"
+              value={newNoteContent}
+              onChangeText={setNewNoteContent}
+              autoFocus
+            />
+          </View>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={styles.modalButtonCancel}
+              onPress={handleCloseNoteModal}
+            >
+              <Text style={styles.modalButtonCancelText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalButtonSave}
+              onPress={handleSaveNote}
+            >
+              <Text style={styles.modalButtonSaveText}>Lưu ghi chú</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   </View>
 );
 }
@@ -1041,6 +1607,10 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
+  taskCardDisabled: {
+    opacity: 0.6,
+    backgroundColor: "#F9FAFB",
+  },
   taskHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1062,6 +1632,10 @@ const styles = StyleSheet.create({
   checkboxCompleted: {
     backgroundColor: "#10B981",
     borderColor: "#10B981",
+  },
+  checkboxDisabled: {
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F3F4F6",
   },
   taskInfo: {
     flex: 1,
@@ -1104,6 +1678,9 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     lineHeight: 18,
   },
+  textDisabled: {
+    color: "#9CA3AF",
+  },
   addNoteButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1116,11 +1693,19 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     marginBottom: 12,
   },
+  addNoteButtonDisabled: {
+    backgroundColor: "#F9FAFB",
+    borderColor: "#D1D5DB",
+    opacity: 0.7,
+  },
   addNoteText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#10B981",
     marginLeft: 6,
+  },
+  addNoteTextDisabled: {
+    color: "#9CA3AF",
   },
   noteCard: {
     backgroundColor: "#fff",
@@ -1434,5 +2019,87 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#065F46",
     fontWeight: "500",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    width: "90%",
+    maxWidth: 500,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  modalTextInput: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: "#1F2937",
+    minHeight: 120,
+    maxHeight: 200,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 12,
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  modalButtonCancel: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    backgroundColor: "#fff",
+  },
+  modalButtonCancelText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  modalButtonSave: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#10B981",
+  },
+  modalButtonSaveText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
   },
 });
