@@ -1,4 +1,5 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import {
   Dimensions,
@@ -48,6 +49,8 @@ const caregiverStats = {
 };
 
 export default function CaregiverDashboardScreen() {
+  const navigation = useNavigation<any>();
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -106,7 +109,10 @@ export default function CaregiverDashboardScreen() {
         </View>
 
         {/* New Requests Alert */}
-        <TouchableOpacity style={styles.alertCard}>
+        <TouchableOpacity 
+          style={styles.alertCard}
+          onPress={() => navigation.navigate("Yêu cầu dịch vụ", { initialTab: "Mới" })}
+        >
         <View style={styles.alertIconContainer}>
           <Text style={styles.alertIcon}>🔔</Text>
         </View>
@@ -121,13 +127,15 @@ export default function CaregiverDashboardScreen() {
       <View style={styles.scheduleCard}>
         <View style={styles.scheduleHeader}>
           <Text style={styles.scheduleTitle}>Lịch hôm nay</Text>
-          <TouchableOpacity>
-            <Text style={styles.scheduleLink}>Xem tất cả ›</Text>
-          </TouchableOpacity>
         </View>
 
         {todayAppointments.map((appointment) => (
-          <View key={appointment.id} style={styles.appointmentCard}>
+          <TouchableOpacity 
+            key={appointment.id} 
+            style={styles.appointmentCard}
+            onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id })}
+            activeOpacity={0.7}
+          >
             <View style={styles.appointmentHeader}>
               <View style={styles.appointmentInfo}>
                 <View style={styles.avatarCircle}>
@@ -165,15 +173,24 @@ export default function CaregiverDashboardScreen() {
               </View>
 
               <View style={styles.appointmentActions}>
-                <TouchableOpacity style={styles.detailButton}>
+                <TouchableOpacity 
+                  style={styles.detailButton}
+                  onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id })}
+                >
                   <Text style={styles.detailButtonText}>Xem chi tiết</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.contactButton}>
+                <TouchableOpacity 
+                  style={styles.contactButton}
+                  onPress={() => navigation.navigate("Tin nhắn", { 
+                    clientName: appointment.client,
+                    clientAvatar: appointment.avatar 
+                  })}
+                >
                   <Text style={styles.contactButtonText}>Liên hệ</Text>
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
       </ScrollView>

@@ -14,7 +14,10 @@ import ChatScreen from "@/app/caregiver/chat";
 import ChatListScreen from "@/app/caregiver/chat-list";
 import ComplaintScreen from "@/app/caregiver/complaint";
 import ExpertProfileScreen from "@/app/caregiver/expert-profile";
+import IncomingCallScreen from "@/app/caregiver/incoming-call";
+import PaymentScreen from "@/app/caregiver/payment";
 import PersonalScreen from "@/app/caregiver/personal";
+import SettingsScreen from "@/app/caregiver/settings";
 import TrainingCourseDetail from "@/app/caregiver/training-course-detail";
 import TrainingCoursesMobile from "@/app/caregiver/training-courses";
 import VideoCallScreen from "@/app/caregiver/video-call";
@@ -54,7 +57,7 @@ const features = [
   },
   {
     id: "training",
-    title: "Đào tạo liên tục",
+    title: "Đào tạo",
     icon: "school",
     component: TrainingCoursesMobile,
   },
@@ -131,8 +134,8 @@ export default function CaregiverSidebar() {
           })}
         />
 
-        {/* Các features còn lại (trừ Danh sách tin nhắn, Hồ sơ của bạn và Chứng chỉ và kỹ năng) */}
-        {features.slice(1).filter(item => item.id !== "chatlist" && item.id !== "profile" && item.id !== "certificates").map((item) => (
+        {/* Các features còn lại (trừ Danh sách tin nhắn, Hồ sơ của bạn, Chứng chỉ và kỹ năng, và Đào tạo) */}
+        {features.slice(1).filter(item => item.id !== "chatlist" && item.id !== "profile" && item.id !== "certificates" && item.id !== "training").map((item) => (
           <Drawer.Screen
             key={item.id}
             name={item.title}
@@ -175,6 +178,33 @@ export default function CaregiverSidebar() {
             })}
           />
         ))}
+        
+        {/* Đào tạo với back button */}
+        <Drawer.Screen
+          name="Đào tạo"
+          component={TrainingCoursesMobile}
+          options={({ navigation }) => ({
+            drawerIcon: ({ color, size }) => (
+              <MaterialCommunityIcons
+                name="school"
+                color={color}
+                size={size}
+              />
+            ),
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Cá nhân")}
+                style={{ marginLeft: 15 }}
+              >
+                <MaterialCommunityIcons
+                  name="arrow-left"
+                  size={28}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            ),
+          })}
+        />
         
         {/* Chứng chỉ và kỹ năng với back button */}
         <Drawer.Screen
@@ -306,12 +336,61 @@ export default function CaregiverSidebar() {
         <Drawer.Screen
           name="Appointment Detail"
           component={AppointmentDetailScreen}
-          options={{
+          options={({ navigation }) => ({
             drawerItemStyle: { height: 0 },
-            headerShown: false,
-          }}
+            headerShown: true,
+            title: "Chi tiết lịch hẹn",
+            headerStyle: {
+              backgroundColor: "#26C6DA",
+            },
+            headerTintcolor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={{ marginLeft: 15 }}
+              >
+                <MaterialCommunityIcons
+                  name="arrow-left"
+                  size={28}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            ),
+          })}
         />
         
+        {/* Settings - hidden from drawer */}
+        <Drawer.Screen
+          name="Cài đặt"
+          component={SettingsScreen}
+          options={({ navigation }) => ({
+            drawerItemStyle: { height: 0 },
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: "#26C6DA",
+            },
+            headerTintcolor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={{ marginLeft: 15 }}
+              >
+                <MaterialCommunityIcons
+                  name="arrow-left"
+                  size={28}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            ),
+          })}
+        />
+
         {/* Complaint - hidden from drawer */}
         <Drawer.Screen
           name="Complaint"
@@ -325,9 +404,50 @@ export default function CaregiverSidebar() {
         <Drawer.Screen
           name="Chi tiết khóa học"
           component={TrainingCourseDetail}
-          options={{
+          options={({ navigation }) => ({
             drawerItemStyle: { height: 0 },
-          }}
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Đào tạo")}
+                style={{ marginLeft: 15 }}
+              >
+                <MaterialCommunityIcons
+                  name="arrow-left"
+                  size={28}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            ),
+          })}
+        />
+
+        {/* Rút tiền - hidden from drawer */}
+        <Drawer.Screen
+          name="Rút tiền"
+          component={CaregiverWithdrawScreen}
+          options={({ navigation }) => ({
+            drawerItemStyle: { height: 0 },
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: "#26C6DA",
+            },
+            headerTintcolor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={{ marginLeft: 15 }}
+              >
+                <MaterialCommunityIcons
+                  name="arrow-left"
+                  size={28}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            ),
+          })}
         />
 
         {/* Logout riêng */}
@@ -341,6 +461,16 @@ export default function CaregiverSidebar() {
             drawerIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="logout" color={color} size={size} />
             ),
+          }}
+        />
+
+        {/* Incoming Call Screen - Hidden from drawer */}
+        <Drawer.Screen
+          name="Incoming Call"
+          component={IncomingCallScreen}
+          options={{
+            drawerItemStyle: { display: "none" },
+            headerShown: false,
           }}
         />
       </Drawer.Navigator>

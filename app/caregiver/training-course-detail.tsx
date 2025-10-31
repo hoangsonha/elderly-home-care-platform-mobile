@@ -1,4 +1,4 @@
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useRoute } from "@react-navigation/native";
 import React from "react";
 import {
   ScrollView,
@@ -11,7 +11,6 @@ import Icon from "react-native-vector-icons/Feather";
 
 export default function TrainingCourseDetail() {
   const route = useRoute();
-  const navigation = useNavigation();
   const { id } = route.params as { id: string };
 
   // Giả lập data (bạn có thể fetch API sau này)
@@ -48,9 +47,6 @@ export default function TrainingCourseDetail() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Tiêu đề */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Quay lại danh sách</Text>
-        </TouchableOpacity>
         <Text style={styles.title}>{course.title}</Text>
         <View style={styles.metaRow}>
           <Text style={styles.metaText}>⏱ {course.duration}</Text>
@@ -124,7 +120,6 @@ export default function TrainingCourseDetail() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 16 },
-  backText: { color: "#1F6FEB", marginBottom: 10 },
   header: { marginTop: 12, marginBottom: 20 },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
   metaRow: { flexDirection: "row", gap: 12, marginBottom: 8 },

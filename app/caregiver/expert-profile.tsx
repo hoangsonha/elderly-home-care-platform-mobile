@@ -1,40 +1,43 @@
 // ExpertProfileScreen.js
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const GENDER_OPTIONS = ["Nam", "Nữ", "Khác"];
+const GENDER_OPTIONS = ["Nam", "Nữ"];
 const EDUCATION_OPTIONS = [
-  "Không",
-  "Cơ bản",
-  "Trung cấp",
+  "Trung học cơ sở",
+  "Trung học phổ thông",
   "Cao đẳng",
   "Đại học",
   "Sau đại học",
 ];
 
 export default function ExpertProfileScreen() {
+  const navigation = useNavigation<any>();
+  
   // avatar & cccd images
   const [avatarUri, setAvatarUri] = useState(null);
-  const [cccdFrontUri, setCccdFrontUri] = useState(null);
-  const [cccdBackUri, setCccdBackUri] = useState(null);
+  const [cccdFrontUri, setCccdFrontUri] = useState("https://via.placeholder.com/300x200?text=CCCD+Front"); // Mock data - will be replaced by API
+  const [cccdBackUri, setCccdBackUri] = useState("https://via.placeholder.com/300x200?text=CCCD+Back"); // Mock data - will be replaced by API
 
-  // basic info
-  const [fullName, setFullName] = useState("Lê Văn C");
+  // basic info (non-editable)
+  const [fullName] = useState("Lê Văn C"); // Not editable
   const [email, setEmail] = useState("caregiver2@gmail.com");
 
   // personal & contact
@@ -42,9 +45,9 @@ export default function ExpertProfileScreen() {
   const [gender, setGender] = useState("");
   const [showGenderModal, setShowGenderModal] = useState(false);
 
-  const [idNumber, setIdNumber] = useState("");
+  const [idNumber] = useState("079203012345"); // Not editable - mock data
   const [phone, setPhone] = useState("");
-  const [permanentAddress, setPermanentAddress] = useState("");
+  const [permanentAddress] = useState("123 Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM"); // Not editable - mock data
   const [temporaryAddress, setTemporaryAddress] = useState("");
 
   // career
@@ -52,9 +55,8 @@ export default function ExpertProfileScreen() {
   const [workPlace, setWorkPlace] = useState("");
   const [education, setEducation] = useState("");
   const [showEducationModal, setShowEducationModal] = useState(false);
-  const [skills, setSkills] = useState("");
-  const [desiredSalary, setDesiredSalary] = useState("");
-  const [certificates, setCertificates] = useState("");
+  const [universityDegreeUri, setUniversityDegreeUri] = useState("https://via.placeholder.com/400x300?text=University+Degree"); // Mock data for university degree
+  const [selfIntroduction, setSelfIntroduction] = useState("");
 
   // request permission for image picker
   useEffect(() => {
@@ -111,23 +113,22 @@ export default function ExpertProfileScreen() {
   const onSave = () => {
     // TODO: call API to save profile
     const payload = {
-      fullName,
+      fullName, // Read-only
       email,
       dob,
       gender,
-      idNumber,
+      idNumber, // Read-only
       phone,
-      permanentAddress,
+      permanentAddress, // Read-only
       temporaryAddress,
       yearsExp,
       workPlace,
       education,
-      skills,
-      desiredSalary,
-      certificates,
+      selfIntroduction,
       avatarUri,
-      cccdFrontUri,
-      cccdBackUri,
+      cccdFrontUri, // Read-only
+      cccdBackUri, // Read-only
+      universityDegreeUri: education === "Đại học" || education === "Sau đại học" ? universityDegreeUri : null,
     };
     console.log("Save payload:", payload);
     Alert.alert("Lưu hồ sơ", "Thông tin đã được lưu (demo).");
@@ -157,7 +158,7 @@ export default function ExpertProfileScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* Avatar section */}
         <View style={styles.sectionCard}>
@@ -203,9 +204,9 @@ export default function ExpertProfileScreen() {
               <Text style={styles.label}>Họ tên</Text>
               <TextInput
                 value={fullName}
-                onChangeText={setFullName}
                 placeholder="Họ tên"
-                style={styles.input}
+                style={[styles.input, styles.disabledInput]}
+                editable={false}
               />
             </View>
             <View style={{ flex: 1, marginLeft: 8 }}>
@@ -241,7 +242,7 @@ export default function ExpertProfileScreen() {
             <View style={{ flex: 1, marginLeft: 8 }}>
               <Text style={styles.label}>Giới tính</Text>
               <TouchableOpacity
-                style={styles.input}
+                style={[styles.input, { justifyContent: "center" }]}
                 onPress={() => setShowGenderModal(true)}
               >
                 <Text style={{ color: gender ? "#000" : "#9CA3AF" }}>
@@ -256,9 +257,9 @@ export default function ExpertProfileScreen() {
               <Text style={styles.label}>Số CMND/CCCD</Text>
               <TextInput
                 value={idNumber}
-                onChangeText={setIdNumber}
                 placeholder="Số CMND/CCCD"
-                style={styles.input}
+                style={[styles.input, styles.disabledInput]}
+                editable={false}
               />
             </View>
 
@@ -279,10 +280,10 @@ export default function ExpertProfileScreen() {
           </Text>
           <TextInput
             value={permanentAddress}
-            onChangeText={setPermanentAddress}
             placeholder="Địa chỉ thường trú"
-            style={[styles.input, { height: 80 }]}
+            style={[styles.input, { height: 80 }, styles.disabledInput]}
             multiline
+            editable={false}
           />
 
           <Text style={[styles.label, { marginTop: 8 }]}>Địa chỉ tạm trú</Text>
@@ -303,10 +304,7 @@ export default function ExpertProfileScreen() {
           >
             <View style={styles.cccdBlock}>
               <Text style={styles.smallLabel}>Ảnh CCCD mặt trước</Text>
-              <TouchableOpacity
-                style={styles.cccdPicker}
-                onPress={() => pickImage(setCccdFrontUri)}
-              >
+              <View style={styles.cccdPicker}>
                 {cccdFrontUri ? (
                   <Image
                     source={{ uri: cccdFrontUri }}
@@ -317,29 +315,12 @@ export default function ExpertProfileScreen() {
                     Chưa có ảnh CCCD mặt trước
                   </Text>
                 )}
-              </TouchableOpacity>
-              <View style={styles.cccdActions}>
-                <TouchableOpacity
-                  style={styles.ghostBtnSmall}
-                  onPress={() => pickImage(setCccdFrontUri)}
-                >
-                  <Text style={styles.ghostBtnTextSmall}>Chọn file</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.ghostBtnSmall}
-                  onPress={() => takePhoto(setCccdFrontUri)}
-                >
-                  <Text style={styles.ghostBtnTextSmall}>Chụp</Text>
-                </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.cccdBlock}>
               <Text style={styles.smallLabel}>Ảnh CCCD mặt sau</Text>
-              <TouchableOpacity
-                style={styles.cccdPicker}
-                onPress={() => pickImage(setCccdBackUri)}
-              >
+              <View style={styles.cccdPicker}>
                 {cccdBackUri ? (
                   <Image
                     source={{ uri: cccdBackUri }}
@@ -350,28 +331,9 @@ export default function ExpertProfileScreen() {
                     Chưa có ảnh CCCD mặt sau
                   </Text>
                 )}
-              </TouchableOpacity>
-              <View style={styles.cccdActions}>
-                <TouchableOpacity
-                  style={styles.ghostBtnSmall}
-                  onPress={() => pickImage(setCccdBackUri)}
-                >
-                  <Text style={styles.ghostBtnTextSmall}>Chọn file</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.ghostBtnSmall}
-                  onPress={() => takePhoto(setCccdBackUri)}
-                >
-                  <Text style={styles.ghostBtnTextSmall}>Chụp</Text>
-                </TouchableOpacity>
               </View>
             </View>
           </View>
-
-          <Text style={styles.noteBox}>
-            Lưu ý: Ảnh CCCD không thể thay đổi sau khi đăng ký. Nếu cần cập
-            nhật, vui lòng liên hệ quản trị viên.
-          </Text>
         </View>
 
         {/* 3. Career info */}
@@ -405,7 +367,7 @@ export default function ExpertProfileScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Học vấn</Text>
               <TouchableOpacity
-                style={styles.input}
+                style={[styles.input, { justifyContent: "center" }]}
                 onPress={() => setShowEducationModal(true)}
               >
                 <Text style={{ color: education ? "#000" : "#9CA3AF" }}>
@@ -416,51 +378,67 @@ export default function ExpertProfileScreen() {
             <View style={{ width: 12 }} />
           </View>
 
+          {/* University Degree Image - only for Đại học and Sau đại học */}
+          {(education === "Đại học" || education === "Sau đại học") && (
+            <>
+              <Text style={[styles.label, { marginTop: 8 }]}>
+                Bằng đại học
+              </Text>
+              <View style={styles.degreeImageContainer}>
+                {universityDegreeUri ? (
+                  <Image
+                    source={{ uri: universityDegreeUri }}
+                    style={styles.degreeImage}
+                  />
+                ) : (
+                  <Text style={styles.cccdPlaceholder}>
+                    Chưa có ảnh bằng đại học
+                  </Text>
+                )}
+              </View>
+            </>
+          )}
+
           <Text style={[styles.label, { marginTop: 8 }]}>
-            Kỹ năng chuyên môn
+            Chứng chỉ và kỹ năng
+          </Text>
+          <TouchableOpacity
+            style={styles.linkCard}
+            onPress={() => navigation.navigate("Chứng chỉ và kỹ năng")}
+          >
+            <View style={styles.linkCardContent}>
+              <MaterialCommunityIcons name="certificate" size={20} color="#2563EB" />
+              <Text style={styles.linkCardText}>
+                Quản lý chứng chỉ và kỹ năng
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <Text style={[styles.label, { marginTop: 12 }]}>
+            Giới thiệu bản thân
           </Text>
           <TextInput
-            value={skills}
-            onChangeText={setSkills}
-            placeholder="Mô tả kỹ năng chuyên môn"
-            style={[styles.input, { height: 80 }]}
+            value={selfIntroduction}
+            onChangeText={setSelfIntroduction}
+            placeholder="Viết một đoạn ngắn giới thiệu về bản thân, kinh nghiệm và điểm mạnh của bạn..."
+            style={[styles.input, { height: 100, textAlignVertical: "top", paddingTop: 10 }]}
             multiline
+            numberOfLines={4}
           />
-
-          <View style={styles.row}>
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={styles.label}>Bằng cấp / chứng chỉ liên quan</Text>
-              <TextInput
-                value={certificates}
-                onChangeText={setCertificates}
-                placeholder="Liệt kê bằng cấp"
-                style={styles.input}
-              />
-            </View>
-          </View>
         </View>
 
         {/* Actions */}
         <View
           style={{
-            paddingHorizontal: 8,
-            marginTop: 8,
-            marginBottom: 32,
-            flexDirection: "row",
-            justifyContent: "flex-end",
+            paddingHorizontal: 16,
+            marginTop: 16,
+            marginBottom: 20,
+            alignItems: "flex-end",
           }}
         >
           <TouchableOpacity
-            style={[
-              styles.btn,
-              { backgroundColor: "#E5E7EB", marginRight: 10 },
-            ]}
-            onPress={() => Alert.alert("Huỷ", "Đã huỷ (demo).")}
-          >
-            <Text style={{ color: "#374151" }}>Huỷ</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: "#10B981" }]}
+            style={[styles.btn, { backgroundColor: "#10B981", paddingHorizontal: 32 }]}
             onPress={onSave}
           >
             <Text style={{ color: "#fff", fontWeight: "700" }}>Lưu</Text>
@@ -581,6 +559,52 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     height: 44,
+  },
+  disabledInput: {
+    backgroundColor: "#F9FAFB",
+    color: "#9CA3AF",
+  },
+  disabledNote: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontWeight: "400",
+  },
+  linkCard: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  linkCardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  linkCardText: {
+    color: "#2563EB",
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1,
+  },
+  degreeImageContainer: {
+    height: 200,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E6EEF8",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FCFCFD",
+    overflow: "hidden",
+  },
+  degreeImage: {
+    width: "100%",
+    height: 200,
+    resizeMode: "contain",
   },
 
   cccdBlock: { width: "48%" },

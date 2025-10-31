@@ -1,20 +1,20 @@
+import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // Mock data
 const appointmentData = {
   id: "APT001",
-  status: "confirmed", // confirmed, in-progress, completed
+  status: "in-progress", // new, pending, confirmed, in-progress, completed, cancelled, rejected
   date: "2024-01-15",
   timeSlot: "08:00 - 12:00",
   duration: "4 giờ",
@@ -175,6 +175,8 @@ export default function AppointmentDetailScreen() {
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState<"tasks" | "notes">("tasks");
   const [tasks, setTasks] = useState(appointmentData.tasks);
+  // Có thể thay đổi status này để test các trạng thái khác: "new", "pending", "confirmed", "in-progress", "completed"
+  const [status, setStatus] = useState(appointmentData.status);
 
   const toggleTaskComplete = (category: "fixed" | "flexible" | "optional", taskId: string) => {
     setTasks((prev) => ({
@@ -187,12 +189,20 @@ export default function AppointmentDetailScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "new":
+        return "#3B82F6"; // Blue
+      case "pending":
+        return "#F59E0B"; // Orange
       case "confirmed":
-        return "#10B981";
+        return "#10B981"; // Green
       case "in-progress":
-        return "#F59E0B";
+        return "#8B5CF6"; // Purple
       case "completed":
-        return "#6B7280";
+        return "#6B7280"; // Gray
+      case "cancelled":
+        return "#EF4444"; // Red
+      case "rejected":
+        return "#DC2626"; // Dark Red
       default:
         return "#6B7280";
     }
@@ -200,14 +210,168 @@ export default function AppointmentDetailScreen() {
 
   const getStatusText = (status: string) => {
     switch (status) {
+      case "new":
+        return "Yêu cầu mới";
+      case "pending":
+        return "Chờ thực hiện";
       case "confirmed":
         return "Đã xác nhận";
       case "in-progress":
         return "Đang thực hiện";
       case "completed":
         return "Hoàn thành";
+      case "cancelled":
+        return "Đã hủy";
+      case "rejected":
+        return "Đã từ chối";
       default:
         return status;
+    }
+  };
+  
+  // Xử lý các action buttons
+  const handleAccept = () => {
+    alert("Đã chấp nhận lịch hẹn");
+    setStatus("pending");
+  };
+
+  const handleReject = () => {
+    alert("Đã từ chối lịch hẹn");
+    setStatus("rejected");
+  };
+
+  const handleStart = () => {
+    alert("Bắt đầu thực hiện công việc");
+    setStatus("in-progress");
+  };
+
+  const handleCancel = () => {
+    alert("Đã hủy lịch hẹn");
+    setStatus("cancelled");
+  };
+
+  const handleComplete = () => {
+    alert("Đã hoàn thành ca làm việc");
+    setStatus("completed");
+  };
+
+  const handleReview = () => {
+    alert("Chuyển đến trang đánh giá");
+    // router.push("/caregiver/review");
+  };
+
+  const handleComplaint = () => {
+    alert("Chuyển đến trang khiếu nại");
+    // router.push("/caregiver/complaint");
+  };
+
+  const handleMessage = () => {
+    alert("Chuyển đến trang nhắn tin");
+    // router.push("/caregiver/chat");
+  };
+
+  // Render bottom action buttons dựa trên trạng thái
+  const renderBottomActions = () => {
+    switch (status) {
+      case "new":
+        // Yêu cầu mới: Chấp nhận / Từ chối
+        return (
+          <View style={styles.bottomActions}>
+            <TouchableOpacity 
+              style={styles.actionButtonDanger}
+              onPress={handleReject}
+            >
+              <Ionicons name="close-circle" size={20} color="#fff" />
+              <Text style={styles.actionButtonDangerText}>Từ chối</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionButtonSuccess}
+              onPress={handleAccept}
+            >
+              <Ionicons name="checkmark-circle" size={20} color="#fff" />
+              <Text style={styles.actionButtonSuccessText}>Chấp nhận</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      
+      case "pending":
+        // Chờ thực hiện: Nhắn tin / Hủy / Bắt đầu
+        return (
+          <View style={styles.bottomActions}>
+            <TouchableOpacity 
+              style={styles.actionButtonSecondary}
+              onPress={handleMessage}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color="#10B981" />
+              <Text style={styles.actionButtonSecondaryText}>Nhắn tin</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionButtonWarning}
+              onPress={handleCancel}
+            >
+              <Ionicons name="close-circle-outline" size={20} color="#fff" />
+              <Text style={styles.actionButtonWarningText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionButtonPrimary}
+              onPress={handleStart}
+            >
+              <Ionicons name="play-circle" size={20} color="#fff" />
+              <Text style={styles.actionButtonPrimaryText}>Bắt đầu</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      
+      case "confirmed":
+      case "in-progress":
+        // Đang thực hiện: Nhắn tin / Hoàn thành
+        return (
+          <View style={styles.bottomActions}>
+            <TouchableOpacity 
+              style={styles.actionButtonSecondary}
+              onPress={handleMessage}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color="#10B981" />
+              <Text style={styles.actionButtonSecondaryText}>Nhắn tin</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionButtonSuccess}
+              onPress={handleComplete}
+            >
+              <Ionicons name="checkmark-circle" size={20} color="#fff" />
+              <Text style={styles.actionButtonSuccessText}>Hoàn thành ca</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      
+      case "completed":
+        // Đã hoàn thành: Khiếu nại / Đánh giá
+        return (
+          <View style={styles.bottomActions}>
+            <TouchableOpacity 
+              style={styles.actionButtonSecondary}
+              onPress={handleComplaint}
+            >
+              <Ionicons name="alert-circle-outline" size={20} color="#EF4444" />
+              <Text style={[styles.actionButtonSecondaryText, { color: "#EF4444" }]}>Khiếu nại</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionButtonPrimary}
+              onPress={handleReview}
+            >
+              <Ionicons name="star" size={20} color="#fff" />
+              <Text style={styles.actionButtonPrimaryText}>Đánh giá</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      
+      case "cancelled":
+      case "rejected":
+        // Đã hủy/từ chối: Không có action
+        return null;
+      
+      default:
+        return null;
     }
   };
 
@@ -279,18 +443,7 @@ export default function AppointmentDetailScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết lịch hẹn</Text>
-        <TouchableOpacity style={styles.moreButton}>
-          <Ionicons name="ellipsis-vertical" size={24} color="#1F2937" />
-        </TouchableOpacity>
-      </View>
-
+    <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Status Badge */}
         <View style={styles.statusContainer}>
@@ -665,48 +818,22 @@ export default function AppointmentDetailScreen() {
         )}
 
         <View style={{ height: 100 }} />
-      </ScrollView>
 
-      {/* Bottom Actions */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.actionButtonSecondary}>
-          <Ionicons name="chatbubble-outline" size={20} color="#10B981" />
-          <Text style={styles.actionButtonSecondaryText}>Nhắn tin</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButtonPrimary}>
-          <Ionicons name="checkmark-circle" size={20} color="#fff" />
-          <Text style={styles.actionButtonPrimaryText}>Hoàn thành ca</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
+    </ScrollView>
+
+    {/* Bottom Actions - Dynamic based on status */}
+    {renderBottomActions()}
+
+    {/* Bottom Navigation - No active tab for detail page */}
+  <CaregiverBottomNav activeTab="jobs" />
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F9FAFB",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1F2937",
-  },
-  moreButton: {
-    padding: 4,
   },
   scrollView: {
     flex: 1,
@@ -1032,13 +1159,17 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bottomActions: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    gap: 12,
+  position: "absolute",
+  left: 0,
+  right: 0,
+  bottom: 90, // nhích lên để không bị bottom nav che
+  flexDirection: "row",
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  backgroundColor: "#fff",
+  borderTopWidth: 1,
+  borderTopColor: "#E5E7EB",
+  gap: 12,
   },
   actionButtonSecondary: {
     flex: 1,
@@ -1067,6 +1198,52 @@ const styles = StyleSheet.create({
     backgroundColor: "#10B981",
   },
   actionButtonPrimaryText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
+    marginLeft: 6,
+  },
+  // New button styles
+  actionButtonSuccess: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: "#10B981",
+  },
+  actionButtonSuccessText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
+    marginLeft: 6,
+  },
+  actionButtonDanger: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: "#EF4444",
+  },
+  actionButtonDangerText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
+    marginLeft: 6,
+  },
+  actionButtonWarning: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: "#F59E0B",
+  },
+  actionButtonWarningText: {
     fontSize: 15,
     fontWeight: "600",
     color: "#fff",

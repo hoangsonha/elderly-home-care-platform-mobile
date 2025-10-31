@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRoute } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -6,6 +7,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
   View,
@@ -29,7 +31,14 @@ interface ChatScreenProps {
 }
 
 export default function ChatScreen() {
-  const { caregiverId, caregiverName } = useLocalSearchParams();
+  const route = useRoute();
+  const params = useLocalSearchParams();
+  
+  // Thử lấy params từ cả route và useLocalSearchParams
+  const routeParams = (route.params || {}) as any;
+  const clientName = routeParams.clientName || params.clientName;
+  const clientAvatar = routeParams.clientAvatar || params.clientAvatar;
+  const caregiverName = routeParams.caregiverName || params.caregiverName;
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -58,10 +67,12 @@ export default function ChatScreen() {
   const [newMessage, setNewMessage] = useState("");
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const currentCaregiverName =
-    (caregiverName as string) || "Chị Nguyễn Thị Lan";
-  const caregiverAvatar =
-    "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face";
+  // Lấy tên và avatar người nhận từ params
+  const recipientName = (clientName as string) || (caregiverName as string) || "";
+  const recipientAvatar = (clientAvatar as string) || "👤";
+  
+  // Debug log
+  console.log("Chat params:", { clientName, caregiverName, clientAvatar, recipientName });
 
   useEffect(() => {
     // Auto scroll to bottom when new message is added
@@ -154,26 +165,18 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
-      {/* Header */}
-      {/* <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <ThemedText style={styles.headerTitle}>{currentCaregiverName}</ThemedText>
-          <ThemedText style={styles.headerSubtitle}>Đang hoạt động</ThemedText>
+      {/* Chat Header - Info người nhận */}
+      <View style={styles.chatHeader}>
+        <View style={styles.chatHeaderAvatar}>
+          <Text style={styles.chatHeaderAvatarText}>{recipientAvatar}</Text>
         </View>
-        
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.moreButton}>
-            <Ionicons name="ellipsis-vertical" size={20} color="white" />
-          </TouchableOpacity>
+        <View style={styles.chatHeaderInfo}>
+          <ThemedText style={styles.chatHeaderName}>
+            {recipientName || "Chưa có tên"}
+          </ThemedText>
+          <ThemedText style={styles.chatHeaderStatus}>Đang hoạt động</ThemedText>
         </View>
-      </View> */}
+      </View>
 
       {/* Messages */}
       <KeyboardAvoidingView
@@ -233,6 +236,43 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8f9fa",
   },
+  
+  // Chat Header - Info người nhận
+  chatHeader: {
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  chatHeaderAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FEF3C7",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  chatHeaderAvatarText: {
+    fontSize: 28,
+  },
+  chatHeaderInfo: {
+    flex: 1,
+  },
+  chatHeaderName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  chatHeaderStatus: {
+    fontSize: 13,
+    color: "#10B981",
+  },
+  
   header: {
     backgroundColor: "#4ECDC4",
     paddingTop: 50,

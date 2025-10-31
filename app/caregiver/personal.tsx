@@ -3,11 +3,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // Types
@@ -54,9 +54,8 @@ const profileSections: MenuSection[] = [
         id: "training",
         icon: "school",
         iconBg: "#FFF3E0",
-        title: "Đào tạo liên tục",
-        subtitle: "Khóa học và chứng chỉ mới",
-        badge: "3 mới",
+        title: "Đào tạo",
+        subtitle: "Khóa học và chứng chỉ",
       },
       {
         id: "reviews",
@@ -110,7 +109,10 @@ export default function PersonalScreen() {
         navigation.navigate("Chứng chỉ và kỹ năng");
         break;
       case "training":
-        navigation.navigate("Đào tạo liên tục");
+        navigation.navigate("Đào tạo");
+        break;
+      case "settings":
+        navigation.navigate("Cài đặt");
         break;
       case "logout":
         // TODO: Implement logout

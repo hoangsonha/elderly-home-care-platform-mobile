@@ -4,7 +4,7 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface CaregiverBottomNavProps {
-  activeTab: "home" | "jobs" | "schedule" | "income" | "profile";
+  activeTab?: "home" | "jobs" | "schedule" | "income" | "profile";
 }
 
 export default function CaregiverBottomNav({ activeTab }: CaregiverBottomNavProps) {

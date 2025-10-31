@@ -1,17 +1,17 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type BookingStatus = "Mới" | "Chờ thực hiện" | "Đang thực hiện" | "Hoàn thành" | "Đã hủy";
@@ -82,8 +82,18 @@ const mockBookings: Booking[] = [
 
 export default function BookingManagement() {
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState<BookingStatus>("Mới");
+  const route = useRoute();
+  const params = route.params as { initialTab?: BookingStatus } | undefined;
+  
+  const [activeTab, setActiveTab] = useState<BookingStatus>(params?.initialTab || "Mới");
   const [bookings, setBookings] = useState<Booking[]>(mockBookings);
+
+  // Update active tab when params change
+  useEffect(() => {
+    if (params?.initialTab) {
+      setActiveTab(params.initialTab);
+    }
+  }, [params?.initialTab]);
 
   const tabs: { label: BookingStatus; count: number }[] = [
     { label: "Mới", count: bookings.filter((b) => b.status === "Mới").length },

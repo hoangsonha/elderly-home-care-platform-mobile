@@ -59,7 +59,7 @@ const features = [
   { id: "chat", title: "Tin nhắn", icon: "chat-outline", route: "/chat" },
   {
     id: "training",
-    title: "Đào tạo liên tục",
+    title: "Đào tạo",
     icon: "school",
     route: "/training-courses",
   },
