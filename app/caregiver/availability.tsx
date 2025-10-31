@@ -2,6 +2,7 @@
 // AvailabilityScreen.js
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import AvailabilityModal from "@/components/schedule/AvailabilityModal";
+import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
@@ -61,58 +62,39 @@ const initialAvailabilityData = [
 const scheduleData = [
   {
     id: "1",
-    date: new Date(2025, 9, 25), // Oct 25, 2025
-    time: "8:00 - 12:00",
-    duration: "4 giờ",
-    name: "Nguyễn Thị Lan",
-    category: "Chuyên sâu",
-    service: "Sau phẫu thuật",
+    date: new Date(2025, 9, 25), // Oct 25, 2025 (Thứ 6)
+    time: "8:00 - 16:00",
+    duration: "8 giờ",
+    name: "Bà Nguyễn Thị Lan",
+    category: "Cao Cấp",
+    service: "Chăm sóc toàn diện",
     address: "123 Nguyễn Văn Linh, Q7",
-    price: "1,200,000₫",
+    price: "1,100,000₫",
+    status: "in-progress",
   },
   {
     id: "2",
-    date: new Date(2025, 9, 25), // Oct 25, 2025
-    time: "14:00 - 17:00",
-    duration: "3 giờ",
-    name: "Trần Văn Hùng",
-    category: "Cơ bản",
+    date: new Date(2025, 9, 26), // Oct 26, 2025 (Thứ 7)
+    time: "8:00 - 16:00",
+    duration: "8 giờ",
+    name: "Ông Trần Văn Hùng",
+    category: "Tiêu Chuẩn",
     service: "Hỗ trợ sinh hoạt",
     address: "456 Lê Văn Việt, Q9",
-    price: "540,000₫",
+    price: "750,000₫",
+    status: "pending",
   },
   {
     id: "3",
-    date: new Date(2025, 9, 26), // Oct 26, 2025
-    time: "9:00 - 11:00",
-    duration: "2 giờ",
-    name: "Lê Thị Phương",
-    category: "Chuyên sâu",
-    service: "Phục hồi chức năng",
-    address: "789 Võ Văn Ngân, Thủ Đức",
-    price: "600,000₫",
-  },
-  {
-    id: "4",
-    date: new Date(2025, 9, 27), // Oct 27, 2025
-    time: "15:00 - 18:00",
-    duration: "3 giờ",
-    name: "Phạm Văn Minh",
-    category: "Cơ bản",
-    service: "Đi lại, vệ sinh",
-    address: "321 Đinh Tiên Hoàng, Q1",
-    price: "540,000₫",
-  },
-  {
-    id: "5",
-    date: new Date(2025, 9, 28), // Oct 28, 2025 (Today)
+    date: new Date(2025, 9, 27), // Oct 27, 2025 (Chủ nhật)
     time: "8:00 - 12:00",
     duration: "4 giờ",
-    name: "Hoàng Thị Hoa",
-    category: "Chuyên sâu",
-    service: "Sau phẫu thuật",
-    address: "654 Lý Thường Kiệt, Q10",
-    price: "1,200,000₫",
+    name: "Bà Lê Thị Hoa",
+    category: "Cơ Bản",
+    service: "Hỗ trợ cơ bản",
+    address: "789 Pasteur, Q1",
+    price: "400,000₫",
+    status: "new",
   },
 ];
 
@@ -122,6 +104,7 @@ export default function AvailabilityScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
   const [availabilityData, setAvailabilityData] = useState(initialAvailabilityData);
+  const [, setRefreshKey] = useState(0); // For triggering re-render when status changes
 
   // Handler for opening modal
   const handleOpenModal = useCallback(() => {
@@ -154,6 +137,18 @@ export default function AvailabilityScreen() {
       ),
     });
   }, [navigation, handleOpenModal]);
+
+  // Subscribe to status changes from global store
+  useEffect(() => {
+    const unsubscribe = subscribeToStatusChanges(() => {
+      // Trigger re-render when appointment status changes
+      setRefreshKey(prev => prev + 1);
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Get calendar data for current month
   const getMonthData = (date: Date) => {
@@ -461,41 +456,67 @@ export default function AvailabilityScreen() {
           )}
 
           {scheduleForSelectedDate.length > 0 ? (
-            scheduleForSelectedDate.map((item) => (
-              <View key={item.id} style={styles.scheduleCard}>
-                <View style={styles.scheduleTime}>
-                  <Text style={styles.scheduleTimeText}>{item.time}</Text>
-                  <Text style={styles.scheduleDuration}>{item.duration}</Text>
-                </View>
-
-                <View style={styles.scheduleDetails}>
-                  <View style={styles.scheduleAvatar}>
-                    <MaterialCommunityIcons name="account" size={32} color="#2196F3" />
+            scheduleForSelectedDate.map((item) => {
+              // Get real-time status from global store
+              const currentStatus = getAppointmentStatus(item.id) || item.status;
+              
+              // Determine card border color based on status
+              const getStatusBorderColor = () => {
+                switch (currentStatus) {
+                  case "new": return "#3B82F6"; // Blue
+                  case "pending": return "#F59E0B"; // Orange
+                  case "confirmed": return "#10B981"; // Green
+                  case "in-progress": return "#8B5CF6"; // Purple
+                  case "completed": return "#6B7280"; // Gray
+                  case "cancelled": return "#EF4444"; // Red
+                  case "rejected": return "#DC2626"; // Dark Red
+                  default: return "#10B981";
+                }
+              };
+              
+              return (
+                <TouchableOpacity 
+                  key={item.id} 
+                  style={[styles.scheduleCard, { borderLeftColor: getStatusBorderColor() }]}
+                  onPress={() => (navigation.navigate as any)("Appointment Detail", { appointmentId: item.id, fromScreen: "availability" })}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.scheduleTime}>
+                    <Text style={styles.scheduleTimeText}>{item.time}</Text>
+                    <Text style={styles.scheduleDuration}>{item.duration}</Text>
                   </View>
 
-                  <View style={styles.scheduleInfo}>
-                    <Text style={styles.scheduleName}>{item.name}</Text>
-                    
-                    <View style={styles.scheduleServiceRow}>
-                      <MaterialCommunityIcons name="heart-pulse" size={16} color="#7C3AED" />
-                      <Text style={styles.scheduleService}>
-                        Gói {item.category} · {item.service}
-                      </Text>
+                  <View style={styles.scheduleDetails}>
+                    <View style={styles.scheduleAvatar}>
+                      <MaterialCommunityIcons name="account" size={32} color="#2196F3" />
                     </View>
 
-                    <View style={styles.scheduleAddressRow}>
-                      <MaterialCommunityIcons name="map-marker" size={16} color="#EF4444" />
-                      <Text style={styles.scheduleAddress}>{item.address}</Text>
+                    <View style={styles.scheduleInfo}>
+                      <Text style={styles.scheduleName}>{item.name}</Text>
+                      
+                      <View style={styles.scheduleServiceRow}>
+                        <MaterialCommunityIcons name="heart-pulse" size={16} color="#7C3AED" />
+                        <Text style={styles.scheduleService}>
+                          Gói {item.category}
+                        </Text>
+                      </View>
+
+                      <View style={styles.scheduleAddressRow}>
+                        <MaterialCommunityIcons name="map-marker" size={16} color="#EF4444" />
+                        <Text style={styles.scheduleAddress}>{item.address}</Text>
+                      </View>
+
+                      <View style={styles.schedulePriceRow}>
+                        <MaterialCommunityIcons name="cash" size={16} color="#F59E0B" />
+                        <Text style={styles.schedulePrice}>{item.price}</Text>
+                      </View>
                     </View>
 
-                    <View style={styles.schedulePriceRow}>
-                      <MaterialCommunityIcons name="cash" size={16} color="#F59E0B" />
-                      <Text style={styles.schedulePrice}>{item.price}</Text>
-                    </View>
+                    <MaterialCommunityIcons name="chevron-right" size={24} color="#CBD5E1" />
                   </View>
-                </View>
-              </View>
-            ))
+                </TouchableOpacity>
+              );
+            })
           ) : (
             <View style={styles.emptySchedule}>
               <MaterialCommunityIcons name="calendar-blank-outline" size={64} color="#CBD5E1" />
@@ -579,7 +600,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 350,
   },
 
   // Calendar Section
@@ -793,6 +814,7 @@ const styles = StyleSheet.create({
   scheduleDetails: {
     flexDirection: "row",
     gap: 12,
+    alignItems: "center",
   },
   scheduleAvatar: {
     width: 56,

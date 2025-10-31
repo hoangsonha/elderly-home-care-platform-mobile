@@ -21,6 +21,7 @@ import SettingsScreen from "@/app/caregiver/settings";
 import TrainingCourseDetail from "@/app/caregiver/training-course-detail";
 import TrainingCoursesMobile from "@/app/caregiver/training-courses";
 import VideoCallScreen from "@/app/caregiver/video-call";
+import CaregiverWithdrawScreen from "@/app/caregiver/withdraw";
 
 const Drawer = createDrawerNavigator();
 
@@ -83,7 +84,7 @@ export default function CaregiverSidebar() {
       <Drawer.Navigator
         screenOptions={{
           headerShown: true,
-          headerStyle: { backgroundColor: "#4ECDC4" },
+          headerStyle: { backgroundColor: "#70C1F1" },
           headerTintColor: "#fff",
           headerLeft: () => null,
           drawerType: "slide",
@@ -336,30 +337,57 @@ export default function CaregiverSidebar() {
         <Drawer.Screen
           name="Appointment Detail"
           component={AppointmentDetailScreen}
-          options={({ navigation }) => ({
-            drawerItemStyle: { height: 0 },
-            headerShown: true,
-            title: "Chi tiết lịch hẹn",
-            headerStyle: {
-              backgroundColor: "#26C6DA",
-            },
-            headerTintcolor: "#fff",
-            headerTitleStyle: {
-              fontWeight: "bold",
-            },
-            headerLeft: () => (
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={{ marginLeft: 15 }}
-              >
-                <MaterialCommunityIcons
-                  name="arrow-left"
-                  size={28}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            ),
-          })}
+          options={({ navigation, route }) => {
+            const params = route.params as { fromScreen?: string } | undefined;
+            const fromScreen = params?.fromScreen;
+            
+            const handleBack = () => {
+              if (fromScreen) {
+                // Navigate to specific screen based on fromScreen param
+                switch (fromScreen) {
+                  case "dashboard":
+                    navigation.navigate("Trang chủ");
+                    break;
+                  case "booking":
+                    navigation.navigate("Yêu cầu dịch vụ");
+                    break;
+                  case "availability":
+                    navigation.navigate("Quản lý lịch");
+                    break;
+                  default:
+                    navigation.goBack();
+                }
+              } else {
+                // Fallback to goBack if no fromScreen param
+                navigation.goBack();
+              }
+            };
+
+            return {
+              drawerItemStyle: { height: 0 },
+              headerShown: true,
+              title: "Chi tiết lịch hẹn",
+              headerStyle: {
+                backgroundColor: "#70C1F1",
+              },
+              headerTintcolor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerLeft: () => (
+                <TouchableOpacity
+                  onPress={handleBack}
+                  style={{ marginLeft: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+            };
+          }}
         />
         
         {/* Settings - hidden from drawer */}
@@ -370,7 +398,7 @@ export default function CaregiverSidebar() {
             drawerItemStyle: { height: 0 },
             headerShown: true,
             headerStyle: {
-              backgroundColor: "#26C6DA",
+              backgroundColor: "#70C1F1",
             },
             headerTintcolor: "#fff",
             headerTitleStyle: {
@@ -429,7 +457,7 @@ export default function CaregiverSidebar() {
             drawerItemStyle: { height: 0 },
             headerShown: true,
             headerStyle: {
-              backgroundColor: "#26C6DA",
+              backgroundColor: "#70C1F1",
             },
             headerTintcolor: "#fff",
             headerTitleStyle: {
@@ -448,6 +476,24 @@ export default function CaregiverSidebar() {
               </TouchableOpacity>
             ),
           })}
+        />
+
+        {/* Thanh toán - hidden from drawer */}
+        <Drawer.Screen
+          name="Thanh toán"
+          component={PaymentScreen}
+          options={{
+            drawerItemStyle: { height: 0 },
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: "#70C1F1",
+            },
+            headerTintcolor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+            headerLeft: () => null,
+          }}
         />
 
         {/* Logout riêng */}

@@ -1,17 +1,19 @@
+import { appointmentsDataMap } from "@/app/caregiver/appointment-detail";
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 type BookingStatus = "Mới" | "Chờ thực hiện" | "Đang thực hiện" | "Hoàn thành" | "Đã hủy";
@@ -30,6 +32,7 @@ interface Booking {
   price: number;
   status: BookingStatus;
   statusBadge: string;
+  avatar: string;
 }
 
 const mockBookings: Booking[] = [
@@ -38,45 +41,48 @@ const mockBookings: Booking[] = [
     elderName: "Bà Nguyễn Thị Lan",
     age: 75,
     location: "Q7, TP.HCM",
-    packageType: "Gói Cơ bản",
-    packageDetail: "Gói Cơ bản",
+    packageType: "Gói Cao Cấp",
+    packageDetail: "Gói Cao Cấp",
     date: "Thứ 6, 25/10/2025",
-    time: "8:00 - 12:00 (4 giờ)",
+    time: "8:00 - 16:00 (8 giờ)",
     address: "123 Nguyễn Văn Linh, P. Tân Phú, Q.7, TP.HCM",
     phone: "0909 123 456",
-    price: 800000,
-    status: "Mới",
-    statusBadge: "Mới",
+    price: 1100000,
+    status: "Đang thực hiện",
+    statusBadge: "Đang thực hiện",
+    avatar: "👵",
   },
   {
     id: "2",
     elderName: "Ông Trần Văn Hùng",
     age: 68,
     location: "Q9, TP.HCM",
-    packageType: "Gói Chuyên sâu",
-    packageDetail: "Gói Chuyên sâu",
+    packageType: "Gói Tiêu Chuẩn",
+    packageDetail: "Gói Tiêu Chuẩn",
     date: "Thứ 7, 26/10/2025",
-    time: "8:00 - 12:00 (4 giờ)",
+    time: "8:00 - 16:00 (8 giờ)",
     address: "456 Lê Văn Việt, P. Tăng Nhơn Phú A, Q.9, TP.HCM",
     phone: "0909 456 789",
-    price: 900000,
+    price: 750000,
     status: "Chờ thực hiện",
-    statusBadge: "Mới",
+    statusBadge: "Chờ thực hiện",
+    avatar: "👴",
   },
   {
     id: "3",
     elderName: "Bà Lê Thị Hoa",
     age: 82,
     location: "Q1, TP.HCM",
-    packageType: "Gói Đặc biệt",
-    packageDetail: "Gói Đặc biệt",
+    packageType: "Gói Cơ Bản",
+    packageDetail: "Gói Cơ Bản",
     date: "Chủ nhật, 27/10/2025",
-    time: "8:00 - 16:00 (8 giờ)",
+    time: "8:00 - 12:00 (4 giờ)",
     address: "789 Pasteur, P. Bến Nghé, Q.1, TP.HCM",
     phone: "0909 789 123",
-    price: 1600000,
+    price: 400000,
     status: "Mới",
     statusBadge: "Mới",
+    avatar: "👵",
   },
 ];
 
@@ -87,6 +93,21 @@ export default function BookingManagement() {
   
   const [activeTab, setActiveTab] = useState<BookingStatus>(params?.initialTab || "Mới");
   const [bookings, setBookings] = useState<Booking[]>(mockBookings);
+  const [refreshKey, setRefreshKey] = useState(0); // For triggering re-render when status changes
+  
+  // Map appointment status to booking status
+  const mapStatusToBookingStatus = (status: string): BookingStatus => {
+    switch (status) {
+      case "new": return "Mới";
+      case "pending": return "Chờ thực hiện";
+      case "confirmed": return "Chờ thực hiện";
+      case "in-progress": return "Đang thực hiện";
+      case "completed": return "Hoàn thành";
+      case "cancelled": return "Đã hủy";
+      case "rejected": return "Đã hủy";
+      default: return "Mới";
+    }
+  };
 
   // Update active tab when params change
   useEffect(() => {
@@ -94,13 +115,61 @@ export default function BookingManagement() {
       setActiveTab(params.initialTab);
     }
   }, [params?.initialTab]);
+  
+  // Subscribe to status changes from global store
+  useEffect(() => {
+    const unsubscribe = subscribeToStatusChanges(() => {
+      // Trigger re-render when appointment status changes
+      setRefreshKey(prev => prev + 1);
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
+  // Calculate tabs count using real-time status from global store
   const tabs: { label: BookingStatus; count: number }[] = [
-    { label: "Mới", count: bookings.filter((b) => b.status === "Mới").length },
-    { label: "Chờ thực hiện", count: bookings.filter((b) => b.status === "Chờ thực hiện").length },
-    { label: "Đang thực hiện", count: bookings.filter((b) => b.status === "Đang thực hiện").length },
-    { label: "Hoàn thành", count: bookings.filter((b) => b.status === "Hoàn thành").length },
-    { label: "Đã hủy", count: bookings.filter((b) => b.status === "Đã hủy").length },
+    { 
+      label: "Mới", 
+      count: bookings.filter((b) => {
+        const globalStatus = getAppointmentStatus(b.id);
+        const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : b.status;
+        return currentStatus === "Mới";
+      }).length 
+    },
+    { 
+      label: "Chờ thực hiện", 
+      count: bookings.filter((b) => {
+        const globalStatus = getAppointmentStatus(b.id);
+        const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : b.status;
+        return currentStatus === "Chờ thực hiện";
+      }).length 
+    },
+    { 
+      label: "Đang thực hiện", 
+      count: bookings.filter((b) => {
+        const globalStatus = getAppointmentStatus(b.id);
+        const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : b.status;
+        return currentStatus === "Đang thực hiện";
+      }).length 
+    },
+    { 
+      label: "Hoàn thành", 
+      count: bookings.filter((b) => {
+        const globalStatus = getAppointmentStatus(b.id);
+        const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : b.status;
+        return currentStatus === "Hoàn thành";
+      }).length 
+    },
+    { 
+      label: "Đã hủy", 
+      count: bookings.filter((b) => {
+        const globalStatus = getAppointmentStatus(b.id);
+        const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : b.status;
+        return currentStatus === "Đã hủy";
+      }).length 
+    },
   ];
 
   const canCancelBooking = (dateStr: string): boolean => {
@@ -122,6 +191,8 @@ export default function BookingManagement() {
               b.id === bookingId ? { ...b, status: "Chờ thực hiện" } : b
             )
           );
+          // Update global store
+          updateAppointmentStatus(bookingId, "pending");
           Alert.alert("Thành công", "Đã chấp nhận yêu cầu");
         },
       },
@@ -138,6 +209,8 @@ export default function BookingManagement() {
           setBookings((prev) =>
             prev.map((b) => (b.id === bookingId ? { ...b, status: "Đã hủy" } : b))
           );
+          // Update global store
+          updateAppointmentStatus(bookingId, "rejected");
           Alert.alert("Đã từ chối", "Yêu cầu đã bị từ chối");
         },
       },
@@ -162,13 +235,70 @@ export default function BookingManagement() {
           setBookings((prev) =>
             prev.map((b) => (b.id === bookingId ? { ...b, status: "Đã hủy" } : b))
           );
+          // Update global store
+          updateAppointmentStatus(bookingId, "cancelled");
           Alert.alert("Đã hủy", "Lịch hẹn đã được hủy");
         },
       },
     ]);
   };
 
+  // Check if there's a conflict with other in-progress appointments
+  const checkStartConflict = (targetAppointmentId: string) => {
+    const targetAppointment = appointmentsDataMap[targetAppointmentId];
+    if (!targetAppointment) return null;
+
+    const targetContact = targetAppointment.elderly?.emergencyContact;
+    const targetAddress = targetAppointment.elderly?.address;
+
+    // Check all appointments (except current one) that are in-progress
+    for (const [id, appointment] of Object.entries(appointmentsDataMap)) {
+      if (id === targetAppointmentId) continue;
+
+      const globalStatus = getAppointmentStatus(id);
+      const currentStatus = globalStatus || appointment.status;
+
+      // If another appointment is in-progress
+      if (currentStatus === "in-progress") {
+        const otherContact = appointment.elderly?.emergencyContact;
+        const otherAddress = appointment.elderly?.address;
+
+        // Check if same contact (prefer phone number, fallback to name)
+        const sameContact = targetContact?.phone && otherContact?.phone
+          ? targetContact.phone === otherContact.phone
+          : targetContact?.name === otherContact?.name;
+        
+        // Normalize addresses for comparison (remove extra spaces, case insensitive)
+        const normalizeAddress = (addr: string) => addr?.trim().toLowerCase() || "";
+        const sameAddress = normalizeAddress(targetAddress) === normalizeAddress(otherAddress);
+
+        // Only allow if same contact AND same address
+        if (!(sameContact && sameAddress)) {
+          return {
+            conflictingAppointmentId: id,
+            conflictingElderlyName: appointment.elderly?.name || "Không xác định",
+            conflictingAddress: otherAddress || "Không xác định",
+          };
+        }
+      }
+    }
+
+    return null; // No conflict
+  };
+
   const handleStart = (bookingId: string) => {
+    // Validate: Check if there's another in-progress appointment
+    const conflict = checkStartConflict(bookingId);
+    
+    if (conflict) {
+      Alert.alert(
+        "Không thể bắt đầu lịch hẹn",
+        `Bạn đang thực hiện lịch hẹn với ${conflict.conflictingElderlyName} tại ${conflict.conflictingAddress}.\n\nBạn chỉ có thể bắt đầu lịch hẹn mới khi:\n• Cùng người đặt (liên hệ khẩn cấp)\n• Cùng địa chỉ\n\nVui lòng hoàn thành lịch hẹn hiện tại trước.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     Alert.alert("Bắt đầu công việc", "Xác nhận bắt đầu thực hiện công việc?", [
       { text: "Hủy", style: "cancel" },
       {
@@ -179,6 +309,8 @@ export default function BookingManagement() {
               b.id === bookingId ? { ...b, status: "Đang thực hiện" } : b
             )
           );
+          // Update global store
+          updateAppointmentStatus(bookingId, "in-progress");
           Alert.alert("Thành công", "Đã bắt đầu công việc");
         },
       },
@@ -186,6 +318,81 @@ export default function BookingManagement() {
   };
 
   const handleComplete = (bookingId: string) => {
+    // Helper function to get appointment tasks data
+    // In real app, this would come from API or context
+    const getAppointmentTasks = (id: string) => {
+      // Mock task data - in real app, get from API/store
+      const mockTasks: { [key: string]: any } = {
+        "1": {
+          fixed: [
+            { id: "F1", title: "Đo huyết áp và đường huyết", completed: false },
+            { id: "F2", title: "Hỗ trợ vệ sinh cá nhân", completed: false },
+            { id: "F3", title: "Chuẩn bị bữa sáng", completed: false },
+            { id: "F4", title: "Uống thuốc", completed: false },
+          ],
+          flexible: [
+            { id: "FL1", title: "Vận động nhẹ", completed: false },
+            { id: "FL2", title: "Dọn dẹp phòng ngủ", completed: false },
+            { id: "FL3", title: "Giặt quần áo", completed: false },
+          ],
+        },
+        "2": {
+          fixed: [
+            { id: "F1", title: "Đo huyết áp", completed: false },
+            { id: "F2", title: "Hỗ trợ vận động nhẹ", completed: false },
+            { id: "F3", title: "Uống thuốc", completed: false },
+          ],
+          flexible: [
+            { id: "FL1", title: "Trò chuyện, đọc báo", completed: false },
+          ],
+        },
+        "3": {
+          fixed: [
+            { id: "F1", title: "Hỗ trợ vệ sinh cá nhân", completed: false },
+            { id: "F2", title: "Chuẩn bị bữa sáng", completed: false },
+            { id: "F3", title: "Uống thuốc", completed: false },
+          ],
+          flexible: [
+            { id: "FL1", title: "Trò chuyện, xem ảnh", completed: false },
+            { id: "FL2", title: "Dọn dẹp phòng", completed: false },
+          ],
+        },
+      };
+      return mockTasks[id] || { fixed: [], flexible: [] };
+    };
+
+    // Validate tasks before completing
+    const tasks = getAppointmentTasks(bookingId);
+    const incompleteFixedTasks = tasks.fixed.filter((task: any) => !task.completed);
+    const incompleteFlexibleTasks = tasks.flexible.filter((task: any) => !task.completed);
+
+    if (incompleteFixedTasks.length > 0 || incompleteFlexibleTasks.length > 0) {
+      const missingTasks = [];
+      if (incompleteFixedTasks.length > 0) {
+        missingTasks.push("Nhiệm vụ cố định:");
+        incompleteFixedTasks.forEach((t: any) => missingTasks.push(`• ${t.title}`));
+      }
+      if (incompleteFlexibleTasks.length > 0) {
+        missingTasks.push("Nhiệm vụ linh hoạt:");
+        incompleteFlexibleTasks.forEach((t: any) => missingTasks.push(`• ${t.title}`));
+      }
+
+      Alert.alert(
+        "Chưa hoàn thành nhiệm vụ",
+        `Vui lòng hoàn thành tất cả nhiệm vụ cố định và linh hoạt trước khi kết thúc ca!\n\nCòn thiếu:\n${missingTasks.join("\n")}\n\nVui lòng vào trang chi tiết để hoàn thành các nhiệm vụ.`,
+        [
+          { text: "OK" },
+          {
+            text: "Xem chi tiết",
+            onPress: () => {
+              navigation.navigate("Appointment Detail" as never, { appointmentId: bookingId, fromScreen: "booking" } as never);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     Alert.alert("Hoàn thành", "Xác nhận hoàn thành công việc?", [
       { text: "Hủy", style: "cancel" },
       {
@@ -196,6 +403,8 @@ export default function BookingManagement() {
               b.id === bookingId ? { ...b, status: "Hoàn thành" } : b
             )
           );
+          // Update global store
+          updateAppointmentStatus(bookingId, "completed");
           Alert.alert("Thành công", "Công việc đã hoàn thành");
         },
       },
@@ -220,10 +429,14 @@ export default function BookingManagement() {
   };
 
   const handleViewDetail = (bookingId: string) => {
-    navigation.navigate("Appointment Detail" as never);
+    navigation.navigate("Appointment Detail" as never, { appointmentId: bookingId, fromScreen: "booking" } as never);
   };
 
   const renderBookingCard = ({ item, index }: { item: Booking; index: number }) => {
+    // Get real-time status from global store
+    const globalStatus = getAppointmentStatus(item.id);
+    const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : item.status;
+    
     return (
       <TouchableOpacity 
         style={styles.card}
@@ -233,7 +446,7 @@ export default function BookingManagement() {
         {/* Header */}
         <View style={styles.cardHeader}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarEmoji}>👵</Text>
+            <Text style={styles.avatarEmoji}>{item.avatar}</Text>
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.elderName}>{item.elderName}</Text>
@@ -281,15 +494,8 @@ export default function BookingManagement() {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          {item.status === "Mới" && (
+          {currentStatus === "Mới" && (
             <>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.acceptButton]}
-                onPress={() => handleAccept(item.id)}
-              >
-                <MaterialCommunityIcons name="check" size={16} color="#fff" />
-                <Text style={styles.acceptButtonText}>Chấp nhận</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.rejectButton]}
                 onPress={() => handleReject(item.id)}
@@ -297,18 +503,18 @@ export default function BookingManagement() {
                 <MaterialCommunityIcons name="close" size={16} color="#EF4444" />
                 <Text style={styles.rejectButtonText}>Từ chối</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.acceptButton]}
+                onPress={() => handleAccept(item.id)}
+              >
+                <MaterialCommunityIcons name="check" size={16} color="#fff" />
+                <Text style={styles.acceptButtonText}>Chấp nhận</Text>
+              </TouchableOpacity>
             </>
           )}
 
-          {item.status === "Chờ thực hiện" && (
+          {currentStatus === "Chờ thực hiện" && (
             <>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.acceptButton]}
-                onPress={() => handleStart(item.id)}
-              >
-                {/* <MaterialCommunityIcons name="play" size={16} color="#fff" /> */}
-                <Text style={styles.acceptButtonText}>Bắt đầu</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.cancelButton]}
                 onPress={() => handleCancel(item.id, item.date)}
@@ -316,10 +522,17 @@ export default function BookingManagement() {
                 <MaterialCommunityIcons name="close" size={16} color="#EF4444" />
                 <Text style={styles.cancelButtonText}>Hủy</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.acceptButton]}
+                onPress={() => handleStart(item.id)}
+              >
+                {/* <MaterialCommunityIcons name="play" size={16} color="#fff" /> */}
+                <Text style={styles.acceptButtonText}>Bắt đầu</Text>
+              </TouchableOpacity>
             </>
           )}
 
-          {item.status === "Đang thực hiện" && (
+          {currentStatus === "Đang thực hiện" && (
             <TouchableOpacity
               style={[styles.actionButton, styles.acceptButton]}
               onPress={() => handleComplete(item.id)}
@@ -329,15 +542,8 @@ export default function BookingManagement() {
             </TouchableOpacity>
           )}
 
-          {item.status === "Hoàn thành" && (
+          {currentStatus === "Hoàn thành" && (
             <>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.reviewButton]}
-                onPress={() => handleReview(item.id)}
-              >
-                <MaterialCommunityIcons name="star" size={16} color="#F59E0B" />
-                <Text style={styles.reviewButtonText}>Đánh giá</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.complaintButton]}
                 onPress={() => handleComplaint(item.id)}
@@ -345,14 +551,32 @@ export default function BookingManagement() {
                 <MaterialCommunityIcons name="alert-circle" size={16} color="#EF4444" />
                 <Text style={styles.complaintButtonText}>Khiếu nại</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.reviewButton]}
+                onPress={() => handleReview(item.id)}
+              >
+                <MaterialCommunityIcons name="star" size={16} color="#F59E0B" />
+                <Text style={styles.reviewButtonText}>Đánh giá</Text>
+              </TouchableOpacity>
             </>
+          )}
+
+          {currentStatus === "Đã hủy" && (
+            <View style={styles.cancelledInfo}>
+              <Text style={styles.cancelledText}>Lịch hẹn đã bị hủy</Text>
+            </View>
           )}
         </View>
       </TouchableOpacity>
     );
   };
 
-  const filteredBookings = bookings.filter((b) => b.status === activeTab);
+  // Filter bookings by activeTab, using real-time status from global store
+  const filteredBookings = bookings.filter((b) => {
+    const globalStatus = getAppointmentStatus(b.id);
+    const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : b.status;
+    return currentStatus === activeTab;
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -666,5 +890,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#EF4444",
+  },
+  cancelledInfo: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
+  cancelledText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontStyle: "italic",
   },
 });

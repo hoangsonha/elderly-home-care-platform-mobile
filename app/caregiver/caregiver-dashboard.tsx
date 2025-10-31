@@ -1,6 +1,7 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
 import { useNavigation } from "@react-navigation/native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dimensions,
   ScrollView,
@@ -15,30 +16,41 @@ const CARD_PADDING = 16; // paddingHorizontal của statsOuterContainer
 const CARD_GAP = 12; // gap giữa các card
 const CARD_WIDTH = (screenWidth - CARD_PADDING * 2 - CARD_GAP) / 2;
 
-const todayAppointments = [
+const initialTodayAppointments = [
   {
-    id: "a1",
+    id: "1",
     client: "Bà Nguyễn Thị Lan",
     age: 75,
-    type: "Chăm sóc cơ bản",
-    time: "08:00 - 12:00",
+    type: "Gói Cao Cấp",
+    time: "08:00 - 16:00",
     address: "123 Nguyễn Văn Linh, Q7",
     status: "Đang thực hiện",
-    statusColor: "#10B981",
+    statusColor: "#8B5CF6",
     avatar: "👵",
   },
-  {
-    id: "a2",
-    client: "Ông Trần Văn Hùng",
-    age: 68,
-    type: "Vật lý trị liệu",
-    time: "14:00 - 17:00",
-    address: "456 Lê Văn Việt, Q9",
-    status: "Sắp tới",
-    statusColor: "#3B82F6",
-    avatar: "👴",
-  },
 ];
+
+// Map appointment status to dashboard status display
+const mapStatusToDashboard = (status: string | undefined) => {
+  switch (status) {
+    case "new":
+      return { text: "Yêu cầu mới", color: "#3B82F6" };
+    case "pending":
+      return { text: "Chờ thực hiện", color: "#F59E0B" };
+    case "confirmed":
+      return { text: "Đã xác nhận", color: "#10B981" };
+    case "in-progress":
+      return { text: "Đang thực hiện", color: "#8B5CF6" };
+    case "completed":
+      return { text: "Hoàn thành", color: "#6B7280" };
+    case "cancelled":
+      return { text: "Đã hủy", color: "#EF4444" };
+    case "rejected":
+      return { text: "Đã từ chối", color: "#DC2626" };
+    default:
+      return { text: "Đang thực hiện", color: "#8B5CF6" };
+  }
+};
 
 const caregiverStats = {
   totalJobs: 12,
@@ -50,6 +62,45 @@ const caregiverStats = {
 
 export default function CaregiverDashboardScreen() {
   const navigation = useNavigation<any>();
+  const [todayAppointments, setTodayAppointments] = useState(initialTodayAppointments);
+  const [, setRefreshKey] = useState(0); // For triggering re-render when status changes
+
+  // Subscribe to status changes from global store
+  useEffect(() => {
+    const unsubscribe = subscribeToStatusChanges(() => {
+      // Update appointments with real-time status when status changes
+      setTodayAppointments(
+        initialTodayAppointments.map((appointment) => {
+          const globalStatus = getAppointmentStatus(appointment.id);
+          const statusInfo = mapStatusToDashboard(globalStatus || "in-progress");
+          return {
+            ...appointment,
+            status: statusInfo.text,
+            statusColor: statusInfo.color,
+          };
+        })
+      );
+      // Trigger re-render
+      setRefreshKey(prev => prev + 1);
+    });
+    
+    // Initial update
+    setTodayAppointments(
+      initialTodayAppointments.map((appointment) => {
+        const globalStatus = getAppointmentStatus(appointment.id);
+        const statusInfo = mapStatusToDashboard(globalStatus || "in-progress");
+        return {
+          ...appointment,
+          status: statusInfo.text,
+          statusColor: statusInfo.color,
+        };
+      })
+    );
+    
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -76,7 +127,7 @@ export default function CaregiverDashboardScreen() {
                   <Text style={styles.statIcon}>📄</Text>
                 </View>
                 <Text style={styles.statValue}>{caregiverStats.totalJobs}</Text>
-                <Text style={styles.statLabel}>Lịch hẹn</Text>
+                <Text style={styles.statLabel}>Lịch hẹn tháng này</Text>
               </View>
 
               <View style={[styles.statCard, { backgroundColor: "#E8F5E9" }]}>
@@ -94,7 +145,7 @@ export default function CaregiverDashboardScreen() {
                   <Text style={styles.statIcon}>⭐</Text>
                 </View>
                 <Text style={styles.statValue}>{caregiverStats.rating}</Text>
-                <Text style={styles.statLabel}>Đánh giá</Text>
+                <Text style={styles.statLabel}>Đánh giá tổng</Text>
               </View>
 
               <View style={[styles.statCard, { backgroundColor: "#EDE7F6" }]}>
@@ -133,7 +184,7 @@ export default function CaregiverDashboardScreen() {
           <TouchableOpacity 
             key={appointment.id} 
             style={styles.appointmentCard}
-            onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id })}
+            onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id, fromScreen: "dashboard" })}
             activeOpacity={0.7}
           >
             <View style={styles.appointmentHeader}>
@@ -149,14 +200,6 @@ export default function CaregiverDashboardScreen() {
                     {appointment.age} tuổi • {appointment.type}
                   </Text>
                 </View>
-              </View>
-              <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: appointment.statusColor },
-                ]}
-              >
-                <Text style={styles.statusText}>{appointment.status}</Text>
               </View>
             </View>
 
@@ -175,7 +218,7 @@ export default function CaregiverDashboardScreen() {
               <View style={styles.appointmentActions}>
                 <TouchableOpacity 
                   style={styles.detailButton}
-                  onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id })}
+                  onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id, fromScreen: "dashboard" })}
                 >
                   <Text style={styles.detailButtonText}>Xem chi tiết</Text>
                 </TouchableOpacity>
