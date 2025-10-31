@@ -81,7 +81,6 @@ export default function TrainingCoursesMobile({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tài liệu đào tạo</Text>
         <Text style={styles.subtitle}>
           Tham khảo các khóa học chuyên môn để nâng cao kỹ năng chăm sóc người
           cao tuổi.
