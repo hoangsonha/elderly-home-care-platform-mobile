@@ -67,7 +67,7 @@ export function DynamicContactList({
         <ThemedText style={styles.title}>Liên hệ khẩn cấp</ThemedText>
         {contacts.length < maxItems && (
           <TouchableOpacity style={styles.addButton} onPress={addContact}>
-            <Ionicons name="add" size={20} color="#4ECDC4" />
+            <Ionicons name="add" size={20} color="#68C2E8" />
           </TouchableOpacity>
         )}
       </View>
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
   },
   contactsContainer: {
     gap: 16,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   contactNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4ECDC4',
+    color: '#68C2E8',
   },
   removeButton: {
     width: 28,
@@ -267,8 +267,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   checkboxActive: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
+    borderColor: '#68C2E8',
   },
   useMyPhoneText: {
     fontSize: 14,

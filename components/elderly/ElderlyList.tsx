@@ -292,13 +292,13 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 20,
+    paddingBottom: 100,
   },
   columnWrapper: {
     justifyContent: 'space-between',
   },
   elderlyCard: {
-    width: (width - 44) / 2,
+    flex: 0.48,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginBottom: 16,

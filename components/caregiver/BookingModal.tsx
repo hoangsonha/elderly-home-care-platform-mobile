@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import React, { useState } from 'react';
 import {
     Alert,
@@ -35,6 +36,7 @@ interface ElderlyProfile {
   family: string;
   healthStatus: 'good' | 'fair' | 'poor';
   avatar?: string;
+  address?: string;
 }
 
 interface BookingModalProps {
@@ -52,6 +54,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
   const [bookingType] = useState<BookingType>('immediate'); // Always immediate
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
 
   // Service packages
   const servicePackages = [
@@ -60,21 +63,32 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
       name: 'Gói cơ bản',
       duration: 4,
       price: 400000,
-      services: ['Chăm sóc cơ bản', 'Vệ sinh cá nhân', 'Hỗ trợ ăn uống']
+      services: ['Tắm rửa', 'Cho ăn', 'Massage cơ bản', 'Trò chuyện cùng bệnh nhân']
     },
     {
       id: 'standard',
-      name: 'Gói tiêu chuẩn',
+      name: 'Gói chuyên nghiệp',
       duration: 8,
       price: 750000,
-      services: ['Chăm sóc toàn diện', 'Vệ sinh cá nhân', 'Hỗ trợ ăn uống', 'Đi lại vận động', 'Uống thuốc đúng giờ']
+      services: ['Tập vật lý trị liệu', 'Massage phục hồi chức năng', 'Theo dõi tiến trình']
     },
     {
       id: 'premium',
-      name: 'Gói cao cấp',
-      duration: 12,
+      name: 'Gói nâng cao',
+      duration: 8,
       price: 1100000,
-      services: ['Chăm sóc 24/7', 'Vệ sinh cá nhân', 'Hỗ trợ ăn uống', 'Đi lại vận động', 'Uống thuốc đúng giờ', 'Theo dõi sức khỏe', 'Trò chuyện động viên']
+      services: ['Tất cả dịch vụ cơ bản', 'Nấu ăn', 'Dọn dẹp', 'Hỗ trợ y tế']
+    }
+  ];
+
+  // Payment methods
+  const paymentMethods = [
+    {
+      id: 'qr_code',
+      name: 'Quét mã QR',
+      icon: 'qr-code-outline',
+      type: 'qr',
+      description: 'Quét mã QR để thanh toán nhanh'
     }
   ];
 
@@ -192,6 +206,10 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
       
       console.log('Step 2 validation passed, moving to step 3');
       setCurrentStep(3);
+      
+    } else if (currentStep === 3) {
+      console.log('Step 3 validation passed, moving to step 4');
+      setCurrentStep(4);
     }
   };
 
@@ -200,6 +218,12 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     console.log('Selected Package:', immediateData.selectedPackage);
     console.log('Work Location:', immediateData.workLocation);
     console.log('Selected Profiles:', selectedProfiles);
+    console.log('Selected Payment Method:', selectedPaymentMethod);
+    
+    if (!selectedPaymentMethod) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn phương thức thanh toán');
+      return;
+    }
     
     setIsSubmitting(true);
     
@@ -216,6 +240,16 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     console.log('Success modal closed');
     setShowSuccessModal(false);
     handleClose();
+  };
+
+  const handleCopyToClipboard = async (text: string, label: string) => {
+    try {
+      await Clipboard.setStringAsync(text);
+      Alert.alert('Đã sao chép', `${label} đã được sao chép vào clipboard`);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      Alert.alert('Lỗi', 'Không thể sao chép');
+    }
   };
 
   const renderStep1 = () => (
@@ -244,7 +278,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
               <Ionicons 
                 name={expandedSections.basicInfo ? "chevron-up" : "chevron-down"} 
                 size={20} 
-                color="#4ECDC4" 
+                color="#68C2E8" 
               />
             </TouchableOpacity>
             
@@ -299,7 +333,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                   >
                     {immediateData.selectedPackage === pkg.id && (
                       <View style={styles.packageCheckmark}>
-                        <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
+                        <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
                       </View>
                     )}
                     
@@ -319,7 +353,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                       <ThemedText style={styles.packageServicesTitle}>Dịch vụ bao gồm:</ThemedText>
                       {pkg.services.map((service, index) => (
                         <View key={index} style={styles.packageServiceItem}>
-                          <Ionicons name="checkmark" size={16} color="#27AE60" />
+                          <Ionicons name="checkmark" size={16} color="#68C2E8" />
                           <ThemedText style={styles.packageServiceText}>{service}</ThemedText>
                         </View>
                       ))}
@@ -340,7 +374,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
               <Ionicons 
                 name={expandedSections.note ? "chevron-up" : "chevron-down"} 
                 size={20} 
-                color="#4ECDC4" 
+                color="#68C2E8" 
               />
             </TouchableOpacity>
             
@@ -417,6 +451,130 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     );
   };
 
+  const renderStep4 = () => {
+    console.log('=== Rendering Step 4 (Payment) ===');
+    console.log('selectedPaymentMethod:', selectedPaymentMethod);
+    
+    const selectedPackage = servicePackages.find(p => p.id === immediateData.selectedPackage);
+    const totalAmount = selectedPackage?.price || 0;
+    
+    // Generate booking ID for QR code
+    const bookingId = `BK${Date.now().toString().slice(-8)}`;
+    
+    // Bank account info
+    const bankInfo = {
+      bankName: 'Ngân hàng TMCP Á Châu (ACB)',
+      accountNumber: '123456789',
+      accountName: 'NGUYEN VAN A',
+      branch: 'Chi nhánh TP.HCM'
+    };
+    
+    return (
+      <View style={styles.stepContent}>
+        <ThemedText style={styles.stepTitle}>Chọn phương thức thanh toán</ThemedText>
+        
+        <View style={styles.paymentContainer}>
+          {/* Total Amount Display */}
+          <View style={styles.paymentSummary}>
+            <ThemedText style={styles.paymentSummaryLabel}>Tổng thanh toán:</ThemedText>
+            <ThemedText style={styles.paymentSummaryAmount}>
+              {totalAmount.toLocaleString('vi-VN')} VNĐ
+            </ThemedText>
+          </View>
+
+          {/* Payment Methods */}
+          <View style={styles.paymentMethodsContainer}>
+            <ThemedText style={styles.sectionSubtitle}>Phương thức thanh toán</ThemedText>
+            
+            {paymentMethods.map((method) => (
+              <TouchableOpacity
+                key={method.id}
+                style={[
+                  styles.paymentMethodCard,
+                  selectedPaymentMethod === method.id && styles.paymentMethodCardSelected
+                ]}
+                onPress={() => setSelectedPaymentMethod(method.id)}
+              >
+                <View style={styles.paymentMethodContent}>
+                  <View style={[
+                    styles.paymentMethodIcon,
+                    selectedPaymentMethod === method.id && styles.paymentMethodIconSelected
+                  ]}>
+                    <Ionicons 
+                      name={method.icon as any} 
+                      size={24} 
+                      color={selectedPaymentMethod === method.id ? '#68C2E8' : '#6c757d'} 
+                    />
+                  </View>
+                  <View style={styles.paymentMethodTextContainer}>
+                    <ThemedText style={[
+                      styles.paymentMethodName,
+                      selectedPaymentMethod === method.id && styles.paymentMethodNameSelected
+                    ]}>
+                      {method.name}
+                    </ThemedText>
+                    <ThemedText style={styles.paymentMethodDescription}>
+                      {method.description}
+                    </ThemedText>
+                  </View>
+                </View>
+                {selectedPaymentMethod === method.id && (
+                  <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Payment Details - QR Code */}
+          {selectedPaymentMethod === 'qr_code' && (
+            <View style={styles.paymentDetailsContainer}>
+              <View style={styles.paymentDetailsHeader}>
+                <Ionicons name="qr-code" size={24} color="#68C2E8" />
+                <ThemedText style={styles.paymentDetailsTitle}>Quét mã QR để thanh toán</ThemedText>
+              </View>
+              
+              <View style={styles.qrCodeContainer}>
+                <View style={styles.qrCodePlaceholder}>
+                  <Ionicons name="qr-code-outline" size={120} color="#68C2E8" />
+                  <ThemedText style={styles.qrCodeText}>Mã QR thanh toán</ThemedText>
+                  <ThemedText style={styles.qrCodeSubtext}>
+                    {totalAmount.toLocaleString('vi-VN')} VNĐ
+                  </ThemedText>
+                </View>
+                
+                <View style={styles.qrCodeInfo}>
+                  <ThemedText style={styles.qrCodeInfoText}>
+                    Mã booking: <ThemedText style={styles.qrCodeInfoBold}>{bookingId}</ThemedText>
+                  </ThemedText>
+                  <ThemedText style={styles.qrCodeInfoText}>
+                    Ngân hàng: <ThemedText style={styles.qrCodeInfoBold}>{bankInfo.bankName}</ThemedText>
+                  </ThemedText>
+                </View>
+              </View>
+              
+              <View style={styles.paymentNote}>
+                <Ionicons name="information-circle-outline" size={20} color="#68C2E8" />
+                <ThemedText style={styles.paymentNoteText}>
+                  Mở ứng dụng ngân hàng và quét mã QR để thanh toán. Hệ thống sẽ tự động xác nhận sau khi thanh toán thành công.
+                </ThemedText>
+              </View>
+            </View>
+          )}
+
+          {/* Default Note */}
+          {!selectedPaymentMethod && (
+            <View style={styles.paymentNote}>
+              <Ionicons name="information-circle-outline" size={20} color="#68C2E8" />
+              <ThemedText style={styles.paymentNoteText}>
+                Vui lòng chọn phương thức thanh toán để tiếp tục.
+              </ThemedText>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   const renderCurrentStep = () => {
     console.log('=== renderCurrentStep ===');
     console.log('Current step:', currentStep);
@@ -431,6 +589,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
       case 3: 
         console.log('Rendering Step 3');
         return renderStep3();
+      case 4:
+        console.log('Rendering Step 4');
+        return renderStep4();
       default: 
         console.log('Default: Rendering Step 1');
         return renderStep1();
@@ -449,7 +610,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
           <View style={styles.headerContent}>
             <ThemedText style={styles.headerTitle}>Đặt lịch với {caregiver.name}</ThemedText>
             <ThemedText style={styles.headerSubtitle}>
-              Bước {currentStep}/3
+              Bước {currentStep}/4
             </ThemedText>
           </View>
 
@@ -462,7 +623,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
             <View 
               style={[
                 styles.progressFill, 
-                { width: `${(currentStep / 3) * 100}%` }
+                { width: `${(currentStep / 4) * 100}%` }
               ]} 
             />
           </View>
@@ -477,7 +638,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
         <View style={styles.navigation}>
           {currentStep > 1 && (
             <TouchableOpacity style={styles.previousButton} onPress={() => setCurrentStep(prev => prev - 1)}>
-              <Ionicons name="chevron-back" size={20} color="#4ECDC4" />
+              <Ionicons name="chevron-back" size={20} color="#68C2E8" />
               <ThemedText style={styles.previousButtonText}>Trước</ThemedText>
             </TouchableOpacity>
           )}
@@ -496,6 +657,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
               } else if (currentStep === 2) {
                 handleNext();
               } else if (currentStep === 3) {
+                handleNext();
+              } else if (currentStep === 4) {
                 console.log('Calling handleSubmit');
                 handleSubmit();
               }
@@ -505,7 +668,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
             <ThemedText style={styles.nextButtonText}>
               {isSubmitting ? 'Đang xử lý...' : 
                currentStep === 2 ? 'Xem trước' : 
-               currentStep === 3 ? 'Xác nhận' : 'Tiếp theo'}
+               currentStep === 3 ? 'Thanh toán' :
+               currentStep === 4 ? 'Xác nhận' : 'Tiếp theo'}
             </ThemedText>
             {!isSubmitting && (
               <Ionicons name="chevron-forward" size={20} color="white" />
@@ -522,8 +686,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
         >
           <View style={styles.modalOverlay}>
             <View style={styles.locationModal}>
-              <View style={styles.modalHeader}>
-                <ThemedText style={styles.modalTitle}>Chọn địa điểm làm việc</ThemedText>
+              <View style={styles.modalHeaderClose}>
                 <TouchableOpacity onPress={() => setShowLocationModal(false)}>
                   <Ionicons name="close" size={24} color="#6c757d" />
                 </TouchableOpacity>
@@ -537,27 +700,42 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                     {elderlyProfiles
                       .filter(profile => selectedProfiles.includes(profile.id))
                       .map((profile) => (
-                        <TouchableOpacity
+                        <View
                           key={profile.id}
                           style={[
                             styles.locationOption,
                             immediateData.workLocation === profile.address && styles.locationOptionSelected
                           ]}
-                          onPress={() => handleSelectLocation(profile.address)}
                         >
-                          <View style={styles.locationOptionContent}>
-                            <View style={styles.locationOptionIcon}>
-                              <Ionicons name="home" size={24} color="#4ECDC4" />
+                          <TouchableOpacity
+                            style={styles.locationOptionTouchable}
+                            onPress={() => handleSelectLocation(profile.address)}
+                          >
+                            <View style={styles.locationOptionContent}>
+                              <View style={styles.locationOptionIcon}>
+                                <Ionicons name="home" size={24} color="#68C2E8" />
+                              </View>
+                              <View style={styles.locationOptionText}>
+                                <ThemedText style={styles.locationOptionName}>{profile.name}</ThemedText>
+                                <ThemedText style={styles.locationOptionAddress}>
+                                  {profile.address || 'Chưa có địa chỉ'}
+                                </ThemedText>
+                              </View>
                             </View>
-                            <View style={styles.locationOptionText}>
-                              <ThemedText style={styles.locationOptionName}>{profile.name}</ThemedText>
-                              <ThemedText style={styles.locationOptionAddress}>{profile.address}</ThemedText>
-                            </View>
-                          </View>
-                          {immediateData.workLocation === profile.address && (
-                            <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
-                          )}
-                        </TouchableOpacity>
+                            {immediateData.workLocation === profile.address && (
+                              <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.editLocationButton}
+                            onPress={() => {
+                              // Handle edit location
+                              Alert.alert('Chỉnh sửa địa chỉ', `Chỉnh sửa địa chỉ của ${profile.name}`);
+                            }}
+                          >
+                            <Ionicons name="create-outline" size={20} color="#68C2E8" />
+                          </TouchableOpacity>
+                        </View>
                       ))}
                   </View>
                 )}
@@ -571,7 +749,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                   >
                     <View style={styles.locationOptionContent}>
                       <View style={styles.locationOptionIcon}>
-                        <Ionicons name="add-circle" size={24} color="#4ECDC4" />
+                        <Ionicons name="add-circle" size={24} color="#68C2E8" />
                       </View>
                       <View style={styles.locationOptionText}>
                         <ThemedText style={styles.locationOptionName}>Nhập địa chỉ khác</ThemedText>
@@ -607,7 +785,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                     setCustomLocation('');
                   }}
                 >
-                  <Ionicons name="arrow-back" size={24} color="#4ECDC4" />
+                  <Ionicons name="arrow-back" size={24} color="#68C2E8" />
                 </TouchableOpacity>
                 <ThemedText style={styles.modalTitle}>Nhập địa chỉ</ThemedText>
                 <TouchableOpacity onPress={() => {
@@ -653,7 +831,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
           <View style={styles.modalOverlay}>
             <View style={styles.successModal}>
               <View style={styles.successIconContainer}>
-                <Ionicons name="checkmark-circle" size={80} color="#27AE60" />
+                <Ionicons name="checkmark-circle" size={80} color="#68C2E8" />
               </View>
               
               <ThemedText style={styles.successTitle}>Đặt lịch thành công! 🎉</ThemedText>
@@ -684,7 +862,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -725,7 +903,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     borderRadius: 2,
   },
   content: {
@@ -749,7 +927,7 @@ const styles = StyleSheet.create({
   stepSubtitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#4ECDC4',
+    color: '#68C2E8',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -827,7 +1005,7 @@ const styles = StyleSheet.create({
     borderColor: '#e9ecef',
   },
   optionCardSelected: {
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
     backgroundColor: '#f0fdfa',
   },
   optionContent: {
@@ -846,14 +1024,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   optionTitleSelected: {
-    color: '#4ECDC4',
+    color: '#68C2E8',
   },
   optionDescription: {
     fontSize: 14,
     color: '#6c757d',
   },
   optionDescriptionSelected: {
-    color: '#4ECDC4',
+    color: '#68C2E8',
   },
   navigation: {
     flexDirection: 'row',
@@ -871,11 +1049,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
   },
   previousButtonText: {
     marginLeft: 8,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     fontWeight: '600',
   },
   navigationSpacer: {
@@ -884,7 +1062,7 @@ const styles = StyleSheet.create({
   nextButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -920,13 +1098,13 @@ const styles = StyleSheet.create({
   },
   timeRangeText: {
     fontSize: 14,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     marginTop: 8,
     fontWeight: '500',
   },
   salaryDisplay: {
     fontSize: 14,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     marginTop: 6,
     fontWeight: '600',
   },
@@ -965,14 +1143,14 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
     borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   checkboxBoxChecked: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
   },
   checkboxLabel: {
     flex: 1,
@@ -1090,8 +1268,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   dateCardSelected: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
+    borderColor: '#68C2E8',
   },
   dateCardDay: {
     fontSize: 14,
@@ -1236,7 +1414,7 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   pickerItemSelected: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
   },
   pickerText: {
     fontSize: 16,
@@ -1279,7 +1457,7 @@ const styles = StyleSheet.create({
   },
   summaryPrice: {
     fontSize: 16,
-    color: '#27AE60',
+    color: '#68C2E8',
     fontWeight: 'bold',
   },
   // Task Styles
@@ -1291,12 +1469,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
     borderStyle: 'dashed',
   },
   addTaskText: {
     fontSize: 14,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     fontWeight: '500',
     marginLeft: 6,
   },
@@ -1386,9 +1564,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   packageCardSelected: {
-    borderColor: '#27AE60',
+    borderColor: '#68C2E8',
     backgroundColor: '#f0fdf4',
-    shadowColor: '#27AE60',
+    shadowColor: '#68C2E8',
     shadowOpacity: 0.15,
   },
   packageCheckmark: {
@@ -1424,7 +1602,7 @@ const styles = StyleSheet.create({
   },
   packagePrice: {
     fontSize: 16,
-    color: '#27AE60',
+    color: '#68C2E8',
     fontWeight: 'bold',
   },
   packageServices: {
@@ -1469,7 +1647,7 @@ const styles = StyleSheet.create({
   locationSectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4ECDC4',
+    color: '#68C2E8',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1480,14 +1658,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
     borderWidth: 2,
     borderColor: '#e9ecef',
+    overflow: 'hidden',
   },
   locationOptionSelected: {
-    borderColor: '#27AE60',
+    borderColor: '#68C2E8',
     backgroundColor: '#f0fdf4',
+  },
+  locationOptionTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  editLocationButton: {
+    padding: 16,
+    borderLeftWidth: 1,
+    borderLeftColor: '#e9ecef',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   locationOptionContent: {
     flexDirection: 'row',
@@ -1529,6 +1721,14 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
+  modalHeaderClose: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
   customLocationContent: {
     padding: 20,
   },
@@ -1548,7 +1748,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     borderRadius: 12,
     padding: 16,
     gap: 8,
@@ -1590,13 +1790,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   successButton: {
-    backgroundColor: '#27AE60',
+    backgroundColor: '#68C2E8',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 48,
     width: '100%',
     alignItems: 'center',
-    shadowColor: '#27AE60',
+    shadowColor: '#68C2E8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1606,5 +1806,214 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
+  },
+  // Payment Styles
+  paymentContainer: {
+    gap: 24,
+  },
+  paymentSummary: {
+    backgroundColor: '#f0f8ff',
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#68C2E8',
+  },
+  paymentSummaryLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  paymentSummaryAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#68C2E8',
+  },
+  paymentMethodsContainer: {
+    gap: 12,
+  },
+  paymentMethodCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  paymentMethodCardSelected: {
+    borderColor: '#68C2E8',
+    backgroundColor: '#f0f8ff',
+    shadowColor: '#68C2E8',
+    shadowOpacity: 0.15,
+  },
+  paymentMethodContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  paymentMethodIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  paymentMethodIconSelected: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#68C2E8',
+  },
+  paymentMethodTextContainer: {
+    flex: 1,
+  },
+  paymentMethodName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  paymentMethodNameSelected: {
+    color: '#68C2E8',
+  },
+  paymentMethodDescription: {
+    fontSize: 13,
+    color: '#6c757d',
+  },
+  paymentNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f0f8ff',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#68C2E8',
+  },
+  paymentNoteText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#495057',
+    lineHeight: 20,
+  },
+  paymentDetailsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    gap: 16,
+  },
+  paymentDetailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  paymentDetailsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  bankInfoContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  bankInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  bankInfoLabel: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+    minWidth: 100,
+  },
+  bankInfoValue: {
+    fontSize: 14,
+    color: '#2c3e50',
+    flex: 1,
+    textAlign: 'right',
+  },
+  bankInfoValueBold: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '600',
+  },
+  bankInfoValueWithCopy: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  copyButton: {
+    padding: 6,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 6,
+  },
+  bankInfoDivider: {
+    height: 1,
+    backgroundColor: '#e9ecef',
+    marginVertical: 8,
+  },
+  qrCodeContainer: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  qrCodePlaceholder: {
+    width: 240,
+    height: 240,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#68C2E8',
+    borderStyle: 'dashed',
+    padding: 20,
+  },
+  qrCodeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginTop: 16,
+  },
+  qrCodeSubtext: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#68C2E8',
+    marginTop: 8,
+  },
+  qrCodeInfo: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    gap: 8,
+  },
+  qrCodeInfoText: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  qrCodeInfoBold: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '600',
   },
 });

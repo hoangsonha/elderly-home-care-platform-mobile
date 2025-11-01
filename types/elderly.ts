@@ -22,7 +22,6 @@ export interface ElderlyProfile {
     eating: string;
     bathing: string;
     mobility: string;
-    toileting: string;
     dressing: string;
   };
   careNeeds: {

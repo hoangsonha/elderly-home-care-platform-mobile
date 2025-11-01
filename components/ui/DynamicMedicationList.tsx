@@ -137,7 +137,7 @@ export function DynamicMedicationList({
         <ThemedText style={styles.title}>Thuốc đang sử dụng</ThemedText>
         {medications.length < maxItems && (
           <TouchableOpacity style={styles.addButton} onPress={addMedication}>
-            <Ionicons name="add-circle" size={28} color="#4ECDC4" />
+            <Ionicons name="add-circle" size={28} color="#68C2E8" />
           </TouchableOpacity>
         )}
       </View>
@@ -154,7 +154,7 @@ export function DynamicMedicationList({
                   <ThemedText style={styles.medicationNumber}>Thuốc {index + 1}</ThemedText>
                   {medication.isConfirmed && (
                     <View style={styles.confirmedBadge}>
-                      <Ionicons name="checkmark-circle" size={16} color="#27AE60" />
+                      <Ionicons name="checkmark-circle" size={16} color="#68C2E8" />
                       <ThemedText style={styles.confirmedText}>Đã xác nhận</ThemedText>
                     </View>
                   )}
@@ -186,7 +186,7 @@ export function DynamicMedicationList({
                   style={styles.editButton}
                   onPress={() => editMedication(index)}
                 >
-                  <Ionicons name="create-outline" size={18} color="#4ECDC4" />
+                  <Ionicons name="create-outline" size={18} color="#68C2E8" />
                   <ThemedText style={styles.editButtonText}>Chỉnh sửa</ThemedText>
                 </TouchableOpacity>
               </View>
@@ -294,7 +294,7 @@ export function DynamicMedicationList({
                 style={styles.addAnotherButton}
                 onPress={addMedication}
               >
-                <Ionicons name="add-circle-outline" size={20} color="#4ECDC4" />
+                <Ionicons name="add-circle-outline" size={20} color="#68C2E8" />
                 <ThemedText style={styles.addAnotherText}>Thêm thuốc khác</ThemedText>
               </TouchableOpacity>
             )}
@@ -335,7 +335,7 @@ export function DynamicMedicationList({
                 <ThemedText style={styles.pickerOptionText}>{unit.label}</ThemedText>
                 {selectedMedicationIndex >= 0 && 
                  medications[selectedMedicationIndex]?.frequencyUnit === unit.value && (
-                  <Ionicons name="checkmark" size={20} color="#4ECDC4" />
+                  <Ionicons name="checkmark" size={20} color="#68C2E8" />
                 )}
               </TouchableOpacity>
             ))}
@@ -368,7 +368,7 @@ export function DynamicMedicationList({
                 <ThemedText style={styles.pickerOptionText}>{unit.label}</ThemedText>
                 {selectedMedicationIndex >= 0 && 
                  medications[selectedMedicationIndex]?.dosageUnit === unit.value && (
-                  <Ionicons name="checkmark" size={20} color="#4ECDC4" />
+                  <Ionicons name="checkmark" size={20} color="#68C2E8" />
                 )}
               </TouchableOpacity>
             ))}
@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
   },
   medicationCardConfirmed: {
     backgroundColor: '#F0FFF4',
-    borderColor: '#27AE60',
+    borderColor: '#68C2E8',
   },
   medicationHeader: {
     flexDirection: 'row',
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   medicationNumber: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4ECDC4',
+    color: '#68C2E8',
   },
   confirmedBadge: {
     flexDirection: 'row',
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   confirmedText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#27AE60',
+    color: '#68C2E8',
   },
   removeButton: {
     padding: 4,
@@ -572,13 +572,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
     borderStyle: 'dashed',
   },
   addAnotherText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#4ECDC4',
+    color: '#68C2E8',
     marginLeft: 8,
   },
   confirmedContent: {
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
     borderRadius: 10,
     paddingVertical: 10,
     marginTop: 8,
@@ -615,13 +615,13 @@ const styles = StyleSheet.create({
   editButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4ECDC4',
+    color: '#68C2E8',
   },
   confirmButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#27AE60',
+    backgroundColor: '#68C2E8',
     borderRadius: 12,
     paddingVertical: 14,
     marginTop: 16,

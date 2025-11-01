@@ -158,7 +158,6 @@ export default function FamilyDetailScreen() {
           eating: 'assisted',
           bathing: 'assisted',
           mobility: 'independent',
-          toileting: 'assisted',
           dressing: 'independent',
         },
         careNeeds: {
@@ -203,7 +202,6 @@ export default function FamilyDetailScreen() {
           eating: 'dependent',
           bathing: 'dependent',
           mobility: 'dependent',
-          toileting: 'dependent',
           dressing: 'dependent',
         },
         careNeeds: {
@@ -303,7 +301,7 @@ export default function FamilyDetailScreen() {
 
   const handleElderlyPress = (person: any) => {
     console.log('Navigating to elderly detail:', person.id);
-    router.push(`/elderly-detail?id=${person.id}`);
+    router.push(`/careseeker/elderly-detail?id=${person.id}`);
   };
 
   const getRoleText = (role: string) => {

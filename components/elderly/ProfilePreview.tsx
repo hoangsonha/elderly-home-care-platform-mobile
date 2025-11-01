@@ -110,7 +110,6 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({ profile }) => {
               {key === 'eating' && 'Ăn uống'}
               {key === 'bathing' && 'Tắm rửa'}
               {key === 'mobility' && 'Di chuyển'}
-              {key === 'toileting' && 'Đi vệ sinh'}
               {key === 'dressing' && 'Mặc quần áo'}
             </ThemedText>
             <View style={[

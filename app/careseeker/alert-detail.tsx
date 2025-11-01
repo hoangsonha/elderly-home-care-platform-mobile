@@ -93,7 +93,7 @@ export default function AlertDetailScreen() {
 
   const handleViewElderlyProfile = () => {
     if (alert.elderlyId) {
-      router.push(`/elderly-detail?id=${alert.elderlyId}`);
+      router.push(`/careseeker/elderly-detail?id=${alert.elderlyId}`);
     }
   };
 

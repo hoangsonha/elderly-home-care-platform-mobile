@@ -290,7 +290,7 @@ export function CaregiverRequests({ onChatPress, onBookPress }: CaregiverRequest
       style={styles.requestCard}
       onPress={() => {
         // Navigate to caregiver detail
-        router.push(`/caregiver-detail?id=${request.caregiver.id}&name=${request.caregiver.name}`);
+        router.push(`/careseeker/caregiver-detail?id=${request.caregiver.id}&name=${request.caregiver.name}`);
       }}
       activeOpacity={0.7}
     >
@@ -386,7 +386,7 @@ export function CaregiverRequests({ onChatPress, onBookPress }: CaregiverRequest
       style={styles.requestCard}
       onPress={() => {
         // Navigate to caregiver detail
-        router.push(`/caregiver-detail?id=${request.caregiver.id}&name=${request.caregiver.name}`);
+        router.push(`/careseeker/caregiver-detail?id=${request.caregiver.id}&name=${request.caregiver.name}`);
       }}
       activeOpacity={0.7}
     >

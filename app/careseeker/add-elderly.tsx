@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Modal,
     ScrollView,
@@ -13,9 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProfilePreview } from '@/components/elderly/ProfilePreview';
 import { ThemedText } from '@/components/themed-text';
-import { DynamicContactList } from '@/components/ui/DynamicContactList';
 import { DynamicInputList } from '@/components/ui/DynamicInputList';
 import { DynamicMedicationList } from '@/components/ui/DynamicMedicationList';
+import { useEmergencyContact } from '@/contexts/EmergencyContactContext';
 import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
 
 // Mock families data
@@ -78,7 +78,6 @@ interface ElderlyProfile {
     eating: 'independent' | 'assisted' | 'dependent';
     bathing: 'independent' | 'assisted' | 'dependent';
     mobility: 'independent' | 'assisted' | 'dependent';
-    toileting: 'independent' | 'assisted' | 'dependent';
     dressing: 'independent' | 'assisted' | 'dependent';
   };
   // Nhu cầu chăm sóc
@@ -110,6 +109,7 @@ interface ElderlyProfile {
 
 export default function AddElderlyScreen() {
   const [currentStep, setCurrentStep] = useState(1);
+  const { tempContacts, setTempContacts } = useEmergencyContact();
   
   // Family selection states
   const [familySelectionType, setFamilySelectionType] = useState<'create' | 'select' | null>(null);
@@ -123,6 +123,16 @@ export default function AddElderlyScreen() {
   // Add member modal states
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  
+  // Sync emergency contacts from context when returning from emergency contacts page
+  useEffect(() => {
+    if (tempContacts.length > 0) {
+      setProfile(prev => ({
+        ...prev,
+        emergencyContacts: tempContacts
+      }));
+    }
+  }, [tempContacts]);
   
   const [profile, setProfile] = useState<ElderlyProfile>({
     personalInfo: {
@@ -146,7 +156,6 @@ export default function AddElderlyScreen() {
       eating: 'independent',
       bathing: 'independent',
       mobility: 'independent',
-      toileting: 'independent',
       dressing: 'independent',
     },
     careNeeds: {
@@ -704,7 +713,6 @@ export default function AddElderlyScreen() {
             {key === 'eating' && 'Ăn uống'}
             {key === 'bathing' && 'Tắm rửa'}
             {key === 'mobility' && 'Di chuyển'}
-            {key === 'toileting' && 'Đi vệ sinh'}
             {key === 'dressing' && 'Mặc quần áo'}
           </ThemedText>
           <View style={styles.independenceOptions}>
@@ -737,26 +745,6 @@ export default function AddElderlyScreen() {
         </View>
       ))}
 
-      {/* Care Needs - Integrated */}
-      <View style={styles.sectionDivider} />
-      <View style={styles.subsectionHeader}>
-        <ThemedText style={styles.sectionTitle}>Nhu cầu chăm sóc</ThemedText>
-      </View>
-      
-      <View style={styles.inputGroup}>
-        <DynamicInputList
-          items={profile.careNeeds.customNeeds || []}
-          onItemsChange={(items) => setProfile(prev => ({
-            ...prev,
-            careNeeds: {
-              ...prev.careNeeds,
-              customNeeds: items
-            }
-          }))}
-          placeholder="Ví dụ: Trò chuyện, Nhắc nhở uống thuốc"
-          title="Thêm nhu cầu chăm sóc"
-        />
-      </View>
     </View>
   );
 
@@ -810,17 +798,29 @@ export default function AddElderlyScreen() {
         />
       </View>
 
-      {/* Emergency Contacts - Integrated */}
+      {/* Emergency Contacts - Link to separate page */}
       <View style={styles.sectionDivider} />
       
       <View style={styles.inputGroup}>
-        <DynamicContactList
-          contacts={profile.emergencyContacts}
-          onContactsChange={(contacts) => setProfile(prev => ({
-            ...prev,
-            emergencyContacts: contacts
-          }))}
-        />
+        <View style={styles.emergencyContactsSection}>
+          <View style={styles.emergencyContactsHeader}>
+            <ThemedText style={styles.sectionTitle}>Liên hệ khẩn cấp</ThemedText>
+            <ThemedText style={styles.emergencyContactsCount}>
+              {profile.emergencyContacts.length} liên hệ
+            </ThemedText>
+          </View>
+          <TouchableOpacity 
+            style={styles.manageContactsButton}
+            onPress={() => {
+              setTempContacts(profile.emergencyContacts);
+              router.push('/careseeker/emergency-contacts');
+            }}
+          >
+            <Ionicons name="call-outline" size={20} color="#68C2E8" />
+            <ThemedText style={styles.manageContactsText}>Quản lý liên hệ khẩn cấp</ThemedText>
+            <Ionicons name="chevron-forward" size={20} color="#7F8C8D" />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -1736,5 +1736,36 @@ const styles = StyleSheet.create({
     color: '#856404',
     marginLeft: 8,
     fontWeight: '500',
+  },
+  emergencyContactsSection: {
+    marginTop: 8,
+  },
+  emergencyContactsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  emergencyContactsCount: {
+    fontSize: 14,
+    color: '#7F8C8D',
+    fontWeight: '500',
+  },
+  manageContactsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F8FF',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#68C2E8',
+    gap: 12,
+  },
+  manageContactsText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#68C2E8',
+    fontWeight: '600',
   },
 });

@@ -103,11 +103,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F7FA',
-    paddingBottom: 100,
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingTop: 50,
+    paddingTop: 30,
     paddingHorizontal: 20,
     paddingBottom: 20,
     flexDirection: 'row',

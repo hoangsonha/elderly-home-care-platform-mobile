@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverCard';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { ElderlyProfile } from '@/types/elderly';
@@ -55,7 +54,6 @@ export default function ElderlyDetailScreen() {
       eating: 'assisted',
       bathing: 'assisted',
       mobility: 'independent',
-      toileting: 'assisted',
       dressing: 'independent',
     },
     careNeeds: {
@@ -176,95 +174,6 @@ export default function ElderlyDetailScreen() {
     </View>
   );
 
-  // Caregivers tab renderer with data
-  const renderCaregiversTab = (profile: ElderlyProfile) => {
-    // Mock data for caregivers
-    const caregivers: Caregiver[] = [
-      {
-        id: '1',
-        name: 'Nguyễn Thị Mai',
-        avatar: 'https://via.placeholder.com/60x60/4ECDC4/FFFFFF?text=MT',
-        rating: 4.8,
-        experience: '5 năm',
-        specialties: ['Chăm sóc người già', 'Vật lý trị liệu'],
-        hourlyRate: 200000,
-        distance: '1.2 km',
-        isVerified: true,
-        totalReviews: 45
-      },
-      {
-        id: '2',
-        name: 'Trần Văn Nam',
-        avatar: 'https://via.placeholder.com/60x60/FF6B6B/FFFFFF?text=TN',
-        rating: 4.6,
-        experience: '3 năm',
-        specialties: ['Y tá', 'Chăm sóc y tế'],
-        hourlyRate: 180000,
-        distance: '2.1 km',
-        isVerified: true,
-        totalReviews: 32
-      },
-      {
-        id: '3',
-        name: 'Lê Thị Hoa',
-        avatar: 'https://via.placeholder.com/60x60/4ECDC4/FFFFFF?text=LH',
-        rating: 4.9,
-        experience: '7 năm',
-        specialties: ['Chăm sóc tâm lý', 'Hỗ trợ sinh hoạt'],
-        hourlyRate: 220000,
-        distance: '0.8 km',
-        isVerified: true,
-        totalReviews: 67
-      },
-      {
-        id: '4',
-        name: 'Phạm Văn Đức',
-        avatar: 'https://via.placeholder.com/60x60/45B7D1/FFFFFF?text=PĐ',
-        rating: 4.7,
-        experience: '4 năm',
-        specialties: ['Chăm sóc tại nhà', 'Hỗ trợ di chuyển'],
-        hourlyRate: 190000,
-        distance: '1.5 km',
-        isVerified: true,
-        totalReviews: 28
-      }
-    ];
-
-    const handleCaregiverPress = (caregiver: any) => {
-      router.push({
-        pathname: '/caregiver-detail',
-        params: {
-          id: caregiver.id,
-          name: caregiver.name,
-          fromElderly: 'true'
-        }
-      });
-    };
-
-    return (
-      <View style={styles.tabContent}>
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Danh sách người chăm sóc</ThemedText>
-          <ThemedText style={styles.infoText}>
-            Hiện có {caregivers.length} người chăm sóc đang phụ trách {profile.name}.
-          </ThemedText>
-        </View>
-        
-        <View style={styles.caregiversList}>
-          {caregivers.map((caregiver) => (
-            <View key={caregiver.id} style={styles.caregiverItem}>
-              <CaregiverCard
-                caregiver={caregiver}
-                onPress={handleCaregiverPress}
-                showActions={false}
-              />
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       {/* Header */}
@@ -352,20 +261,11 @@ export default function ElderlyDetailScreen() {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'environment' && styles.activeTab]}
+              style={[styles.tab, styles.lastTab, activeTab === 'environment' && styles.activeTab]}
               onPress={() => setActiveTab('environment')}
             >
               <ThemedText style={[styles.tabText, activeTab === 'environment' && styles.activeTabText]}>
                 Môi trường
-              </ThemedText>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.tab, styles.lastTab, activeTab === 'caregivers' && styles.activeTab]}
-              onPress={() => setActiveTab('caregivers')}
-            >
-              <ThemedText style={[styles.tabText, activeTab === 'caregivers' && styles.activeTabText]}>
-                Người chăm sóc
               </ThemedText>
             </TouchableOpacity>
             
@@ -379,7 +279,6 @@ export default function ElderlyDetailScreen() {
         {activeTab === 'needs' && renderNeedsTab(elderlyProfile)}
         {activeTab === 'preferences' && renderPreferencesTab(elderlyProfile)}
         {activeTab === 'environment' && renderEnvironmentTab(elderlyProfile)}
-        {activeTab === 'caregivers' && renderCaregiversTab(elderlyProfile)}
       </ScrollView>
 
       {/* Navigation Bar */}
@@ -553,12 +452,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6c757d',
     lineHeight: 20,
-  },
-  caregiversList: {
-    paddingHorizontal: 4,
-  },
-  caregiverItem: {
-    marginBottom: 12,
   },
   contactCard: {
     flexDirection: 'row',

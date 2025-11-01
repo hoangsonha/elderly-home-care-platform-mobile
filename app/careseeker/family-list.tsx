@@ -78,7 +78,7 @@ export default function FamilyListScreen() {
   ]);
 
   const handleFamilyPress = (family: Family) => {
-    router.push(`/family-detail?id=${family.id}`);
+    router.push(`/careseeker/family-detail?id=${family.id}`);
   };
 
   const handleCreateFamily = () => {

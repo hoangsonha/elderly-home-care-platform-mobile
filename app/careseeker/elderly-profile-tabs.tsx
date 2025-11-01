@@ -105,7 +105,6 @@ export const renderIndependenceTab = (profile: any) => {
     { key: 'eating', label: 'Ăn uống', icon: 'restaurant' },
     { key: 'bathing', label: 'Tắm rửa', icon: 'water' },
     { key: 'mobility', label: 'Di chuyển', icon: 'walk' },
-    { key: 'toileting', label: 'Đi vệ sinh', icon: 'home' },
     { key: 'dressing', label: 'Mặc quần áo', icon: 'shirt' },
   ];
 

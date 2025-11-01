@@ -1,8 +1,10 @@
 import { Stack } from "expo-router";
+import { EmergencyContactProvider } from "@/contexts/EmergencyContactContext";
 
 export default function CareSeekerLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <EmergencyContactProvider>
+      <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="dashboard" options={{ headerShown: false }} />
       <Stack.Screen name="caregiver-search" options={{ headerShown: false }} />
       <Stack.Screen name="caregiver-detail" options={{ headerShown: false }} />
@@ -29,7 +31,11 @@ export default function CareSeekerLayout() {
       <Stack.Screen name="elderly-profile-tabs" options={{ headerShown: false }} />
       <Stack.Screen name="system-info" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ headerShown: false }} />
+      <Stack.Screen name="emergency-contacts" options={{ headerShown: false }} />
+      <Stack.Screen name="in-progress" options={{ headerShown: false }} />
+      <Stack.Screen name="video-call" options={{ headerShown: false }} />
     </Stack>
+    </EmergencyContactProvider>
   );
 }
 

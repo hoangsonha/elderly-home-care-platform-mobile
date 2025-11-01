@@ -161,12 +161,23 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
                 style={styles.viewDetailsButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  handleToggleDetails(appointment.id);
+                  // Navigate to in-progress page with appointment details
+                  router.push({
+                    pathname: '/careseeker/in-progress',
+                    params: {
+                      appointmentId: appointment.id,
+                      caregiverName: appointment.caregiverName,
+                      timeSlot: appointment.timeSlot,
+                      status: appointment.status,
+                      address: appointment.address,
+                      rating: appointment.rating.toString(),
+                    }
+                  });
                 }}
               >
                 <ThemedText style={styles.viewDetailsText}>Xem chi tiết</ThemedText>
                 <Ionicons 
-                  name={isExpanded ? "chevron-up" : "chevron-down"} 
+                  name="chevron-forward" 
                   size={16} 
                   color="#4ECDC4" 
                 />

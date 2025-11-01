@@ -394,7 +394,7 @@ export function FamilyRequests({ onChatPress, onBookPress }: FamilyRequestsProps
           caregiver={request.caregiver}
           onPress={() => {
             // Navigate to caregiver detail
-            router.push(`/caregiver-detail?id=${request.caregiver.id}&name=${request.caregiver.name}`);
+            router.push(`/careseeker/caregiver-detail?id=${request.caregiver.id}&name=${request.caregiver.name}`);
           }}
           onChatPress={() => onChatPress?.(request.caregiver)}
           onBookPress={() => onBookPress?.(request.caregiver)}
@@ -559,7 +559,7 @@ export function FamilyRequests({ onChatPress, onBookPress }: FamilyRequestsProps
           style={styles.elderlyInfo}
           onPress={() => {
             // Navigate to elderly detail
-            router.push(`/elderly-detail?id=${request.elderly.id}`);
+            router.push(`/careseeker/elderly-detail?id=${request.elderly.id}`);
           }}
         >
           <View style={styles.elderlyHeader}>

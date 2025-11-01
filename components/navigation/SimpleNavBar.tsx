@@ -25,7 +25,7 @@ export function SimpleNavBar() {
     {
       id: 'history',
       icon: 'list-outline',
-      route: '/careseeker/hiring-history',
+      route: '/careseeker/in-progress',
     },
   ];
 
@@ -41,7 +41,7 @@ export function SimpleNavBar() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#4ECDC4', '#27AE60']}
+        colors={['#68C2E8', '#5AB9E0']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.navBar}
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 25,
     elevation: 3,
-    shadowColor: '#4ECDC4',
+    shadowColor: '#68C2E8',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,

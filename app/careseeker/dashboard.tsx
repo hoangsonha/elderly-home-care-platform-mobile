@@ -137,6 +137,7 @@ export default function DashboardScreen() {
       currentCaregivers: 1,
       family: 'Gia đình Nguyễn',
       healthStatus: 'good' as const,
+      address: '123 Nguyễn Văn Linh, Quận 7, TP.HCM',
     },
     {
       id: '2',
@@ -148,6 +149,7 @@ export default function DashboardScreen() {
       gender: 'male' as const,
       currentCaregivers: 0,
       family: 'Gia đình Trần',
+      address: '456 Lê Văn Việt, Quận 9, TP.HCM',
     },
     {
       id: '3',
@@ -159,6 +161,7 @@ export default function DashboardScreen() {
       gender: 'female' as const,
       currentCaregivers: 2,
       family: 'Gia đình Lê',
+      address: '789 Võ Văn Ngân, Thủ Đức, TP.HCM',
     },
     {
       id: '4',
@@ -168,6 +171,7 @@ export default function DashboardScreen() {
       avatar: 'https://via.placeholder.com/60x60/E74C3C/FFFFFF?text=PD',
       relationship: 'Ông nội',
       gender: 'male' as const,
+      address: '234 Phan Văn Trị, Gò Vấp, TP.HCM',
     },
   ];
   
@@ -639,7 +643,7 @@ const styles = StyleSheet.create({
   // Header - bTaskee Style
   header: {
     backgroundColor: '#68C2E8',
-    paddingTop: 50,
+    paddingTop: 30,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },

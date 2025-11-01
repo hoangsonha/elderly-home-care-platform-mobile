@@ -88,7 +88,13 @@ export default function ChatListScreen() {
       );
     }
     
-    router.push(`/careseeker/chat?caregiverId=${conversation.caregiverId}&caregiverName=${conversation.caregiverName}`);
+    router.push({
+      pathname: '/careseeker/chat',
+      params: {
+        caregiverId: conversation.caregiverId,
+        caregiverName: conversation.caregiverName,
+      }
+    });
   };
 
   const handleMarkAllAsRead = () => {
