@@ -1,7 +1,7 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { getAppointmentHasReviewed, getAppointmentStatus, markAppointmentAsReviewed, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -513,27 +513,29 @@ export default function AppointmentDetailScreen() {
   }, [appointmentId, appointmentData.packageType, appointmentData.status, appointmentData.notes]);
 
   // Sync status and review status from global store when component mounts or refocuses
-  useEffect(() => {
-    const syncData = () => {
-      const globalStatus = getAppointmentStatus(appointmentId);
-      if (globalStatus) {
-        setStatus(globalStatus);
-      }
-      const globalHasReviewed = getAppointmentHasReviewed(appointmentId);
-      setHasReviewed(globalHasReviewed);
-    };
-    
-    syncData();
-    
-    // Subscribe to status changes
-    const unsubscribe = subscribeToStatusChanges(() => {
+  useFocusEffect(
+    React.useCallback(() => {
+      const syncData = () => {
+        const globalStatus = getAppointmentStatus(appointmentId);
+        if (globalStatus) {
+          setStatus(globalStatus);
+        }
+        const globalHasReviewed = getAppointmentHasReviewed(appointmentId);
+        setHasReviewed(globalHasReviewed);
+      };
+      
       syncData();
-    });
-    
-    return () => {
-      unsubscribe();
-    };
-  }, [appointmentId]);
+      
+      // Subscribe to status changes
+      const unsubscribe = subscribeToStatusChanges(() => {
+        syncData();
+      });
+      
+      return () => {
+        unsubscribe();
+      };
+    }, [appointmentId])
+  );
 
   const toggleServiceComplete = (serviceId: string) => {
     setServices((prev) =>
@@ -715,15 +717,18 @@ export default function AppointmentDetailScreen() {
   const handleReview = () => {
     if (hasReviewed) {
       // Đã đánh giá rồi - Xem đánh giá
-      alert("Xem đánh giá đã gửi");
-      // router.push("/caregiver/review/view");
+      (navigation.navigate as any)("View Review", {
+        appointmentId: appointmentId,
+        elderlyName: appointmentData.elderly?.name || "Người được chăm sóc",
+        fromScreen: "appointment-detail",
+      });
     } else {
       // Chưa đánh giá - Đánh giá mới
-      alert("Chuyển đến trang đánh giá");
-      // Sau khi đánh giá xong, mark as reviewed
-      markAppointmentAsReviewed(appointmentId);
-      setHasReviewed(true);
-      // router.push("/caregiver/review");
+      (navigation.navigate as any)("Review", {
+        appointmentId: appointmentId,
+        elderlyName: appointmentData.elderly?.name || "Người được chăm sóc",
+        fromScreen: "appointment-detail",
+      });
     }
   };
 
