@@ -36,6 +36,10 @@ export default function ChatScreen() {
   
   // Thử lấy params từ cả route và useLocalSearchParams
   const routeParams = (route.params || {}) as any;
+  
+  // Đọc từ các nguồn khác nhau (chat-list truyền chatName, các màn hình khác có thể truyền clientName)
+  const chatName = routeParams.chatName || params.chatName;
+  const chatAvatar = routeParams.chatAvatar || params.chatAvatar;
   const clientName = routeParams.clientName || params.clientName;
   const clientAvatar = routeParams.clientAvatar || params.clientAvatar;
   const caregiverName = routeParams.caregiverName || params.caregiverName;
@@ -50,14 +54,14 @@ export default function ChatScreen() {
     },
     {
       id: "2",
-      text: "Chào chị! Tôi muốn tìm hiểu về dịch vụ chăm sóc người già của chị",
+      text: "Chào anh/chị! Tôi đang cần tìm người chăm sóc cho bà nội của tôi",
       sender: "user",
       timestamp: new Date(Date.now() - 1000 * 60 * 25), // 25 minutes ago
       isRead: true,
     },
     {
       id: "3",
-      text: "Tôi có 5 năm kinh nghiệm chăm sóc người cao tuổi, đặc biệt là những người có vấn đề về trí nhớ và vận động",
+      text: "Dạ, tôi có 5 năm kinh nghiệm chăm sóc người cao tuổi, đặc biệt là những người có vấn đề về trí nhớ và vận động. Bà nội của bạn bao nhiêu tuổi và tình trạng sức khỏe hiện tại như thế nào ạ?",
       sender: "caregiver",
       timestamp: new Date(Date.now() - 1000 * 60 * 20), // 20 minutes ago
       isRead: true,
@@ -67,12 +71,12 @@ export default function ChatScreen() {
   const [newMessage, setNewMessage] = useState("");
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Lấy tên và avatar người nhận từ params
-  const recipientName = (clientName as string) || (caregiverName as string) || "";
-  const recipientAvatar = (clientAvatar as string) || "👤";
+  // Lấy tên và avatar người nhận từ params (ưu tiên chatName từ chat-list)
+  const recipientName = (chatName as string) || (clientName as string) || (caregiverName as string) || "";
+  const recipientAvatar = (chatAvatar as string) || (clientAvatar as string) || "👤";
   
   // Debug log
-  console.log("Chat params:", { clientName, caregiverName, clientAvatar, recipientName });
+  console.log("Chat params:", { chatName, chatAvatar, clientName, clientAvatar, caregiverName, recipientName });
 
   useEffect(() => {
     // Auto scroll to bottom when new message is added
@@ -124,14 +128,15 @@ export default function ChatScreen() {
   };
 
   const renderMessage = (message: Message) => {
-    const isUser = message.sender === "user";
+    // Trong màn hình chat của caregiver: caregiver ở bên phải, user/seeker ở bên trái
+    const isCaregiver = message.sender === "caregiver";
 
     return (
       <View
         key={message.id}
         style={[
           styles.messageContainer,
-          isUser
+          isCaregiver
             ? styles.userMessageContainer
             : styles.caregiverMessageContainer,
         ]}
@@ -139,13 +144,13 @@ export default function ChatScreen() {
         <View
           style={[
             styles.messageBubble,
-            isUser ? styles.userMessageBubble : styles.caregiverMessageBubble,
+            isCaregiver ? styles.userMessageBubble : styles.caregiverMessageBubble,
           ]}
         >
           <ThemedText
             style={[
               styles.messageText,
-              isUser ? styles.userMessageText : styles.caregiverMessageText,
+              isCaregiver ? styles.userMessageText : styles.caregiverMessageText,
             ]}
           >
             {message.text}
@@ -153,7 +158,7 @@ export default function ChatScreen() {
           <ThemedText
             style={[
               styles.messageTime,
-              isUser ? styles.userMessageTime : styles.caregiverMessageTime,
+              isCaregiver ? styles.userMessageTime : styles.caregiverMessageTime,
             ]}
           >
             {formatTime(message.timestamp)}
@@ -174,7 +179,6 @@ export default function ChatScreen() {
           <ThemedText style={styles.chatHeaderName}>
             {recipientName || "Chưa có tên"}
           </ThemedText>
-          <ThemedText style={styles.chatHeaderStatus}>Đang hoạt động</ThemedText>
         </View>
       </View>
 

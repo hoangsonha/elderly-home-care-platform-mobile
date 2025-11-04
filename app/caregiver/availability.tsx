@@ -536,9 +536,44 @@ export default function AvailabilityScreen() {
         onSave={(data) => {
           console.log("Saved availability:", data);
           
+          const { isBusy, frequency, selectedDays, timeSlots, startDate, endDate, isFullDay } = data;
+          
+          // If isBusy is true, remove availability for selected dates
+          if (isBusy) {
+            const datesToRemove: Date[] = [];
+            
+            if (frequency === "Không lặp lại") {
+              datesToRemove.push(new Date(startDate));
+            } else {
+              // Weekly recurring - generate dates for 1 year or until endDate
+              const maxDate = endDate 
+                ? new Date(endDate) 
+                : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+              const currentCheckDate = new Date(startDate);
+              
+              while (currentCheckDate <= maxDate) {
+                const dayOfWeek = currentCheckDate.getDay();
+                if (selectedDays.includes(dayOfWeek)) {
+                  datesToRemove.push(new Date(currentCheckDate));
+                }
+                currentCheckDate.setDate(currentCheckDate.getDate() + 1);
+              }
+            }
+            
+            // Remove availability for these dates
+            const updatedAvailability = availabilityData.filter((item) => {
+              const itemDateStr = item.date.toDateString();
+              return !datesToRemove.some((date) => date.toDateString() === itemDateStr);
+            });
+            
+            setAvailabilityData(updatedAvailability);
+            console.log(`Removed availability for ${datesToRemove.length} days`);
+            return;
+          }
+          
+          // Mode is "available" - add/update availability
           // Generate dates based on frequency
           const newAvailability = [];
-          const { frequency, selectedDays, timeSlots, startDate, endDate, isFullDay } = data;
           
           if (frequency === "Không lặp lại") {
             // One-time availability - just add the start date
@@ -576,14 +611,29 @@ export default function AvailabilityScreen() {
             }
           }
           
-          // Merge with existing availability (remove duplicates by date)
-          const existingDates = availabilityData.map(item => item.date.toDateString());
-          const filteredNew = newAvailability.filter(
-            item => !existingDates.includes(item.date.toDateString())
-          );
+          // Merge with existing availability (update if exists, add if new)
+          const updatedAvailability = [...availabilityData];
+          let addedCount = 0;
+          let updatedCount = 0;
           
-          setAvailabilityData([...availabilityData, ...filteredNew]);
-          console.log("Added availability for", filteredNew.length, "days");
+          newAvailability.forEach((newItem) => {
+            const existingIndex = updatedAvailability.findIndex(
+              (item) => item.date.toDateString() === newItem.date.toDateString()
+            );
+            
+            if (existingIndex >= 0) {
+              // Update existing availability
+              updatedAvailability[existingIndex] = newItem;
+              updatedCount++;
+            } else {
+              // Add new availability
+              updatedAvailability.push(newItem);
+              addedCount++;
+            }
+          });
+          
+          setAvailabilityData(updatedAvailability);
+          console.log(`Updated ${updatedCount} days, added ${addedCount} days`);
         }}
         existingSchedule={scheduleData}
       />

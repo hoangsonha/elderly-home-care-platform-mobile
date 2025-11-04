@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { updateAppointmentStatus } from "@/data/appointmentStore";
 import React, { useState } from "react";
 import {
     Alert,
@@ -33,6 +34,7 @@ export default function AvailabilityModal({
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [isFullDay, setIsFullDay] = useState(false);
+  const [isBusy, setIsBusy] = useState(false); // Checkbox để set bận cả ngày
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
     { startTime: "08:00", endTime: "12:00" },
     { startTime: "14:00", endTime: "18:00" },
@@ -100,10 +102,152 @@ export default function AvailabilityModal({
     return `${hours}:${minutes}`;
   };
 
+  // Check if two time ranges overlap
+  const timeRangesOverlap = (
+    start1: string, 
+    end1: string, 
+    start2: string, 
+    end2: string
+  ): boolean => {
+    const parseTime = (time: string): number => {
+      const [hours, minutes] = time.split(":").map(Number);
+      return hours * 60 + minutes; // Convert to minutes since midnight
+    };
+
+    const start1Min = parseTime(start1);
+    const end1Min = parseTime(end1);
+    const start2Min = parseTime(start2);
+    const end2Min = parseTime(end2);
+
+    // Check if ranges overlap
+    return start1Min < end2Min && start2Min < end1Min;
+  };
+
+  // Parse time from string like "8:00 - 16:00" to {start: "08:00", end: "16:00"}
+  const parseAppointmentTime = (timeStr: string): { start: string; end: string } | null => {
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+    if (!match) return null;
+    
+    const startHour = match[1].padStart(2, "0");
+    const startMin = match[2];
+    const endHour = match[3].padStart(2, "0");
+    const endMin = match[4];
+    
+    return {
+      start: `${startHour}:${startMin}`,
+      end: `${endHour}:${endMin}`,
+    };
+  };
+
   const checkConflictingSchedule = () => {
-    // Check if there are any appointments from start date onwards
-    const conflictingAppointments = existingSchedule.filter((appointment) => {
-      return appointment.date >= startDate;
+    const conflictingAppointments: any[] = [];
+    
+    // Generate all dates that will be affected by this availability
+    const affectedDates: Date[] = [];
+    
+    if (frequency === "Không lặp lại") {
+      affectedDates.push(new Date(startDate));
+    } else {
+      // Weekly recurring - generate dates for 1 year or until endDate
+      const maxDate = endDate 
+        ? new Date(endDate) 
+        : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+      const currentCheckDate = new Date(startDate);
+      
+      while (currentCheckDate <= maxDate) {
+        const dayOfWeek = currentCheckDate.getDay();
+        if (selectedDays.includes(dayOfWeek)) {
+          affectedDates.push(new Date(currentCheckDate));
+        }
+        currentCheckDate.setDate(currentCheckDate.getDate() + 1);
+      }
+    }
+
+    // Check each appointment against affected dates
+    existingSchedule.forEach((appointment) => {
+      const appointmentDate = new Date(appointment.date);
+      const appointmentDateStr = `${appointmentDate.getDate()}-${appointmentDate.getMonth()}-${appointmentDate.getFullYear()}`;
+      
+      // Check if appointment date is in affected dates
+      const isDateAffected = affectedDates.some((date) => {
+        const dateStr = `${date.getDate()}-${date.getMonth()}-${date.getFullYear()}`;
+        return dateStr === appointmentDateStr;
+      });
+
+      if (!isDateAffected) return;
+
+      // If full day available, no conflict
+      if (isFullDay) return;
+
+      // Parse appointment time
+      const appointmentTime = parseAppointmentTime(appointment.time);
+      if (!appointmentTime) return;
+
+      // Check if appointment time is FULLY contained within available time slots
+      // An appointment conflicts if ANY part of it falls outside available slots
+      const parseTime = (time: string): number => {
+        const [hours, minutes] = time.split(":").map(Number);
+        return hours * 60 + minutes; // Convert to minutes since midnight
+      };
+
+      const aptStart = parseTime(appointmentTime.start);
+      const aptEnd = parseTime(appointmentTime.end);
+
+      // Check if appointment is fully covered by available time slots
+      // Strategy: Check if every minute of the appointment is within at least one slot
+      let isFullyCovered = false;
+
+      // First, check if appointment is fully within a single slot
+      for (const slot of timeSlots) {
+        const slotStart = parseTime(slot.startTime);
+        const slotEnd = parseTime(slot.endTime);
+        
+        // If appointment is fully within this slot, it's covered
+        if (aptStart >= slotStart && aptEnd <= slotEnd) {
+          isFullyCovered = true;
+          break;
+        }
+      }
+
+      // If not covered by a single slot, check if multiple slots can cover it
+      if (!isFullyCovered && timeSlots.length > 1) {
+        // Sort slots by start time
+        const sortedSlots = [...timeSlots].sort((a, b) => 
+          parseTime(a.startTime) - parseTime(b.startTime)
+        );
+        
+        // Merge overlapping/consecutive slots to create continuous ranges
+        const mergedRanges: { start: number; end: number }[] = [];
+        for (const slot of sortedSlots) {
+          const slotStart = parseTime(slot.startTime);
+          const slotEnd = parseTime(slot.endTime);
+          
+          if (mergedRanges.length === 0) {
+            mergedRanges.push({ start: slotStart, end: slotEnd });
+          } else {
+            const lastRange = mergedRanges[mergedRanges.length - 1];
+            // If this slot overlaps or is adjacent to the last range, merge them
+            if (slotStart <= lastRange.end) {
+              lastRange.end = Math.max(lastRange.end, slotEnd);
+            } else {
+              mergedRanges.push({ start: slotStart, end: slotEnd });
+            }
+          }
+        }
+        
+        // Check if appointment is fully within any merged range
+        for (const range of mergedRanges) {
+          if (aptStart >= range.start && aptEnd <= range.end) {
+            isFullyCovered = true;
+            break;
+          }
+        }
+      }
+
+      // If appointment is not fully covered by available slots, it conflicts
+      if (!isFullyCovered) {
+        conflictingAppointments.push(appointment);
+      }
     });
 
     return conflictingAppointments;
@@ -123,13 +267,58 @@ export default function AvailabilityModal({
       return;
     }
 
-    if (!isFullDay && timeSlots.length === 0) {
-      Alert.alert("Lỗi", "Vui lòng thêm ít nhất một khung giờ rảnh hoặc chọn 'Cả ngày'");
+    if (!startDate) {
+      Alert.alert("Lỗi", "Vui lòng chọn ngày áp dụng");
       return;
     }
 
-    if (!startDate) {
-      Alert.alert("Lỗi", "Vui lòng chọn ngày áp dụng");
+    // If isBusy is checked, handle busy mode
+    if (isBusy) {
+      // Check for conflicting appointments
+      const conflicts = checkConflictingScheduleForBusy();
+      if (conflicts.length > 0) {
+        Alert.alert(
+          "Cảnh báo lịch hẹn",
+          `Bạn có ${conflicts.length} lịch hẹn trong các ngày bạn muốn set là bận:\n\n${conflicts
+            .map(
+              (apt) =>
+                `• ${apt.name} - ${apt.time} (${apt.date.getDate()}/${
+                  apt.date.getMonth() + 1
+                }/${apt.date.getFullYear()})`
+            )
+            .join("\n")}\n\nNếu bạn set lịch bận, các lịch hẹn này sẽ bị hủy. Bạn có chắc chắn muốn tiếp tục không?`,
+          [
+            {
+              text: "Không",
+              style: "cancel",
+            },
+            {
+              text: "Có, hủy các lịch hẹn",
+              style: "destructive",
+              onPress: () => {
+                // Cancel all conflicting appointments
+                conflicts.forEach((apt) => {
+                  updateAppointmentStatus(apt.id, "cancelled");
+                });
+                Alert.alert(
+                  "Đã hủy lịch hẹn",
+                  `Đã hủy ${conflicts.length} lịch hẹn và thiết lập lịch bận thành công.`,
+                  [{ text: "OK" }]
+                );
+                saveAvailability();
+              },
+            },
+          ]
+        );
+        return;
+      }
+      saveAvailability();
+      return;
+    }
+
+    // If not busy, validate time slots
+    if (!isFullDay && timeSlots.length === 0) {
+      Alert.alert("Lỗi", "Vui lòng thêm ít nhất một khung giờ rảnh hoặc chọn 'Cả ngày' hoặc 'Bận cả ngày'");
       return;
     }
 
@@ -138,40 +327,95 @@ export default function AvailabilityModal({
     if (conflicts.length > 0) {
       Alert.alert(
         "Cảnh báo lịch hẹn",
-        `Bạn có ${conflicts.length} lịch hẹn từ ngày ${formatDate(startDate)} trở đi:\n\n${conflicts
+        `Bạn có ${conflicts.length} lịch hẹn trong khoảng thời gian bạn đang set là bận:\n\n${conflicts
           .map(
             (apt) =>
               `• ${apt.name} - ${apt.time} (${apt.date.getDate()}/${
                 apt.date.getMonth() + 1
               }/${apt.date.getFullYear()})`
           )
-          .join("\n")}\n\nCác lịch hẹn này vẫn phải được thực hiện. Bạn có muốn tiếp tục thiết lập lịch rảnh không?`,
+          .join("\n")}\n\nNếu bạn set lịch bận trong khoảng thời gian này, các lịch hẹn sẽ bị hủy. Bạn có chắc chắn muốn tiếp tục không?`,
         [
           {
-            text: "Hủy",
+            text: "Không",
             style: "cancel",
           },
           {
-            text: "Tiếp tục",
+            text: "Có, hủy các lịch hẹn",
+            style: "destructive",
             onPress: () => {
+              // Cancel all conflicting appointments
+              conflicts.forEach((apt) => {
+                updateAppointmentStatus(apt.id, "cancelled");
+              });
+              Alert.alert(
+                "Đã hủy lịch hẹn",
+                `Đã hủy ${conflicts.length} lịch hẹn và thiết lập lịch rảnh thành công.`,
+                [{ text: "OK" }]
+              );
               saveAvailability();
             },
           },
         ]
       );
-    } else {
-      saveAvailability();
+      return;
     }
+
+    saveAvailability();
+  };
+
+  const checkConflictingScheduleForBusy = () => {
+    const conflictingAppointments: any[] = [];
+    
+    // Generate all dates that will be marked as busy
+    const affectedDates: Date[] = [];
+    
+    if (frequency === "Không lặp lại") {
+      affectedDates.push(new Date(startDate));
+    } else {
+      // Weekly recurring - generate dates for 1 year or until endDate
+      const maxDate = endDate 
+        ? new Date(endDate) 
+        : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+      const currentCheckDate = new Date(startDate);
+      
+      while (currentCheckDate <= maxDate) {
+        const dayOfWeek = currentCheckDate.getDay();
+        if (selectedDays.includes(dayOfWeek)) {
+          affectedDates.push(new Date(currentCheckDate));
+        }
+        currentCheckDate.setDate(currentCheckDate.getDate() + 1);
+      }
+    }
+
+    // Check each appointment against affected dates
+    existingSchedule.forEach((appointment) => {
+      const appointmentDate = new Date(appointment.date);
+      const appointmentDateStr = `${appointmentDate.getDate()}-${appointmentDate.getMonth()}-${appointmentDate.getFullYear()}`;
+      
+      // Check if appointment date is in affected dates
+      const isDateAffected = affectedDates.some((date) => {
+        const dateStr = `${date.getDate()}-${date.getMonth()}-${date.getFullYear()}`;
+        return dateStr === appointmentDateStr;
+      });
+
+      if (isDateAffected) {
+        conflictingAppointments.push(appointment);
+      }
+    });
+
+    return conflictingAppointments;
   };
 
   const saveAvailability = () => {
     const data = {
+      isBusy, // true if user wants to mark as busy
       frequency,
       selectedDays,
-      timeSlots,
+      timeSlots: isBusy ? [] : timeSlots,
       startDate,
       endDate,
-      isFullDay,
+      isFullDay: isBusy ? false : isFullDay,
     };
     onSave(data);
     onClose();
@@ -290,27 +534,54 @@ export default function AvailabilityModal({
             <View style={styles.section}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <Text style={styles.sectionLabel}>Khung giờ rảnh</Text>
-                <TouchableOpacity
-                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-                  onPress={() => setIsFullDay(!isFullDay)}
-                >
-                  <View style={[
-                    styles.checkbox,
-                    isFullDay && styles.checkboxChecked
-                  ]}>
-                    {isFullDay && (
-                      <MaterialCommunityIcons
-                        name="check"
-                        size={16}
-                        color="#FFFFFF"
-                      />
-                    )}
-                  </View>
-                  <Text style={{ fontSize: 14, color: "#64748B" }}>Cả ngày</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: "row", gap: 16 }}>
+                  <TouchableOpacity
+                    style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                    onPress={() => {
+                      setIsFullDay(!isFullDay);
+                      if (!isFullDay) setIsBusy(false); // Nếu chọn cả ngày rảnh thì bỏ chọn bận
+                    }}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      isFullDay && styles.checkboxChecked
+                    ]}>
+                      {isFullDay && (
+                        <MaterialCommunityIcons
+                          name="check"
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 14, color: "#64748B" }}>Cả ngày</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                    onPress={() => {
+                      setIsBusy(!isBusy);
+                      if (!isBusy) setIsFullDay(false); // Nếu chọn bận thì bỏ chọn cả ngày rảnh
+                    }}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      isBusy && styles.checkboxCheckedBusy
+                    ]}>
+                      {isBusy && (
+                        <MaterialCommunityIcons
+                          name="check"
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 14, color: "#64748B" }}>Bận cả ngày</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              {!isFullDay && (
+              {!isFullDay && !isBusy && (
                 <>
                   {timeSlots.map((slot, index) => (
                     <View key={index} style={styles.timeSlotRow}>
@@ -389,6 +660,16 @@ export default function AvailabilityModal({
                   </TouchableOpacity>
                 </>
               )}
+              
+              {/* Info for busy mode */}
+              {isBusy && (
+                <View style={styles.busyInfoBox}>
+                  <MaterialCommunityIcons name="information" size={20} color="#F59E0B" />
+                  <Text style={styles.busyInfoText}>
+                    Bạn sẽ đánh dấu các ngày đã chọn là bận cả ngày. Nếu có lịch hẹn trong các ngày này, bạn sẽ được hỏi xác nhận trước khi hủy.
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* Áp dụng từ ngày */}
@@ -420,49 +701,51 @@ export default function AvailabilityModal({
               )}
             </View>
 
-            {/* Đến ngày */}
-            <View style={styles.section}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={styles.sectionLabel}>Đến ngày (không bắt buộc)</Text>
-                {endDate && (
-                  <TouchableOpacity
-                    onPress={() => setEndDate(null)}
-                    style={{ padding: 4 }}
-                  >
-                    <Text style={{ color: "#EF4444", fontSize: 14, fontWeight: "600" }}>
-                      Xóa
-                    </Text>
-                  </TouchableOpacity>
+            {/* Đến ngày - Only show if frequency is "Hằng tuần" */}
+            {frequency === "Hằng tuần" && (
+              <View style={styles.section}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={styles.sectionLabel}>Đến ngày (không bắt buộc)</Text>
+                  {endDate && (
+                    <TouchableOpacity
+                      onPress={() => setEndDate(null)}
+                      style={{ padding: 4 }}
+                    >
+                      <Text style={{ color: "#EF4444", fontSize: 14, fontWeight: "600" }}>
+                        Xóa
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Text style={[styles.dateInputText, !endDate && { color: "#94A3B8" }]}>
+                    {endDate ? formatDate(endDate) : "Không giới hạn"}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name="calendar-blank"
+                    size={20}
+                    color="#64748B"
+                  />
+                </TouchableOpacity>
+                {showEndDatePicker && (
+                  <DateTimePicker
+                    value={endDate || startDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    minimumDate={startDate}
+                    onChange={(event, selectedDate) => {
+                      setShowEndDatePicker(false);
+                      if (event.type === "set" && selectedDate) {
+                        setEndDate(selectedDate);
+                      }
+                    }}
+                  />
                 )}
               </View>
-              <TouchableOpacity
-                style={styles.dateInput}
-                onPress={() => setShowEndDatePicker(true)}
-              >
-                <Text style={[styles.dateInputText, !endDate && { color: "#94A3B8" }]}>
-                  {endDate ? formatDate(endDate) : "Không giới hạn"}
-                </Text>
-                <MaterialCommunityIcons
-                  name="calendar-blank"
-                  size={20}
-                  color="#64748B"
-                />
-              </TouchableOpacity>
-              {showEndDatePicker && (
-                <DateTimePicker
-                  value={endDate || startDate}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  minimumDate={startDate}
-                  onChange={(event, selectedDate) => {
-                    setShowEndDatePicker(false);
-                    if (event.type === "set" && selectedDate) {
-                      setEndDate(selectedDate);
-                    }
-                  }}
-                />
-              )}
-            </View>
+            )}
           </ScrollView>
 
           {/* Footer */}
@@ -477,7 +760,9 @@ export default function AvailabilityModal({
                 size={20}
                 color="#FFFFFF"
               />
-              <Text style={styles.saveButtonText}>Lưu lịch rảnh</Text>
+              <Text style={styles.saveButtonText}>
+                {isBusy ? "Lưu lịch bận" : "Lưu lịch rảnh"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -703,5 +988,25 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: "#3B82F6",
     borderColor: "#3B82F6",
+  },
+  checkboxCheckedBusy: {
+    backgroundColor: "#EF4444",
+    borderColor: "#EF4444",
+  },
+  busyInfoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+  },
+  busyInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#92400E",
+    lineHeight: 20,
   },
 });
