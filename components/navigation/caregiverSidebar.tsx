@@ -99,38 +99,13 @@ export default function CaregiverSidebar() {
           name="Trang chủ"
           component={CaregiverDashboardScreen}
           options={({ navigation }) => ({
+            headerShown: false,
             drawerIcon: ({ color, size }) => (
               <MaterialCommunityIcons
                 name="check-circle-outline"
                 color={color}
                 size={size}
               />
-            ),
-            headerRight: () => (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
-                <TouchableOpacity
-                  onPress={() => {
-                    // TODO: Navigate to notifications screen
-                    console.log("Notifications clicked");
-                  }}
-                  style={{ marginRight: 15 }}
-                >
-                  <MaterialCommunityIcons
-                    name="bell-outline"
-                    size={28}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("Danh sách tin nhắn")}
-                >
-                  <MaterialCommunityIcons
-                    name="chat-outline"
-                    size={28}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </View>
             ),
           })}
         />

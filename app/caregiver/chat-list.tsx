@@ -124,7 +124,8 @@ export default function ChatListScreen() {
   const handleChatPress = (chat: ChatItem) => {
     navigation.navigate("Tin nhắn", { 
       chatId: chat.id,
-      chatName: chat.name 
+      chatName: chat.name,
+      chatAvatar: chat.avatar 
     });
   };
 

@@ -1,6 +1,6 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -112,14 +112,66 @@ const transactionsData = [
 ];
 
 export default function PaymentScreen() {
-  // Calculate totals
-  // Completed: 750k + 1,100k + 1,100k = 2,950k
-  // Rút: -1,500k, Hoàn tiền: -750k
-  // Khả dụng = 2,950k - 1,500k - 750k = 700k
-  // Pending: 1,100k + 400k + 750k = 2,250k
-  const totalBalance = 2950000; // Tổng = Khả dụng + Pending
-  const availableBalance = 700000; // Đã vào ví - Rút - Hoàn tiền
-  const pendingBalance = 2250000; // Đang chờ xử lí
+  // Get current month and year
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
+
+  // Parse date string "DD/MM/YYYY" to Date object
+  const parseDate = (dateStr: string): Date => {
+    const [day, month, year] = dateStr.split('/').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  // Filter transactions for current month only
+  // Only show completed (income from bookings) and refunded (complaints)
+  const currentMonthTransactions = useMemo(() => {
+    return transactionsData.filter(transaction => {
+      const transactionDate = parseDate(transaction.date);
+      const isCurrentMonth = 
+        transactionDate.getMonth() === currentMonth && 
+        transactionDate.getFullYear() === currentYear;
+      const isRelevant = 
+        transaction.status === 'completed' || 
+        transaction.status === 'refunded';
+      return isCurrentMonth && isRelevant;
+    });
+  }, [currentMonth, currentYear]);
+
+  // Calculate totals for current month only
+  const { totalBalance, availableBalance, pendingBalance } = useMemo(() => {
+    // Calculate completed transactions (income from bookings)
+    const completedAmount = currentMonthTransactions
+      .filter(t => t.status === 'completed')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    // Calculate refunded transactions (complaints)
+    const refundedAmount = Math.abs(
+      currentMonthTransactions
+        .filter(t => t.status === 'refunded')
+        .reduce((sum, t) => sum + t.amount, 0)
+    );
+    
+    // Available = completed - refunded (only positive transactions affect balance)
+    const available = completedAmount - refundedAmount;
+    
+    // Pending transactions (will be processed)
+    const pendingAmount = transactionsData
+      .filter(t => {
+        const transactionDate = parseDate(t.date);
+        const isCurrentMonth = 
+          transactionDate.getMonth() === currentMonth && 
+          transactionDate.getFullYear() === currentYear;
+        return isCurrentMonth && t.status === 'pending';
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+      totalBalance: available + pendingAmount,
+      availableBalance: available,
+      pendingBalance: pendingAmount,
+    };
+  }, [currentMonthTransactions, currentMonth, currentYear]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -162,25 +214,20 @@ export default function PaymentScreen() {
           </View>
         </View>
 
-        {/* Action Button - Only Withdraw */}
-        {/* <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={styles.withdrawButton}
-            onPress={() => navigation.navigate("Rút tiền")}
-          >
-            <MaterialCommunityIcons name="cash-multiple" size={20} color="#FFFFFF" />
-            <Text style={styles.withdrawButtonText}>Rút tiền</Text>
-          </TouchableOpacity>
-        </View> */}
-
-        {/* Transaction History */}
+        {/* Transaction History - Only show completed and refunded */}
         <View style={styles.historySection}>
           <View style={styles.historyHeader}>
             <MaterialCommunityIcons name="clipboard-text-outline" size={20} color="#1E293B" />
-            <Text style={styles.historyTitle}>Lịch sử giao dịch</Text>
+            <Text style={styles.historyTitle}>Biến động</Text>
           </View>
 
-          {transactionsData.map((transaction) => (
+          {currentMonthTransactions.length === 0 ? (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons name="clipboard-text-off-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyStateText}>Chưa có giao dịch trong tháng này</Text>
+            </View>
+          ) : (
+            currentMonthTransactions.map((transaction) => (
             <View key={transaction.id} style={styles.transactionCard}>
               <View style={[styles.transactionIcon, { backgroundColor: transaction.iconBg }]}>
                 <MaterialCommunityIcons 
@@ -191,16 +238,16 @@ export default function PaymentScreen() {
               </View>
 
               <View style={styles.transactionInfo}>
-                <Text style={styles.transactionName}>{transaction.name}</Text>
+                <Text style={styles.transactionName}>
+                  {transaction.status === 'completed' 
+                    ? `Từ booking: ${transaction.name}` 
+                    : transaction.name.includes('Khiếu nại') 
+                      ? `Khiếu nại: ${transaction.time}` 
+                      : `Khiếu nại: ${transaction.name}`}
+                </Text>
                 <Text style={styles.transactionDateTime}>
                   {transaction.date} · {transaction.time}
                 </Text>
-                {transaction.remaining && (
-                  <View style={styles.remainingBadge}>
-                    <MaterialCommunityIcons name="clock-alert-outline" size={12} color="#DC2626" />
-                    <Text style={styles.remainingText}>Còn {transaction.remaining}</Text>
-                  </View>
-                )}
               </View>
 
               <View style={styles.transactionRight}>
@@ -208,20 +255,19 @@ export default function PaymentScreen() {
                   styles.transactionAmount,
                   transaction.amount > 0 ? styles.amountPositive : styles.amountNegative
                 ]}>
-                  {transaction.amount > 0 ? '+' : '-'}{formatCurrency(transaction.amount)}
+                  {transaction.amount > 0 ? '+' : ''}{formatCurrency(transaction.amount)}
                 </Text>
                 <Text style={[
                   styles.transactionStatus,
                   transaction.status === 'completed' && styles.statusCompleted,
-                  transaction.status === 'pending' && styles.statusPending,
-                  transaction.status === 'withdrawn' && styles.statusWithdrawn,
                   transaction.status === 'refunded' && styles.statusRefunded,
                 ]}>
-                  {transaction.statusText}
+                  {transaction.status === 'completed' ? 'Đã vào ví' : 'Hoàn tiền'}
                 </Text>
               </View>
             </View>
-          ))}
+          ))
+          )}
         </View>
       </ScrollView>
 
@@ -408,7 +454,17 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   statusRefunded: {
-    color: "#64748B",
+    color: "#EF4444",
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: "#94A3B8",
+    marginTop: 12,
   },
 });
 

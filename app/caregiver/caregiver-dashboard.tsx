@@ -1,5 +1,6 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
@@ -109,55 +110,30 @@ export default function CaregiverDashboardScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header với background xanh - chỉ đến giữa 2 card đầu */}
+        {/* Header */}
         <View style={styles.headerWrapper}>
           <View style={styles.header}>
-            <Text style={styles.greeting}>Xin chào</Text>
-            <Text style={styles.userName}>Trần Văn Nam</Text>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.greeting}>Xin chào</Text>
+              <Text style={styles.userName}>Trần Văn Nam</Text>
+            </View>
+            <View style={styles.headerIconsContainer}>
+              <TouchableOpacity 
+                style={styles.headerIcon}
+                onPress={() => navigation.navigate("Danh sách tin nhắn")}
+              >
+                <Ionicons name="chatbubble-outline" size={24} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.headerIcon}
+                onPress={() => {/* Navigate to notifications */}}
+              >
+                <Ionicons name="notifications-outline" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
         
-
-        {/* Statistics Cards */}
-        <View style={styles.statsOuterContainer}>
-          <View style={styles.statsContainer}>
-            <View style={styles.statsRow}>
-              <View style={[styles.statCard, { backgroundColor: "#E3F2FD" }]}>
-                <View style={styles.statIconContainer}>
-                  <Text style={styles.statIcon}>📄</Text>
-                </View>
-                <Text style={styles.statValue}>{caregiverStats.totalJobs}</Text>
-                <Text style={styles.statLabel}>Lịch hẹn tháng này</Text>
-              </View>
-
-              <View style={[styles.statCard, { backgroundColor: "#E8F5E9" }]}>
-                <View style={styles.statIconContainer}>
-                  <Text style={styles.statIcon}>💰</Text>
-                </View>
-                <Text style={styles.statValue}>{caregiverStats.monthlyIncome}M</Text>
-                <Text style={styles.statLabel}>Thu nhập tháng</Text>
-              </View>
-            </View>
-
-            <View style={styles.statsRow}>
-              <View style={[styles.statCard, { backgroundColor: "#FFF3E0" }]}>
-                <View style={styles.statIconContainer}>
-                  <Text style={styles.statIcon}>⭐</Text>
-                </View>
-                <Text style={styles.statValue}>{caregiverStats.rating}</Text>
-                <Text style={styles.statLabel}>Đánh giá tổng</Text>
-              </View>
-
-              <View style={[styles.statCard, { backgroundColor: "#EDE7F6" }]}>
-                <View style={styles.statIconContainer}>
-                  <Text style={styles.statIcon}>✅</Text>
-                </View>
-                <Text style={styles.statValue}>{caregiverStats.completionRate}%</Text>
-                <Text style={styles.statLabel}>Tỷ lệ hoàn thành nhiệm vụ</Text>
-              </View>
-            </View>
-          </View>
-        </View>
 
         {/* New Requests Alert */}
         <TouchableOpacity 
@@ -236,6 +212,47 @@ export default function CaregiverDashboardScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      {/* Statistics Cards */}
+      <View style={styles.statsOuterContainer}>
+        <View style={styles.statsContainer}>
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { backgroundColor: "#E3F2FD" }]}>
+              <View style={styles.statIconContainer}>
+                <Text style={styles.statIcon}>📄</Text>
+              </View>
+              <Text style={styles.statValue}>{caregiverStats.totalJobs}</Text>
+              <Text style={styles.statLabel}>Lịch hẹn tháng này</Text>
+            </View>
+
+            <View style={[styles.statCard, { backgroundColor: "#E8F5E9" }]}>
+              <View style={styles.statIconContainer}>
+                <Text style={styles.statIcon}>💰</Text>
+              </View>
+              <Text style={styles.statValue}>{caregiverStats.monthlyIncome}M</Text>
+              <Text style={styles.statLabel}>Thu nhập tháng</Text>
+            </View>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { backgroundColor: "#FFF3E0" }]}>
+              <View style={styles.statIconContainer}>
+                <Text style={styles.statIcon}>⭐</Text>
+              </View>
+              <Text style={styles.statValue}>{caregiverStats.rating}</Text>
+              <Text style={styles.statLabel}>Đánh giá tổng</Text>
+            </View>
+
+            <View style={[styles.statCard, { backgroundColor: "#EDE7F6" }]}>
+              <View style={styles.statIconContainer}>
+                <Text style={styles.statIcon}>✅</Text>
+              </View>
+              <Text style={styles.statValue}>{caregiverStats.completionRate}%</Text>
+              <Text style={styles.statLabel}>Tỷ lệ hoàn thành nhiệm vụ</Text>
+            </View>
+          </View>
+        </View>
+      </View>
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -254,12 +271,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Header wrapper với background xanh - chỉ đến giữa 2 card đầu
+  // Header wrapper
   headerWrapper: {
-    backgroundColor: "#4A90E2",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    paddingBottom: 10,
+    backgroundColor: "#7CBCFF",
+    paddingBottom: 20,
   },
 
   // Header styles
@@ -268,6 +283,12 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 50,
     paddingBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   greeting: {
     color: "#fff",
@@ -278,12 +299,19 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 28,
     fontWeight: "700",
-    marginBottom: 30,
+  },
+  headerIconsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  headerIcon: {
+    padding: 4,
   },
 
   // Stats outer container
   statsOuterContainer: {
-    marginTop: -40,
+    marginTop: 16,
     paddingHorizontal: 16,
   },
 
