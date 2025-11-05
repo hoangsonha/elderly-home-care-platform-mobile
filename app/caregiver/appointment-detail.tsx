@@ -1,7 +1,7 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { getAppointmentHasReviewed, getAppointmentStatus, markAppointmentAsReviewed, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -181,7 +181,7 @@ export const appointmentsDataMap: { [key: string]: any } = {
     date: "2025-10-26",
     timeSlot: "08:00 - 16:00",
     duration: "8 giờ",
-    packageType: "Gói Tiêu Chuẩn",
+    packageType: "Gói Chuyên Nghiệp",
     
     elderly: {
       id: "E002",
@@ -410,7 +410,46 @@ export default function AppointmentDetailScreen() {
   const appointmentData = appointmentsDataMap[appointmentId] || appointmentsDataMap["1"];
   
   const [selectedTab, setSelectedTab] = useState<"tasks" | "notes">("tasks");
-  const [tasks, setTasks] = useState(appointmentData.tasks);
+  
+  // Get services based on package type
+  const getServicesByPackage = (packageType: string) => {
+    const packageName = packageType.toLowerCase();
+    
+    if (packageName.includes("cơ bản") || packageName.includes("co ban")) {
+      return [
+        { id: "S1", title: "Tắm rửa", description: "Hỗ trợ tắm rửa và vệ sinh cá nhân", completed: false },
+        { id: "S2", title: "Hỗ trợ ăn uống", description: "Chuẩn bị và hỗ trợ bữa ăn", completed: false },
+        { id: "S3", title: "Massage cơ bản", description: "Massage nhẹ nhàng để thư giãn", completed: false },
+        { id: "S4", title: "Trò chuyện cùng người già", description: "Dành thời gian trò chuyện và giao tiếp", completed: false },
+      ];
+    } else if (packageName.includes("chuyên nghiệp") || packageName.includes("chuyen nghiep") || packageName.includes("tiêu chuẩn") || packageName.includes("tieu chuan")) {
+      return [
+        { id: "S1", title: "Tập vật lí trị liệu", description: "Hướng dẫn và hỗ trợ các bài tập phục hồi chức năng", completed: false },
+        { id: "S2", title: "Massage phục hồi chức năng", description: "Massage chuyên sâu hỗ trợ phục hồi", completed: false },
+        { id: "S3", title: "Theo dõi tiến trình trị liệu", description: "Ghi chép và theo dõi tiến trình hồi phục", completed: false },
+      ];
+    } else if (packageName.includes("cao cấp") || packageName.includes("cao cap")) {
+      return [
+        { id: "S1", title: "Tắm rửa", description: "Hỗ trợ tắm rửa và vệ sinh cá nhân", completed: false },
+        { id: "S2", title: "Hỗ trợ ăn uống", description: "Chuẩn bị và hỗ trợ bữa ăn", completed: false },
+        { id: "S3", title: "Massage cơ bản", description: "Massage nhẹ nhàng để thư giãn", completed: false },
+        { id: "S4", title: "Trò chuyện cùng người già", description: "Dành thời gian trò chuyện và giao tiếp", completed: false },
+        { id: "S5", title: "Nấu ăn", description: "Chuẩn bị các bữa ăn dinh dưỡng theo yêu cầu", completed: false },
+        { id: "S6", title: "Dọn dẹp", description: "Vệ sinh và dọn dẹp không gian sống", completed: false },
+        { id: "S7", title: "Hỗ trợ y tế", description: "Theo dõi sức khỏe và hỗ trợ các vấn đề y tế", completed: false },
+      ];
+    }
+    // Default: Gói cơ bản
+    return [
+      { id: "S1", title: "Tắm rửa", description: "Hỗ trợ tắm rửa và vệ sinh cá nhân", completed: false },
+      { id: "S2", title: "Hỗ trợ ăn uống", description: "Chuẩn bị và hỗ trợ bữa ăn", completed: false },
+      { id: "S3", title: "Massage cơ bản", description: "Massage nhẹ nhàng để thư giãn", completed: false },
+      { id: "S4", title: "Trò chuyện cùng người già", description: "Dành thời gian trò chuyện và giao tiếp", completed: false },
+    ];
+  };
+
+  const [services, setServices] = useState(() => getServicesByPackage(appointmentData.packageType));
+  
   // Get status from global store first, fallback to appointmentData.status
   const initialGlobalStatus = getAppointmentStatus(appointmentId);
   const [status, setStatus] = useState(initialGlobalStatus || appointmentData.status);
@@ -464,45 +503,46 @@ export default function AppointmentDetailScreen() {
     });
   }, [navigation, fromScreen]);
 
-  // Update tasks and status when appointmentId changes
+  // Update services and status when appointmentId changes
   useEffect(() => {
-    setTasks(appointmentData.tasks);
+    setServices(getServicesByPackage(appointmentData.packageType));
     // Get status from global store first, fallback to appointmentData.status
     const globalStatus = getAppointmentStatus(appointmentId);
     setStatus(globalStatus || appointmentData.status);
     setNotes(appointmentData.notes);
-  }, [appointmentId, appointmentData.tasks, appointmentData.status, appointmentData.notes]);
+  }, [appointmentId, appointmentData.packageType, appointmentData.status, appointmentData.notes]);
 
   // Sync status and review status from global store when component mounts or refocuses
-  useEffect(() => {
-    const syncData = () => {
-      const globalStatus = getAppointmentStatus(appointmentId);
-      if (globalStatus) {
-        setStatus(globalStatus);
-      }
-      const globalHasReviewed = getAppointmentHasReviewed(appointmentId);
-      setHasReviewed(globalHasReviewed);
-    };
-    
-    syncData();
-    
-    // Subscribe to status changes
-    const unsubscribe = subscribeToStatusChanges(() => {
+  useFocusEffect(
+    React.useCallback(() => {
+      const syncData = () => {
+        const globalStatus = getAppointmentStatus(appointmentId);
+        if (globalStatus) {
+          setStatus(globalStatus);
+        }
+        const globalHasReviewed = getAppointmentHasReviewed(appointmentId);
+        setHasReviewed(globalHasReviewed);
+      };
+      
       syncData();
-    });
-    
-    return () => {
-      unsubscribe();
-    };
-  }, [appointmentId]);
+      
+      // Subscribe to status changes
+      const unsubscribe = subscribeToStatusChanges(() => {
+        syncData();
+      });
+      
+      return () => {
+        unsubscribe();
+      };
+    }, [appointmentId])
+  );
 
-  const toggleTaskComplete = (category: "fixed" | "flexible" | "optional", taskId: string) => {
-    setTasks((prev) => ({
-      ...prev,
-      [category]: prev[category].map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
-      ),
-    }));
+  const toggleServiceComplete = (serviceId: string) => {
+    setServices((prev) =>
+      prev.map((service) =>
+        service.id === serviceId ? { ...service, completed: !service.completed } : service
+      )
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -640,26 +680,16 @@ export default function AppointmentDetailScreen() {
   };
 
   const handleComplete = () => {
-    // Validate: Kiểm tra tất cả task cố định (fixed) đã hoàn thành chưa
-    const incompleteFixedTasks = tasks.fixed.filter(task => !task.completed);
+    // Validate: Kiểm tra tất cả dịch vụ đã hoàn thành chưa
+    const incompleteServices = services.filter(service => !service.completed);
     
-    // Validate: Kiểm tra tất cả task linh hoạt (flexible) đã hoàn thành chưa
-    const incompleteFlexibleTasks = tasks.flexible.filter(task => !task.completed);
-    
-    if (incompleteFixedTasks.length > 0 || incompleteFlexibleTasks.length > 0) {
-      const missingTasks = [];
-      if (incompleteFixedTasks.length > 0) {
-        missingTasks.push("Nhiệm vụ cố định:");
-        incompleteFixedTasks.forEach(t => missingTasks.push(`• ${t.title}`));
-      }
-      if (incompleteFlexibleTasks.length > 0) {
-        missingTasks.push("Nhiệm vụ linh hoạt:");
-        incompleteFlexibleTasks.forEach(t => missingTasks.push(`• ${t.title}`));
-      }
+    if (incompleteServices.length > 0) {
+      const missingServices = ["Còn thiếu các dịch vụ:"];
+      incompleteServices.forEach(s => missingServices.push(`• ${s.title}`));
       
       Alert.alert(
-        "Chưa hoàn thành nhiệm vụ",
-        `Vui lòng hoàn thành tất cả nhiệm vụ cố định và linh hoạt trước khi kết thúc ca!\n\nCòn thiếu:\n${missingTasks.join("\n")}`,
+        "Chưa hoàn thành dịch vụ",
+        `Vui lòng hoàn thành tất cả dịch vụ trước khi kết thúc ca!\n\n${missingServices.join("\n")}`,
         [{ text: "OK" }]
       );
       return;
@@ -687,15 +717,18 @@ export default function AppointmentDetailScreen() {
   const handleReview = () => {
     if (hasReviewed) {
       // Đã đánh giá rồi - Xem đánh giá
-      alert("Xem đánh giá đã gửi");
-      // router.push("/caregiver/review/view");
+      (navigation.navigate as any)("View Review", {
+        appointmentId: appointmentId,
+        elderlyName: appointmentData.elderly?.name || "Người được chăm sóc",
+        fromScreen: "appointment-detail",
+      });
     } else {
       // Chưa đánh giá - Đánh giá mới
-      alert("Chuyển đến trang đánh giá");
-      // Sau khi đánh giá xong, mark as reviewed
-      markAppointmentAsReviewed(appointmentId);
-      setHasReviewed(true);
-      // router.push("/caregiver/review");
+      (navigation.navigate as any)("Review", {
+        appointmentId: appointmentId,
+        elderlyName: appointmentData.elderly?.name || "Người được chăm sóc",
+        fromScreen: "appointment-detail",
+      });
     }
   };
 
@@ -888,57 +921,44 @@ export default function AppointmentDetailScreen() {
     }
   };
 
-  const renderTask = (
-    task: any,
-    category: "fixed" | "flexible" | "optional",
-    showTime: boolean = false
-  ) => {
-    // Chỉ cho phép tick task khi đang thực hiện
-    const canEditTask = status === "in-progress" || status === "confirmed";
+  const renderService = (service: any) => {
+    // Chỉ cho phép tick service khi đang thực hiện
+    const canEditService = status === "in-progress" || status === "confirmed";
     
     return (
       <TouchableOpacity
-        key={task.id}
-        style={[styles.taskCard, !canEditTask && styles.taskCardDisabled]}
-        onPress={() => canEditTask && toggleTaskComplete(category, task.id)}
-        disabled={!canEditTask}
-        activeOpacity={canEditTask ? 0.7 : 1}
+        key={service.id}
+        style={[styles.taskCard, !canEditService && styles.taskCardDisabled]}
+        onPress={() => canEditService && toggleServiceComplete(service.id)}
+        disabled={!canEditService}
+        activeOpacity={canEditService ? 0.7 : 1}
       >
         <View style={styles.taskHeader}>
           <View style={styles.taskLeft}>
             <View
               style={[
                 styles.checkbox,
-                task.completed && styles.checkboxCompleted,
-                !canEditTask && styles.checkboxDisabled,
+                service.completed && styles.checkboxCompleted,
+                !canEditService && styles.checkboxDisabled,
               ]}
             >
-              {task.completed && (
+              {service.completed && (
                 <Ionicons name="checkmark" size={16} color="#fff" />
               )}
             </View>
             <View style={styles.taskInfo}>
-              {showTime && (
-                <View style={styles.taskTimeContainer}>
-                  <Ionicons name="time-outline" size={14} color={canEditTask ? "#10B981" : "#9CA3AF"} />
-                  <Text style={[styles.taskTime, !canEditTask && styles.textDisabled]}>{task.time}</Text>
-                  {task.required && (
-                    <View style={styles.requiredBadge}>
-                      <Text style={styles.requiredText}>Bắt buộc</Text>
-                    </View>
-                  )}
-                </View>
-              )}
               <Text
                 style={[
                   styles.taskTitle,
-                  task.completed && styles.taskTitleCompleted,
-                  !canEditTask && styles.textDisabled,
+                  service.completed && styles.taskTitleCompleted,
+                  !canEditService && styles.textDisabled,
                 ]}
               >
-                {task.title}
+                {service.title}
               </Text>
-              <Text style={[styles.taskDescription, !canEditTask && styles.textDisabled]}>{task.description}</Text>
+              <Text style={[styles.taskDescription, !canEditService && styles.textDisabled]}>
+                {service.description}
+              </Text>
             </View>
           </View>
         </View>
@@ -948,7 +968,11 @@ export default function AppointmentDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={appointmentData.specialInstructions ? { paddingTop: 100 } : {}}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Status Badge */}
         <View style={styles.statusContainer}>
           <View
@@ -965,7 +989,7 @@ export default function AppointmentDetailScreen() {
         </View>
 
         {/* Appointment Info */}
-        <View style={styles.section}>
+        <View style={[styles.section, styles.firstSection]}>
           <Text style={styles.sectionTitle}>Thông tin lịch hẹn</Text>
           <View style={styles.card}>
             <View style={styles.infoRow}>
@@ -1085,17 +1109,6 @@ export default function AppointmentDetailScreen() {
               </View>
             </View>
             
-            {/* Special Conditions */}
-            <View style={styles.specialConditionsSection}>
-              <Text style={styles.subsectionTitle}>Lưu ý đặc biệt:</Text>
-              {appointmentData.elderly.specialConditions.map((condition, index) => (
-                <View key={index} style={styles.conditionItem}>
-                  <MaterialCommunityIcons name="information" size={16} color="#F59E0B" />
-                  <Text style={styles.conditionText}>{condition}</Text>
-                </View>
-              ))}
-            </View>
-            
             <View style={styles.divider} />
             
             {/* Independence Level */}
@@ -1195,19 +1208,6 @@ export default function AppointmentDetailScreen() {
           </View>
         </View>
 
-        {/* Special Instructions */}
-        {appointmentData.specialInstructions && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Lưu ý đặc biệt</Text>
-            <View style={styles.instructionsCard}>
-              <MaterialCommunityIcons name="information" size={20} color="#F59E0B" />
-              <Text style={styles.instructionsText}>
-                {appointmentData.specialInstructions}
-              </Text>
-            </View>
-          </View>
-        )}
-
         {/* Tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
@@ -1238,58 +1238,23 @@ export default function AppointmentDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Tasks Tab */}
+        {/* Services Tab */}
         {selectedTab === "tasks" && (
           <View style={styles.section}>
-            {/* Fixed Tasks */}
             <View style={styles.taskSection}>
               <View style={styles.taskSectionHeader}>
-                <MaterialCommunityIcons name="clock-alert" size={20} color="#EF4444" />
-                <Text style={styles.taskSectionTitle}>Nhiệm vụ cố định</Text>
+                <MaterialCommunityIcons name="package-variant" size={20} color="#10B981" />
+                <Text style={styles.taskSectionTitle}>Dịch vụ {appointmentData.packageType}</Text>
                 <View style={styles.taskBadge}>
                   <Text style={styles.taskBadgeText}>
-                    {tasks.fixed.filter((t) => t.completed).length}/{tasks.fixed.length}
+                    {services.filter((s) => s.completed).length}/{services.length}
                   </Text>
                 </View>
               </View>
               <Text style={styles.taskSectionDesc}>
-                Cần thực hiện đúng thời gian quy định
+                Các dịch vụ cần thực hiện trong ca làm việc
               </Text>
-              {tasks.fixed.map((task) => renderTask(task, "fixed", true))}
-            </View>
-
-            {/* Flexible Tasks */}
-            <View style={styles.taskSection}>
-              <View style={styles.taskSectionHeader}>
-                <MaterialCommunityIcons name="clock-check" size={20} color="#10B981" />
-                <Text style={styles.taskSectionTitle}>Nhiệm vụ linh hoạt</Text>
-                <View style={styles.taskBadge}>
-                  <Text style={styles.taskBadgeText}>
-                    {tasks.flexible.filter((t) => t.completed).length}/{tasks.flexible.length}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.taskSectionDesc}>
-                Thực hiện trong ca, không bắt buộc đúng giờ
-              </Text>
-              {tasks.flexible.map((task) => renderTask(task, "flexible"))}
-            </View>
-
-            {/* Optional Tasks */}
-            <View style={styles.taskSection}>
-              <View style={styles.taskSectionHeader}>
-                <MaterialCommunityIcons name="clock-outline" size={20} color="#6B7280" />
-                <Text style={styles.taskSectionTitle}>Nhiệm vụ tùy chọn</Text>
-                <View style={styles.taskBadge}>
-                  <Text style={styles.taskBadgeText}>
-                    {tasks.optional.filter((t) => t.completed).length}/{tasks.optional.length}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.taskSectionDesc}>
-                Có thể thực hiện nếu có thời gian
-              </Text>
-              {tasks.optional.map((task) => renderTask(task, "optional"))}
+              {services.map((service) => renderService(service))}
             </View>
           </View>
         )}
@@ -1337,6 +1302,21 @@ export default function AppointmentDetailScreen() {
         <View style={{ height: 180 }} />
 
     </ScrollView>
+
+    {/* Special Instructions Header - Sticky */}
+    {appointmentData.specialInstructions && (
+      <View style={styles.stickyHeaderContainer}>
+        <View style={styles.stickyHeaderContent}>
+          <Text style={styles.stickyHeaderTitle}>Lưu ý đặc biệt</Text>
+          <View style={styles.stickyHeaderCard}>
+            <MaterialCommunityIcons name="information" size={20} color="#F59E0B" />
+            <Text style={styles.instructionsText}>
+              {appointmentData.specialInstructions}
+            </Text>
+          </View>
+        </View>
+      </View>
+    )}
 
     {/* Bottom Actions - Dynamic based on status */}
     {renderBottomActions()}
@@ -1409,7 +1389,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    marginTop: -8,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -1429,6 +1410,9 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  firstSection: {
+    marginTop: -8,
   },
   sectionTitle: {
     fontSize: 16,
@@ -1526,7 +1510,7 @@ const styles = StyleSheet.create({
   instructionsCard: {
     backgroundColor: "#FFFBEB",
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     flexDirection: "row",
     alignItems: "flex-start",
     borderLeftWidth: 4,
@@ -1538,6 +1522,43 @@ const styles = StyleSheet.create({
     color: "#92400E",
     marginLeft: 8,
     lineHeight: 20,
+  },
+  stickyHeaderContainer: {
+    position: "absolute",
+    top: 0, // Thử đặt ở vị trí 0
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: "#FFFBEB",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  stickyHeaderContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    marginTop: 0,
+  },
+  stickyHeaderTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 8,
+    marginTop: 0,
+    paddingTop: 0,
+  },
+  stickyHeaderCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
   tabContainer: {
     flexDirection: "row",

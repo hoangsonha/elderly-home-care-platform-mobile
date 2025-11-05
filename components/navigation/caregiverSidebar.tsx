@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import AppointmentDetailScreen from "@/app/caregiver/appointment-detail";
@@ -17,10 +17,12 @@ import ExpertProfileScreen from "@/app/caregiver/expert-profile";
 import IncomingCallScreen from "@/app/caregiver/incoming-call";
 import PaymentScreen from "@/app/caregiver/payment";
 import PersonalScreen from "@/app/caregiver/personal";
+import ReviewScreen from "@/app/caregiver/review";
 import SettingsScreen from "@/app/caregiver/settings";
 import TrainingCourseDetail from "@/app/caregiver/training-course-detail";
 import TrainingCoursesMobile from "@/app/caregiver/training-courses";
 import VideoCallScreen from "@/app/caregiver/video-call";
+import ViewReviewScreen from "@/app/caregiver/view-review";
 import CaregiverWithdrawScreen from "@/app/caregiver/withdraw";
 
 const Drawer = createDrawerNavigator();
@@ -99,38 +101,13 @@ export default function CaregiverSidebar() {
           name="Trang chủ"
           component={CaregiverDashboardScreen}
           options={({ navigation }) => ({
+            headerShown: false,
             drawerIcon: ({ color, size }) => (
               <MaterialCommunityIcons
                 name="check-circle-outline"
                 color={color}
                 size={size}
               />
-            ),
-            headerRight: () => (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
-                <TouchableOpacity
-                  onPress={() => {
-                    // TODO: Navigate to notifications screen
-                    console.log("Notifications clicked");
-                  }}
-                  style={{ marginRight: 15 }}
-                >
-                  <MaterialCommunityIcons
-                    name="bell-outline"
-                    size={28}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("Danh sách tin nhắn")}
-                >
-                  <MaterialCommunityIcons
-                    name="chat-outline"
-                    size={28}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              </View>
             ),
           })}
         />
@@ -370,7 +347,7 @@ export default function CaregiverSidebar() {
               headerStyle: {
                 backgroundColor: "#70C1F1",
               },
-              headerTintcolor: "#fff",
+              headerTintColor: "#fff",
               headerTitleStyle: {
                 fontWeight: "bold",
               },
@@ -400,7 +377,7 @@ export default function CaregiverSidebar() {
             headerStyle: {
               backgroundColor: "#70C1F1",
             },
-            headerTintcolor: "#fff",
+            headerTintColor: "#fff",
             headerTitleStyle: {
               fontWeight: "bold",
             },
@@ -426,6 +403,110 @@ export default function CaregiverSidebar() {
           options={{
             drawerItemStyle: { height: 0 },
             headerShown: false,
+          }}
+        />
+
+        {/* Review - hidden from drawer */}
+        <Drawer.Screen
+          name="Review"
+          component={ReviewScreen}
+          options={({ navigation, route }) => {
+            const params = route.params as { fromScreen?: string } | undefined;
+            const fromScreen = params?.fromScreen;
+            
+            const handleBack = () => {
+              if (fromScreen) {
+                switch (fromScreen) {
+                  case "booking":
+                    navigation.navigate("Yêu cầu dịch vụ");
+                    break;
+                  case "appointment-detail":
+                    navigation.goBack();
+                    break;
+                  default:
+                    navigation.goBack();
+                }
+              } else {
+                navigation.goBack();
+              }
+            };
+
+            return {
+              drawerItemStyle: { height: 0 },
+              headerShown: true,
+              title: "Đánh giá dịch vụ",
+              headerStyle: {
+                backgroundColor: "#70C1F1",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerLeft: () => (
+                <TouchableOpacity
+                  onPress={handleBack}
+                  style={{ marginLeft: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+            };
+          }}
+        />
+
+        {/* View Review - hidden from drawer */}
+        <Drawer.Screen
+          name="View Review"
+          component={ViewReviewScreen}
+          options={({ navigation, route }) => {
+            const params = route.params as { fromScreen?: string } | undefined;
+            const fromScreen = params?.fromScreen;
+            
+            const handleBack = () => {
+              if (fromScreen) {
+                switch (fromScreen) {
+                  case "booking":
+                    navigation.navigate("Yêu cầu dịch vụ");
+                    break;
+                  case "appointment-detail":
+                    navigation.goBack();
+                    break;
+                  default:
+                    navigation.goBack();
+                }
+              } else {
+                navigation.goBack();
+              }
+            };
+
+            return {
+              drawerItemStyle: { height: 0 },
+              headerShown: true,
+              title: "Xem đánh giá",
+              headerStyle: {
+                backgroundColor: "#70C1F1",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerLeft: () => (
+                <TouchableOpacity
+                  onPress={handleBack}
+                  style={{ marginLeft: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+            };
           }}
         />
         
@@ -459,7 +540,7 @@ export default function CaregiverSidebar() {
             headerStyle: {
               backgroundColor: "#70C1F1",
             },
-            headerTintcolor: "#fff",
+            headerTintColor: "#fff",
             headerTitleStyle: {
               fontWeight: "bold",
             },
@@ -488,7 +569,7 @@ export default function CaregiverSidebar() {
             headerStyle: {
               backgroundColor: "#70C1F1",
             },
-            headerTintcolor: "#fff",
+            headerTintColor: "#fff",
             headerTitleStyle: {
               fontWeight: "bold",
             },

@@ -1,6 +1,6 @@
 import { appointmentsDataMap } from "@/app/caregiver/appointment-detail";
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
-import { getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
+import { getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
@@ -129,7 +129,8 @@ export default function BookingManagement() {
   }, []);
 
   // Calculate tabs count using real-time status from global store
-  const tabs: { label: BookingStatus; count: number }[] = [
+  // Re-calculate when refreshKey changes to ensure counts are updated
+  const tabs: { label: BookingStatus; count: number }[] = React.useMemo(() => [
     { 
       label: "Mới", 
       count: bookings.filter((b) => {
@@ -170,7 +171,7 @@ export default function BookingManagement() {
         return currentStatus === "Đã hủy";
       }).length 
     },
-  ];
+  ], [bookings, refreshKey]);
 
   const canCancelBooking = (dateStr: string): boolean => {
     const bookingDate = new Date(dateStr.split(", ")[1].split("/").reverse().join("-"));
@@ -412,7 +413,25 @@ export default function BookingManagement() {
   };
 
   const handleReview = (bookingId: string) => {
-    Alert.alert("Đánh giá", "Tính năng đánh giá đang được phát triển");
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking) {
+      const hasReviewed = getAppointmentHasReviewed(bookingId);
+      if (hasReviewed) {
+        // Đã đánh giá rồi - Xem đánh giá
+        (navigation.navigate as any)("View Review", {
+          appointmentId: booking.id,
+          elderlyName: booking.elderName,
+          fromScreen: "booking",
+        });
+      } else {
+        // Chưa đánh giá - Đánh giá mới
+        (navigation.navigate as any)("Review", {
+          appointmentId: booking.id,
+          elderlyName: booking.elderName,
+          fromScreen: "booking",
+        });
+      }
+    }
   };
 
   const handleComplaint = (bookingId: string) => {
@@ -542,24 +561,27 @@ export default function BookingManagement() {
             </TouchableOpacity>
           )}
 
-          {currentStatus === "Hoàn thành" && (
-            <>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.complaintButton]}
-                onPress={() => handleComplaint(item.id)}
-              >
-                <MaterialCommunityIcons name="alert-circle" size={16} color="#EF4444" />
-                <Text style={styles.complaintButtonText}>Khiếu nại</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.reviewButton]}
-                onPress={() => handleReview(item.id)}
-              >
-                <MaterialCommunityIcons name="star" size={16} color="#F59E0B" />
-                <Text style={styles.reviewButtonText}>Đánh giá</Text>
-              </TouchableOpacity>
-            </>
-          )}
+          {currentStatus === "Hoàn thành" && (() => {
+            const globalHasReviewed = getAppointmentHasReviewed(item.id);
+            return (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.complaintButton]}
+                  onPress={() => handleComplaint(item.id)}
+                >
+                  <MaterialCommunityIcons name="alert-circle" size={16} color="#EF4444" />
+                  <Text style={styles.complaintButtonText}>Khiếu nại</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.reviewButton]}
+                  onPress={() => handleReview(item.id)}
+                >
+                  <MaterialCommunityIcons name={globalHasReviewed ? "eye" : "star"} size={16} color="#F59E0B" />
+                  <Text style={styles.reviewButtonText}>{globalHasReviewed ? "Xem đánh giá" : "Đánh giá"}</Text>
+                </TouchableOpacity>
+              </>
+            );
+          })()}
 
           {currentStatus === "Đã hủy" && (
             <View style={styles.cancelledInfo}>
@@ -572,11 +594,14 @@ export default function BookingManagement() {
   };
 
   // Filter bookings by activeTab, using real-time status from global store
-  const filteredBookings = bookings.filter((b) => {
-    const globalStatus = getAppointmentStatus(b.id);
-    const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : b.status;
-    return currentStatus === activeTab;
-  });
+  // Re-calculate when refreshKey changes to ensure filtered list is updated
+  const filteredBookings = React.useMemo(() => {
+    return bookings.filter((b) => {
+      const globalStatus = getAppointmentStatus(b.id);
+      const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : b.status;
+      return currentStatus === activeTab;
+    });
+  }, [bookings, activeTab, refreshKey]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -606,7 +631,7 @@ export default function BookingManagement() {
                   activeTab === tab.label && styles.tabTextActive,
                 ]}
               >
-                {tab.label} ({tab.count})
+                {tab.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -618,6 +643,7 @@ export default function BookingManagement() {
         data={filteredBookings}
         renderItem={renderBookingCard}
         keyExtractor={(item) => item.id}
+        extraData={refreshKey}
         contentContainerStyle={{ paddingBottom: 80 }}
         ListEmptyComponent={
           <View
