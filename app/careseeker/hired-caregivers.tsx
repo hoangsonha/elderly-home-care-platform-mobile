@@ -1,298 +1,504 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   FlatList,
+  Image,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
-import { HiredCaregiver } from '@/types/hired';
+
+interface HiredCaregiver {
+  id: string;
+  name: string;
+  age: number;
+  avatar?: string;
+  rating: number;
+  totalReviews: number;
+  specialties: string[];
+  elderlyName: string;
+  startDate: string;
+  endDate: string;
+  totalHours: number;
+  totalEarnings: number;
+  status: 'active' | 'completed' | 'paused';
+  hasReviewed?: boolean;
+}
 
 export default function HiredCaregiversScreen() {
-  const [activeTab, setActiveTab] = useState<'working' | 'off'>('working');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+
   // Mock data
-  const hiredCaregivers: HiredCaregiver[] = [
+  const mockCaregivers: HiredCaregiver[] = [
     {
       id: '1',
       name: 'Nguyễn Thị Mai',
       age: 28,
-      avatar: 'https://via.placeholder.com/60x60/4ECDC4/FFFFFF?text=NM',
-      isCurrentlyCaring: true,
-      currentElderly: [
-        {
-          id: 'elderly1',
-          name: 'Bà Nguyễn Thị Lan',
-          age: 75
-        }
-      ],
-      totalTasks: 6,
-      completedTasks: 3,
-      pendingTasks: 3,
-      hourlyRate: 200000,
-      startDate: '2024-01-15',
-      endDate: '2024-02-15',
-      workingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-      timeSlots: ['morning', 'afternoon'],
-      status: 'active'
+      rating: 4.8,
+      totalReviews: 45,
+      specialties: ['Chăm sóc người già', 'Nấu ăn'],
+      elderlyName: 'Bà Nguyễn Thị Lan',
+      startDate: '15/01/2024',
+      endDate: '15/02/2024',
+      totalHours: 160,
+      totalEarnings: 32000000,
+      status: 'active',
     },
     {
       id: '2',
       name: 'Trần Văn Nam',
       age: 32,
-      avatar: 'https://via.placeholder.com/60x60/FF6B6B/FFFFFF?text=TN',
-      isCurrentlyCaring: true,
-      currentElderly: [
-        {
-          id: 'elderly2',
-          name: 'Ông Phạm Văn Đức',
-          age: 82
-        },
-        {
-          id: 'elderly3',
-          name: 'Bà Lê Thị Bình',
-          age: 78
-        }
-      ],
-      totalTasks: 4,
-      completedTasks: 2,
-      pendingTasks: 2,
-      hourlyRate: 180000,
-      startDate: '2024-01-10',
-      endDate: '2024-03-10',
-      workingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
-      timeSlots: ['morning', 'afternoon', 'evening'],
-      status: 'active'
+      rating: 4.9,
+      totalReviews: 68,
+      specialties: ['Y tế', 'Vật lý trị liệu'],
+      elderlyName: 'Ông Phạm Văn Đức',
+      startDate: '10/01/2024',
+      endDate: '10/03/2024',
+      totalHours: 200,
+      totalEarnings: 36000000,
+      status: 'active',
     },
     {
       id: '3',
       name: 'Lê Thị Hoa',
       age: 25,
-      avatar: 'https://via.placeholder.com/60x60/45B7D1/FFFFFF?text=LH',
-      isCurrentlyCaring: false,
-      currentElderly: [
-        {
-          id: 'elderly4',
-          name: 'Bà Lê Thị Bình',
-          age: 68
-        }
-      ],
-      totalTasks: 0,
-      completedTasks: 0,
-      pendingTasks: 0,
-      hourlyRate: 220000,
-      startDate: '2024-01-05',
-      endDate: '2024-01-20',
-      workingDays: ['wednesday', 'friday', 'sunday'],
-      timeSlots: ['morning'],
-      status: 'active'
+      rating: 4.7,
+      totalReviews: 32,
+      specialties: ['Chăm sóc người già', 'Tâm lý'],
+      elderlyName: 'Bà Lê Thị Bình',
+      startDate: '05/12/2023',
+      endDate: '05/01/2024',
+      totalHours: 180,
+      totalEarnings: 39600000,
+      status: 'completed',
+      hasReviewed: true,
     },
     {
       id: '4',
       name: 'Phạm Văn Đức',
       age: 30,
-      avatar: 'https://via.placeholder.com/60x60/9B59B6/FFFFFF?text=PD',
-      isCurrentlyCaring: true,
-      currentElderly: [
-        {
-          id: 'elderly5',
-          name: 'Bà Trần Thị Hoa',
-          age: 70
-        }
-      ],
-      totalTasks: 1,
-      completedTasks: 0,
-      pendingTasks: 1,
-      hourlyRate: 190000,
-      startDate: '2024-01-20',
-      endDate: '2024-02-20',
-      workingDays: ['tuesday', 'thursday', 'saturday'],
-      timeSlots: ['morning'],
-      status: 'active'
-    }
+      rating: 4.6,
+      totalReviews: 28,
+      specialties: ['Chăm sóc người già', 'Nấu ăn'],
+      elderlyName: 'Ông Trần Văn Hùng',
+      startDate: '01/11/2023',
+      endDate: '30/11/2023',
+      totalHours: 120,
+      totalEarnings: 22800000,
+      status: 'completed',
+      hasReviewed: false,
+    },
+    {
+      id: '5',
+      name: 'Võ Thị Hương',
+      age: 27,
+      rating: 4.9,
+      totalReviews: 52,
+      specialties: ['Y tế', 'Phục hồi chức năng'],
+      elderlyName: 'Bà Nguyễn Thị Kim',
+      startDate: '20/10/2023',
+      endDate: '20/12/2023',
+      totalHours: 240,
+      totalEarnings: 52800000,
+      status: 'completed',
+      hasReviewed: true,
+    },
   ];
 
-  // Filter caregivers based on working schedule
-  // Hardcode for Monday (thứ 2) for demo purposes
-  const getTodayWorkingCaregivers = () => {
-    const todayName = 'monday'; // Hardcode for Monday
-    
-    return hiredCaregivers.filter(caregiver => 
-      caregiver.workingDays.includes(todayName) && caregiver.status === 'active'
-    );
-  };
-
-  const getTodayOffCaregivers = () => {
-    const todayName = 'monday'; // Hardcode for Monday
-    
-    return hiredCaregivers.filter(caregiver => 
-      !caregiver.workingDays.includes(todayName) && caregiver.status === 'active'
-    );
-  };
-
-  const currentCaregivers = activeTab === 'working' ? getTodayWorkingCaregivers() : getTodayOffCaregivers();
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return '#30A0E0';
-      case 'paused': return '#FECA57';
-      case 'completed': return '#6C757D';
-      default: return '#6C757D';
-    }
-  };
-
+  const filteredCaregivers = mockCaregivers.filter(
+    (c) => c.status === activeTab
+  );
 
   const handleCaregiverPress = (caregiver: HiredCaregiver) => {
     router.push({
-      pathname: '/hired-detail',
+      pathname: '/careseeker/caregiver-detail',
       params: {
         id: caregiver.id,
-        name: caregiver.name
-      }
+        name: caregiver.name,
+      },
     });
   };
 
   const handleChatPress = (caregiver: HiredCaregiver) => {
     router.push({
-      pathname: '/chat',
+      pathname: '/careseeker/chat',
       params: {
         caregiverId: caregiver.id,
-        caregiverName: caregiver.name
-      }
+        caregiverName: caregiver.name,
+      },
     });
   };
 
-  const renderCaregiverItem = ({ item }: { item: HiredCaregiver }) => (
-    <TouchableOpacity 
-      style={styles.caregiverCard}
+  const handleCallPress = (caregiver: HiredCaregiver) => {
+    router.push({
+      pathname: '/careseeker/video-call',
+      params: {
+        caregiverId: caregiver.id,
+        caregiverName: caregiver.name,
+      },
+    });
+  };
+
+  const handleReviewPress = (caregiver: HiredCaregiver) => {
+    Alert.alert(
+      'Đánh giá',
+      `Bạn muốn đánh giá ${caregiver.name}?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đánh giá',
+          onPress: () => {
+            // TODO: Navigate to review screen
+            console.log('Review caregiver:', caregiver.id);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRehirePress = (caregiver: HiredCaregiver) => {
+    Alert.alert(
+      'Thuê lại',
+      `Bạn muốn thuê lại ${caregiver.name}?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Thuê lại',
+          onPress: () => {
+            // TODO: Navigate to booking with pre-filled caregiver
+            router.push({
+              pathname: '/careseeker/caregiver-detail',
+              params: {
+                id: caregiver.id,
+                name: caregiver.name,
+              },
+            });
+          },
+        },
+      ]
+    );
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount);
+  };
+
+  const renderCaregiverCard = ({ item }: { item: HiredCaregiver }) => (
+    <TouchableOpacity
+      style={styles.card}
       onPress={() => handleCaregiverPress(item)}
+      activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
         <View style={styles.avatarContainer}>
-          <View style={[styles.avatar, { backgroundColor: getStatusColor(item.status) }]}>
-            <ThemedText style={styles.avatarText}>
-              {item.name ? item.name.split(' ').map(n => n[0]).join('') : '?'}
-            </ThemedText>
-          </View>
+          {item.avatar ? (
+            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          ) : (
+            <LinearGradient
+              colors={['#68C2E8', '#5AB9E0']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.avatarGradient}
+            >
+              <ThemedText style={styles.avatarText}>
+                {item.name.charAt(0)}
+              </ThemedText>
+            </LinearGradient>
+          )}
+          {item.status === 'active' && (
+            <View style={styles.activeBadge}>
+              <View style={styles.activeDot} />
+            </View>
+          )}
         </View>
-        
+
         <View style={styles.caregiverInfo}>
           <View style={styles.nameRow}>
             <ThemedText style={styles.caregiverName}>{item.name}</ThemedText>
-            <View style={styles.ageContainer}>
-              <ThemedText style={styles.caregiverAge}>{item.age} tuổi</ThemedText>
-            </View>
+            <ThemedText style={styles.caregiverAge}>{item.age} tuổi</ThemedText>
           </View>
-          <View style={styles.caringForRow}>
-            <ThemedText style={styles.caringForLabel}>Đang chăm sóc: </ThemedText>
-            <View style={styles.caringForNames}>
-              {item.currentElderly.map((elderly, index) => (
-                <ThemedText key={index} style={styles.caringForName}>{elderly.name}</ThemedText>
-              ))}
-            </View>
+
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={14} color="#FFB648" />
+            <ThemedText style={styles.ratingText}>
+              {item.rating.toFixed(1)}
+            </ThemedText>
+            <ThemedText style={styles.reviewsText}>
+              ({item.totalReviews} đánh giá)
+            </ThemedText>
           </View>
-          <ThemedText style={styles.taskInfo}>
-            {activeTab === 'working' ? `${item.totalTasks} nhiệm vụ hôm nay` : 'Hôm nay nghỉ'}
-          </ThemedText>
-        </View>
-        
-        <View style={styles.chevronContainer}>
-          <TouchableOpacity 
-            style={styles.chevronButton}
-            onPress={() => handleCaregiverPress(item)}
-          >
-            <Ionicons name="chevron-forward" size={20} color="#6c757d" />
-          </TouchableOpacity>
+
+          <View style={styles.specialtiesContainer}>
+            {item.specialties.slice(0, 2).map((specialty, index) => (
+              <View key={index} style={styles.specialtyBadge}>
+                <ThemedText style={styles.specialtyText}>
+                  {specialty}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
         </View>
       </View>
 
-      <View style={styles.cardFooter}>
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.chatButton}
-            onPress={() => handleChatPress(item)}
-          >
-            <Ionicons name="chatbubble-outline" size={20} color="#30A0E0" />
-            <ThemedText style={styles.chatButtonText}>Chat</ThemedText>
-          </TouchableOpacity>
+      <View style={styles.elderlyInfo}>
+        <View style={styles.elderlyRow}>
+          <Ionicons name="person" size={16} color="#6B7280" />
+          <ThemedText style={styles.elderlyLabel}>Chăm sóc:</ThemedText>
+          <ThemedText style={styles.elderlyName}>{item.elderlyName}</ThemedText>
         </View>
+      </View>
+
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+          <View style={styles.statContent}>
+            <ThemedText style={styles.statLabel}>Thời gian</ThemedText>
+            <ThemedText style={styles.statValue}>
+              {item.startDate} - {item.endDate}
+            </ThemedText>
+          </View>
+        </View>
+
+        <View style={styles.statDivider} />
+
+        <View style={styles.statItem}>
+          <Ionicons name="time-outline" size={16} color="#6B7280" />
+          <View style={styles.statContent}>
+            <ThemedText style={styles.statLabel}>Tổng giờ</ThemedText>
+            <ThemedText style={styles.statValue}>{item.totalHours}h</ThemedText>
+          </View>
+        </View>
+
+        <View style={styles.statDivider} />
+
+        <View style={styles.statItem}>
+          <Ionicons name="wallet-outline" size={16} color="#6B7280" />
+          <View style={styles.statContent}>
+            <ThemedText style={styles.statLabel}>Tổng chi</ThemedText>
+            <ThemedText style={styles.statValue}>
+              {formatCurrency(item.totalEarnings)}
+            </ThemedText>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.actionsContainer}>
+        {item.status === 'active' ? (
+          <>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.chatButton]}
+              onPress={() => handleChatPress(item)}
+            >
+              <Ionicons name="chatbubble-outline" size={18} color="#68C2E8" />
+              <ThemedText style={styles.chatButtonText}>Chat</ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.callButton]}
+              onPress={() => handleCallPress(item)}
+            >
+              <Ionicons name="videocam-outline" size={18} color="white" />
+              <ThemedText style={styles.callButtonText}>Gọi</ThemedText>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {!item.hasReviewed && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.reviewButton]}
+                onPress={() => handleReviewPress(item)}
+              >
+                <Ionicons name="star-outline" size={18} color="#FFB648" />
+                <ThemedText style={styles.reviewButtonText}>
+                  Đánh giá
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.rehireButton]}
+              onPress={() => handleRehirePress(item)}
+            >
+              <Ionicons name="refresh-outline" size={18} color="white" />
+              <ThemedText style={styles.rehireButtonText}>
+                Thuê lại
+              </ThemedText>
+            </TouchableOpacity>
+          </>
+        )}
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.detailButton]}
+          onPress={() => handleCaregiverPress(item)}
+        >
+          <ThemedText style={styles.detailButtonText}>Chi tiết</ThemedText>
+          <Ionicons name="chevron-forward" size={18} color="#68C2E8" />
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <ThemedText style={styles.headerTitle}>Đang thuê</ThemedText>
-          <ThemedText style={styles.headerSubtitle}>Quản lý người chăm sóc đang thuê</ThemedText>
-        </View>
-        
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="search-outline" size={20} color="white" />
+      <LinearGradient
+        colors={['#68C2E8', '#5AB9E0']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <View style={styles.headerTop}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="filter-outline" size={20} color="white" />
-          </TouchableOpacity>
+
+          <View style={styles.headerContent}>
+            <ThemedText style={styles.headerTitle}>
+              Người chăm sóc đã thuê
+            </ThemedText>
+            <ThemedText style={styles.headerSubtitle}>
+              Quản lý lịch sử thuê người chăm sóc
+            </ThemedText>
+          </View>
+
+          <View style={styles.placeholder} />
         </View>
-      </View>
+
+        {/* Summary Stats */}
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryItem}>
+            <ThemedText style={styles.summaryValue}>
+              {mockCaregivers.filter((c) => c.status === 'active').length}
+            </ThemedText>
+            <ThemedText style={styles.summaryLabel}>Đang làm</ThemedText>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <ThemedText style={styles.summaryValue}>
+              {mockCaregivers.filter((c) => c.status === 'completed').length}
+            </ThemedText>
+            <ThemedText style={styles.summaryLabel}>Đã hoàn thành</ThemedText>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <ThemedText style={styles.summaryValue}>
+              {mockCaregivers.length}
+            </ThemedText>
+            <ThemedText style={styles.summaryLabel}>Tổng cộng</ThemedText>
+          </View>
+        </View>
+      </LinearGradient>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'working' && styles.activeTab]}
-          onPress={() => setActiveTab('working')}
+          style={[styles.tab, activeTab === 'active' && styles.activeTab]}
+          onPress={() => setActiveTab('active')}
         >
-          <ThemedText style={[styles.tabText, activeTab === 'working' && styles.activeTabText]}>
-            Hôm nay làm
+          <Ionicons
+            name="checkmark-circle"
+            size={20}
+            color={activeTab === 'active' ? 'white' : '#6B7280'}
+          />
+          <ThemedText
+            style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}
+          >
+            Đang làm việc
           </ThemedText>
+          <View
+            style={[
+              styles.tabBadge,
+              activeTab === 'active' && styles.activeTabBadge,
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.tabBadgeText,
+                activeTab === 'active' && styles.activeTabBadgeText,
+              ]}
+            >
+              {mockCaregivers.filter((c) => c.status === 'active').length}
+            </ThemedText>
+          </View>
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'off' && styles.activeTab]}
-          onPress={() => setActiveTab('off')}
+          style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
+          onPress={() => setActiveTab('completed')}
         >
-          <ThemedText style={[styles.tabText, activeTab === 'off' && styles.activeTabText]}>
-            Hôm nay nghỉ
+          <Ionicons
+            name="time"
+            size={20}
+            color={activeTab === 'completed' ? 'white' : '#6B7280'}
+          />
+          <ThemedText
+            style={[
+              styles.tabText,
+              activeTab === 'completed' && styles.activeTabText,
+            ]}
+          >
+            Đã kết thúc
           </ThemedText>
+          <View
+            style={[
+              styles.tabBadge,
+              activeTab === 'completed' && styles.activeTabBadge,
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.tabBadgeText,
+                activeTab === 'completed' && styles.activeTabBadgeText,
+              ]}
+            >
+              {mockCaregivers.filter((c) => c.status === 'completed').length}
+            </ThemedText>
+          </View>
         </TouchableOpacity>
       </View>
 
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <View style={[styles.statItem, styles.statItemHighlighted]}>
-          <ThemedText style={styles.statNumber}>{currentCaregivers.length}</ThemedText>
-          <ThemedText style={styles.statLabel}>
-            {activeTab === 'working' ? 'Đang làm' : 'Nghỉ'}
+      {/* List */}
+      {filteredCaregivers.length > 0 ? (
+        <FlatList
+          data={filteredCaregivers}
+          renderItem={renderCaregiverCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={64} color="#D1D5DB" />
+          <ThemedText style={styles.emptyText}>
+            {activeTab === 'active'
+              ? 'Chưa có người chăm sóc đang làm việc'
+              : 'Chưa có lịch sử thuê người chăm sóc'}
           </ThemedText>
+          <TouchableOpacity
+            style={styles.emptyButton}
+            onPress={() => router.push('/careseeker/caregiver-search')}
+          >
+            <ThemedText style={styles.emptyButtonText}>
+              Tìm người chăm sóc
+            </ThemedText>
+          </TouchableOpacity>
         </View>
-        <View style={[styles.statItem, styles.statItemHighlighted]}>
-          <ThemedText style={styles.statNumber}>
-            {currentCaregivers.reduce((sum, c) => sum + c.totalTasks, 0)}
-          </ThemedText>
-          <ThemedText style={styles.statLabel}>Tổng nhiệm vụ</ThemedText>
-        </View>
-      </View>
+      )}
 
-      {/* Caregivers List */}
-      <FlatList
-        data={currentCaregivers}
-        renderItem={renderCaregiverItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
+      <SimpleNavBar />
     </SafeAreaView>
   );
 }
@@ -300,230 +506,361 @@ export default function HiredCaregiversScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F4F9FD',
   },
   header: {
-    backgroundColor: '#30A0E0',
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingTop: 30,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 20,
   },
   backButton: {
-    padding: 8,
-    marginRight: 12,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+  },
+  headerContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  placeholder: {
+    width: 40,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  summaryDivider: {
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: 'white',
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 16,
-    borderRadius: 12,
+    marginBottom: 16,
+    borderRadius: 16,
     padding: 4,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
   },
   activeTab: {
-    backgroundColor: '#30A0E0',
+    backgroundColor: '#68C2E8',
   },
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6c757d',
+    color: '#6B7280',
   },
   activeTabText: {
     color: 'white',
   },
-  statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  statItem: {
-    flex: 1,
+  tabBadge: {
+    backgroundColor: '#E5E7EB',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 24,
     alignItems: 'center',
   },
-  statItemHighlighted: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    marginHorizontal: 4,
+  activeTabBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#30A0E0',
-  },
-  statLabel: {
+  tabBadgeText: {
     fontSize: 12,
-    color: '#6c757d',
-    marginTop: 4,
+    fontWeight: '700',
+    color: '#6B7280',
   },
-  listContainer: {
-    padding: 16,
-    paddingBottom: 100, // Thêm margin bottom để tránh đụng navigation bar
+  activeTabBadgeText: {
+    color: 'white',
   },
-  caregiverCard: {
+  listContent: {
+    padding: 20,
+    paddingBottom: 120,
+  },
+  card: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   avatarContainer: {
+    position: 'relative',
     marginRight: 12,
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+  },
+  avatarGradient: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     color: 'white',
+  },
+  activeBadge: {
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
   },
   caregiverInfo: {
     flex: 1,
-    justifyContent: 'center',
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   caregiverName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    flex: 1,
-  },
-  ageContainer: {
-    alignItems: 'flex-end',
-    marginRight: -8,
+    fontWeight: '700',
+    color: '#12394A',
   },
   caregiverAge: {
     fontSize: 14,
-    color: '#6c757d',
+    color: '#6B7280',
   },
-  chevronContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-    marginTop: 8,
-  },
-  chevronButton: {
-    padding: 4,
-  },
-  caringForRow: {
+  ratingRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 4,
   },
-  caringForLabel: {
+  ratingText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#12394A',
+  },
+  reviewsText: {
     fontSize: 12,
-    color: '#30A0E0',
-    fontWeight: '500',
-    marginRight: 8,
+    color: '#6B7280',
   },
-  caringForNames: {
+  specialtiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  specialtyBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  specialtyText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#0284C7',
+  },
+  elderlyInfo: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  elderlyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  elderlyLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  elderlyName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#12394A',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  statItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statContent: {
     flex: 1,
   },
-  caringForName: {
-    fontSize: 12,
-    color: '#30A0E0',
-    fontWeight: '500',
+  statLabel: {
+    fontSize: 11,
+    color: '#6B7280',
     marginBottom: 2,
   },
-  taskInfo: {
-    fontSize: 14,
+  statValue: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#12394A',
   },
-  cardFooter: {
+  statDivider: {
+    width: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 8,
+  },
+  actionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#f8f9fa',
-    paddingTop: 2,
-  },
-  actionButtons: {
-    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 6,
   },
   chatButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F0F9FF',
     borderWidth: 1,
-    borderColor: '#30A0E0',
+    borderColor: '#68C2E8',
   },
   chatButtonText: {
-    fontSize: 14,
-    color: '#30A0E0',
+    fontSize: 13,
     fontWeight: '600',
-    marginLeft: 6,
+    color: '#68C2E8',
+  },
+  callButton: {
+    backgroundColor: '#68C2E8',
+  },
+  callButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'white',
+  },
+  reviewButton: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FFB648',
+  },
+  reviewButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFB648',
+  },
+  rehireButton: {
+    backgroundColor: '#10B981',
+  },
+  rehireButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'white',
+  },
+  detailButton: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  detailButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#68C2E8',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  emptyButton: {
+    backgroundColor: '#68C2E8',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  emptyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
   },
 });
+

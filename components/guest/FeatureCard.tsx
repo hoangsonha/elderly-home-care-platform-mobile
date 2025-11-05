@@ -1,75 +1,76 @@
 import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, TouchableOpacity } from 'react-native';
 
 interface FeatureCardProps {
   title: string;
   subtitle: string;
   icon: string;
-  backgroundColor: string;
+  colors: string[];
   onPress: () => void;
-  width?: number;
 }
 
 export function FeatureCard({
   title,
   subtitle,
   icon,
-  backgroundColor,
+  colors,
   onPress,
-  width = 160,
 }: FeatureCardProps) {
   return (
     <TouchableOpacity
-      style={[styles.card, { width }]}
+      style={styles.card}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
     >
-      <View style={[styles.content, { backgroundColor }]}>
-        <View style={styles.icon}>
-          <Ionicons 
-            name={icon as any} 
-            size={28} 
-            color="white" 
-          />
-        </View>
+      <LinearGradient
+        colors={colors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradient}
+      >
+        <Ionicons 
+          name={icon as any} 
+          size={28} 
+          color="white" 
+        />
         <ThemedText style={styles.title} numberOfLines={1}>
           {title}
         </ThemedText>
         <ThemedText style={styles.subtitle} numberOfLines={2}>
           {subtitle}
         </ThemedText>
-      </View>
+      </LinearGradient>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 20,
-    borderRadius: 16,
-    elevation: 4,
+    flex: 1,
+    borderRadius: 18,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  content: {
+  gradient: {
+    flex: 1,
     padding: 16,
-    borderRadius: 16,
     alignItems: 'center',
-    minHeight: 130,
     justifyContent: 'center',
-  },
-  icon: {
-    marginBottom: 8,
+    minHeight: 130,
   },
   title: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: 'white',
     textAlign: 'center',
-    marginBottom: 6,
+    marginTop: 10,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 10,

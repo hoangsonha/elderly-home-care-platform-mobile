@@ -34,6 +34,7 @@ export default function CareSeekerLayout() {
       <Stack.Screen name="emergency-contacts" options={{ headerShown: false }} />
       <Stack.Screen name="in-progress" options={{ headerShown: false }} />
       <Stack.Screen name="video-call" options={{ headerShown: false }} />
+      <Stack.Screen name="profile" options={{ headerShown: false }} />
     </Stack>
     </EmergencyContactProvider>
   );

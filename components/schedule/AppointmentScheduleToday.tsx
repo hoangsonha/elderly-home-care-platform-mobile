@@ -47,13 +47,13 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return '#27AE60'; // Xanh lá cho đã hoàn thành
+        return '#10B981'; // Xanh lá cho đã hoàn thành
       case 'in-progress':
-        return '#4ECDC4'; // Xanh khác cho đang thực hiện
+        return '#68C2E8'; // Ocean blue cho đang thực hiện
       case 'upcoming':
-        return '#F39C12'; // Vàng cho sắp tới
+        return '#F59E0B'; // Vàng cho sắp tới
       default:
-        return '#95A5A6';
+        return '#9CA3AF';
     }
   };
 
@@ -63,27 +63,24 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
 
   const getTaskColor = (task: Task, appointmentStatus: string, index: number) => {
     if (task.status === 'completed') {
-      return '#27AE60'; // Xanh lá cho task đã hoàn thành
+      return '#10B981'; // Xanh lá cho task đã hoàn thành
     } else if (task.status === 'failed') {
-      return '#E74C3C'; // Đỏ cho task không hoàn thành
+      return '#EF4444'; // Đỏ cho task không hoàn thành
     } else if (task.status === 'pending') {
-      return '#FFB84D'; // Cam cho task đang chờ
+      return '#FFB648'; // Cam cho task đang chờ
     } else if (task.completed) {
-      return '#27AE60'; // Fallback cho task đã hoàn thành
+      return '#10B981'; // Fallback cho task đã hoàn thành
     } else {
-      return '#E74C3C'; // Fallback cho task chưa hoàn thành
+      return '#EF4444'; // Fallback cho task chưa hoàn thành
     }
   };
 
   const handleAppointmentPress = (appointment: Appointment) => {
-    // Navigate to hired detail page with appointment data
+    // Navigate to appointment detail page
     router.push({
-      pathname: '/hired-detail',
+      pathname: '/careseeker/appointment-detail',
       params: {
-        caregiverId: appointment.id,
-        caregiverName: appointment.caregiverName,
-        timeSlot: appointment.timeSlot,
-        status: appointment.status,
+        id: appointment.id,
       }
     });
   };
@@ -125,7 +122,7 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
                             {appointment.caregiverName}
                           </ThemedText>
                           {appointment.isVerified && (
-                            <Ionicons name="checkmark-circle" size={16} color="#27AE60" />
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
                           )}
                         </View>
                         <ThemedText style={styles.timeSlot}>
@@ -161,16 +158,11 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
                 style={styles.viewDetailsButton}
                 onPress={(e) => {
                   e.stopPropagation();
-                  // Navigate to in-progress page with appointment details
+                  // Navigate to appointment detail page
                   router.push({
-                    pathname: '/careseeker/in-progress',
+                    pathname: '/careseeker/appointment-detail',
                     params: {
-                      appointmentId: appointment.id,
-                      caregiverName: appointment.caregiverName,
-                      timeSlot: appointment.timeSlot,
-                      status: appointment.status,
-                      address: appointment.address,
-                      rating: appointment.rating.toString(),
+                      id: appointment.id,
                     }
                   });
                 }}
@@ -179,7 +171,7 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
                 <Ionicons 
                   name="chevron-forward" 
                   size={16} 
-                  color="#4ECDC4" 
+                  color="#68C2E8" 
                 />
               </TouchableOpacity>
 
@@ -217,13 +209,13 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
                             
                             <View style={styles.taskCheckbox}>
                               {task.status === 'completed' ? (
-                                <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
+                                <Ionicons name="checkmark-circle" size={24} color="#10B981" />
                               ) : task.status === 'failed' ? (
-                                <Ionicons name="close-circle" size={24} color="#E74C3C" />
+                                <Ionicons name="close-circle" size={24} color="#EF4444" />
                               ) : task.status === 'pending' ? (
                                 <View style={styles.pendingCircle} />
                               ) : task.completed ? (
-                                <Ionicons name="checkmark-circle" size={24} color="#27AE60" />
+                                <Ionicons name="checkmark-circle" size={24} color="#10B981" />
                               ) : (
                                 <View style={styles.uncheckedCircle} />
                               )}
@@ -337,7 +329,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -391,7 +383,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#ecf0f1',
   },
   viewDetailsText: {
-    color: '#4ECDC4',
+    color: '#68C2E8',
     fontSize: 14,
     fontWeight: '600',
     marginRight: 4,

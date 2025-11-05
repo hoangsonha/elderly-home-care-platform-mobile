@@ -743,21 +743,23 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                 {/* Custom location option */}
                 <View style={styles.locationSection}>
                   <ThemedText style={styles.locationSectionTitle}>Địa chỉ khác</ThemedText>
-                  <TouchableOpacity
-                    style={styles.locationOption}
-                    onPress={handleCustomLocationSelect}
-                  >
-                    <View style={styles.locationOptionContent}>
-                      <View style={styles.locationOptionIcon}>
-                        <Ionicons name="add-circle" size={24} color="#68C2E8" />
+                  <View style={styles.locationOption}>
+                    <TouchableOpacity
+                      style={styles.locationOptionTouchable}
+                      onPress={handleCustomLocationSelect}
+                    >
+                      <View style={styles.locationOptionContent}>
+                        <View style={styles.locationOptionIcon}>
+                          <Ionicons name="add-circle" size={24} color="#68C2E8" />
+                        </View>
+                        <View style={styles.locationOptionText}>
+                          <ThemedText style={styles.locationOptionName}>Nhập địa chỉ khác</ThemedText>
+                          <ThemedText style={styles.locationOptionAddress}>Nhập địa chỉ tùy chỉnh</ThemedText>
+                        </View>
                       </View>
-                      <View style={styles.locationOptionText}>
-                        <ThemedText style={styles.locationOptionName}>Nhập địa chỉ khác</ThemedText>
-                        <ThemedText style={styles.locationOptionAddress}>Nhập địa chỉ tùy chỉnh</ThemedText>
-                      </View>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#6c757d" />
-                  </TouchableOpacity>
+                      <Ionicons name="chevron-forward" size={20} color="#6c757d" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </ScrollView>
             </View>

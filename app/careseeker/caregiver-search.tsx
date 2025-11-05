@@ -167,7 +167,9 @@ export default function CaregiverSearchScreen() {
   };
 
   const handleAIMatching = () => {
-    setShowAIModal(true);
+    // Open booking modal with first caregiver or null
+    setSelectedCaregiver(mockCaregivers[0] || null);
+    setShowBookingModal(true);
   };
 
   const handleGetAIRecommendations = (response: MatchResponse) => {
@@ -236,14 +238,9 @@ export default function CaregiverSearchScreen() {
         
         <View style={styles.headerContent}>
           <ThemedText style={styles.headerTitle}>Tìm người chăm sóc</ThemedText>
-          <ThemedText style={styles.headerSubtitle}>Chào {user?.name || user?.email}!</ThemedText>
         </View>
         
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.aiButton} onPress={handleAIMatching}>
-            <Ionicons name="sparkles" size={20} color="white" />
-          </TouchableOpacity>
-        </View>
+        <View style={styles.placeholder} />
       </View>
 
       {/* Search Bar */}
@@ -377,6 +374,9 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
+  placeholder: {
+    width: 40,
+  },
   headerContent: {
     flex: 1,
     alignItems: 'center',
@@ -390,16 +390,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
     marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  aiButton: {
-    padding: 8,
-    marginRight: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8,
   },
   floatingAIContainer: {
     position: 'absolute',

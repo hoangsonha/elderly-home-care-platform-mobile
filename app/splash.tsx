@@ -1,342 +1,336 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import React, { useEffect, useRef } from "react";
 import {
   Animated,
-  Dimensions,
+  SafeAreaView,
+  ScrollView,
   StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
+const featureItems = [
+  {
+    icon: "heart-circle",
+    title: "Chăm sóc cá nhân hóa",
+    description:
+      "Kết nối điều dưỡng phù hợp với nhu cầu và lịch trình của gia đình bạn.",
+  },
+  {
+    icon: "calendar",
+    title: "Giám sát minh bạch",
+    description:
+      "Theo dõi tiến trình, lịch hẹn và thông tin sức khỏe được cập nhật liên tục.",
+  },
+  {
+    icon: "chatbubbles",
+    title: "Hỗ trợ 24/7",
+    description:
+      "Liên hệ đội ngũ hỗ trợ hoặc trò chuyện cùng người chăm sóc bất cứ lúc nào.",
+  },
+];
 
-const { width, height } = Dimensions.get('window');
+const stats = [
+  { value: "500+", label: "Chuyên gia chăm sóc" },
+  { value: "1.5K", label: "Gia đình tin dùng" },
+  { value: "24/7", label: "Giám sát & hỗ trợ" },
+];
 
 export default function SplashScreen() {
-  const [progress, setProgress] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const heartBeatAnim = useRef(new Animated.Value(1)).current;
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroTranslate = useRef(new Animated.Value(16)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Start animations
     Animated.parallel([
-      Animated.timing(fadeAnim, {
+      Animated.timing(heroOpacity, {
         toValue: 1,
-        duration: 800,
+        duration: 500,
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
+      Animated.timing(heroTranslate, {
+        toValue: 0,
+        duration: 500,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Heart beat animation
-    const heartBeat = () => {
-      Animated.sequence([
-        Animated.timing(heartBeatAnim, {
-          toValue: 1.2,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.timing(heartBeatAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start(() => heartBeat());
-    };
-    heartBeat();
-
-    // Progress bar animation
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        const newProgress = prev + Math.random() * 15 + 5;
-        if (newProgress >= 100) {
-          clearInterval(progressInterval);
-          // Navigate to main app after loading complete
-          setTimeout(() => {
-            router.replace('/(tabs)');
-          }, 500);
-          return 100;
-        }
-        return newProgress;
-      });
-    }, 200);
-
-    // Animate progress bar
-    Animated.timing(progressAnim, {
-      toValue: progress,
-      duration: 200,
-      useNativeDriver: false,
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 500,
+      delay: 200,
+      useNativeDriver: true,
     }).start();
-
-    return () => {
-      clearInterval(progressInterval);
-    };
-  }, [progress]);
+  }, [contentOpacity, heroOpacity, heroTranslate]);
 
   return (
-    <View style={styles.container}>
-      {/* Background Gradient Effect */}
-      <View style={styles.backgroundGradient} />
-      
-      {/* Decorative Elements */}
-      <View style={styles.decorativeCircle1} />
-      <View style={styles.decorativeCircle2} />
-      <View style={styles.decorativeCircle3} />
-
-      <Animated.View 
-        style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Logo Section */}
-        <View style={styles.logoSection}>
+        <View style={styles.heroWrapper}>
           <Animated.View
             style={[
-              styles.logoContainer,
-              { transform: [{ scale: heartBeatAnim }] },
+              styles.heroCard,
+              {
+                opacity: heroOpacity,
+                transform: [{ translateY: heroTranslate }],
+              },
             ]}
           >
-            <View style={styles.logoBackground}>
-              <Ionicons name="heart" size={60} color="#FF6B6B" />
-            </View>
+            <LinearGradient
+              colors={["#68C2E8", "#5AB9E0"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroGradient}
+            >
+              <View style={styles.logoBadge}>
+                <Ionicons name="heart" size={36} color="#FFFFFF" />
+              </View>
+
+              <Text style={styles.heroTitle}>
+                Chăm sóc tận tâm cho người thân yêu
+              </Text>
+              <Text style={styles.heroSubtitle}>
+                Nền tảng quản lý chăm sóc người cao tuổi hiện đại, đồng bộ với
+                toàn bộ hệ thống Elder Care Connect.
+              </Text>
+
+              <View style={styles.statRow}>
+                {stats.map((item) => (
+                  <View key={item.label} style={styles.statItem}>
+                    <Text style={styles.statValue}>{item.value}</Text>
+                    <Text style={styles.statLabel}>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </LinearGradient>
           </Animated.View>
-          
-          <ThemedText style={styles.appName}>Elder Care Connect</ThemedText>
-          <ThemedText style={styles.tagline}>
-            Chăm sóc tận tâm, công nghệ hiện đại
-          </ThemedText>
         </View>
 
-        {/* Features Icons */}
-        <View style={styles.featuresContainer}>
-          <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
-              <Ionicons name="people" size={24} color="#4ECDC4" />
-            </View>
-            <ThemedText style={styles.featureText}>Đội ngũ chuyên nghiệp</ThemedText>
-          </View>
-          
-          <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
-              <Ionicons name="shield-checkmark" size={24} color="#6BCF7F" />
-            </View>
-            <ThemedText style={styles.featureText}>An toàn & Tin cậy</ThemedText>
-          </View>
-          
-          <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
-              <Ionicons name="time" size={24} color="#FFD93D" />
-            </View>
-            <ThemedText style={styles.featureText}>Hỗ trợ 24/7</ThemedText>
-          </View>
-        </View>
+        <Animated.View style={[styles.contentCard, { opacity: contentOpacity }]}>
+          <Text style={styles.contentHeading}>Trải nghiệm liền mạch</Text>
+          <Text style={styles.contentDescription}>
+            Mọi tiện ích từ đặt lịch, theo dõi, đến tương tác đều được thiết kế
+            thống nhất, giúp gia đình bạn dễ dàng quản lý và an tâm hơn mỗi ngày.
+          </Text>
 
-        {/* Progress Section */}
-        <View style={styles.progressSection}>
-          <ThemedText style={styles.loadingText}>
-            Đang khởi tạo...
-          </ThemedText>
-          
-          <View style={styles.progressBarContainer}>
-            <View style={styles.progressBarBackground}>
-              <Animated.View
+          <View style={styles.featureList}>
+            {featureItems.map((feature, index) => (
+              <View
+                key={feature.title}
                 style={[
-                  styles.progressBarFill,
-                  {
-                    width: progressAnim.interpolate({
-                      inputRange: [0, 100],
-                      outputRange: ['0%', '100%'],
-                      extrapolate: 'clamp',
-                    }),
-                  },
+                  styles.featureCard,
+                  index !== featureItems.length - 1 && { marginBottom: 16 },
                 ]}
-              />
-            </View>
-            <ThemedText style={styles.progressText}>
-              {Math.round(progress)}%
-            </ThemedText>
+              >
+                <View style={styles.featureIcon}>
+                  <Ionicons
+                    name={feature.icon as keyof typeof Ionicons.glyphMap}
+                    size={22}
+                    color="#68C2E8"
+                  />
+                </View>
+                <View style={styles.featureContent}>
+                  <Text style={styles.featureTitle}>{feature.title}</Text>
+                  <Text style={styles.featureDescription}>
+                    {feature.description}
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
 
-      {/* Bottom Info */}
-      <View style={styles.bottomInfo}>
-        <ThemedText style={styles.versionText}>
-          Version 1.0.0
-        </ThemedText>
-        <ThemedText style={styles.copyrightText}>
-          © 2025 Elder Care Connect
-        </ThemedText>
-      </View>
-    </View>
+        <Animated.View style={[styles.actions, { opacity: contentOpacity }]}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.push("/login")}
+          >
+            <Text style={styles.primaryButtonText}>Đăng nhập</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push("/register")}
+          >
+            <Text style={styles.secondaryButtonText}>Tạo tài khoản mới</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <Text style={styles.caption}>
+          © 2025 Elder Care Connect. All rights reserved.
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F4F9FD",
   },
-  backgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    opacity: 0.1,
+  scrollContent: {
+    paddingBottom: 40,
   },
-  decorativeCircle1: {
-    position: 'absolute',
-    top: height * 0.1,
-    right: width * 0.1,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+  heroWrapper: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
   },
-  decorativeCircle2: {
-    position: 'absolute',
-    bottom: height * 0.2,
-    left: width * 0.05,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+  heroCard: {
+    borderRadius: 28,
+    overflow: "hidden",
+    shadowColor: "#5AB9E0",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 16,
   },
-  decorativeCircle3: {
-    position: 'absolute',
-    top: height * 0.3,
-    left: width * 0.15,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(78, 205, 196, 0.1)',
+  heroGradient: {
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: 40,
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
   },
-  logoSection: {
-    alignItems: 'center',
-    marginBottom: 60,
-  },
-  logoContainer: {
-    marginBottom: 24,
-  },
-  logoBackground: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  appName: {
+  heroTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#FFFFFF",
+    lineHeight: 34,
+    marginBottom: 12,
   },
-  tagline: {
-    fontSize: 16,
-    color: '#6c757d',
-    textAlign: 'center',
-    fontStyle: 'italic',
+  heroSubtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: "rgba(255, 255, 255, 0.85)",
+    marginBottom: 28,
   },
-  featuresContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 60,
+  statRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
-  featureItem: {
-    alignItems: 'center',
+  statItem: {
     flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  statLabel: {
+    color: "rgba(255, 255, 255, 0.75)",
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: "center",
+  },
+  contentCard: {
+    marginHorizontal: 24,
+    marginTop: -32,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: "#A6D8EE",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  contentHeading: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#12394A",
+  },
+  contentDescription: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#5B7C8E",
+  },
+  featureList: {
+    marginTop: 24,
+  },
+  featureCard: {
+    flexDirection: "row",
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "#F7FBFF",
+    alignItems: "flex-start",
   },
   featureIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(104, 194, 232, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
   },
-  featureText: {
-    fontSize: 12,
-    color: '#2c3e50',
-    textAlign: 'center',
-    fontWeight: '500',
+  featureContent: {
+    flex: 1,
   },
-  progressSection: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  loadingText: {
+  featureTitle: {
     fontSize: 16,
-    color: '#2c3e50',
-    marginBottom: 16,
-    fontWeight: '500',
-  },
-  progressBarContainer: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  progressBarBackground: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#e9ecef',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#4ECDC4',
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontWeight: '600',
-  },
-  bottomInfo: {
-    position: 'absolute',
-    bottom: 40,
-    alignItems: 'center',
-  },
-  versionText: {
-    fontSize: 12,
-    color: '#6c757d',
+    fontWeight: "600",
+    color: "#12394A",
     marginBottom: 4,
   },
-  copyrightText: {
+  featureDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#5B7C8E",
+  },
+  actions: {
+    marginTop: 32,
+    marginHorizontal: 24,
+  },
+  primaryButton: {
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#68C2E8",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#68C2E8",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 14,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  secondaryButton: {
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#68C2E8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  secondaryButtonText: {
+    color: "#12394A",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  caption: {
+    marginTop: 28,
+    textAlign: "center",
+    color: "#7A96A6",
     fontSize: 12,
-    color: '#6c757d',
   },
 });

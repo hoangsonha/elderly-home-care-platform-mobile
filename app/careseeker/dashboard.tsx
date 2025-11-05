@@ -912,7 +912,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   bottomSpacing: {
-    height: 20,
+    height: 120,
   },
   notificationOverlay: {
     position: 'absolute',
