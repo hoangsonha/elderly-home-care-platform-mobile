@@ -1,8 +1,9 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
+import { useAuth } from "@/contexts/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
   ScrollView,
@@ -63,8 +64,38 @@ const caregiverStats = {
 
 export default function CaregiverDashboardScreen() {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const [todayAppointments, setTodayAppointments] = useState(initialTodayAppointments);
   const [, setRefreshKey] = useState(0); // For triggering re-render when status changes
+
+  // Check profile status and navigate accordingly
+  useFocusEffect(
+    useCallback(() => {
+      if (user && user.role === "Caregiver") {
+        // Small delay to ensure navigation is ready
+        setTimeout(() => {
+          // Check if profile has been submitted (exists in profileStore)
+          const { getProfileStatus, hasProfile } = require("@/data/profileStore");
+          const hasProfileInStore = hasProfile(user.id);
+          
+          if (!hasProfileInStore && !user.hasCompletedProfile) {
+            // No profile submitted yet - navigate to complete profile
+            navigation.navigate("Hoàn thiện hồ sơ", {
+              email: user.email,
+              fullName: user.name || "",
+            });
+          } else if (hasProfileInStore) {
+            // Profile has been submitted - check status
+            const profileStatus = getProfileStatus(user.id);
+            if (profileStatus.status === "pending" || profileStatus.status === "rejected") {
+              navigation.navigate("Trạng thái hồ sơ");
+            }
+            // If approved, stay on dashboard
+          }
+        }, 500);
+      }
+    }, [user, navigation])
+  );
 
   // Subscribe to status changes from global store
   useEffect(() => {

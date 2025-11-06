@@ -1,6 +1,6 @@
 import { appointmentsDataMap } from "@/app/caregiver/appointment-detail";
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
-import { getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
+import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
@@ -57,8 +57,8 @@ const mockBookings: Booking[] = [
     elderName: "Ông Trần Văn Hùng",
     age: 68,
     location: "Q9, TP.HCM",
-    packageType: "Gói Tiêu Chuẩn",
-    packageDetail: "Gói Tiêu Chuẩn",
+    packageType: "Gói Chuyên Nghiệp",
+    packageDetail: "Gói Chuyên Nghiệp",
     date: "Thứ 7, 26/10/2025",
     time: "8:00 - 16:00 (8 giờ)",
     address: "456 Lê Văn Việt, P. Tăng Nhơn Phú A, Q.9, TP.HCM",
@@ -83,6 +83,22 @@ const mockBookings: Booking[] = [
     status: "Mới",
     statusBadge: "Mới",
     avatar: "👵",
+  },
+  {
+    id: "4",
+    elderName: "Ông Phạm Văn Đức",
+    age: 70,
+    location: "Q2, TP.HCM",
+    packageType: "Gói Chuyên Nghiệp",
+    packageDetail: "Gói Chuyên Nghiệp",
+    date: "Thứ 2, 20/10/2025",
+    time: "8:00 - 16:00 (8 giờ)",
+    address: "321 Nguyễn Duy Trinh, P. Bình Trưng Đông, Q.2, TP.HCM",
+    phone: "0909 321 654",
+    price: 750000,
+    status: "Hoàn thành",
+    statusBadge: "Hoàn thành",
+    avatar: "👴",
   },
 ];
 
@@ -437,13 +453,29 @@ export default function BookingManagement() {
   const handleComplaint = (bookingId: string) => {
     const booking = bookings.find(b => b.id === bookingId);
     if (booking) {
-      (navigation.navigate as any)("Complaint", {
-        bookingId: booking.id,
-        elderlyName: booking.elderName,
-        date: booking.date,
-        time: booking.time,
-        packageName: booking.packageType,
-      });
+      const hasComplained = getAppointmentHasComplained(bookingId);
+      if (hasComplained) {
+        // Đã khiếu nại rồi - Xem khiếu nại (vẫn navigate đến complaint screen nhưng ở view mode)
+        (navigation.navigate as any)("Complaint", {
+          bookingId: booking.id,
+          elderlyName: booking.elderName,
+          date: booking.date,
+          time: booking.time,
+          packageName: booking.packageType,
+          viewMode: true,
+          fromScreen: "booking",
+        });
+      } else {
+        // Chưa khiếu nại - Tạo khiếu nại mới
+        (navigation.navigate as any)("Complaint", {
+          bookingId: booking.id,
+          elderlyName: booking.elderName,
+          date: booking.date,
+          time: booking.time,
+          packageName: booking.packageType,
+          fromScreen: "booking",
+        });
+      }
     }
   };
 
@@ -455,13 +487,25 @@ export default function BookingManagement() {
     // Get real-time status from global store
     const globalStatus = getAppointmentStatus(item.id);
     const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : item.status;
+    const hasComplained = getAppointmentHasComplained(item.id);
     
     return (
       <TouchableOpacity 
-        style={styles.card}
+        style={[
+          styles.card,
+          hasComplained && styles.cardWithComplaint
+        ]}
         onPress={() => handleViewDetail(item.id)}
         activeOpacity={0.7}
       >
+        {/* Complaint Warning Badge */}
+        {hasComplained && (
+          <View style={styles.complaintWarningBadge}>
+            <MaterialCommunityIcons name="alert-circle" size={16} color="#EF4444" />
+            <Text style={styles.complaintWarningText}>Khiếu nại</Text>
+          </View>
+        )}
+
         {/* Header */}
         <View style={styles.cardHeader}>
           <View style={styles.avatar}>
@@ -563,14 +607,15 @@ export default function BookingManagement() {
 
           {currentStatus === "Hoàn thành" && (() => {
             const globalHasReviewed = getAppointmentHasReviewed(item.id);
+            const globalHasComplained = getAppointmentHasComplained(item.id);
             return (
               <>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.complaintButton]}
                   onPress={() => handleComplaint(item.id)}
                 >
-                  <MaterialCommunityIcons name="alert-circle" size={16} color="#EF4444" />
-                  <Text style={styles.complaintButtonText}>Khiếu nại</Text>
+                  <MaterialCommunityIcons name={globalHasComplained ? "eye" : "alert-circle"} size={16} color="#EF4444" />
+                  <Text style={styles.complaintButtonText}>{globalHasComplained ? "Xem khiếu nại" : "Khiếu nại"}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.reviewButton]}
@@ -731,6 +776,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
+  },
+  cardWithComplaint: {
+    borderLeftColor: "#EF4444",
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
   },
   cardHeader: {
     flexDirection: "row",
@@ -927,5 +977,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#9CA3AF",
     fontStyle: "italic",
+  },
+  complaintWarningBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEE2E2",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+    zIndex: 10,
+  },
+  complaintWarningText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#DC2626",
   },
 });
