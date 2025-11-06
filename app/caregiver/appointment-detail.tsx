@@ -1,5 +1,5 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
-import { getAppointmentHasReviewed, getAppointmentStatus, markAppointmentAsReviewed, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
+import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useState } from "react";
@@ -397,10 +397,157 @@ export const appointmentsDataMap: { [key: string]: any } = {
     
     specialInstructions: "Bà có suy giảm trí nhớ nhẹ, cần nhắc nhở nhẹ nhàng và kiên nhẫn. Theo dõi sát để tránh ngã.",
   },
+  "4": {
+    id: "APT004",
+    status: "completed",
+    date: "2025-10-20",
+    timeSlot: "08:00 - 16:00",
+    duration: "8 giờ",
+    packageType: "Gói Chuyên Nghiệp",
+    
+    elderly: {
+      id: "E004",
+      name: "Ông Phạm Văn Đức",
+      age: 70,
+      gender: "Nam",
+      avatar: "https://via.placeholder.com/100",
+      address: "321 Nguyễn Duy Trinh, P. Bình Trưng Đông, Q.2, TP.HCM",
+      phone: "0909321654",
+      
+      bloodType: "A+",
+      healthCondition: "Huyết áp cao",
+      underlyingDiseases: ["Huyết áp cao"],
+      medications: [
+        {
+          name: "Amlodipine 5mg",
+          dosage: "1 viên",
+          frequency: "1 lần/ngày (sáng)",
+        },
+      ],
+      allergies: ["Không"],
+      specialConditions: ["Theo dõi huyết áp thường xuyên", "Chế độ ăn ít muối"],
+      
+      independenceLevel: {
+        eating: "independent",
+        bathing: "assisted",
+        mobility: "independent",
+        toileting: "independent",
+        dressing: "assisted",
+      },
+      
+      livingEnvironment: {
+        houseType: "apartment",
+        livingWith: ["Vợ"],
+        accessibility: ["Có thang máy", "Tay vịn phòng tắm"],
+      },
+      
+      hobbies: ["Đọc báo", "Nghe đài", "Đi bộ"],
+      favoriteActivities: ["Đi bộ buổi sáng", "Đọc báo"],
+      foodPreferences: ["Cơm", "Rau xào", "Cá kho"],
+      
+      emergencyContact: {
+        name: "Phạm Thị E",
+        relationship: "Vợ",
+        phone: "0912345681",
+      },
+    },
+    
+    tasks: {
+      fixed: [
+        {
+          id: "F1",
+          time: "08:00",
+          title: "Đo huyết áp",
+          description: "Đo và ghi chép chỉ số huyết áp buổi sáng",
+          completed: true,
+          required: true,
+        },
+        {
+          id: "F2",
+          time: "08:30",
+          title: "Hỗ trợ vệ sinh cá nhân",
+          description: "Giúp đỡ tắm rửa, thay quần áo",
+          completed: true,
+          required: true,
+        },
+        {
+          id: "F3",
+          time: "09:00",
+          title: "Chuẩn bị bữa sáng",
+          description: "Cơm trắng, cá kho, rau xào",
+          completed: true,
+          required: true,
+        },
+        {
+          id: "F4",
+          time: "10:00",
+          title: "Uống thuốc",
+          description: "Nhắc nhở và hỗ trợ uống thuốc huyết áp",
+          completed: true,
+          required: true,
+        },
+        {
+          id: "F5",
+          time: "14:00",
+          title: "Đo huyết áp",
+          description: "Đo và ghi chép chỉ số huyết áp buổi chiều",
+          completed: true,
+          required: true,
+        },
+      ],
+      flexible: [
+        {
+          id: "FL1",
+          title: "Đi bộ buổi sáng",
+          description: "Đi bộ nhẹ nhàng trong khu vực",
+          completed: true,
+        },
+        {
+          id: "FL2",
+          title: "Đọc báo",
+          description: "Hỗ trợ đọc báo và trò chuyện",
+          completed: true,
+        },
+        {
+          id: "FL3",
+          title: "Dọn dẹp phòng",
+          description: "Lau dọn, sắp xếp đồ đạc",
+          completed: true,
+        },
+      ],
+      optional: [
+        {
+          id: "O1",
+          title: "Massage thư giãn",
+          description: "Massage nhẹ nhàng để thư giãn",
+          completed: true,
+        },
+      ],
+    },
+    
+    notes: [
+      {
+        id: "N1",
+        time: "08:15",
+        author: "Caregiver",
+        content: "Huyết áp sáng: 130/85 mmHg - bình thường",
+        type: "info",
+      },
+      {
+        id: "N2",
+        time: "14:30",
+        author: "Caregiver",
+        content: "Huyết áp chiều: 135/88 mmHg - hơi cao một chút, đã nhắc nhở nghỉ ngơi",
+        type: "warning",
+      },
+    ],
+    
+    specialInstructions: "Ông có huyết áp cao, cần đo huyết áp 2 lần/ngày (sáng và chiều). Chế độ ăn ít muối, tránh thức ăn mặn.",
+  },
 };
 
 export default function AppointmentDetailScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute();
   const params = route.params as { appointmentId?: string; fromScreen?: string } | undefined;
   const appointmentId = params?.appointmentId || "1";
@@ -422,7 +569,7 @@ export default function AppointmentDetailScreen() {
         { id: "S3", title: "Massage cơ bản", description: "Massage nhẹ nhàng để thư giãn", completed: false },
         { id: "S4", title: "Trò chuyện cùng người già", description: "Dành thời gian trò chuyện và giao tiếp", completed: false },
       ];
-    } else if (packageName.includes("chuyên nghiệp") || packageName.includes("chuyen nghiep") || packageName.includes("tiêu chuẩn") || packageName.includes("tieu chuan")) {
+    } else if (packageName.includes("chuyên nghiệp") || packageName.includes("chuyen nghiep")) {
       return [
         { id: "S1", title: "Tập vật lí trị liệu", description: "Hướng dẫn và hỗ trợ các bài tập phục hồi chức năng", completed: false },
         { id: "S2", title: "Massage phục hồi chức năng", description: "Massage chuyên sâu hỗ trợ phục hồi", completed: false },
@@ -457,6 +604,9 @@ export default function AppointmentDetailScreen() {
   // Check if already reviewed
   const initialHasReviewed = getAppointmentHasReviewed(appointmentId);
   const [hasReviewed, setHasReviewed] = useState(initialHasReviewed);
+  
+  // Check if has complaint
+  const hasComplained = getAppointmentHasComplained(appointmentId);
   
   // Notes state
   const [notes, setNotes] = useState(appointmentData.notes);
@@ -733,8 +883,26 @@ export default function AppointmentDetailScreen() {
   };
 
   const handleComplaint = () => {
-    alert("Chuyển đến trang khiếu nại");
-    // router.push("/caregiver/complaint");
+    const hasComplained = getAppointmentHasComplained(appointmentId);
+    const params = {
+      bookingId: appointmentId,
+      elderlyName: appointmentData.elderly?.name || "Người được chăm sóc",
+      date: appointmentData.date,
+      time: appointmentData.timeSlot,
+      packageName: appointmentData.packageType,
+      fromScreen: "appointment-detail",
+    };
+    
+    if (hasComplained) {
+      // Đã khiếu nại rồi - Xem khiếu nại
+      (navigation.navigate as any)("Complaint", {
+        ...params,
+        viewMode: true,
+      });
+    } else {
+      // Chưa khiếu nại - Tạo khiếu nại mới
+      (navigation.navigate as any)("Complaint", params);
+    }
   };
 
   const handleMessage = () => {
@@ -872,14 +1040,15 @@ export default function AppointmentDetailScreen() {
       
       case "completed":
         // Đã hoàn thành: Khiếu nại / Đánh giá hoặc Xem đánh giá
+        const hasComplained = getAppointmentHasComplained(appointmentId);
         return (
           <View style={styles.bottomActions}>
             <TouchableOpacity 
               style={styles.actionButtonSecondary}
               onPress={handleComplaint}
             >
-              <Ionicons name="alert-circle-outline" size={20} color="#EF4444" />
-              <Text style={[styles.actionButtonSecondaryText, { color: "#EF4444" }]}>Khiếu nại</Text>
+              <Ionicons name={hasComplained ? "eye-outline" : "alert-circle-outline"} size={20} color="#EF4444" />
+              <Text style={[styles.actionButtonSecondaryText, { color: "#EF4444" }]}>{hasComplained ? "Xem khiếu nại" : "Khiếu nại"}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionButtonPrimary}
@@ -970,20 +1139,28 @@ export default function AppointmentDetailScreen() {
     <View style={styles.container}>
       <ScrollView 
         style={styles.scrollView} 
-        contentContainerStyle={appointmentData.specialInstructions ? { paddingTop: 100 } : {}}
+        contentContainerStyle={appointmentData.specialInstructions ? { paddingTop: 100 } : { paddingTop: 20 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Status Badge */}
         <View style={styles.statusContainer}>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: getStatusColor(status) },
-            ]}
-          >
-            <Text style={styles.statusText}>
-              {getStatusText(status)}
-            </Text>
+          <View style={styles.statusBadgeRow}>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: getStatusColor(status) },
+              ]}
+            >
+              <Text style={styles.statusText}>
+                {getStatusText(status)}
+              </Text>
+            </View>
+            {hasComplained && (
+              <View style={styles.complaintWarningBadge}>
+                <MaterialCommunityIcons name="alert-circle" size={16} color="#EF4444" />
+                <Text style={styles.complaintWarningText}>Khiếu nại</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.appointmentId}>#{appointmentData.id}</Text>
         </View>
@@ -1390,7 +1567,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: -8,
+    marginTop: 8,
+  },
+  statusBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -1401,6 +1584,20 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 13,
     fontWeight: "600",
+  },
+  complaintWarningBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEE2E2",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  complaintWarningText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#DC2626",
   },
   appointmentId: {
     fontSize: 14,

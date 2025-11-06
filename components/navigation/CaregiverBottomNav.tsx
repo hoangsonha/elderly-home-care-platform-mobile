@@ -119,9 +119,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: -2,
+    overflow: "hidden",
   },
   iconContainerActive: {
     backgroundColor: "#E3F2FD",
+    borderRadius: 20,
   },
   navLabel: {
     fontSize: 11,
