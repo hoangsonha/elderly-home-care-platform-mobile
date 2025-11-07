@@ -41,10 +41,10 @@ const mockAppointments: Appointment[] = [
     date: '25/01/2025',
     timeSlot: '08:00 - 12:00',
     duration: '4 giờ',
-    packageType: 'Gói Cơ Bản',
+    packageType: 'Gói cơ bản',
     address: '123 Lê Lợi, P. Bến Thành, Q.1, TP.HCM',
     status: 'completed',
-    amount: 800000,
+    amount: 400000, // Gói cơ bản 4h
   },
   {
     id: '2',
@@ -55,12 +55,12 @@ const mockAppointments: Appointment[] = [
     elderlyName: 'Ông Trần Văn Minh',
     elderlyAge: 82,
     date: '26/01/2025',
-    timeSlot: '14:00 - 18:00',
-    duration: '4 giờ',
-    packageType: 'Gói Tiêu Chuẩn',
+    timeSlot: '14:00 - 22:00',
+    duration: '8 giờ',
+    packageType: 'Gói chuyên nghiệp',
     address: '456 Đường XYZ, Quận 2, TP.HCM',
     status: 'in-progress',
-    amount: 600000,
+    amount: 750000, // Gói chuyên nghiệp 8h
   },
   {
     id: '3',
@@ -71,12 +71,12 @@ const mockAppointments: Appointment[] = [
     elderlyName: 'Bà Phạm Thị Mai',
     elderlyAge: 70,
     date: '27/01/2025',
-    timeSlot: '19:00 - 22:00',
-    duration: '3 giờ',
-    packageType: 'Gói Cơ Bản',
+    timeSlot: '08:00 - 12:00',
+    duration: '4 giờ',
+    packageType: 'Gói cơ bản',
     address: '789 Đường DEF, Quận 3, TP.HCM',
     status: 'confirmed',
-    amount: 450000,
+    amount: 400000, // Gói cơ bản 4h
   },
   {
     id: '4',
@@ -89,10 +89,10 @@ const mockAppointments: Appointment[] = [
     date: '28/01/2025',
     timeSlot: '08:00 - 16:00',
     duration: '8 giờ',
-    packageType: 'Gói Cao Cấp',
+    packageType: 'Gói nâng cao',
     address: '321 Nguyễn Huệ, Quận 1, TP.HCM',
     status: 'pending',
-    amount: 1200000,
+    amount: 1100000, // Gói nâng cao 8h
   },
   {
     id: '5',
@@ -105,10 +105,10 @@ const mockAppointments: Appointment[] = [
     date: '22/01/2025',
     timeSlot: '08:00 - 12:00',
     duration: '4 giờ',
-    packageType: 'Gói Cơ Bản',
+    packageType: 'Gói cơ bản',
     address: '123 Lê Lợi, P. Bến Thành, Q.1, TP.HCM',
     status: 'cancelled',
-    amount: 800000,
+    amount: 400000, // Gói cơ bản 4h
   },
 ];
 

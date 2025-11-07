@@ -24,7 +24,7 @@ const appointmentsDataMap: { [key: string]: any } = {
     date: "2025-01-25",
     timeSlot: "08:00 - 12:00",
     duration: "4 giờ",
-    packageType: "Gói Cơ Bản",
+    packageType: "Gói cơ bản",
     
     // Caregiver Info
     caregiver: {
@@ -61,8 +61,8 @@ const appointmentsDataMap: { [key: string]: any } = {
     // Payment
     payment: {
       method: "Chuyển khoản",
-      amount: 800000,
-      status: "paid", // pending, paid
+      amount: 400000, // Gói cơ bản 4h
+      status: "paid", // Luôn là "paid" - bắt buộc thanh toán trước khi book
       transactionId: "TXN001234",
     },
     
@@ -88,9 +88,9 @@ const appointmentsDataMap: { [key: string]: any } = {
     id: "APT002",
     status: "in-progress",
     date: "2025-01-26",
-    timeSlot: "14:00 - 18:00",
-    duration: "4 giờ",
-    packageType: "Gói Tiêu Chuẩn",
+    timeSlot: "14:00 - 22:00",
+    duration: "8 giờ",
+    packageType: "Gói chuyên nghiệp",
     
     caregiver: {
       id: "CG002",
@@ -121,8 +121,8 @@ const appointmentsDataMap: { [key: string]: any } = {
     
     payment: {
       method: "Quét mã QR",
-      amount: 600000,
-      status: "paid",
+      amount: 750000, // Gói chuyên nghiệp 8h
+      status: "paid", // Luôn là "paid" - bắt buộc thanh toán trước khi book
       transactionId: "TXN001235",
     },
     
@@ -141,9 +141,9 @@ const appointmentsDataMap: { [key: string]: any } = {
     id: "APT003",
     status: "confirmed",
     date: "2025-01-27",
-    timeSlot: "19:00 - 22:00",
-    duration: "3 giờ",
-    packageType: "Gói Cơ Bản",
+    timeSlot: "08:00 - 12:00",
+    duration: "4 giờ",
+    packageType: "Gói cơ bản",
     
     caregiver: {
       id: "CG003",
@@ -173,9 +173,9 @@ const appointmentsDataMap: { [key: string]: any } = {
     
     payment: {
       method: "Chuyển khoản",
-      amount: 450000,
-      status: "pending",
-      transactionId: "",
+      amount: 400000, // Gói cơ bản 4h
+      status: "paid", // Đã thanh toán - bắt buộc phải thanh toán trước khi book
+      transactionId: "TXN001236",
     },
     
     notes: [],
@@ -574,7 +574,7 @@ export default function AppointmentDetailScreen() {
                 <Text style={styles.infoLabel}>Trạng thái</Text>
                 <View style={styles.paymentStatusBadge}>
                   <Text style={styles.paymentStatusText}>
-                    {appointmentData.payment.status === "paid" ? "Đã thanh toán" : "Chưa thanh toán"}
+                    Đã thanh toán
                   </Text>
                 </View>
               </View>

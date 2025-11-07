@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Modal,
@@ -14,6 +14,7 @@ import {
 import { ElderlyProfileSelector } from '@/components/elderly/ElderlyProfileSelector';
 import { ThemedText } from '@/components/themed-text';
 import { Task, TaskSelector } from '@/components/ui/TaskSelector';
+import { SERVICE_PACKAGES } from '@/constants/servicePackages';
 
 interface Caregiver {
   id: string;
@@ -49,37 +50,21 @@ interface BookingModalProps {
 
 type BookingType = 'immediate' | 'schedule';
 
-export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, immediateOnly = false }: BookingModalProps) {
+export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: initialProfiles, immediateOnly = false }: BookingModalProps) {
+  const [elderlyProfiles, setElderlyProfiles] = useState(initialProfiles);
   const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
   const [bookingType] = useState<BookingType>('immediate'); // Always immediate
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
 
-  // Service packages
-  const servicePackages = [
-    {
-      id: 'basic',
-      name: 'Gói cơ bản',
-      duration: 4,
-      price: 400000,
-      services: ['Tắm rửa', 'Cho ăn', 'Massage cơ bản', 'Trò chuyện cùng bệnh nhân']
-    },
-    {
-      id: 'standard',
-      name: 'Gói chuyên nghiệp',
-      duration: 8,
-      price: 750000,
-      services: ['Tập vật lý trị liệu', 'Massage phục hồi chức năng', 'Theo dõi tiến trình']
-    },
-    {
-      id: 'premium',
-      name: 'Gói nâng cao',
-      duration: 8,
-      price: 1100000,
-      services: ['Tất cả dịch vụ cơ bản', 'Nấu ăn', 'Dọn dẹp', 'Hỗ trợ y tế']
-    }
-  ];
+  // Sync elderlyProfiles when initialProfiles changes
+  useEffect(() => {
+    setElderlyProfiles(initialProfiles);
+  }, [initialProfiles]);
+
+  // Use service packages from constants
+  const servicePackages = SERVICE_PACKAGES;
 
   // Payment methods
   const paymentMethods = [
@@ -271,13 +256,36 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     }
   };
 
+  const handleAddNewProfile = (newProfile: Omit<ElderlyProfile, 'id'>) => {
+    // Generate new ID
+    const newId = `NEW_${Date.now()}`;
+    const profileWithId = {
+      ...newProfile,
+      id: newId,
+    };
+
+    // Add to profiles list
+    setElderlyProfiles(prev => [...prev, profileWithId]);
+
+    // Auto-select the new profile
+    setSelectedProfiles([newId]);
+
+    Alert.alert('Thành công', 'Đã thêm người già mới thành công!');
+  };
+
   const renderStep1 = () => (
     <View style={styles.stepContent}>
+      <ThemedText style={styles.stepTitle}>Chọn người cần chăm sóc</ThemedText>
+      <ThemedText style={styles.stepDescription}>
+        Vui lòng chọn người thân cần được chăm sóc cho lịch hẹn này. Bạn có thể chọn 1 người hoặc thêm mới.
+      </ThemedText>
       <ElderlyProfileSelector
         profiles={elderlyProfiles}
         selectedProfiles={selectedProfiles}
         onSelectionChange={setSelectedProfiles}
         showValidation={showValidation}
+        hideTitle={true}
+        onAddNewProfile={handleAddNewProfile}
       />
     </View>
   );
@@ -1172,6 +1180,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2c3e50',
     marginBottom: 8,
+  },
+  stepDescription: {
+    fontSize: 15,
+    color: '#6c757d',
+    lineHeight: 22,
+    marginBottom: 20,
   },
   stepSubtitle: {
     fontSize: 16,
