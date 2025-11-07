@@ -109,10 +109,16 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
     startTime: '',
     endTime: '',
     selectedDate: '',
+    selectedPackage: '',
     startHour: '',
     startMinute: '',
     note: '',
   });
+
+  // Date picker states
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [timePickerType, setTimePickerType] = useState<'hour' | 'minute'>('hour');
 
   // Modal states
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -154,7 +160,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
   const [showValidation, setShowValidation] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     basicInfo: true,
-    workTime: false,
+    workTime: true,
     tasks: false,
     duration: false,
     note: false,
@@ -197,6 +203,20 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
       console.log('Step 2 validation');
       console.log('Selected Package:', immediateData.selectedPackage);
       console.log('Work Location:', immediateData.workLocation);
+      console.log('Selected Date:', immediateData.selectedDate);
+      console.log('Start Time:', immediateData.startHour, immediateData.startMinute);
+      
+      if (!immediateData.selectedDate) {
+        console.log('Validation failed: No date selected');
+        Alert.alert('Thiếu thông tin', 'Vui lòng chọn ngày làm việc');
+        return;
+      }
+      
+      if (!immediateData.startHour || !immediateData.startMinute) {
+        console.log('Validation failed: No time selected');
+        Alert.alert('Thiếu thông tin', 'Vui lòng chọn giờ bắt đầu');
+        return;
+      }
       
       if (!immediateData.selectedPackage) {
         console.log('Validation failed: No package selected');
@@ -314,7 +334,93 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
             )}
           </View>
 
-          {/* Section 2: Service Package */}
+          {/* Section 2: Date & Time Selection */}
+          <View style={styles.sectionContainer}>
+            <TouchableOpacity 
+              style={styles.sectionHeader}
+              onPress={() => toggleSection('workTime')}
+            >
+              <ThemedText style={styles.sectionTitle}>📅 Ngày giờ làm việc</ThemedText>
+              <Ionicons 
+                name={expandedSections.workTime ? "chevron-up" : "chevron-down"} 
+                size={20} 
+                color="#68C2E8" 
+              />
+            </TouchableOpacity>
+            
+            {expandedSections.workTime && (
+              <View style={styles.sectionContent}>
+                {/* Date Selection */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelContainer}>
+                    <ThemedText style={styles.inputLabel}>Ngày làm việc</ThemedText>
+                    <ThemedText style={styles.requiredMark}>*</ThemedText>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.pickerButton}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <ThemedText style={[
+                      styles.pickerButtonText,
+                      !immediateData.selectedDate && styles.placeholderText
+                    ]}>
+                      {immediateData.selectedDate || 'Chọn ngày làm việc'}
+                    </ThemedText>
+                    <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Time Selection */}
+                <View style={styles.inputGroup}>
+                  <View style={styles.labelContainer}>
+                    <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
+                    <ThemedText style={styles.requiredMark}>*</ThemedText>
+                  </View>
+                  <View style={styles.timePickerContainer}>
+                    <TouchableOpacity 
+                      style={styles.pickerButton}
+                      onPress={() => {
+                        setTimePickerType('hour');
+                        setShowTimePicker(true);
+                      }}
+                    >
+                      <ThemedText style={[
+                        styles.pickerButtonText,
+                        !immediateData.startHour && styles.placeholderText
+                      ]}>
+                        {immediateData.startHour || 'Giờ'}
+                      </ThemedText>
+                    </TouchableOpacity>
+                    
+                    <ThemedText style={styles.timeSeparator}>:</ThemedText>
+                    
+                    <TouchableOpacity 
+                      style={styles.pickerButton}
+                      onPress={() => {
+                        setTimePickerType('minute');
+                        setShowTimePicker(true);
+                      }}
+                    >
+                      <ThemedText style={[
+                        styles.pickerButtonText,
+                        !immediateData.startMinute && styles.placeholderText
+                      ]}>
+                        {immediateData.startMinute || 'Phút'}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {immediateData.startHour && immediateData.startMinute && (
+                    <ThemedText style={styles.timeRangeText}>
+                      ⏰ Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
+                    </ThemedText>
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Section 3: Service Package */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <ThemedText style={styles.sectionTitle}>📦 Chọn gói dịch vụ</ThemedText>
@@ -418,6 +524,23 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
             <ThemedText style={styles.reviewLabel}>📍 Địa điểm làm việc:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.workLocation || 'Chưa chọn'}
+            </ThemedText>
+          </View>
+
+          {/* Date and Time */}
+          <View style={styles.reviewItem}>
+            <ThemedText style={styles.reviewLabel}>📅 Ngày làm việc:</ThemedText>
+            <ThemedText style={styles.reviewValue}>
+              {immediateData?.selectedDate || 'Chưa chọn'}
+            </ThemedText>
+          </View>
+
+          <View style={styles.reviewItem}>
+            <ThemedText style={styles.reviewLabel}>⏰ Giờ bắt đầu:</ThemedText>
+            <ThemedText style={styles.reviewValue}>
+              {immediateData?.startHour && immediateData?.startMinute 
+                ? `${immediateData.startHour}:${immediateData.startMinute}` 
+                : 'Chưa chọn'}
             </ThemedText>
           </View>
 
@@ -819,6 +942,141 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
                   <ThemedText style={styles.saveLocationButtonText}>Xác nhận</ThemedText>
                 </TouchableOpacity>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Date Picker Modal */}
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.pickerHeader}>
+                <ThemedText style={styles.pickerTitle}>Chọn ngày làm việc</ThemedText>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Ionicons name="close" size={24} color="#6c757d" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.pickerScroll}>
+                <View style={styles.pickerContent}>
+                  {(() => {
+                    const dates = [];
+                    const today = new Date();
+                    
+                    for (let i = 0; i < 30; i++) {
+                      const date = new Date(today);
+                      date.setDate(today.getDate() + i);
+                      
+                      const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+                      const monthNames = ['Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 
+                                        'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'];
+                      
+                      const dateStr = `${dayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+                      dates.push(
+                        <TouchableOpacity
+                          key={i}
+                          style={[
+                            styles.pickerItem,
+                            styles.datePickerItem,
+                            immediateData.selectedDate === dateStr && styles.pickerItemSelected
+                          ]}
+                          onPress={() => {
+                            setImmediateData(prev => ({ ...prev, selectedDate: dateStr }));
+                            setShowDatePicker(false);
+                          }}
+                        >
+                          <ThemedText style={[
+                            styles.pickerText,
+                            immediateData.selectedDate === dateStr && styles.pickerTextSelected
+                          ]}>
+                            {dateStr}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      );
+                    }
+                    return dates;
+                  })()}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Time Picker Modal */}
+        <Modal
+          visible={showTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.pickerHeader}>
+                <ThemedText style={styles.pickerTitle}>
+                  {timePickerType === 'hour' ? 'Chọn giờ' : 'Chọn phút'}
+                </ThemedText>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Ionicons name="close" size={24} color="#6c757d" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.pickerScroll}>
+                <View style={styles.pickerContent}>
+                  {timePickerType === 'hour' 
+                    ? Array.from({ length: 24 }, (_, i) => {
+                        const hour = i.toString().padStart(2, '0');
+                        return (
+                          <TouchableOpacity
+                            key={hour}
+                            style={[
+                              styles.pickerItem,
+                              immediateData.startHour === hour && styles.pickerItemSelected
+                            ]}
+                            onPress={() => {
+                              setImmediateData(prev => ({ ...prev, startHour: hour }));
+                              setShowTimePicker(false);
+                            }}
+                          >
+                            <ThemedText style={[
+                              styles.pickerText,
+                              immediateData.startHour === hour && styles.pickerTextSelected
+                            ]}>
+                              {hour}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        );
+                      })
+                    : Array.from({ length: 60 }, (_, i) => {
+                        const minute = i.toString().padStart(2, '0');
+                        return (
+                          <TouchableOpacity
+                            key={minute}
+                            style={[
+                              styles.pickerItem,
+                              immediateData.startMinute === minute && styles.pickerItemSelected
+                            ]}
+                            onPress={() => {
+                              setImmediateData(prev => ({ ...prev, startMinute: minute }));
+                              setShowTimePicker(false);
+                            }}
+                          >
+                            <ThemedText style={[
+                              styles.pickerText,
+                              immediateData.startMinute === minute && styles.pickerTextSelected
+                            ]}>
+                              {minute}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        );
+                      })
+                  }
+                </View>
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -1414,6 +1672,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 6,
     marginVertical: 2,
+  },
+  datePickerItem: {
+    width: '100%',
+    paddingHorizontal: 16,
   },
   pickerItemSelected: {
     backgroundColor: '#68C2E8',
