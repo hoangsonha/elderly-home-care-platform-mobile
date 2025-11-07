@@ -115,6 +115,9 @@ export default function PersonalScreen() {
       case "training":
         navigation.navigate("Đào tạo");
         break;
+      case "support":
+        navigation.navigate("Câu hỏi thường gặp");
+        break;
       case "settings":
         navigation.navigate("Cài đặt");
         break;

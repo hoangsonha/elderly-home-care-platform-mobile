@@ -1,170 +1,435 @@
-import { useRoute } from "@react-navigation/native";
-import React from "react";
+import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { getCurrentLesson, getFirstIncompleteLesson, isLessonCompleted } from "@/data/trainingStore";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useState } from "react";
 import {
+  Platform,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import Icon from "react-native-vector-icons/Feather";
+
+interface Lesson {
+  title: string;
+  duration: string;
+}
+
+interface Module {
+  id: string;
+  title: string;
+  description: string;
+  lessons: Lesson[];
+}
 
 export default function TrainingCourseDetail() {
+  const navigation = useNavigation<any>();
   const route = useRoute();
   const { id } = route.params as { id: string };
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set(["1"]));
 
   // Giả lập data (bạn có thể fetch API sau này)
   const course = {
     id,
-    title: "Chăm sóc người cao tuổi cơ bản",
-    duration: "4 giờ",
-    documents: 12,
-    level: "Cơ bản",
+    title: "Chăm Sóc Cơ Bản Người Cao Tuổi",
+    category: "Cơ bản",
+    rating: 4.8,
+    participants: 1254,
+    duration: "8 tuần",
+    lessons: 9,
     description:
-      "Những kiến thức nền tảng về nhu cầu, dinh dưỡng, vận động và giao tiếp với người cao tuổi trong sinh hoạt hằng ngày.",
-    learnings: [
-      "Nắm vững nguyên tắc an toàn khi hỗ trợ sinh hoạt hằng ngày",
-      "Nhận biết sớm dấu hiệu rủi ro và cách xử lý ban đầu",
-      "Thực hành giao tiếp trấn an và tôn trọng người cao tuổi",
-    ],
-    instructor: {
-      name: "BS. Nguyễn Minh Anh",
-      title: "Chuyên gia Lão khoa",
-      bio: "Chuyên gia với nhiều năm kinh nghiệm trong lĩnh vực lão khoa và chăm sóc người cao tuổi.",
-    },
-    contents: [
+      "Học các kỹ năng chăm sóc cơ bản, an toàn và hiệu quả cho người cao tuổi tại nhà và cơ sở y tế.",
+    instructor: "BS. Nguyễn Thị Mai",
+    modules: [
       {
-        section: "Tổng quan & an toàn",
+        id: "1",
+        title: "Module 1: Giới Thiệu Về Chăm Sóc Người Cao Tuổi",
+        description: "Tổng quan về chăm sóc người cao tuổi và vai trò của người chăm sóc",
         lessons: [
-          { title: "Giới thiệu vai trò caregiver", time: "10m" },
-          { title: "Nguyên tắc an toàn tại nhà", time: "18m" },
+          { title: "Vai trò và trách nhiệm của người chăm sóc", duration: "15 phút" },
+          { title: "Hiểu về quá trình lão hóa", duration: "20 phút" },
+          { title: "Giao tiếp hiệu quả với người cao tuổi", duration: "18 phút" },
         ],
       },
-    ],
+      {
+        id: "2",
+        title: "Module 2: An Toàn Và Vệ Sinh",
+        description: "Các nguyên tắc an toàn và vệ sinh trong chăm sóc người cao tuổi",
+        lessons: [
+          { title: "Nguyên tắc an toàn cơ bản", duration: "12 phút" },
+          { title: "Vệ sinh cá nhân", duration: "15 phút" },
+          { title: "Phòng ngừa té ngã", duration: "18 phút" },
+        ],
+      },
+      {
+        id: "3",
+        title: "Module 3: Chăm Sóc Hàng Ngày",
+        description: "Kỹ năng chăm sóc sinh hoạt hàng ngày",
+        lessons: [
+          { title: "Hỗ trợ ăn uống", duration: "10 phút" },
+          { title: "Hỗ trợ vận động", duration: "15 phút" },
+          { title: "Chăm sóc giấc ngủ", duration: "12 phút" },
+        ],
+      },
+    ] as Module[],
+  };
+
+  const toggleModule = (moduleId: string) => {
+    const newExpanded = new Set(expandedModules);
+    if (newExpanded.has(moduleId)) {
+      newExpanded.delete(moduleId);
+    } else {
+      newExpanded.add(moduleId);
+    }
+    setExpandedModules(newExpanded);
+  };
+
+  const totalModules = course.modules.length;
+  const totalLessons = course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
+
+  const handleEnroll = () => {
+    // Tìm bài học chưa hoàn thành đầu tiên
+    let targetLesson = getFirstIncompleteLesson(course.id, course.modules);
+    
+    // Nếu không tìm thấy bài chưa hoàn thành, kiểm tra bài học hiện tại
+    if (!targetLesson) {
+      const currentLesson = getCurrentLesson(course.id);
+      // Nếu có bài học hiện tại và chưa hoàn thành, dùng bài đó
+      if (currentLesson && !isLessonCompleted(course.id, currentLesson.moduleId, currentLesson.lessonIndex)) {
+        targetLesson = currentLesson;
+      } else {
+        // Nếu tất cả đã hoàn thành hoặc không có bài hiện tại, lấy bài đầu tiên
+        targetLesson = {
+          moduleId: course.modules[0].id,
+          lessonIndex: 0,
+        };
+      }
+    }
+    
+    const targetModule = course.modules.find((m) => m.id === targetLesson.moduleId);
+    const targetLessonData = targetModule?.lessons[targetLesson.lessonIndex];
+    
+    if (targetLessonData) {
+      navigation.navigate("Chi tiết bài học", {
+        courseId: course.id,
+        courseTitle: course.title,
+        allModules: course.modules,
+        currentModuleId: targetLesson.moduleId,
+        currentLessonIndex: targetLesson.lessonIndex,
+      });
+    }
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Tiêu đề */}
-      <View style={styles.header}>
-        <Text style={styles.title}>{course.title}</Text>
-        <View style={styles.metaRow}>
-          <Text style={styles.metaText}>⏱ {course.duration}</Text>
-          <Text style={styles.metaText}>📄 {course.documents} tài liệu</Text>
-          <Text style={styles.metaText}>🎯 {course.level}</Text>
-        </View>
-        <Text style={styles.description}>{course.description}</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero Section with Gradient */}
+        <LinearGradient
+          colors={["#6366F1", "#10B981"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.heroSection}
+        >
+          {/* Category Tag */}
+          <View style={styles.categoryTag}>
+            <Text style={styles.categoryText}>{course.category}</Text>
+          </View>
 
-        <TouchableOpacity style={styles.startButton}>
-          <Text style={styles.startText}>Bắt đầu học</Text>
+          {/* Course Title */}
+          <Text style={styles.heroTitle}>{course.title}</Text>
+
+          {/* Course Description */}
+          <Text style={styles.heroDescription}>{course.description}</Text>
+
+          {/* Meta Information */}
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <MaterialCommunityIcons name="account-group" size={18} color="#fff" />
+              <Text style={styles.metaText}>{course.participants.toLocaleString()}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="time-outline" size={18} color="#fff" />
+              <Text style={styles.metaText}>{course.duration}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <MaterialCommunityIcons name="book-open-variant" size={18} color="#fff" />
+              <Text style={styles.metaText}>{course.lessons} bài</Text>
+            </View>
+          </View>
+
+          {/* Instructor */}
+          <Text style={styles.instructorText}>Giảng viên: {course.instructor}</Text>
+        </LinearGradient>
+
+        {/* Course Content Section */}
+        <View style={styles.contentSection}>
+          <Text style={styles.contentTitle}>Nội dung khóa học</Text>
+          <Text style={styles.contentSummary}>
+            {totalModules} modules • {totalLessons} bài học
+          </Text>
+
+          {/* Modules List */}
+          {course.modules.map((module) => {
+            const isExpanded = expandedModules.has(module.id);
+            return (
+              <TouchableOpacity
+                key={module.id}
+                style={styles.moduleCard}
+                onPress={() => toggleModule(module.id)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.moduleHeader}>
+                  <View style={styles.moduleHeaderContent}>
+                    <Text style={styles.moduleTitle}>{module.title}</Text>
+                    <Text style={styles.moduleDescription}>{module.description}</Text>
+                    <Text style={styles.moduleLessonCount}>
+                      {module.lessons.length} bài học
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#4B5563"
+                  />
+                </View>
+
+                {/* Lessons List (when expanded) */}
+                {isExpanded && (
+                  <View style={styles.lessonsList}>
+                    {module.lessons.map((lesson, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.lessonItem}
+                        onPress={() =>
+                          navigation.navigate("Chi tiết bài học", {
+                            courseId: course.id,
+                            courseTitle: course.title,
+                            allModules: course.modules,
+                            currentModuleId: module.id,
+                            currentLessonIndex: index,
+                          })
+                        }
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.playIconContainer}>
+                          <Ionicons name="play-circle" size={24} color="#6366F1" />
+                        </View>
+                        <View style={styles.lessonContent}>
+                          <Text style={styles.lessonTitle}>{lesson.title}</Text>
+                          <View style={styles.lessonDuration}>
+                            <Ionicons name="time-outline" size={14} color="#6B7280" />
+                            <Text style={styles.lessonDurationText}>{lesson.duration}</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Bottom spacing for button */}
+        <View style={{ height: 180 }} />
+      </ScrollView>
+
+      {/* Fixed Bottom Button */}
+      <View style={styles.bottomButtonContainer}>
+        <TouchableOpacity style={styles.enrollButton} activeOpacity={0.8} onPress={handleEnroll}>
+          <Text style={styles.enrollButtonText}>VÀO HỌC</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Học được gì */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Bạn sẽ học được</Text>
-        {course.learnings.map((item, index) => (
-          <View key={index} style={styles.learningItem}>
-            <Icon name="check-square" color="#2ecc71" size={18} />
-            <Text style={styles.learningText}>{item}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Giảng viên */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Giảng viên</Text>
-        <View style={styles.teacherCard}>
-          <View style={styles.avatar}>
-            <Text style={{ color: "#fff", fontWeight: "700" }}>MA</Text>
-          </View>
-          <View>
-            <Text style={styles.teacherName}>{course.instructor.name}</Text>
-            <Text style={styles.teacherTitle}>{course.instructor.title}</Text>
-            <Text style={styles.teacherBio}>{course.instructor.bio}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Nội dung khóa học */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Nội dung khóa học</Text>
-        {course.contents.map((section, index) => (
-          <View key={index} style={styles.lessonSection}>
-            <Text style={styles.lessonSectionTitle}>{section.section}</Text>
-            {section.lessons.map((lesson, i) => (
-              <View key={i} style={styles.lessonItem}>
-                <Icon name="play-circle" size={16} color="#1F6FEB" />
-                <Text style={styles.lessonText}>
-                  {lesson.title} — {lesson.time}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ))}
-      </View>
-
-      {/* Hỗ trợ */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Hỗ trợ</Text>
-        <Text style={styles.supportText}>
-          Gặp vấn đề khi học? Liên hệ hỗ trợ để được giúp đỡ kịp thời.
-        </Text>
-        <TouchableOpacity>
-          <Text style={styles.supportLink}>Liên hệ hỗ trợ</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      <CaregiverBottomNav activeTab="profile" />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 16 },
-  header: { marginTop: 12, marginBottom: 20 },
-  title: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
-  metaRow: { flexDirection: "row", gap: 12, marginBottom: 8 },
-  metaText: { color: "#666", fontSize: 13 },
-  description: { color: "#444", lineHeight: 20, marginBottom: 12 },
-  startButton: {
-    backgroundColor: "#1F6FEB",
-    paddingVertical: 10,
-    borderRadius: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  heroSection: {
+    paddingTop: Platform.OS === "android" ? 20 : 40,
+    paddingBottom: 32,
+    paddingHorizontal: 16,
+    position: "relative",
+  },
+  categoryTag: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  categoryText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 12,
+    lineHeight: 32,
+  },
+  heroDescription: {
+    fontSize: 14,
+    color: "#fff",
+    lineHeight: 20,
+    marginBottom: 20,
+    opacity: 0.95,
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  metaItem: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 6,
   },
-  startText: { color: "#fff", fontWeight: "700" },
-
-  section: {
-    backgroundColor: "#fafafa",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 14,
+  metaText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 10 },
-  learningItem: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
-  learningText: { marginLeft: 8, color: "#333" },
-
-  teacherCard: { flexDirection: "row", gap: 12, alignItems: "center" },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#1F6FEB",
+  instructorText: {
+    fontSize: 13,
+    color: "#fff",
+    opacity: 0.9,
+  },
+  contentSection: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  contentTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 8,
+  },
+  contentSummary: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 20,
+  },
+  moduleCard: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  moduleHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    padding: 16,
+  },
+  moduleHeaderContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  moduleTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 6,
+  },
+  moduleDescription: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+  moduleLessonCount: {
+    fontSize: 13,
+    color: "#6B7280",
+  },
+  lessonsList: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  lessonItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F9FAFB",
+  },
+  playIconContainer: {
+    marginRight: 12,
+  },
+  lessonContent: {
+    flex: 1,
+  },
+  lessonTitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  lessonDuration: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  lessonDurationText: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  bottomButtonContainer: {
+    position: "absolute",
+    bottom: 90,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  enrollButton: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 16,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
-  teacherName: { fontWeight: "700" },
-  teacherTitle: { color: "#555", fontSize: 13 },
-  teacherBio: { color: "#666", fontSize: 12, marginTop: 4, width: "90%" },
-
-  lessonSection: { marginBottom: 10 },
-  lessonSectionTitle: {
+  enrollButtonText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "700",
-    fontSize: 14,
-    marginBottom: 6,
+    letterSpacing: 0.5,
   },
-  lessonItem: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  lessonText: { marginLeft: 8, color: "#444", fontSize: 13 },
-
-  supportText: { color: "#444", fontSize: 13 },
-  supportLink: { color: "#1F6FEB", marginTop: 4, fontWeight: "500" },
 });

@@ -3,6 +3,7 @@ import { useRoute } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -69,6 +70,7 @@ export default function ChatScreen() {
   ]);
 
   const [newMessage, setNewMessage] = useState("");
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Lấy tên và avatar người nhận từ params (ưu tiên chatName từ chat-list)
@@ -82,6 +84,27 @@ export default function ChatScreen() {
     // Auto scroll to bottom when new message is added
     scrollViewRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
+
+  useEffect(() => {
+    // Listen for keyboard show/hide events
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => {
+        setIsKeyboardVisible(true);
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => {
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
@@ -198,7 +221,10 @@ export default function ChatScreen() {
         </ScrollView>
 
         {/* Input */}
-        <View style={styles.inputContainer}>
+        <View style={[
+          styles.inputContainer,
+          { marginBottom: isKeyboardVisible ? 80 : 50 }
+        ]}>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.textInput}
@@ -378,7 +404,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: "#e9ecef",
-    marginBottom: 80,
   },
   inputWrapper: {
     flexDirection: "row",

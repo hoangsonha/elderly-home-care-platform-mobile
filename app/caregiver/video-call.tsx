@@ -1,25 +1,91 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function VideoCallScreen() {
-  const router = useRouter();
+  const navigation = useNavigation();
+  const route = useRoute();
   const [permission, requestPermission] = useCameraPermissions();
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [facing, setFacing] = useState<"front" | "back">("front");
 
+  // Get chat info from route params if available
+  const chatParams = route.params as { chatId?: string; chatName?: string; chatAvatar?: string; callerName?: string } | undefined;
+  
+  // Get caller name from params (chatName or callerName)
+  const callerName = chatParams?.chatName || chatParams?.callerName || "Người dùng";
+
+  const handleBack = () => {
+    // Priority 1: If we have chat params, navigate to that chat screen
+    if (chatParams?.chatName) {
+      (navigation as any).navigate("Tin nhắn", {
+        ...(chatParams.chatId && { chatId: chatParams.chatId }),
+        chatName: chatParams.chatName,
+        ...(chatParams.chatAvatar && { chatAvatar: chatParams.chatAvatar }),
+      });
+      return;
+    }
+
+    // Priority 2: Try to find chat screen in navigation history
+    try {
+      const navState = navigation.getState();
+      
+      // Helper to recursively find routes
+      const findRoute = (state: any, targetName: string): any => {
+        if (!state) return null;
+        
+        // Check current routes
+        if (state.routes) {
+          // Check routes in reverse order (most recent first)
+          for (let i = state.routes.length - 1; i >= 0; i--) {
+            const route = state.routes[i];
+            if (route.name === targetName) {
+              return route;
+            }
+            // Recursively check nested state
+            if (route.state) {
+              const found = findRoute(route.state, targetName);
+              if (found) return found;
+            }
+          }
+        }
+        return null;
+      };
+
+      const chatRoute = findRoute(navState, "Tin nhắn");
+      
+      if (chatRoute && chatRoute.params) {
+        // Navigate back to chat screen with its params
+        (navigation as any).navigate("Tin nhắn", chatRoute.params);
+        return;
+      }
+    } catch (error) {
+      console.log("Error finding chat route:", error);
+    }
+
+    // Priority 3: Try to go back
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    // Fallback: Navigate to chat list
+    (navigation as any).navigate("Danh sách tin nhắn");
+  };
+
   const handleEndCall = () => {
-    router.back();
+    // Navigate to video quality review page
+    navigation.navigate("Video Quality Review" as never);
   };
 
   const toggleCameraFacing = () => {
@@ -56,13 +122,13 @@ export default function VideoCallScreen() {
       <View style={styles.videoContainer}>
         <View style={styles.videoPlaceholder}>
           <MaterialCommunityIcons name="account" size={80} color="#fff" />
-          <Text style={styles.remoteName}>Bà Nguyễn Thị Lan</Text>
+          <Text style={styles.remoteName}>{callerName}</Text>
         </View>
       </View>
 
       {/* Top Header - Back, Speaker, Flip */}
       <View style={styles.topHeader}>
-        <TouchableOpacity style={styles.topButton} onPress={handleEndCall}>
+        <TouchableOpacity style={styles.topButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={28} color="#fff" />
         </TouchableOpacity>
 

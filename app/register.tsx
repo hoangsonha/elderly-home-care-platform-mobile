@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   useErrorNotification,
   useSuccessNotification,
@@ -27,6 +28,7 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
+  const { login } = useAuth();
 
   // Validate password
   const validatePassword = () => {
@@ -68,12 +70,31 @@ export default function RegisterScreen() {
         role: formData.userType === "care-seeker" ? "Care Seeker" : "Caregiver",
         fullName: "",
         status: formData.userType === "caregiver" ? "pending" : "approved",
+        hasCompletedProfile: formData.userType === "caregiver" ? false : true,
       };
 
       await AuthService.register(newUser);
 
-      showSuccessTooltip("🎉 Đăng ký thành công! Vui lòng đăng nhập.");
-      router.replace("/login");
+      // If caregiver, auto login and navigate to complete profile
+      if (formData.userType === "caregiver") {
+        showSuccessTooltip("🎉 Đăng ký thành công! Đang chuyển hướng...");
+        const userData = await login(formData.email, formData.password);
+        if (userData) {
+          // Store email for complete profile screen
+          setTimeout(() => {
+            router.replace("/caregiver");
+            // Navigate to complete profile after caregiver screen loads
+            setTimeout(() => {
+              // This will be handled by checking if profile is incomplete
+            }, 500);
+          }, 1000);
+        } else {
+          router.replace("/login");
+        }
+      } else {
+        showSuccessTooltip("🎉 Đăng ký thành công! Vui lòng đăng nhập.");
+        router.replace("/login");
+      }
     } catch (err: any) {
       console.error("Register error:", err.response || err.message);
       showErrorTooltip("Có lỗi xảy ra khi đăng ký!");

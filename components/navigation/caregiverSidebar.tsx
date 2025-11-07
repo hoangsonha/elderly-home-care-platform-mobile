@@ -13,15 +13,22 @@ import CertificatesScreen from "@/app/caregiver/certificatesScreen";
 import ChatScreen from "@/app/caregiver/chat";
 import ChatListScreen from "@/app/caregiver/chat-list";
 import ComplaintScreen from "@/app/caregiver/complaint";
+import ComplaintFeedbackScreen from "@/app/caregiver/complaint-feedback";
+import CompleteProfileScreen from "@/app/caregiver/complete-profile";
 import ExpertProfileScreen from "@/app/caregiver/expert-profile";
+import FAQScreen from "@/app/caregiver/faq";
+import FeedbackScreen from "@/app/caregiver/feedback";
 import IncomingCallScreen from "@/app/caregiver/incoming-call";
 import PaymentScreen from "@/app/caregiver/payment";
 import PersonalScreen from "@/app/caregiver/personal";
+import ProfileStatusScreen from "@/app/caregiver/profile-status";
 import ReviewScreen from "@/app/caregiver/review";
 import SettingsScreen from "@/app/caregiver/settings";
 import TrainingCourseDetail from "@/app/caregiver/training-course-detail";
 import TrainingCoursesMobile from "@/app/caregiver/training-courses";
+import TrainingLessonDetail from "@/app/caregiver/training-lesson-detail";
 import VideoCallScreen from "@/app/caregiver/video-call";
+import VideoQualityReviewScreen from "@/app/caregiver/video-quality-review";
 import ViewReviewScreen from "@/app/caregiver/view-review";
 import CaregiverWithdrawScreen from "@/app/caregiver/withdraw";
 
@@ -76,6 +83,12 @@ const features = [
     icon: "account",
     component: PersonalScreen,
   },
+  {
+    id: "faq",
+    title: "Câu hỏi thường gặp",
+    icon: "help-circle",
+    component: FAQScreen,
+  },
 ];
 
 export default function CaregiverSidebar() {
@@ -112,8 +125,8 @@ export default function CaregiverSidebar() {
           })}
         />
 
-        {/* Các features còn lại (trừ Danh sách tin nhắn, Hồ sơ của bạn, Chứng chỉ và kỹ năng, và Đào tạo) */}
-        {features.slice(1).filter(item => item.id !== "chatlist" && item.id !== "profile" && item.id !== "certificates" && item.id !== "training").map((item) => (
+        {/* Các features còn lại (trừ Danh sách tin nhắn, Hồ sơ của bạn, Chứng chỉ và kỹ năng, Đào tạo, và FAQ) */}
+        {features.slice(1).filter(item => item.id !== "chatlist" && item.id !== "profile" && item.id !== "certificates" && item.id !== "training" && item.id !== "faq").map((item) => (
           <Drawer.Screen
             key={item.id}
             name={item.title}
@@ -265,45 +278,63 @@ export default function CaregiverSidebar() {
           })}
         />
         
-        {/* Tin nhắn với back button */}
-        <Drawer.Screen
-          name="Tin nhắn"
-          component={ChatScreen}
-          options={({ navigation }) => ({
-            drawerItemStyle: { height: 0 },
-            headerLeft: () => (
-              <TouchableOpacity
-                onPress={() => navigation.navigate("Danh sách tin nhắn")}
-                style={{ marginLeft: 15 }}
-              >
-                <MaterialCommunityIcons
-                  name="arrow-left"
-                  size={28}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            ),
-            headerRight: () => (
-              <TouchableOpacity
-                onPress={() => {
-                  navigation.navigate("Video Call");
-                }}
-                style={{ marginRight: 15 }}
-              >
-                <MaterialCommunityIcons
-                  name="video-outline"
-                  size={28}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            ),
-          })}
-        />
+                  {/* Tin nhắn với back button */}
+          <Drawer.Screen
+            name="Tin nhắn"
+            component={ChatScreen}
+            options={({ navigation, route }) => {
+              const chatParams = route.params as { chatName?: string; chatId?: string; chatAvatar?: string } | undefined;
+              
+              return {
+                drawerItemStyle: { height: 0 },
+                headerLeft: () => (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("Danh sách tin nhắn")}
+                    style={{ marginLeft: 15 }}
+                  >
+                    <MaterialCommunityIcons
+                      name="arrow-left"
+                      size={28}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                ),
+                headerRight: () => (
+                  <TouchableOpacity
+                    onPress={() => {
+                      (navigation as any).navigate("Video Call", {
+                        chatName: chatParams?.chatName,
+                        chatId: chatParams?.chatId,
+                        chatAvatar: chatParams?.chatAvatar,
+                      });
+                    }}
+                    style={{ marginRight: 15 }}
+                  >
+                    <MaterialCommunityIcons
+                      name="video-outline"
+                      size={28}
+                      color="#fff"
+                    />
+                  </TouchableOpacity>
+                ),
+              };
+            }}
+          />
         
         {/* Video Call - hidden from drawer */}
         <Drawer.Screen
           name="Video Call"
           component={VideoCallScreen}
+          options={{
+            drawerItemStyle: { height: 0 },
+            headerShown: false,
+          }}
+        />
+        
+        {/* Video Quality Review - hidden from drawer */}
+        <Drawer.Screen
+          name="Video Quality Review"
+          component={VideoQualityReviewScreen}
           options={{
             drawerItemStyle: { height: 0 },
             headerShown: false,
@@ -367,6 +398,26 @@ export default function CaregiverSidebar() {
           }}
         />
         
+        {/* Complete Profile - hidden from drawer */}
+        <Drawer.Screen
+          name="Hoàn thiện hồ sơ"
+          component={CompleteProfileScreen}
+          options={{
+            drawerItemStyle: { height: 0 },
+            headerShown: false,
+          }}
+        />
+
+        {/* Profile Status - hidden from drawer */}
+        <Drawer.Screen
+          name="Trạng thái hồ sơ"
+          component={ProfileStatusScreen}
+          options={{
+            drawerItemStyle: { height: 0 },
+            headerShown: false,
+          }}
+        />
+
         {/* Settings - hidden from drawer */}
         <Drawer.Screen
           name="Cài đặt"
@@ -383,7 +434,7 @@ export default function CaregiverSidebar() {
             },
             headerLeft: () => (
               <TouchableOpacity
-                onPress={() => navigation.goBack()}
+                onPress={() => navigation.navigate("Cá nhân")}
                 style={{ marginLeft: 15 }}
               >
                 <MaterialCommunityIcons
@@ -400,9 +451,60 @@ export default function CaregiverSidebar() {
         <Drawer.Screen
           name="Complaint"
           component={ComplaintScreen}
-          options={{
-            drawerItemStyle: { height: 0 },
-            headerShown: false,
+          options={({ navigation, route }) => {
+            const params = route.params as { fromScreen?: string; bookingId?: string } | undefined;
+            const fromScreen = params?.fromScreen;
+            
+            const handleBack = () => {
+              if (fromScreen) {
+                switch (fromScreen) {
+                  case "booking":
+                    navigation.navigate("Yêu cầu dịch vụ");
+                    break;
+                  case "appointment-detail":
+                    // Navigate về appointment detail với appointmentId từ params
+                    const appointmentId = params?.bookingId;
+                    if (appointmentId) {
+                      navigation.navigate("Appointment Detail" as never, { 
+                        appointmentId: appointmentId,
+                        fromScreen: "complaint" 
+                      } as never);
+                    } else {
+                      navigation.goBack();
+                    }
+                    break;
+                  default:
+                    navigation.goBack();
+                }
+              } else {
+                navigation.goBack();
+              }
+            };
+
+            return {
+              drawerItemStyle: { height: 0 },
+              headerShown: true,
+              title: "Khiếu nại dịch vụ",
+              headerStyle: {
+                backgroundColor: "#70C1F1",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerLeft: () => (
+                <TouchableOpacity
+                  onPress={handleBack}
+                  style={{ marginLeft: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+            };
           }}
         />
 
@@ -435,6 +537,66 @@ export default function CaregiverSidebar() {
               drawerItemStyle: { height: 0 },
               headerShown: true,
               title: "Đánh giá dịch vụ",
+              headerStyle: {
+                backgroundColor: "#70C1F1",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerLeft: () => (
+                <TouchableOpacity
+                  onPress={handleBack}
+                  style={{ marginLeft: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+            };
+          }}
+        />
+
+        {/* Complaint Feedback - hidden from drawer */}
+        <Drawer.Screen
+          name="Complaint Feedback"
+          component={ComplaintFeedbackScreen}
+          options={({ navigation, route }) => {
+            const params = route.params as { fromScreen?: string; appointmentId?: string } | undefined;
+            const fromScreen = params?.fromScreen;
+            
+            const handleBack = () => {
+              if (fromScreen) {
+                switch (fromScreen) {
+                  case "complaint":
+                  case "complaint-feedback":
+                    // Navigate về complaint với appointmentId từ params
+                    const appointmentId = params?.appointmentId;
+                    if (appointmentId) {
+                      navigation.navigate("Complaint" as never, {
+                        bookingId: appointmentId,
+                        viewMode: true,
+                        fromScreen: "complaint-feedback",
+                      } as never);
+                    } else {
+                      navigation.goBack();
+                    }
+                    break;
+                  default:
+                    navigation.goBack();
+                }
+              } else {
+                navigation.goBack();
+              }
+            };
+
+            return {
+              drawerItemStyle: { height: 0 },
+              headerShown: true,
+              title: "Đánh giá quy trình khiếu nại",
               headerStyle: {
                 backgroundColor: "#70C1F1",
               },
@@ -530,6 +692,46 @@ export default function CaregiverSidebar() {
           })}
         />
 
+        {/* Chi tiết bài học - hidden from drawer */}
+        <Drawer.Screen
+          name="Chi tiết bài học"
+          component={TrainingLessonDetail}
+          options={({ navigation, route }) => {
+            const params = route.params as { courseTitle?: string; courseId?: string } | undefined;
+            return {
+              drawerItemStyle: { height: 0 },
+              headerShown: true,
+              title: params?.courseTitle || "Chi tiết bài học",
+              headerStyle: {
+                backgroundColor: "#70C1F1",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerLeft: () => (
+                <TouchableOpacity
+                  onPress={() => {
+                    // Always navigate back to course detail page
+                    if (params?.courseId) {
+                      navigation.navigate("Chi tiết khóa học", { id: params.courseId });
+                    } else {
+                      navigation.goBack();
+                    }
+                  }}
+                  style={{ marginLeft: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+            };
+          }}
+        />
+
         {/* Rút tiền - hidden from drawer */}
         <Drawer.Screen
           name="Rút tiền"
@@ -552,6 +754,53 @@ export default function CaregiverSidebar() {
                 <MaterialCommunityIcons
                   name="arrow-left"
                   size={28}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            ),
+          })}
+        />
+
+        {/* FAQ - với back button */}
+        <Drawer.Screen
+          name="Câu hỏi thường gặp"
+          component={FAQScreen}
+          options={({ navigation }) => ({
+            drawerIcon: ({ color, size }) => (
+              <MaterialCommunityIcons
+                name="help-circle"
+                color={color}
+                size={size}
+              />
+            ),
+            headerShown: true,
+            headerStyle: {
+              backgroundColor: "#70C1F1",
+            },
+            headerTintColor: "#fff",
+            headerTitleStyle: {
+              fontWeight: "bold",
+            },
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Cá nhân")}
+                style={{ marginLeft: 15 }}
+              >
+                <MaterialCommunityIcons
+                  name="arrow-left"
+                  size={28}
+                  color="#fff"
+                />
+              </TouchableOpacity>
+            ),
+            headerRight: () => (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Góp ý" as never, { fromScreen: "faq" } as never)}
+                style={{ marginRight: 15 }}
+              >
+                <MaterialCommunityIcons
+                  name="message-reply-text"
+                  size={24}
                   color="#fff"
                 />
               </TouchableOpacity>
@@ -588,6 +837,46 @@ export default function CaregiverSidebar() {
             drawerIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="logout" color={color} size={size} />
             ),
+          }}
+        />
+
+        {/* Feedback Screen - Hidden from drawer */}
+        <Drawer.Screen
+          name="Góp ý"
+          component={FeedbackScreen}
+          options={({ navigation, route }) => {
+            const params = route.params as { fromScreen?: string } | undefined;
+            
+            return {
+              drawerItemStyle: { height: 0 },
+              headerShown: true,
+              title: "Góp ý & Đánh giá Hệ thống",
+              headerStyle: {
+                backgroundColor: "#70C1F1",
+              },
+              headerTintColor: "#fff",
+              headerTitleStyle: {
+                fontWeight: "bold",
+              },
+              headerLeft: () => (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (params?.fromScreen === "faq") {
+                      navigation.navigate("Câu hỏi thường gặp" as never);
+                    } else {
+                      navigation.goBack();
+                    }
+                  }}
+                  style={{ marginLeft: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+            };
           }}
         />
 
