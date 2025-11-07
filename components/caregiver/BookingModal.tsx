@@ -160,7 +160,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
   const [showValidation, setShowValidation] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     basicInfo: true,
-    workTime: true,
     tasks: false,
     duration: false,
     note: false,
@@ -336,88 +335,78 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles, imm
 
           {/* Section 2: Date & Time Selection */}
           <View style={styles.sectionContainer}>
-            <TouchableOpacity 
-              style={styles.sectionHeader}
-              onPress={() => toggleSection('workTime')}
-            >
+            <View style={styles.sectionHeader}>
               <ThemedText style={styles.sectionTitle}>📅 Ngày giờ làm việc</ThemedText>
-              <Ionicons 
-                name={expandedSections.workTime ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#68C2E8" 
-              />
-            </TouchableOpacity>
+            </View>
             
-            {expandedSections.workTime && (
-              <View style={styles.sectionContent}>
-                {/* Date Selection */}
-                <View style={styles.inputGroup}>
-                  <View style={styles.labelContainer}>
-                    <ThemedText style={styles.inputLabel}>Ngày làm việc</ThemedText>
-                    <ThemedText style={styles.requiredMark}>*</ThemedText>
-                  </View>
+            <View style={styles.sectionContent}>
+              {/* Date Selection */}
+              <View style={styles.inputGroup}>
+                <View style={styles.labelContainer}>
+                  <ThemedText style={styles.inputLabel}>Ngày làm việc</ThemedText>
+                  <ThemedText style={styles.requiredMark}>*</ThemedText>
+                </View>
+                <TouchableOpacity 
+                  style={styles.pickerButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <ThemedText style={[
+                    styles.pickerButtonText,
+                    !immediateData.selectedDate && styles.placeholderText
+                  ]}>
+                    {immediateData.selectedDate || 'Chọn ngày làm việc'}
+                  </ThemedText>
+                  <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Time Selection */}
+              <View style={styles.inputGroup}>
+                <View style={styles.labelContainer}>
+                  <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
+                  <ThemedText style={styles.requiredMark}>*</ThemedText>
+                </View>
+                <View style={styles.timePickerContainer}>
                   <TouchableOpacity 
                     style={styles.pickerButton}
-                    onPress={() => setShowDatePicker(true)}
+                    onPress={() => {
+                      setTimePickerType('hour');
+                      setShowTimePicker(true);
+                    }}
                   >
                     <ThemedText style={[
                       styles.pickerButtonText,
-                      !immediateData.selectedDate && styles.placeholderText
+                      !immediateData.startHour && styles.placeholderText
                     ]}>
-                      {immediateData.selectedDate || 'Chọn ngày làm việc'}
+                      {immediateData.startHour || 'Giờ'}
                     </ThemedText>
-                    <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
+                  </TouchableOpacity>
+                  
+                  <ThemedText style={styles.timeSeparator}>:</ThemedText>
+                  
+                  <TouchableOpacity 
+                    style={styles.pickerButton}
+                    onPress={() => {
+                      setTimePickerType('minute');
+                      setShowTimePicker(true);
+                    }}
+                  >
+                    <ThemedText style={[
+                      styles.pickerButtonText,
+                      !immediateData.startMinute && styles.placeholderText
+                    ]}>
+                      {immediateData.startMinute || 'Phút'}
+                    </ThemedText>
                   </TouchableOpacity>
                 </View>
-
-                {/* Time Selection */}
-                <View style={styles.inputGroup}>
-                  <View style={styles.labelContainer}>
-                    <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
-                    <ThemedText style={styles.requiredMark}>*</ThemedText>
-                  </View>
-                  <View style={styles.timePickerContainer}>
-                    <TouchableOpacity 
-                      style={styles.pickerButton}
-                      onPress={() => {
-                        setTimePickerType('hour');
-                        setShowTimePicker(true);
-                      }}
-                    >
-                      <ThemedText style={[
-                        styles.pickerButtonText,
-                        !immediateData.startHour && styles.placeholderText
-                      ]}>
-                        {immediateData.startHour || 'Giờ'}
-                      </ThemedText>
-                    </TouchableOpacity>
-                    
-                    <ThemedText style={styles.timeSeparator}>:</ThemedText>
-                    
-                    <TouchableOpacity 
-                      style={styles.pickerButton}
-                      onPress={() => {
-                        setTimePickerType('minute');
-                        setShowTimePicker(true);
-                      }}
-                    >
-                      <ThemedText style={[
-                        styles.pickerButtonText,
-                        !immediateData.startMinute && styles.placeholderText
-                      ]}>
-                        {immediateData.startMinute || 'Phút'}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  </View>
-                  
-                  {immediateData.startHour && immediateData.startMinute && (
-                    <ThemedText style={styles.timeRangeText}>
-                      ⏰ Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
-                    </ThemedText>
-                  )}
-                </View>
+                
+                {immediateData.startHour && immediateData.startMinute && (
+                  <ThemedText style={styles.timeRangeText}>
+                    ⏰ Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
+                  </ThemedText>
+                )}
               </View>
-            )}
+            </View>
           </View>
 
           {/* Section 3: Service Package */}
