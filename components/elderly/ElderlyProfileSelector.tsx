@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useState } from 'react';
 import {
+    Alert,
+    Modal,
     ScrollView,
     StyleSheet,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -24,6 +27,8 @@ interface ElderlyProfileSelectorProps {
   selectedProfiles: string[];
   onSelectionChange: (selectedIds: string[]) => void;
   showValidation?: boolean;
+  hideTitle?: boolean; // Option to hide the title when used in a modal/form with its own title
+  onAddNewProfile?: (profile: Omit<ElderlyProfile, 'id'>) => void; // Callback to add new elderly profile
 }
 
 export function ElderlyProfileSelector({
@@ -31,13 +36,129 @@ export function ElderlyProfileSelector({
   selectedProfiles,
   onSelectionChange,
   showValidation = false,
+  hideTitle = false,
+  onAddNewProfile,
 }: ElderlyProfileSelectorProps) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newProfile, setNewProfile] = useState({
+    name: '',
+    age: '',
+    gender: '',
+    weight: '',
+    height: '',
+    family: '',
+    healthStatus: 'good' as 'good' | 'fair' | 'poor',
+  });
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    age: '',
+    gender: '',
+    weight: '',
+    height: '',
+  });
   const handleProfileToggle = (profileId: string) => {
     if (selectedProfiles.includes(profileId)) {
       onSelectionChange([]);
     } else {
       onSelectionChange([profileId]); // Chỉ cho phép chọn 1 người
     }
+  };
+
+  const validateForm = (): boolean => {
+    const errors = {
+      name: '',
+      age: '',
+      gender: '',
+      weight: '',
+      height: '',
+    };
+    let hasError = false;
+
+    // Validate name
+    if (!newProfile.name.trim()) {
+      errors.name = 'Vui lòng nhập họ và tên';
+      hasError = true;
+    }
+
+    // Validate age
+    if (!newProfile.age.trim()) {
+      errors.age = 'Vui lòng nhập tuổi';
+      hasError = true;
+    } else {
+      const age = parseInt(newProfile.age);
+      if (isNaN(age)) {
+        errors.age = 'Tuổi phải là số';
+        hasError = true;
+      } else if (age < 50 || age > 120) {
+        errors.age = 'Tuổi phải từ 50 đến 120';
+        hasError = true;
+      }
+    }
+
+    // Validate gender
+    if (!newProfile.gender) {
+      errors.gender = 'Vui lòng chọn giới tính';
+      hasError = true;
+    }
+
+    // Validate weight (optional but must be valid if entered)
+    if (newProfile.weight.trim()) {
+      const weight = parseFloat(newProfile.weight);
+      if (isNaN(weight) || weight <= 0 || weight > 300) {
+        errors.weight = 'Cân nặng không hợp lệ (0-300kg)';
+        hasError = true;
+      }
+    }
+
+    // Validate height (optional but must be valid if entered)
+    if (newProfile.height.trim()) {
+      const height = parseFloat(newProfile.height);
+      if (isNaN(height) || height <= 0 || height > 250) {
+        errors.height = 'Chiều cao không hợp lệ (0-250cm)';
+        hasError = true;
+      }
+    }
+
+    setFormErrors(errors);
+    return !hasError;
+  };
+
+  const handleAddNewProfile = () => {
+    // Validate
+    if (!validateForm()) {
+      return;
+    }
+
+    // Call callback
+    if (onAddNewProfile) {
+      onAddNewProfile({
+        name: newProfile.name.trim(),
+        age: parseInt(newProfile.age),
+        family: newProfile.family.trim() || 'Gia đình mới',
+        healthStatus: newProfile.healthStatus,
+        currentCaregivers: 0,
+      });
+    }
+
+    // Reset and close
+    setNewProfile({
+      name: '',
+      age: '',
+      gender: '',
+      weight: '',
+      height: '',
+      family: '',
+      healthStatus: 'good',
+    });
+    setFormErrors({
+      name: '',
+      age: '',
+      gender: '',
+      weight: '',
+      height: '',
+    });
+    setShowAddModal(false);
+    Alert.alert('Thành công', 'Đã thêm người già mới!');
   };
 
   const getHealthStatusText = (status: string) => {
@@ -98,16 +219,6 @@ export function ElderlyProfileSelector({
 
         <View style={styles.profileDetails}>
           <View style={styles.detailRow}>
-            <Ionicons name="people" size={16} color={isSelected ? '#4ECDC4' : '#6c757d'} />
-            <ThemedText style={[
-              styles.detailText,
-              isSelected && styles.detailTextSelected
-            ]}>
-              {item.currentCaregivers} người chăm sóc hiện tại
-            </ThemedText>
-          </View>
-
-          <View style={styles.detailRow}>
             <Ionicons name="home" size={16} color={isSelected ? '#4ECDC4' : '#6c757d'} />
             <ThemedText style={[
               styles.detailText,
@@ -142,13 +253,17 @@ export function ElderlyProfileSelector({
 
   return (
     <View style={styles.container}>
-      <View style={styles.titleContainer}>
-        <ThemedText style={styles.title}>Chọn người già cần chăm sóc</ThemedText>
-        <ThemedText style={styles.requiredMark}>*</ThemedText>
-      </View>
-      <ThemedText style={styles.subtitle}>
-        Chỉ có thể chọn 1 người già
-      </ThemedText>
+      {!hideTitle && (
+        <>
+          <View style={styles.titleContainer}>
+            <ThemedText style={styles.title}>Chọn người già cần chăm sóc</ThemedText>
+            <ThemedText style={styles.requiredMark}>*</ThemedText>
+          </View>
+          <ThemedText style={styles.subtitle}>
+            Chỉ có thể chọn 1 người già
+          </ThemedText>
+        </>
+      )}
       {showError && (
         <ThemedText style={styles.errorText}>
           Vui lòng chọn ít nhất một người già
@@ -164,7 +279,199 @@ export function ElderlyProfileSelector({
             {renderProfile({ item: profile })}
           </View>
         ))}
+
+        {/* Add New Profile Button */}
+        {onAddNewProfile && (
+          <TouchableOpacity
+            style={styles.addNewButton}
+            onPress={() => setShowAddModal(true)}
+          >
+            <Ionicons name="add-circle-outline" size={24} color="#68C2E8" />
+            <ThemedText style={styles.addNewButtonText}>
+              Thêm người già mới
+            </ThemedText>
+          </TouchableOpacity>
+        )}
       </ScrollView>
+
+      {/* Add New Profile Modal */}
+      <Modal
+        visible={showAddModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Thêm người già mới</ThemedText>
+              <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                <Ionicons name="close" size={24} color="#6c757d" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Name */}
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.inputLabel}>
+                  Họ và tên <ThemedText style={styles.requiredMark}>*</ThemedText>
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.textInput,
+                    formErrors.name && styles.textInputError
+                  ]}
+                  placeholder="Nhập họ và tên"
+                  value={newProfile.name}
+                  onChangeText={(text) => {
+                    setNewProfile({ ...newProfile, name: text });
+                    if (formErrors.name) {
+                      setFormErrors({ ...formErrors, name: '' });
+                    }
+                  }}
+                />
+                {formErrors.name && (
+                  <ThemedText style={styles.errorText}>{formErrors.name}</ThemedText>
+                )}
+              </View>
+
+              {/* Age & Gender Row */}
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroupHalf}>
+                  <ThemedText style={styles.inputLabel}>
+                    Tuổi <ThemedText style={styles.requiredMark}>*</ThemedText>
+                  </ThemedText>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      formErrors.age && styles.textInputError
+                    ]}
+                    placeholder="Tuổi"
+                    value={newProfile.age}
+                    onChangeText={(text) => {
+                      setNewProfile({ ...newProfile, age: text });
+                      if (formErrors.age) {
+                        setFormErrors({ ...formErrors, age: '' });
+                      }
+                    }}
+                    keyboardType="numeric"
+                  />
+                  {formErrors.age && (
+                    <ThemedText style={styles.errorText}>{formErrors.age}</ThemedText>
+                  )}
+                </View>
+                <View style={styles.inputGroupHalf}>
+                  <ThemedText style={styles.inputLabel}>
+                    Giới tính <ThemedText style={styles.requiredMark}>*</ThemedText>
+                  </ThemedText>
+                  <View style={styles.genderContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.genderButton,
+                        newProfile.gender === 'Nam' && styles.genderButtonActive,
+                        formErrors.gender && styles.genderButtonError
+                      ]}
+                      onPress={() => {
+                        setNewProfile({ ...newProfile, gender: 'Nam' });
+                        if (formErrors.gender) {
+                          setFormErrors({ ...formErrors, gender: '' });
+                        }
+                      }}
+                    >
+                      <ThemedText style={[
+                        styles.genderText,
+                        newProfile.gender === 'Nam' && styles.genderTextActive
+                      ]}>Nam</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.genderButton,
+                        newProfile.gender === 'Nữ' && styles.genderButtonActive,
+                        formErrors.gender && styles.genderButtonError
+                      ]}
+                      onPress={() => {
+                        setNewProfile({ ...newProfile, gender: 'Nữ' });
+                        if (formErrors.gender) {
+                          setFormErrors({ ...formErrors, gender: '' });
+                        }
+                      }}
+                    >
+                      <ThemedText style={[
+                        styles.genderText,
+                        newProfile.gender === 'Nữ' && styles.genderTextActive
+                      ]}>Nữ</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                  {formErrors.gender && (
+                    <ThemedText style={styles.errorText}>{formErrors.gender}</ThemedText>
+                  )}
+                </View>
+              </View>
+
+              {/* Weight & Height Row */}
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroupHalf}>
+                  <ThemedText style={styles.inputLabel}>Cân nặng</ThemedText>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      formErrors.weight && styles.textInputError
+                    ]}
+                    placeholder="kg"
+                    value={newProfile.weight}
+                    onChangeText={(text) => {
+                      setNewProfile({ ...newProfile, weight: text });
+                      if (formErrors.weight) {
+                        setFormErrors({ ...formErrors, weight: '' });
+                      }
+                    }}
+                    keyboardType="numeric"
+                  />
+                  {formErrors.weight && (
+                    <ThemedText style={styles.errorText}>{formErrors.weight}</ThemedText>
+                  )}
+                </View>
+                <View style={styles.inputGroupHalf}>
+                  <ThemedText style={styles.inputLabel}>Chiều cao</ThemedText>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      formErrors.height && styles.textInputError
+                    ]}
+                    placeholder="cm"
+                    value={newProfile.height}
+                    onChangeText={(text) => {
+                      setNewProfile({ ...newProfile, height: text });
+                      if (formErrors.height) {
+                        setFormErrors({ ...formErrors, height: '' });
+                      }
+                    }}
+                    keyboardType="numeric"
+                  />
+                  {formErrors.height && (
+                    <ThemedText style={styles.errorText}>{formErrors.height}</ThemedText>
+                  )}
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowAddModal(false)}
+              >
+                <ThemedText style={styles.cancelButtonText}>Hủy</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleAddNewProfile}
+              >
+                <ThemedText style={styles.saveButtonText}>Thêm</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -273,5 +580,178 @@ const styles = StyleSheet.create({
   },
   healthStatus: {
     fontWeight: '600',
+  },
+  addNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f8ff',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: '#68C2E8',
+    borderStyle: 'dashed',
+  },
+  addNewButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#68C2E8',
+    marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    width: '90%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  modalBody: {
+    padding: 20,
+    maxHeight: 400,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  inputGroupHalf: {
+    flex: 1,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  textInput: {
+    height: 48,
+    borderColor: '#ced4da',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#2c3e50',
+    backgroundColor: 'white',
+  },
+  textInputError: {
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#dc3545',
+    marginTop: 4,
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  genderButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#e9ecef',
+  },
+  genderButtonActive: {
+    backgroundColor: '#e8f6f3',
+    borderColor: '#68C2E8',
+  },
+  genderButtonError: {
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  genderText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6c757d',
+  },
+  genderTextActive: {
+    color: '#68C2E8',
+  },
+  healthStatusOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  healthOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    backgroundColor: 'white',
+    alignItems: 'center',
+  },
+  healthOptionSelected: {
+    backgroundColor: '#f0fdf4',
+  },
+  healthOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6c757d',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6c757d',
+  },
+  saveButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: '#68C2E8',
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
   },
 });
