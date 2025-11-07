@@ -453,6 +453,50 @@ export function ElderlyProfileSelector({
                   )}
                 </View>
               </View>
+              
+              {/* Family */}
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.inputLabel}>
+                  Tên gia đình <ThemedText style={styles.requiredMark}>*</ThemedText>
+                </ThemedText>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="VD: Gia đình Nguyễn"
+                  value={newProfile.family}
+                  onChangeText={(text) => setNewProfile({ ...newProfile, family: text })}
+                />
+              </View>
+
+              {/* Health Status */}
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.inputLabel}>
+                  Tình trạng sức khỏe <ThemedText style={styles.requiredMark}>*</ThemedText>
+                </ThemedText>
+                <View style={styles.healthStatusOptions}>
+                  {[
+                    { value: 'good', label: 'Tốt', color: '#28a745' },
+                    { value: 'fair', label: 'Trung bình', color: '#ffc107' },
+                    { value: 'poor', label: 'Yếu', color: '#dc3545' }
+                  ].map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.healthOption,
+                        newProfile.healthStatus === option.value && styles.healthOptionSelected,
+                        { borderColor: option.color }
+                      ]}
+                      onPress={() => setNewProfile({ ...newProfile, healthStatus: option.value as any })}
+                    >
+                      <ThemedText style={[
+                        styles.healthOptionText,
+                        newProfile.healthStatus === option.value && { color: option.color }
+                      ]}>
+                        {option.label}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </ScrollView>
 
             <View style={styles.modalFooter}>
