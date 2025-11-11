@@ -12,6 +12,7 @@ interface User {
   avatar?: string;
   hasCompletedProfile?: boolean;
   role: "Caregiver" | "Care Seeker" | "Admin" | string;
+  status?: "pending" | "approved" | "rejected";
 }
 
 interface AuthContextType {
@@ -45,7 +46,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar: res.avatar,
         hasCompletedProfile: res.hasCompletedProfile ?? false,
         role: res.role ?? "Care Seeker",
+        status: res.status, // Load status from API
       };
+
+      // If user is Caregiver and has status, load it into profileStore
+      if (userData.role === "Caregiver" && userData.status) {
+        const { setProfileStatus } = require("@/data/profileStore");
+        // Map API status to profileStore status
+        if (userData.status === "approved") {
+          setProfileStatus(userData.id, "approved");
+        } else if (userData.status === "rejected") {
+          setProfileStatus(userData.id, "rejected", "Hồ sơ không đáp ứng yêu cầu");
+        } else {
+          setProfileStatus(userData.id, "pending");
+        }
+      }
 
       setUser(userData);
       return userData; // ✅ trả về luôn user

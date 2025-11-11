@@ -1,5 +1,5 @@
-import { Ionicons } from "@expo/vector-icons";
-import { useRoute } from "@react-navigation/native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -32,6 +32,7 @@ interface ChatScreenProps {
 }
 
 export default function ChatScreen() {
+  const navigation = useNavigation<any>();
   const route = useRoute();
   const params = useLocalSearchParams();
   
@@ -44,6 +45,8 @@ export default function ChatScreen() {
   const clientName = routeParams.clientName || params.clientName;
   const clientAvatar = routeParams.clientAvatar || params.clientAvatar;
   const caregiverName = routeParams.caregiverName || params.caregiverName;
+  const fromScreen = routeParams.fromScreen || params.fromScreen;
+  const appointmentId = routeParams.appointmentId || params.appointmentId;
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -105,6 +108,44 @@ export default function ChatScreen() {
       keyboardDidHideListener.remove();
     };
   }, []);
+
+  // Setup header back button based on fromScreen param
+  useEffect(() => {
+    const handleBack = () => {
+      if (fromScreen === "appointment-detail") {
+        // Quay lại trang appointment detail với appointmentId
+        if (appointmentId) {
+          (navigation.navigate as any)("Appointment Detail", {
+            appointmentId: appointmentId,
+            fromScreen: "chat",
+          });
+        } else {
+          navigation.goBack();
+        }
+      } else if (fromScreen === "dashboard") {
+        // Quay lại trang chủ
+        (navigation.navigate as any)("Trang chủ");
+      } else {
+        // Mặc định quay lại chat-list hoặc goBack
+        (navigation.navigate as any)("Danh sách tin nhắn");
+      }
+    };
+
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={handleBack}
+          style={{ marginLeft: 15 }}
+        >
+          <MaterialCommunityIcons
+            name="arrow-left"
+            size={28}
+            color="#fff"
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, fromScreen, appointmentId]);
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {

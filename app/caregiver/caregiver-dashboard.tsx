@@ -77,20 +77,28 @@ export default function CaregiverDashboardScreen() {
           // Check if profile has been submitted (exists in profileStore)
           const { getProfileStatus, hasProfile } = require("@/data/profileStore");
           const hasProfileInStore = hasProfile(user.id);
+          const profileStatus = getProfileStatus(user.id);
           
+          // Check status from API (user.status) or profileStore
+          const currentStatus = user.status || profileStatus.status;
+          
+          // If profile is approved (from API or profileStore), stay on dashboard
+          if (currentStatus === "approved") {
+            return; // Stay on dashboard
+          }
+          
+          // If profile is pending or rejected, navigate to status screen
+          if (currentStatus === "pending" || currentStatus === "rejected") {
+            navigation.navigate("Trạng thái hồ sơ");
+            return;
+          }
+          
+          // If no profile submitted yet and user hasn't completed profile, navigate to complete profile
           if (!hasProfileInStore && !user.hasCompletedProfile) {
-            // No profile submitted yet - navigate to complete profile
             navigation.navigate("Hoàn thiện hồ sơ", {
               email: user.email,
               fullName: user.name || "",
             });
-          } else if (hasProfileInStore) {
-            // Profile has been submitted - check status
-            const profileStatus = getProfileStatus(user.id);
-            if (profileStatus.status === "pending" || profileStatus.status === "rejected") {
-              navigation.navigate("Trạng thái hồ sơ");
-            }
-            // If approved, stay on dashboard
           }
         }, 500);
       }
@@ -233,7 +241,8 @@ export default function CaregiverDashboardScreen() {
                   style={styles.contactButton}
                   onPress={() => navigation.navigate("Tin nhắn", { 
                     clientName: appointment.client,
-                    clientAvatar: appointment.avatar 
+                    clientAvatar: appointment.avatar,
+                    fromScreen: "dashboard"
                   })}
                 >
                   <Text style={styles.contactButtonText}>Liên hệ</Text>

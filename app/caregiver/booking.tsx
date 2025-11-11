@@ -33,6 +33,7 @@ interface Booking {
   status: BookingStatus;
   statusBadge: string;
   avatar: string;
+  responseDeadline?: string; // ISO string for deadline
 }
 
 const mockBookings: Booking[] = [
@@ -75,7 +76,7 @@ const mockBookings: Booking[] = [
     location: "Q1, TP.HCM",
     packageType: "Gói Cơ Bản",
     packageDetail: "Gói Cơ Bản",
-    date: "Chủ nhật, 27/10/2025",
+    date: "Thứ ba, 11/11/2025",
     time: "8:00 - 12:00 (4 giờ)",
     address: "789 Pasteur, P. Bến Nghé, Q.1, TP.HCM",
     phone: "0909 789 123",
@@ -83,6 +84,14 @@ const mockBookings: Booking[] = [
     status: "Mới",
     statusBadge: "Mới",
     avatar: "👵",
+    // Calculate deadline: 3 days before appointment date at 23:59:59
+    responseDeadline: (() => {
+      const appointmentDate = new Date(2025, 10, 11); // Month is 0-indexed, so 10 = November
+      const deadline = new Date(appointmentDate);
+      deadline.setDate(deadline.getDate() - 3);
+      deadline.setHours(23, 59, 59, 999);
+      return deadline.toISOString();
+    })(),
   },
   {
     id: "4",
@@ -197,7 +206,33 @@ export default function BookingManagement() {
     return diffDays > 3;
   };
 
+  // Calculate time remaining for deadline
+  const calculateTimeRemaining = (deadline: string) => {
+    const now = new Date().getTime();
+    const deadlineTime = new Date(deadline).getTime();
+    const diff = deadlineTime - now;
+
+    if (diff <= 0) {
+      return { hours: 0, minutes: 0, seconds: 0, isExpired: true };
+    }
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return { hours, minutes, seconds, isExpired: false };
+  };
+
   const handleAccept = (bookingId: string) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking?.responseDeadline) {
+      const remaining = calculateTimeRemaining(booking.responseDeadline);
+      if (remaining.isExpired) {
+        Alert.alert("Đã quá hạn", "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.");
+        return;
+      }
+    }
+    
     Alert.alert("Xác nhận", "Bạn có chắc chắn muốn chấp nhận yêu cầu này?", [
       { text: "Hủy", style: "cancel" },
       {
@@ -217,6 +252,15 @@ export default function BookingManagement() {
   };
 
   const handleReject = (bookingId: string) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking?.responseDeadline) {
+      const remaining = calculateTimeRemaining(booking.responseDeadline);
+      if (remaining.isExpired) {
+        Alert.alert("Đã quá hạn", "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.");
+        return;
+      }
+    }
+    
     Alert.alert("Từ chối", "Bạn có chắc chắn muốn từ chối yêu cầu này?", [
       { text: "Hủy", style: "cancel" },
       {
@@ -483,11 +527,25 @@ export default function BookingManagement() {
     navigation.navigate("Appointment Detail" as never, { appointmentId: bookingId, fromScreen: "booking" } as never);
   };
 
-  const renderBookingCard = ({ item, index }: { item: Booking; index: number }) => {
+  // Format deadline to "Phản hồi trước DD/MM"
+  const formatDeadlineDisplay = (deadline: string) => {
+    const deadlineDate = new Date(deadline);
+    const day = deadlineDate.getDate();
+    const month = deadlineDate.getMonth() + 1; // Month is 0-indexed
+    return `Phản hồi trước ${day}/${month}`;
+  };
+
+  // Booking Card Component
+  const BookingCard = ({ item }: { item: Booking }) => {
     // Get real-time status from global store
     const globalStatus = getAppointmentStatus(item.id);
     const currentStatus = globalStatus ? mapStatusToBookingStatus(globalStatus) : item.status;
     const hasComplained = getAppointmentHasComplained(item.id);
+    
+    // Check if deadline is expired (simple check, no countdown)
+    const isDeadlineExpired = item.responseDeadline 
+      ? new Date(item.responseDeadline).getTime() <= new Date().getTime()
+      : false;
     
     return (
       <TouchableOpacity 
@@ -555,20 +613,53 @@ export default function BookingManagement() {
           <Text style={styles.priceText}>{item.price.toLocaleString()}đ</Text>
         </View>
 
+        {/* Deadline Display - Only for new bookings */}
+        {currentStatus === "Mới" && item.responseDeadline && (
+          <View style={[
+            styles.deadlineDisplay,
+            isDeadlineExpired && styles.deadlineDisplayExpired
+          ]}>
+            <MaterialCommunityIcons 
+              name={isDeadlineExpired ? "clock-alert" : "clock-outline"} 
+              size={16} 
+              color={isDeadlineExpired ? "#EF4444" : "#F59E0B"} 
+            />
+            <Text style={[
+              styles.deadlineDisplayText,
+              isDeadlineExpired && styles.deadlineDisplayTextExpired
+            ]}>
+              {isDeadlineExpired 
+                ? "Đã quá hạn phản hồi" 
+                : formatDeadlineDisplay(item.responseDeadline)
+              }
+            </Text>
+          </View>
+        )}
+
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           {currentStatus === "Mới" && (
             <>
               <TouchableOpacity
-                style={[styles.actionButton, styles.rejectButton]}
+                style={[
+                  styles.actionButton, 
+                  styles.rejectButton,
+                  isDeadlineExpired && styles.actionButtonDisabled
+                ]}
                 onPress={() => handleReject(item.id)}
+                disabled={isDeadlineExpired}
               >
                 <MaterialCommunityIcons name="close" size={16} color="#EF4444" />
                 <Text style={styles.rejectButtonText}>Từ chối</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionButton, styles.acceptButton]}
+                style={[
+                  styles.actionButton, 
+                  styles.acceptButton,
+                  isDeadlineExpired && styles.actionButtonDisabled
+                ]}
                 onPress={() => handleAccept(item.id)}
+                disabled={isDeadlineExpired}
               >
                 <MaterialCommunityIcons name="check" size={16} color="#fff" />
                 <Text style={styles.acceptButtonText}>Chấp nhận</Text>
@@ -636,6 +727,10 @@ export default function BookingManagement() {
         </View>
       </TouchableOpacity>
     );
+  };
+
+  const renderBookingCard = ({ item, index }: { item: Booking; index: number }) => {
+    return <BookingCard item={item} />;
   };
 
   // Filter bookings by activeTab, using real-time status from global store
@@ -995,5 +1090,57 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#DC2626",
+  },
+  deadlineWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: "#F59E0B",
+  },
+  deadlineExpired: {
+    backgroundColor: "#FEE2E2",
+    borderLeftColor: "#EF4444",
+  },
+  deadlineText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#92400E",
+  },
+  deadlineTextExpired: {
+    color: "#991B1B",
+  },
+  actionButtonDisabled: {
+    opacity: 0.5,
+  },
+  deadlineDisplay: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 12,
+    gap: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: "#F59E0B",
+  },
+  deadlineDisplayExpired: {
+    backgroundColor: "#FEE2E2",
+    borderLeftColor: "#EF4444",
+  },
+  deadlineDisplayText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#92400E",
+  },
+  deadlineDisplayTextExpired: {
+    color: "#991B1B",
   },
 });
