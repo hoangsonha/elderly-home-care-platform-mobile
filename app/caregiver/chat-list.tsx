@@ -125,7 +125,8 @@ export default function ChatListScreen() {
     navigation.navigate("Tin nhắn", { 
       chatId: chat.id,
       chatName: chat.name,
-      chatAvatar: chat.avatar 
+      chatAvatar: chat.avatar,
+      fromScreen: "chat-list"
     });
   };
 

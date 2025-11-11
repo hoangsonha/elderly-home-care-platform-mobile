@@ -275,25 +275,25 @@ export const appointmentsDataMap: { [key: string]: any } = {
       ],
     },
     
-    notes: [
-      {
-        id: "N1",
-        time: "13:50",
-        author: "Caregiver",
-        content: "Đã liên hệ xác nhận, sẽ đến đúng giờ",
-        type: "info",
-      },
-    ],
+    notes: [],
     
     specialInstructions: "Ông có vấn đề về khớp, cần hỗ trợ nhẹ nhàng. Tránh để ông đứng hoặc ngồi quá lâu.",
   },
   "3": {
     id: "APT003",
     status: "new",
-    date: "2025-10-27",
+    date: "2025-11-11",
     timeSlot: "08:00 - 12:00",
     duration: "4 giờ",
     packageType: "Gói Cơ Bản",
+    // Calculate deadline: 3 days before appointment date at 23:59:59
+    responseDeadline: (() => {
+      const appointmentDate = new Date("2025-11-11");
+      const deadline = new Date(appointmentDate);
+      deadline.setDate(deadline.getDate() - 3);
+      deadline.setHours(23, 59, 59, 999);
+      return deadline.toISOString();
+    })(),
     
     elderly: {
       id: "E003",
@@ -613,6 +613,19 @@ export default function AppointmentDetailScreen() {
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
 
+  // Check if deadline is expired (simple check, no countdown)
+  const isDeadlineExpired = appointmentData.responseDeadline 
+    ? new Date(appointmentData.responseDeadline).getTime() <= new Date().getTime()
+    : false;
+
+  // Format deadline to "Phản hồi trước DD/MM"
+  const formatDeadlineDisplay = (deadline: string) => {
+    const deadlineDate = new Date(deadline);
+    const day = deadlineDate.getDate();
+    const month = deadlineDate.getMonth() + 1; // Month is 0-indexed
+    return `Phản hồi trước ${day}/${month}`;
+  };
+
   // Setup header back button based on fromScreen param
   useEffect(() => {
     const handleBack = () => {
@@ -739,17 +752,42 @@ export default function AppointmentDetailScreen() {
   
   // Xử lý các action buttons
   const handleAccept = () => {
-    alert("Đã chấp nhận lịch hẹn");
-    const newStatus = "pending";
-    setStatus(newStatus);
-    updateAppointmentStatus(appointmentId, newStatus);
+    if (isDeadlineExpired) {
+      Alert.alert("Đã quá hạn", "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.");
+      return;
+    }
+    Alert.alert("Xác nhận", "Bạn có chắc chắn muốn chấp nhận lịch hẹn này?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Chấp nhận",
+        onPress: () => {
+          const newStatus = "pending";
+          setStatus(newStatus);
+          updateAppointmentStatus(appointmentId, newStatus);
+          Alert.alert("Thành công", "Đã chấp nhận lịch hẹn");
+        },
+      },
+    ]);
   };
 
   const handleReject = () => {
-    alert("Đã từ chối lịch hẹn");
-    const newStatus = "rejected";
-    setStatus(newStatus);
-    updateAppointmentStatus(appointmentId, newStatus);
+    if (isDeadlineExpired) {
+      Alert.alert("Đã quá hạn", "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.");
+      return;
+    }
+    Alert.alert("Từ chối", "Bạn có chắc chắn muốn từ chối lịch hẹn này?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Từ chối",
+        style: "destructive",
+        onPress: () => {
+          const newStatus = "rejected";
+          setStatus(newStatus);
+          updateAppointmentStatus(appointmentId, newStatus);
+          Alert.alert("Đã từ chối", "Lịch hẹn đã bị từ chối");
+        },
+      },
+    ]);
   };
 
   // Check if there's a conflict with other in-progress appointments
@@ -906,8 +944,26 @@ export default function AppointmentDetailScreen() {
   };
 
   const handleMessage = () => {
-    alert("Chuyển đến trang nhắn tin");
-    // router.push("/caregiver/chat");
+    // Lấy thông tin người được chăm sóc (ưu tiên) hoặc người liên hệ khẩn cấp (fallback)
+    const contactName = appointmentData.elderly?.name || appointmentData.elderly?.emergencyContact?.name || "Người dùng";
+    
+    // Tạo avatar emoji dựa trên giới tính hoặc sử dụng emoji mặc định
+    let contactAvatar = "👤"; // Default
+    if (appointmentData.elderly?.gender === "Nam") {
+      contactAvatar = "👨";
+    } else if (appointmentData.elderly?.gender === "Nữ") {
+      contactAvatar = "👩";
+    }
+    
+    // Navigate to chat screen with contact information
+    (navigation.navigate as any)("Tin nhắn", {
+      clientName: contactName,
+      clientAvatar: contactAvatar,
+      chatName: contactName, // Fallback for chat.tsx
+      chatAvatar: contactAvatar, // Fallback for chat.tsx
+      fromScreen: "appointment-detail",
+      appointmentId: appointmentId,
+    });
   };
 
   // Note handlers
@@ -969,15 +1025,23 @@ export default function AppointmentDetailScreen() {
         return (
           <View style={styles.bottomActions}>
             <TouchableOpacity 
-              style={styles.actionButtonDanger}
+              style={[
+                styles.actionButtonDanger,
+                isDeadlineExpired && styles.actionButtonDisabled
+              ]}
               onPress={handleReject}
+              disabled={isDeadlineExpired}
             >
               <Ionicons name="close-circle" size={20} color="#fff" />
               <Text style={styles.actionButtonDangerText}>Từ chối</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.actionButtonSuccess}
+              style={[
+                styles.actionButtonSuccess,
+                isDeadlineExpired && styles.actionButtonDisabled
+              ]}
               onPress={handleAccept}
+              disabled={isDeadlineExpired}
             >
               <Ionicons name="checkmark-circle" size={20} color="#fff" />
               <Text style={styles.actionButtonSuccessText}>Chấp nhận</Text>
@@ -1164,6 +1228,29 @@ export default function AppointmentDetailScreen() {
           </View>
           <Text style={styles.appointmentId}>#{appointmentData.id}</Text>
         </View>
+
+        {/* Deadline Display - Only for new appointments */}
+        {status === "new" && appointmentData.responseDeadline && (
+          <View style={[
+            styles.deadlineDisplay,
+            isDeadlineExpired && styles.deadlineDisplayExpired
+          ]}>
+            <MaterialCommunityIcons 
+              name={isDeadlineExpired ? "clock-alert" : "clock-outline"} 
+              size={18} 
+              color={isDeadlineExpired ? "#EF4444" : "#F59E0B"} 
+            />
+            <Text style={[
+              styles.deadlineDisplayText,
+              isDeadlineExpired && styles.deadlineDisplayTextExpired
+            ]}>
+              {isDeadlineExpired 
+                ? "Đã quá hạn phản hồi" 
+                : formatDeadlineDisplay(appointmentData.responseDeadline)
+              }
+            </Text>
+          </View>
+        )}
 
         {/* Appointment Info */}
         <View style={[styles.section, styles.firstSection]}>
@@ -2319,5 +2406,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#fff",
+  },
+  deadlineCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
+    gap: 12,
+  },
+  deadlineCardExpired: {
+    backgroundColor: "#FEE2E2",
+    borderLeftColor: "#EF4444",
+  },
+  deadlineContent: {
+    flex: 1,
+  },
+  deadlineTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#92400E",
+    marginBottom: 4,
+  },
+  deadlineTitleExpired: {
+    color: "#991B1B",
+  },
+  deadlineTime: {
+    fontSize: 13,
+    color: "#92400E",
+    fontWeight: "600",
+  },
+  deadlineTimeExpired: {
+    color: "#991B1B",
+  },
+  deadlineWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 6,
+    width: "100%",
+  },
+  deadlineExpired: {
+    backgroundColor: "#FEE2E2",
+  },
+  deadlineText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#92400E",
+  },
+  deadlineTextExpired: {
+    color: "#991B1B",
+  },
+  actionButtonDisabled: {
+    opacity: 0.5,
+  },
+  deadlineDisplay: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    borderRadius: 12,
+    gap: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
+  },
+  deadlineDisplayExpired: {
+    backgroundColor: "#FEE2E2",
+    borderLeftColor: "#EF4444",
+  },
+  deadlineDisplayText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#92400E",
+  },
+  deadlineDisplayTextExpired: {
+    color: "#991B1B",
   },
 });

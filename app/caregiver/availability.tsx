@@ -86,7 +86,7 @@ const scheduleData = [
   },
   {
     id: "3",
-    date: new Date(2025, 9, 27), // Oct 27, 2025 (Chủ nhật)
+    date: new Date(2025, 10, 11), // Nov 11, 2025 (Thứ ba) - Month is 0-indexed, so 10 = November
     time: "8:00 - 12:00",
     duration: "4 giờ",
     name: "Bà Lê Thị Hoa",
