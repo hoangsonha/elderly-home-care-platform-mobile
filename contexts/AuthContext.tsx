@@ -21,6 +21,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User | null>;
   logout: () => void;
   updateProfile: (profile: Partial<User>) => void;
+  switchRole: (role: "Caregiver" | "Care Seeker") => void; // 👈 NEW
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,6 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // 🔥 NEW: Switch role for testing
+  const switchRole = (role: "Caregiver" | "Care Seeker") => {
+    if (user) {
+      const updatedUser = { ...user, role };
+      setUser(updatedUser);
+      console.log(`🔄 Switched role to: ${role}`);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -90,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         updateProfile,
+        switchRole, // 👈 Add to context
       }}
     >
       {children}

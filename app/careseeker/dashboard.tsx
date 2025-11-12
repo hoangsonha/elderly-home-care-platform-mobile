@@ -25,6 +25,7 @@ import { CustomModal } from '@/components/ui/CustomModal';
 import { NotificationPanel } from '@/components/ui/NotificationPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
+import { DevMenu } from '@/components/dev/DevMenu'; // 👈 NEW
 
 const { width } = Dimensions.get('window');
 
@@ -48,6 +49,7 @@ export default function DashboardScreen() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showDevMenu, setShowDevMenu] = useState(false); // 👈 NEW
   const [selectedCaregiver, setSelectedCaregiver] = useState<any>(null);
   
   // Request notification data - TODO: Fetch from API
@@ -307,10 +309,11 @@ export default function DashboardScreen() {
       // Simulate logout process
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-            setShowProfileModal(false);
+      setShowProfileModal(false);
       setShowLogoutModal(false);
-            logout();
-            router.replace('/(tabs)');
+      
+      // Logout will automatically redirect to splash/login due to AuthContext
+      logout();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -502,45 +505,49 @@ export default function DashboardScreen() {
               styles.modalContent,
               { opacity: fadeAnim, transform: [{ scale: fadeAnim }] }
             ]}
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}
           >
-            <TouchableOpacity activeOpacity={1}>
-              <View style={styles.modalHeader}>
-                <View style={styles.modalAvatar}>
-                  <Ionicons name="person" size={40} color="#68C2E8" />
-                </View>
-                <ThemedText style={styles.modalName}>
-                  {user?.name || 'Người dùng'}
-                </ThemedText>
-                <ThemedText style={styles.modalEmail}>
-                  {user?.email}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalAvatar}>
+                <Ionicons name="person" size={40} color="#68C2E8" />
+              </View>
+              <ThemedText style={styles.modalName}>
+                {user?.name || 'Người dùng'}
+              </ThemedText>
+              <ThemedText style={styles.modalEmail}>
+                {user?.email}
+              </ThemedText>
+            </View>
+
+            <View style={styles.modalInfo}>
+              <View style={styles.infoRow}>
+                <Ionicons name="call" size={20} color="#6c757d" />
+                <ThemedText style={styles.infoText}>
+                  {user?.phone || 'Chưa cập nhật'}
                 </ThemedText>
               </View>
-
-              <View style={styles.modalInfo}>
-                <View style={styles.infoRow}>
-                  <Ionicons name="call" size={20} color="#6c757d" />
-                  <ThemedText style={styles.infoText}>
-                    {user?.phone || 'Chưa cập nhật'}
-                  </ThemedText>
-                </View>
-                <View style={styles.infoRow}>
-                  <Ionicons name="location" size={20} color="#6c757d" />
-                  <ThemedText style={styles.infoText}>
-                    {user?.address || 'Chưa cập nhật'}
-                  </ThemedText>
-                </View>
-                <View style={styles.infoRow}>
-                  <Ionicons name="calendar" size={20} color="#6c757d" />
-                  <ThemedText style={styles.infoText}>
-                    {user?.dateOfBirth || 'Chưa cập nhật'}
-                  </ThemedText>
-                </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="location" size={20} color="#6c757d" />
+                <ThemedText style={styles.infoText}>
+                  {user?.address || 'Chưa cập nhật'}
+                </ThemedText>
               </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="calendar" size={20} color="#6c757d" />
+                <ThemedText style={styles.infoText}>
+                  {user?.dateOfBirth || 'Chưa cập nhật'}
+                </ThemedText>
+              </View>
+            </View>
 
-              <TouchableOpacity style={styles.logoutButtonModal} onPress={handleLogout}>
-                <Ionicons name="log-out-outline" size={20} color="white" />
-                <ThemedText style={styles.logoutButtonText}>Đăng xuất</ThemedText>
-              </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.logoutButtonModal} 
+              onPress={handleLogout}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="log-out-outline" size={20} color="white" />
+              <ThemedText style={styles.logoutButtonText}>Đăng xuất</ThemedText>
             </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>

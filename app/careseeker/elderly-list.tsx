@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import {
     StyleSheet,
     TouchableOpacity,
-    View
+    View,
+    ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,51 +13,14 @@ import ElderlyList from '@/components/elderly/ElderlyList';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { ElderlyProfile } from '@/types/elderly';
+import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ElderlyPerson = Pick<ElderlyProfile, 'id' | 'name' | 'age' | 'avatar' | 'family' | 'healthStatus' | 'currentCaregivers'> & { gender?: 'male' | 'female' };
 
-// Mock data
-const mockElderlyData: ElderlyPerson[] = [
-  {
-    id: '1',
-    name: 'Bà Nguyễn Thị Lan',
-    age: 78,
-    gender: 'female',
-    family: 'Gia đình Nguyễn Văn A',
-    healthStatus: 'good',
-    currentCaregivers: 2,
-  },
-  {
-    id: '2',
-    name: 'Ông Trần Văn Minh',
-    age: 82,
-    gender: 'male',
-    family: 'Gia đình Trần Thị B',
-    healthStatus: 'fair',
-    currentCaregivers: 1,
-  },
-  {
-    id: '3',
-    name: 'Bà Lê Thị Hoa',
-    age: 75,
-    gender: 'female',
-    family: 'Gia đình Lê Minh C',
-    healthStatus: 'poor',
-    currentCaregivers: 3,
-  },
-  {
-    id: '4',
-    name: 'Ông Phạm Văn Đức',
-    age: 80,
-    gender: 'male',
-    family: 'Gia đình Phạm Thị D',
-    healthStatus: 'good',
-    currentCaregivers: 1,
-  },
-];
-
 export default function ElderlyListScreen() {
-  const [elderlyData] = useState<ElderlyPerson[]>(mockElderlyData);
+  const { user } = useAuth();
+  const { profiles, loading, error, refresh } = useElderlyProfiles(user?.id || '');
 
   const handlePersonPress = (person: ElderlyPerson) => {
     router.push(`/careseeker/elderly-detail?id=${person.id}`);
@@ -65,6 +29,32 @@ export default function ElderlyListScreen() {
   const handleAddPerson = () => {
     router.push('/careseeker/add-elderly');
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2DC2D7" />
+          <ThemedText style={styles.loadingText}>Đang tải dữ liệu...</ThemedText>
+        </View>
+        <SimpleNavBar />
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ThemedText style={styles.errorText}>Lỗi: {error.message}</ThemedText>
+          <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+            <ThemedText style={styles.retryText}>Thử lại</ThemedText>
+          </TouchableOpacity>
+        </View>
+        <SimpleNavBar />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -85,7 +75,7 @@ export default function ElderlyListScreen() {
       </View>
 
       <ElderlyList
-        data={elderlyData}
+        data={profiles as any}
         showSearch={false}
         showStats={false}
         showCaregiverCount={false}
@@ -103,6 +93,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F7FA',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff0000',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#2DC2D7',
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#FFFFFF',

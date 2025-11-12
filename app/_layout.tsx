@@ -9,6 +9,8 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useDatabase } from "@/hooks/useDatabase";
+import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import "react-native-reanimated";
 
 export const unstable_settings = {
@@ -46,6 +48,24 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const { isReady, error } = useDatabase();
+
+  if (!isReady) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2DC2D7" />
+        <Text style={styles.loadingText}>Đang khởi tạo database...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.errorText}>Lỗi khởi tạo database: {error.message}</Text>
+      </View>
+    );
+  }
 
   return (
     <AuthProvider>
@@ -62,3 +82,23 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ff0000",
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+});

@@ -222,16 +222,10 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     console.log('Selected Package:', immediateData.selectedPackage);
     console.log('Work Location:', immediateData.workLocation);
     console.log('Selected Profiles:', selectedProfiles);
-    console.log('Selected Payment Method:', selectedPaymentMethod);
-    
-    if (!selectedPaymentMethod) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng chọn phương thức thanh toán');
-      return;
-    }
     
     setIsSubmitting(true);
     
-    // Simulate API call
+    // Simulate API call - Create booking without payment
     setTimeout(() => {
       console.log('=== API call completed ===');
       setIsSubmitting(false);
@@ -571,6 +565,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     );
   };
 
+  // Payment step removed - payment will be done after caregiver completes the booking
+  /*
   const renderStep4 = () => {
     console.log('=== Rendering Step 4 (Payment) ===');
     console.log('selectedPaymentMethod:', selectedPaymentMethod);
@@ -594,7 +590,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         <ThemedText style={styles.stepTitle}>Chọn phương thức thanh toán</ThemedText>
         
         <View style={styles.paymentContainer}>
-          {/* Total Amount Display */}
+          {/* Total Amount Display *\/}
           <View style={styles.paymentSummary}>
             <ThemedText style={styles.paymentSummaryLabel}>Tổng thanh toán:</ThemedText>
             <ThemedText style={styles.paymentSummaryAmount}>
@@ -602,7 +598,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             </ThemedText>
           </View>
 
-          {/* Payment Methods */}
+          {/* Payment Methods *\/}
           <View style={styles.paymentMethodsContainer}>
             <ThemedText style={styles.sectionSubtitle}>Phương thức thanh toán</ThemedText>
             
@@ -645,7 +641,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             ))}
           </View>
 
-          {/* Payment Details - QR Code */}
+          {/* Payment Details - QR Code *\/}
           {selectedPaymentMethod === 'qr_code' && (
             <View style={styles.paymentDetailsContainer}>
               <View style={styles.paymentDetailsHeader}>
@@ -681,7 +677,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             </View>
           )}
 
-          {/* Default Note */}
+          {/* Default Note *\/}
           {!selectedPaymentMethod && (
             <View style={styles.paymentNote}>
               <Ionicons name="information-circle-outline" size={20} color="#68C2E8" />
@@ -694,6 +690,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       </View>
     );
   };
+  */
 
   const renderCurrentStep = () => {
     console.log('=== renderCurrentStep ===');
@@ -709,9 +706,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       case 3: 
         console.log('Rendering Step 3');
         return renderStep3();
-      case 4:
-        console.log('Rendering Step 4');
-        return renderStep4();
       default: 
         console.log('Default: Rendering Step 1');
         return renderStep1();
@@ -730,7 +724,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           <View style={styles.headerContent}>
             <ThemedText style={styles.headerTitle}>Đặt lịch với {caregiver.name}</ThemedText>
             <ThemedText style={styles.headerSubtitle}>
-              Bước {currentStep}/4
+              Bước {currentStep}/3
             </ThemedText>
           </View>
 
@@ -743,7 +737,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             <View 
               style={[
                 styles.progressFill, 
-                { width: `${(currentStep / 4) * 100}%` }
+                { width: `${(currentStep / 3) * 100}%` }
               ]} 
             />
           </View>
@@ -777,8 +771,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
               } else if (currentStep === 2) {
                 handleNext();
               } else if (currentStep === 3) {
-                handleNext();
-              } else if (currentStep === 4) {
                 console.log('Calling handleSubmit');
                 handleSubmit();
               }
@@ -788,8 +780,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             <ThemedText style={styles.nextButtonText}>
               {isSubmitting ? 'Đang xử lý...' : 
                currentStep === 2 ? 'Xem trước' : 
-               currentStep === 3 ? 'Thanh toán' :
-               currentStep === 4 ? 'Xác nhận' : 'Tiếp theo'}
+               currentStep === 3 ? 'Xác nhận đặt lịch' : 'Tiếp theo'}
             </ThemedText>
             {!isSubmitting && (
               <Ionicons name="chevron-forward" size={20} color="white" />
@@ -1097,6 +1088,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                 Yêu cầu thuê ngay lập tức của bạn đã được gửi đi.
                 {'\n\n'}
                 Nhân viên chăm sóc sẽ liên hệ với bạn trong thời gian sớm nhất.
+                {'\n\n'}
+                <ThemedText style={styles.successMessageBold}>Lưu ý:</ThemedText> Bạn sẽ thanh toán sau khi nhân viên hoàn thành công việc.
               </ThemedText>
               
               <TouchableOpacity 
@@ -2055,6 +2048,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
+  },
+  successMessageBold: {
+    fontWeight: 'bold',
+    color: '#2c3e50',
   },
   successButton: {
     backgroundColor: '#68C2E8',

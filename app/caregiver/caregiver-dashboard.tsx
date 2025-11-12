@@ -1,9 +1,8 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
-import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Dimensions,
   ScrollView,
@@ -11,26 +10,14 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
+import { useAppointments } from "@/hooks/useDatabaseEntities";
 
 const { width: screenWidth } = Dimensions.get("window");
 const CARD_PADDING = 16; // paddingHorizontal của statsOuterContainer
 const CARD_GAP = 12; // gap giữa các card
 const CARD_WIDTH = (screenWidth - CARD_PADDING * 2 - CARD_GAP) / 2;
-
-const initialTodayAppointments = [
-  {
-    id: "1",
-    client: "Bà Nguyễn Thị Lan",
-    age: 75,
-    type: "Gói Cao Cấp",
-    time: "08:00 - 16:00",
-    address: "123 Nguyễn Văn Linh, Q7",
-    status: "Đang thực hiện",
-    statusColor: "#8B5CF6",
-    avatar: "👵",
-  },
-];
 
 // Map appointment status to dashboard status display
 const mapStatusToDashboard = (status: string | undefined) => {
@@ -65,8 +52,12 @@ const caregiverStats = {
 export default function CaregiverDashboardScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const [todayAppointments, setTodayAppointments] = useState(initialTodayAppointments);
+  const { appointments, loading, error, refresh } = useAppointments(user?.id || '');
   const [, setRefreshKey] = useState(0); // For triggering re-render when status changes
+
+  // Get today's appointments
+  const today = new Date().toISOString().split('T')[0];
+  const todayAppointments = appointments.filter(apt => apt.start_date === today);
 
   // Check profile status and navigate accordingly
   useFocusEffect(
@@ -105,42 +96,31 @@ export default function CaregiverDashboardScreen() {
     }, [user, navigation])
   );
 
-  // Subscribe to status changes from global store
-  useEffect(() => {
-    const unsubscribe = subscribeToStatusChanges(() => {
-      // Update appointments with real-time status when status changes
-      setTodayAppointments(
-        initialTodayAppointments.map((appointment) => {
-          const globalStatus = getAppointmentStatus(appointment.id);
-          const statusInfo = mapStatusToDashboard(globalStatus || "in-progress");
-          return {
-            ...appointment,
-            status: statusInfo.text,
-            statusColor: statusInfo.color,
-          };
-        })
-      );
-      // Trigger re-render
-      setRefreshKey(prev => prev + 1);
-    });
-    
-    // Initial update
-    setTodayAppointments(
-      initialTodayAppointments.map((appointment) => {
-        const globalStatus = getAppointmentStatus(appointment.id);
-        const statusInfo = mapStatusToDashboard(globalStatus || "in-progress");
-        return {
-          ...appointment,
-          status: statusInfo.text,
-          statusColor: statusInfo.color,
-        };
-      })
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2DC2D7" />
+          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+        </View>
+        <CaregiverBottomNav />
+      </View>
     );
-    
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>Lỗi: {error.message}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+            <Text style={styles.retryText}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
+        <CaregiverBottomNav />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -195,62 +175,73 @@ export default function CaregiverDashboardScreen() {
           <Text style={styles.scheduleTitle}>Lịch hôm nay</Text>
         </View>
 
-        {todayAppointments.map((appointment) => (
-          <TouchableOpacity 
-            key={appointment.id} 
-            style={styles.appointmentCard}
-            onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id, fromScreen: "dashboard" })}
-            activeOpacity={0.7}
-          >
-            <View style={styles.appointmentHeader}>
-              <View style={styles.appointmentInfo}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarEmoji}>{appointment.avatar}</Text>
+        {todayAppointments.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Không có lịch hẹn nào hôm nay</Text>
+          </View>
+        ) : (
+          todayAppointments.map((appointment: any) => {
+            const statusInfo = mapStatusToDashboard(appointment.status);
+            return (
+              <TouchableOpacity 
+                key={appointment.id} 
+                style={styles.appointmentCard}
+                onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id, fromScreen: "dashboard" })}
+                activeOpacity={0.7}
+              >
+                <View style={styles.appointmentHeader}>
+                  <View style={styles.appointmentInfo}>
+                    <View style={styles.avatarCircle}>
+                      <Text style={styles.avatarEmoji}>👤</Text>
+                    </View>
+                    <View style={styles.appointmentDetails}>
+                      <Text style={styles.appointmentName}>
+                        {appointment.elderly_profile_id}
+                      </Text>
+                      <Text style={styles.appointmentMeta}>
+                        {appointment.package_type || 'Gói cơ bản'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: statusInfo.color }]}>
+                    <Text style={styles.statusBadgeText}>{statusInfo.text}</Text>
+                  </View>
                 </View>
-                <View style={styles.appointmentDetails}>
-                  <Text style={styles.appointmentName}>
-                    {appointment.client}
-                  </Text>
-                  <Text style={styles.appointmentMeta}>
-                    {appointment.age} tuổi • {appointment.type}
-                  </Text>
-                </View>
-              </View>
-            </View>
 
-            <View style={styles.appointmentFooter}>
-              <View style={styles.appointmentTimeLocation}>
-                <View style={styles.timeRow}>
-                  <Text style={styles.timeIcon}>🕐</Text>
-                  <Text style={styles.timeText}>{appointment.time}</Text>
-                </View>
-                <View style={styles.locationRow}>
-                  <Text style={styles.locationIcon}>📍</Text>
-                  <Text style={styles.locationText}>{appointment.address}</Text>
-                </View>
-              </View>
+                <View style={styles.appointmentFooter}>
+                  <View style={styles.appointmentTimeLocation}>
+                    <View style={styles.timeRow}>
+                      <Text style={styles.timeIcon}>🕐</Text>
+                      <Text style={styles.timeText}>{appointment.start_time} - {appointment.end_time}</Text>
+                    </View>
+                    <View style={styles.locationRow}>
+                      <Text style={styles.locationIcon}>📍</Text>
+                      <Text style={styles.locationText}>{appointment.work_location || 'Chưa có địa chỉ'}</Text>
+                    </View>
+                  </View>
 
-              <View style={styles.appointmentActions}>
-                <TouchableOpacity 
-                  style={styles.detailButton}
-                  onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id, fromScreen: "dashboard" })}
-                >
-                  <Text style={styles.detailButtonText}>Xem chi tiết</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.contactButton}
-                  onPress={() => navigation.navigate("Tin nhắn", { 
-                    clientName: appointment.client,
-                    clientAvatar: appointment.avatar,
-                    fromScreen: "dashboard"
-                  })}
-                >
-                  <Text style={styles.contactButtonText}>Liên hệ</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+                  <View style={styles.appointmentActions}>
+                    <TouchableOpacity 
+                      style={styles.detailButton}
+                      onPress={() => navigation.navigate("Appointment Detail", { appointmentId: appointment.id, fromScreen: "dashboard" })}
+                    >
+                      <Text style={styles.detailButtonText}>Xem chi tiết</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.contactButton}
+                      onPress={() => navigation.navigate("Tin nhắn", { 
+                        clientId: appointment.user_id,
+                        fromScreen: "dashboard"
+                      })}
+                    >
+                      <Text style={styles.contactButtonText}>Liên hệ</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        )}
       </View>
 
       {/* Statistics Cards */}
@@ -305,6 +296,53 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff0000',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#2DC2D7',
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   scrollContainer: {
@@ -510,11 +548,6 @@ const styles = StyleSheet.create({
   appointmentMeta: {
     fontSize: 13,
     color: "#6B7280",
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
   },
   statusText: {
     color: "#fff",

@@ -2324,6 +2324,11 @@ available-typed-arrays@^1.0.7:
   dependencies:
     possible-typed-array-names "^1.0.0"
 
+await-lock@^2.2.2:
+  version "2.2.2"
+  resolved "https://registry.npmjs.org/await-lock/-/await-lock-2.2.2.tgz"
+  integrity sha512-aDczADvlvTGajTDjcjpJMqRkOF6Qdz3YbPZm/PyW6tKPkx2hlYBzxMhEywM/tU72HrVZjgl5VCdRuMlA7pZ8Gw==
+
 axios@^1.12.2:
   version "1.12.2"
   resolved "https://registry.npmjs.org/axios/-/axios-1.12.2.tgz"
@@ -3618,6 +3623,13 @@ expo-splash-screen@~31.0.10:
   integrity sha512-i6g9IK798mae4yvflstQ1HkgahIJ6exzTCTw4vEdxV0J2SwiW3Tj+CwRjf0te7Zsb+7dDQhBTmGZwdv00VER2A==
   dependencies:
     "@expo/prebuild-config" "^54.0.3"
+
+expo-sqlite@^16.0.9:
+  version "16.0.9"
+  resolved "https://registry.npmjs.org/expo-sqlite/-/expo-sqlite-16.0.9.tgz"
+  integrity sha512-pMT52pTko539yZZQUZYfGiAYxQvpTUZIp/dwi2+IidSjPWB2wJi96ByaoNAzxmucarsYZN1F46C1Le6eT2VLkA==
+  dependencies:
+    await-lock "^2.2.2"
 
 expo-status-bar@~3.0.8:
   version "3.0.8"

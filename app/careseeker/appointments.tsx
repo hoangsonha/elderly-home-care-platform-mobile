@@ -5,118 +5,23 @@ import {
     FlatList,
     StyleSheet,
     TouchableOpacity,
-    View
+    View,
+    ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
-
-interface Appointment {
-  id: string;
-  caregiverId: string;
-  caregiverName: string;
-  caregiverAvatar: string;
-  caregiverRating: number;
-  elderlyName: string;
-  elderlyAge: number;
-  date: string;
-  timeSlot: string;
-  duration: string;
-  packageType: string;
-  address: string;
-  status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
-  amount: number;
-}
-
-const mockAppointments: Appointment[] = [
-  {
-    id: '1',
-    caregiverId: 'CG001',
-    caregiverName: 'Trần Văn Nam',
-    caregiverAvatar: 'https://via.placeholder.com/100',
-    caregiverRating: 4.8,
-    elderlyName: 'Bà Nguyễn Thị Lan',
-    elderlyAge: 75,
-    date: '25/01/2025',
-    timeSlot: '08:00 - 12:00',
-    duration: '4 giờ',
-    packageType: 'Gói cơ bản',
-    address: '123 Lê Lợi, P. Bến Thành, Q.1, TP.HCM',
-    status: 'completed',
-    amount: 400000, // Gói cơ bản 4h
-  },
-  {
-    id: '2',
-    caregiverId: 'CG002',
-    caregiverName: 'Nguyễn Thị Mai',
-    caregiverAvatar: 'https://via.placeholder.com/100',
-    caregiverRating: 4.5,
-    elderlyName: 'Ông Trần Văn Minh',
-    elderlyAge: 82,
-    date: '26/01/2025',
-    timeSlot: '14:00 - 22:00',
-    duration: '8 giờ',
-    packageType: 'Gói chuyên nghiệp',
-    address: '456 Đường XYZ, Quận 2, TP.HCM',
-    status: 'in-progress',
-    amount: 750000, // Gói chuyên nghiệp 8h
-  },
-  {
-    id: '3',
-    caregiverId: 'CG003',
-    caregiverName: 'Lê Thị Hoa',
-    caregiverAvatar: 'https://via.placeholder.com/100',
-    caregiverRating: 4.2,
-    elderlyName: 'Bà Phạm Thị Mai',
-    elderlyAge: 70,
-    date: '27/01/2025',
-    timeSlot: '08:00 - 12:00',
-    duration: '4 giờ',
-    packageType: 'Gói cơ bản',
-    address: '789 Đường DEF, Quận 3, TP.HCM',
-    status: 'confirmed',
-    amount: 400000, // Gói cơ bản 4h
-  },
-  {
-    id: '4',
-    caregiverId: 'CG004',
-    caregiverName: 'Phạm Văn Hùng',
-    caregiverAvatar: 'https://via.placeholder.com/100',
-    caregiverRating: 4.6,
-    elderlyName: 'Ông Lê Văn Thành',
-    elderlyAge: 78,
-    date: '28/01/2025',
-    timeSlot: '08:00 - 16:00',
-    duration: '8 giờ',
-    packageType: 'Gói nâng cao',
-    address: '321 Nguyễn Huệ, Quận 1, TP.HCM',
-    status: 'pending',
-    amount: 1100000, // Gói nâng cao 8h
-  },
-  {
-    id: '5',
-    caregiverId: 'CG001',
-    caregiverName: 'Trần Văn Nam',
-    caregiverAvatar: 'https://via.placeholder.com/100',
-    caregiverRating: 4.8,
-    elderlyName: 'Bà Nguyễn Thị Lan',
-    elderlyAge: 75,
-    date: '22/01/2025',
-    timeSlot: '08:00 - 12:00',
-    duration: '4 giờ',
-    packageType: 'Gói cơ bản',
-    address: '123 Lê Lợi, P. Bến Thành, Q.1, TP.HCM',
-    status: 'cancelled',
-    amount: 400000, // Gói cơ bản 4h
-  },
-];
+import { useAppointments } from '@/hooks/useDatabaseEntities';
+import { useAuth } from '@/contexts/AuthContext';
+import { Appointment } from '@/services/database.types';
 
 type StatusTab = 'all' | 'upcoming' | 'completed' | 'cancelled';
 
 export default function AppointmentsScreen() {
+  const { user } = useAuth();
+  const { appointments, loading, error, refresh } = useAppointments(user?.id || '');
   const [activeTab, setActiveTab] = useState<StatusTab>('all');
-
   const handleAppointmentPress = (appointment: Appointment) => {
     router.push({
       pathname: '/careseeker/appointment-detail',
@@ -126,28 +31,54 @@ export default function AppointmentsScreen() {
     });
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2DC2D7" />
+          <ThemedText style={styles.loadingText}>Đang tải lịch hẹn...</ThemedText>
+        </View>
+        <SimpleNavBar />
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ThemedText style={styles.errorText}>Lỗi: {error.message}</ThemedText>
+          <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+            <ThemedText style={styles.retryText}>Thử lại</ThemedText>
+          </TouchableOpacity>
+        </View>
+        <SimpleNavBar />
+      </SafeAreaView>
+    );
+  }
+
   const getFilteredAppointments = () => {
     if (activeTab === 'all') {
-      return mockAppointments;
+      return appointments;
     }
     if (activeTab === 'upcoming') {
-      return mockAppointments.filter(apt => 
+      return appointments.filter(apt => 
         apt.status === 'pending' || apt.status === 'confirmed' || apt.status === 'in-progress'
       );
     }
-    return mockAppointments.filter(appointment => appointment.status === activeTab);
+    return appointments.filter(appointment => appointment.status === activeTab);
   };
 
   const getTabCount = (tab: StatusTab) => {
     if (tab === 'all') {
-      return mockAppointments.length;
+      return appointments.length;
     }
     if (tab === 'upcoming') {
-      return mockAppointments.filter(apt => 
+      return appointments.filter(apt => 
         apt.status === 'pending' || apt.status === 'confirmed' || apt.status === 'in-progress'
       ).length;
     }
-    return mockAppointments.filter(appointment => appointment.status === tab).length;
+    return appointments.filter(appointment => appointment.status === tab).length;
   };
 
   const getStatusColor = (status: string) => {
@@ -172,7 +103,7 @@ export default function AppointmentsScreen() {
     }
   };
 
-  const renderAppointment = ({ item }: { item: Appointment }) => (
+  const renderAppointment = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.appointmentCard}
       onPress={() => handleAppointmentPress(item)}
@@ -190,14 +121,14 @@ export default function AppointmentsScreen() {
         <View style={styles.infoRow}>
           <View style={styles.avatarContainer}>
             <ThemedText style={styles.avatarText}>
-              {item.caregiverName.charAt(0)}
+              {item.caregiver_id?.charAt(0) || 'C'}
             </ThemedText>
           </View>
           <View style={styles.infoContent}>
-            <ThemedText style={styles.caregiverName}>{item.caregiverName}</ThemedText>
+            <ThemedText style={styles.caregiverName}>Caregiver {item.caregiver_id}</ThemedText>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color="#FFB648" />
-              <ThemedText style={styles.ratingText}>{item.caregiverRating}</ThemedText>
+              <ThemedText style={styles.ratingText}>4.5</ThemedText>
             </View>
           </View>
         </View>
@@ -207,19 +138,19 @@ export default function AppointmentsScreen() {
         <View style={styles.detailsGrid}>
           <View style={styles.detailItem}>
             <Ionicons name="person" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText}>{item.elderlyName}</ThemedText>
+            <ThemedText style={styles.detailText}>Elderly {item.elderly_profile_id}</ThemedText>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="calendar" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText}>{item.date}</ThemedText>
+            <ThemedText style={styles.detailText}>{item.start_date}</ThemedText>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="time" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText}>{item.timeSlot}</ThemedText>
+            <ThemedText style={styles.detailText}>{item.start_time} - {item.end_time}</ThemedText>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="location" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText} numberOfLines={1}>{item.address}</ThemedText>
+            <ThemedText style={styles.detailText} numberOfLines={1}>{item.work_location || 'N/A'}</ThemedText>
           </View>
         </View>
 
@@ -227,10 +158,10 @@ export default function AppointmentsScreen() {
 
         <View style={styles.footer}>
           <View style={styles.packageBadge}>
-            <ThemedText style={styles.packageText}>{item.packageType}</ThemedText>
+            <ThemedText style={styles.packageText}>{item.package_type || 'Gói cơ bản'}</ThemedText>
           </View>
           <ThemedText style={styles.amountText}>
-            {item.amount.toLocaleString('vi-VN')} đ
+            {(item.total_amount || 0).toLocaleString('vi-VN')} đ
           </ThemedText>
         </View>
       </View>
@@ -318,6 +249,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F4F9FD',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F4F9FD',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff0000',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#2DC2D7',
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#68C2E8',

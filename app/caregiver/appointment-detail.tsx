@@ -1,4 +1,5 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { PaymentCode } from "@/components/caregiver/PaymentCode";
 import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
@@ -612,6 +613,9 @@ export default function AppointmentDetailScreen() {
   const [notes, setNotes] = useState(appointmentData.notes);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
+  
+  // Payment code modal state
+  const [showPaymentCodeModal, setShowPaymentCodeModal] = useState(false);
 
   // Check if deadline is expired (simple check, no countdown)
   const isDeadlineExpired = appointmentData.responseDeadline 
@@ -895,7 +899,8 @@ export default function AppointmentDetailScreen() {
             const newStatus = "completed";
             setStatus(newStatus);
             updateAppointmentStatus(appointmentId, newStatus);
-            Alert.alert("Thành công", "Đã hoàn thành ca làm việc");
+            // Show payment code modal instead of alert
+            setShowPaymentCodeModal(true);
           }
         }
       ]
@@ -1636,6 +1641,16 @@ export default function AppointmentDetailScreen() {
         </View>
       </View>
     </Modal>
+
+    {/* Payment Code Modal */}
+    <PaymentCode
+      visible={showPaymentCodeModal}
+      onClose={() => setShowPaymentCodeModal(false)}
+      bookingId={appointmentData.id}
+      amount={250000} // You can calculate this based on package type
+      caregiverName="Người chăm sóc" // Or get from auth context
+      completedAt={new Date()}
+    />
   </View>
 );
 }
