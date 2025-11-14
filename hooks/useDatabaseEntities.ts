@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import * as ElderlyRepository from '@/services/elderly.repository';
-import * as CaregiverRepository from '@/services/caregiver.repository';
 import * as AppointmentRepository from '@/services/appointment.repository';
-import { ElderlyProfile, Caregiver, Appointment } from '@/services/database.types';
+import * as CaregiverRepository from '@/services/caregiver.repository';
+import { Appointment, Caregiver, ElderlyProfile } from '@/services/database.types';
+import * as ElderlyRepository from '@/services/elderly.repository';
+import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Hook to manage elderly profiles
@@ -143,7 +143,7 @@ export const useCaregivers = () => {
 /**
  * Hook to manage appointments
  */
-export const useAppointments = (userId: string) => {
+export const useAppointments = (userId: string, role?: string) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -153,7 +153,14 @@ export const useAppointments = (userId: string) => {
     
     setLoading(true);
     try {
-      const data = await AppointmentRepository.getAllAppointments(userId);
+      let data;
+      // If user is caregiver, get appointments by caregiver_id
+      if (role === 'Caregiver') {
+        data = await AppointmentRepository.getAppointmentsByCaregiver(userId);
+      } else {
+        // Otherwise get by user_id (care seeker)
+        data = await AppointmentRepository.getAllAppointments(userId);
+      }
       setAppointments(data);
       setError(null);
     } catch (err) {
@@ -162,7 +169,7 @@ export const useAppointments = (userId: string) => {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, role]);
 
   useEffect(() => {
     fetchAppointments();

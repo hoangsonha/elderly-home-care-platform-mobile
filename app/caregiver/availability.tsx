@@ -2,9 +2,12 @@
 // AvailabilityScreen.js
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import AvailabilityModal from "@/components/schedule/AvailabilityModal";
+import { useAuth } from "@/contexts/AuthContext";
 import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
+import { useAppointments } from "@/hooks/useDatabaseEntities";
+import * as ElderlyRepository from "@/services/elderly.repository";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
@@ -12,10 +15,31 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 const { width } = Dimensions.get("window");
+
+// Parse Vietnamese date format "T5, 13 Thg 11 2025" to Date object
+const parseVietnameseDate = (dateStr: string): Date | null => {
+  if (!dateStr) return null;
+  
+  // Match pattern: "T5, 13 Thg 11 2025" or "CN, 16 Thg 11 2025"
+  const match = dateStr.match(/(\d{1,2})\s+Thg\s+(\d{1,2})\s+(\d{4})/);
+  if (match) {
+    const day = parseInt(match[1]);
+    const month = parseInt(match[2]) - 1; // Month is 0-indexed in Date
+    const year = parseInt(match[3]);
+    return new Date(year, month, day);
+  }
+  
+  // If already in YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr);
+  }
+  
+  return null;
+};
 
 // Initial mock data for availability (lịch rảnh đã set)
 const initialAvailabilityData = [
@@ -100,11 +124,48 @@ const scheduleData = [
 
 export default function AvailabilityScreen() {
   const navigation = useNavigation();
+  const { user } = useAuth();
+  const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
+  
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
   const [availabilityData, setAvailabilityData] = useState(initialAvailabilityData);
-  const [, setRefreshKey] = useState(0); // For triggering re-render when status changes
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>({});
+
+  // Load elderly names for appointments
+  useEffect(() => {
+    const loadElderlyNames = async () => {
+      const names: { [key: string]: string } = {};
+      for (const apt of appointments) {
+        if (apt.elderly_profile_id && !names[apt.elderly_profile_id]) {
+          try {
+            const elderly = await ElderlyRepository.getElderlyProfileById(apt.elderly_profile_id);
+            if (elderly) {
+              names[apt.elderly_profile_id] = elderly.name;
+            }
+          } catch (err) {
+            console.error('Error loading elderly profile:', err);
+          }
+        }
+      }
+      setElderlyNames(names);
+    };
+
+    if (appointments.length > 0) {
+      loadElderlyNames();
+    }
+  }, [appointments]);
+
+  // Refresh appointments when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        refresh();
+      }
+    }, [user?.id, refresh])
+  );
 
   // Handler for opening modal
   const handleOpenModal = useCallback(() => {
@@ -175,12 +236,15 @@ export default function AvailabilityScreen() {
         item.date.getFullYear() === year
     );
 
-    const hasAppointment = scheduleData.some(
-      (item) =>
-        item.date.getDate() === day &&
-        item.date.getMonth() === month &&
-        item.date.getFullYear() === year
-    );
+    const hasAppointment = appointments.some((item) => {
+      if (item.status === 'cancelled' || item.status === 'rejected') return false; // Skip cancelled/rejected
+      const parsedDate = parseVietnameseDate(item.start_date);
+      if (!parsedDate) return false;
+      
+      return parsedDate.getDate() === day &&
+             parsedDate.getMonth() === month &&
+             parsedDate.getFullYear() === year;
+    });
 
     if (!availability) {
       return null; // No availability set (busy by default)
@@ -199,12 +263,16 @@ export default function AvailabilityScreen() {
     return "mixed"; // Has time slots set but no appointment - still show split color
   };
 
-  // Get dates with schedule
+  // Get dates with schedule from real appointments (excluding cancelled and rejected)
   const getDatesWithSchedule = () => {
     const dates = new Set<string>();
-    scheduleData.forEach(item => {
-      const dateStr = `${item.date.getDate()}-${item.date.getMonth()}-${item.date.getFullYear()}`;
-      dates.add(dateStr);
+    appointments.forEach(item => {
+      if (item.status === 'cancelled' || item.status === 'rejected') return; // Skip cancelled/rejected
+      const parsedDate = parseVietnameseDate(item.start_date);
+      if (parsedDate) {
+        const dateStr = `${parsedDate.getDate()}-${parsedDate.getMonth()}-${parsedDate.getFullYear()}`;
+        dates.add(dateStr);
+      }
     });
     return dates;
   };
@@ -232,13 +300,17 @@ export default function AvailabilityScreen() {
            year === selectedDate.getFullYear();
   };
 
-  // Get schedule for selected date
+  // Get schedule for selected date from real appointments (excluding cancelled and rejected)
   const getScheduleForDate = () => {
-    return scheduleData.filter(item => 
-      item.date.getDate() === selectedDate.getDate() &&
-      item.date.getMonth() === selectedDate.getMonth() &&
-      item.date.getFullYear() === selectedDate.getFullYear()
-    );
+    return appointments.filter(item => {
+      if (item.status === 'cancelled' || item.status === 'rejected') return false; // Skip cancelled/rejected
+      const parsedDate = parseVietnameseDate(item.start_date);
+      if (!parsedDate) return false;
+      
+      return parsedDate.getDate() === selectedDate.getDate() &&
+             parsedDate.getMonth() === selectedDate.getMonth() &&
+             parsedDate.getFullYear() === selectedDate.getFullYear();
+    });
   };
 
   const scheduleForSelectedDate = getScheduleForDate();
@@ -344,11 +416,14 @@ export default function AvailabilityScreen() {
           {hasScheduleFlag && (
             <View style={styles.scheduleIndicator}>
               <View style={styles.scheduleIndicatorDot} />
-              {scheduleData.filter(item => 
-                item.date.getDate() === day &&
-                item.date.getMonth() === month &&
-                item.date.getFullYear() === year
-              ).length > 1 && (
+              {appointments.filter(item => {
+                if (item.status === 'cancelled' || item.status === 'rejected') return false; // Skip cancelled/rejected
+                const parsedDate = parseVietnameseDate(item.start_date);
+                if (!parsedDate) return false;
+                return parsedDate.getDate() === day &&
+                       parsedDate.getMonth() === month &&
+                       parsedDate.getFullYear() === year;
+              }).length > 1 && (
                 <View style={[styles.scheduleIndicatorDot, { marginLeft: 2 }]} />
               )}
             </View>
@@ -460,6 +535,12 @@ export default function AvailabilityScreen() {
               // Get real-time status from global store
               const currentStatus = getAppointmentStatus(item.id) || item.status;
               
+              // Skip cancelled and rejected appointments
+              if (currentStatus === 'cancelled' || currentStatus === 'rejected') return null;
+              
+              // Get elderly name
+              const elderlyName = elderlyNames[item.elderly_profile_id] || 'Đang tải...';
+              
               // Determine card border color based on status
               const getStatusBorderColor = () => {
                 switch (currentStatus) {
@@ -482,8 +563,9 @@ export default function AvailabilityScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.scheduleTime}>
-                    <Text style={styles.scheduleTimeText}>{item.time}</Text>
-                    <Text style={styles.scheduleDuration}>{item.duration}</Text>
+                    <Text style={styles.scheduleTimeText}>
+                      {item.start_time}
+                    </Text>
                   </View>
 
                   <View style={styles.scheduleDetails}>
@@ -492,23 +574,25 @@ export default function AvailabilityScreen() {
                     </View>
 
                     <View style={styles.scheduleInfo}>
-                      <Text style={styles.scheduleName}>{item.name}</Text>
+                      <Text style={styles.scheduleName}>{elderlyName}</Text>
                       
                       <View style={styles.scheduleServiceRow}>
                         <MaterialCommunityIcons name="heart-pulse" size={16} color="#7C3AED" />
                         <Text style={styles.scheduleService}>
-                          Gói {item.category}
+                          {item.package_type || 'Gói cơ bản'}
                         </Text>
                       </View>
 
                       <View style={styles.scheduleAddressRow}>
                         <MaterialCommunityIcons name="map-marker" size={16} color="#EF4444" />
-                        <Text style={styles.scheduleAddress}>{item.address}</Text>
+                        <Text style={styles.scheduleAddress}>{item.work_location || 'N/A'}</Text>
                       </View>
 
                       <View style={styles.schedulePriceRow}>
                         <MaterialCommunityIcons name="cash" size={16} color="#F59E0B" />
-                        <Text style={styles.schedulePrice}>{item.price}</Text>
+                        <Text style={styles.schedulePrice}>
+                          {(item.total_amount || 0).toLocaleString('vi-VN')} đ
+                        </Text>
                       </View>
                     </View>
 

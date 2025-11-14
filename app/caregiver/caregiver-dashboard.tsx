@@ -1,18 +1,20 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
+import { useAppointments } from "@/hooks/useDatabaseEntities";
+import * as ElderlyRepository from "@/services/elderly.repository";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
-import { useAppointments } from "@/hooks/useDatabaseEntities";
 
 const { width: screenWidth } = Dimensions.get("window");
 const CARD_PADDING = 16; // paddingHorizontal của statsOuterContainer
@@ -49,20 +51,132 @@ const caregiverStats = {
   satisfactionRate: 95,
 };
 
+// Parse Vietnamese date format "T5, 13 Thg 11 2025" to "YYYY-MM-DD"
+const parseVietnameseDate = (dateStr: string): string | null => {
+  if (!dateStr) return null;
+  
+  // Match pattern: "T5, 13 Thg 11 2025" or "CN, 16 Thg 11 2025"
+  const match = dateStr.match(/(\d{1,2})\s+Thg\s+(\d{1,2})\s+(\d{4})/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // If already in YYYY-MM-DD format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  return null;
+};
+
 export default function CaregiverDashboardScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const { appointments, loading, error, refresh } = useAppointments(user?.id || '');
-  const [, setRefreshKey] = useState(0); // For triggering re-render when status changes
+  const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>({});
 
-  // Get today's appointments
-  const today = new Date().toISOString().split('T')[0];
-  const todayAppointments = appointments.filter(apt => apt.start_date === today);
+  // Load elderly names for appointments
+  useEffect(() => {
+    const loadElderlyNames = async () => {
+      const names: { [key: string]: string } = {};
+      for (const apt of appointments) {
+        if (apt.elderly_profile_id && !names[apt.elderly_profile_id]) {
+          try {
+            const elderly = await ElderlyRepository.getElderlyProfileById(apt.elderly_profile_id);
+            if (elderly) {
+              names[apt.elderly_profile_id] = elderly.name;
+            }
+          } catch (err) {
+            console.error('Error loading elderly profile:', err);
+          }
+        }
+      }
+      setElderlyNames(names);
+    };
+
+    if (appointments.length > 0) {
+      loadElderlyNames();
+    }
+  }, [appointments]);
+
+  // Refresh appointments when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        refresh();
+      }
+    }, [user?.id, refresh])
+  );
+
+  // Subscribe to status changes
+  useEffect(() => {
+    const unsubscribe = subscribeToStatusChanges(() => {
+      setRefreshKey(prev => prev + 1);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Get today's appointments (only confirmed or in-progress)
+  const today = new Date();
+  // Use local date, not UTC
+  const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  console.log('🔍 DEBUG Dashboard:');
+  console.log('  Today date:', todayDateString);
+  console.log('  Total appointments:', appointments.length);
+  console.log('  User ID:', user?.id);
+  console.log('  User role:', user?.role);
+  
+  appointments.forEach((apt, index) => {
+    const globalStatus = getAppointmentStatus(apt.id);
+    const parsedDate = parseVietnameseDate(apt.start_date);
+    console.log(`  [${index}] ID: ${apt.id}`);
+    console.log(`      Date: ${apt.start_date}`);
+    console.log(`      Parsed Date: ${parsedDate}`);
+    console.log(`      DB Status: ${apt.status}`);
+    console.log(`      Global Status: ${globalStatus}`);
+    console.log(`      Match today: ${parsedDate === todayDateString}`);
+  });
+  
+  const todayAppointments = appointments.filter(apt => {
+    // Check global store status first
+    const globalStatus = getAppointmentStatus(apt.id);
+    const currentStatus = globalStatus || apt.status;
+    
+    // Parse Vietnamese date format to YYYY-MM-DD
+    const parsedDate = parseVietnameseDate(apt.start_date);
+    
+    // Check if appointment is for today
+    const isToday = parsedDate === todayDateString;
+    
+    // Check if appointment is accepted (confirmed, pending, or in-progress)
+    // 'pending' here means it's been confirmed/accepted and waiting to start
+    // 'new' means not yet accepted by caregiver
+    const isAccepted = currentStatus === 'confirmed' || currentStatus === 'in-progress' || currentStatus === 'pending';
+    
+    console.log(`  Filter result for ${apt.id}: isToday=${isToday}, isAccepted=${isAccepted}, currentStatus=${currentStatus}`);
+    
+    return isToday && isAccepted;
+  });
+  
+  console.log('  ✅ Final today appointments count:', todayAppointments.length);
+
+  // Count new requests (appointments with status 'new' or 'pending')
+  const newRequestsCount = appointments.filter(apt => {
+    const globalStatus = getAppointmentStatus(apt.id);
+    const currentStatus = globalStatus || apt.status;
+    return currentStatus === 'pending' || currentStatus === 'new';
+  }).length;
 
   // Check profile status and navigate accordingly
   useFocusEffect(
     useCallback(() => {
       if (user && user.role === "Caregiver") {
+        console.log('🔍 Dashboard check - user.hasCompletedProfile:', user.hasCompletedProfile);
         // Small delay to ensure navigation is ready
         setTimeout(() => {
           // Check if profile has been submitted (exists in profileStore)
@@ -73,25 +187,31 @@ export default function CaregiverDashboardScreen() {
           // Check status from API (user.status) or profileStore
           const currentStatus = user.status || profileStatus.status;
           
-          // If profile is approved (from API or profileStore), stay on dashboard
-          if (currentStatus === "approved") {
-            return; // Stay on dashboard
-          }
-          
-          // If profile is pending or rejected, navigate to status screen
-          if (currentStatus === "pending" || currentStatus === "rejected") {
-            navigation.navigate("Trạng thái hồ sơ");
-            return;
-          }
+          console.log('🔍 Dashboard check - hasProfileInStore:', hasProfileInStore, 'currentStatus:', currentStatus);
           
           // If no profile submitted yet and user hasn't completed profile, navigate to complete profile
           if (!hasProfileInStore && !user.hasCompletedProfile) {
+            console.log('➡️ Dashboard redirecting to complete-profile');
             navigation.navigate("Hoàn thiện hồ sơ", {
               email: user.email,
               fullName: user.name || "",
             });
+            return;
           }
-        }, 500);
+
+          // If profile is approved (from API or profileStore), stay on dashboard
+          if (currentStatus === "approved") {
+            console.log('✅ Profile approved, staying on dashboard');
+            return; // Stay on dashboard
+          }
+
+          // If profile is pending or rejected, navigate to status screen
+          if (currentStatus === "pending" || currentStatus === "rejected") {
+            console.log('⏳ Profile pending/rejected, navigating to status screen');
+            navigation.navigate("Trạng thái hồ sơ");
+            return;
+          }
+        }, 100); // Reduced timeout for faster response
       }
     }, [user, navigation])
   );
@@ -134,7 +254,7 @@ export default function CaregiverDashboardScreen() {
           <View style={styles.header}>
             <View style={styles.headerTextContainer}>
               <Text style={styles.greeting}>Xin chào</Text>
-              <Text style={styles.userName}>Trần Văn Nam</Text>
+              <Text style={styles.userName}>{user?.name || 'Người dùng'}</Text>
             </View>
             <View style={styles.headerIconsContainer}>
               <TouchableOpacity 
@@ -154,22 +274,24 @@ export default function CaregiverDashboardScreen() {
         </View>
         
 
-        {/* New Requests Alert */}
-        <TouchableOpacity 
-          style={styles.alertCard}
-          onPress={() => navigation.navigate("Yêu cầu dịch vụ", { initialTab: "Mới" })}
-        >
-        <View style={styles.alertIconContainer}>
-          <Text style={styles.alertIcon}>🔔</Text>
-        </View>
-        <View style={styles.alertContent}>
-          <Text style={styles.alertTitle}>3 yêu cầu mới</Text>
-          <Text style={styles.alertSubtitle}>Hãy phản hồi để nhận việc</Text>
-        </View>
-        <Text style={styles.alertArrow}>›</Text>
-      </TouchableOpacity>
+        {/* New Requests Alert - Only show if there are new requests */}
+        {newRequestsCount > 0 && (
+          <TouchableOpacity 
+            style={styles.alertCard}
+            onPress={() => navigation.navigate("Yêu cầu dịch vụ", { initialTab: "Mới" })}
+          >
+            <View style={styles.alertIconContainer}>
+              <Text style={styles.alertIcon}>🔔</Text>
+            </View>
+            <View style={styles.alertContent}>
+              <Text style={styles.alertTitle}>{newRequestsCount} yêu cầu mới</Text>
+              <Text style={styles.alertSubtitle}>Hãy phản hồi để nhận việc</Text>
+            </View>
+            <Text style={styles.alertArrow}>›</Text>
+          </TouchableOpacity>
+        )}
 
-      {/* Today's Schedule */}
+        {/* Today's Schedule */}
       <View style={styles.scheduleCard}>
         <View style={styles.scheduleHeader}>
           <Text style={styles.scheduleTitle}>Lịch hôm nay</Text>
@@ -181,7 +303,11 @@ export default function CaregiverDashboardScreen() {
           </View>
         ) : (
           todayAppointments.map((appointment: any) => {
-            const statusInfo = mapStatusToDashboard(appointment.status);
+            // Get status from global store first, fallback to database status
+            const globalStatus = getAppointmentStatus(appointment.id);
+            const currentStatus = globalStatus || appointment.status;
+            const statusInfo = mapStatusToDashboard(currentStatus);
+            
             return (
               <TouchableOpacity 
                 key={appointment.id} 
@@ -196,7 +322,7 @@ export default function CaregiverDashboardScreen() {
                     </View>
                     <View style={styles.appointmentDetails}>
                       <Text style={styles.appointmentName}>
-                        {appointment.elderly_profile_id}
+                        {elderlyNames[appointment.elderly_profile_id] || 'Đang tải...'}
                       </Text>
                       <Text style={styles.appointmentMeta}>
                         {appointment.package_type || 'Gói cơ bản'}

@@ -13,8 +13,10 @@ import {
 
 import { ElderlyProfileSelector } from '@/components/elderly/ElderlyProfileSelector';
 import { ThemedText } from '@/components/themed-text';
-import { Task, TaskSelector } from '@/components/ui/TaskSelector';
+import { Task } from '@/components/ui/TaskSelector';
 import { SERVICE_PACKAGES } from '@/constants/servicePackages';
+import { useAuth } from '@/contexts/AuthContext';
+import * as AppointmentRepository from '@/services/appointment.repository';
 
 interface Caregiver {
   id: string;
@@ -51,6 +53,7 @@ interface BookingModalProps {
 type BookingType = 'immediate' | 'schedule';
 
 export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: initialProfiles, immediateOnly = false }: BookingModalProps) {
+  const { user } = useAuth();
   const [elderlyProfiles, setElderlyProfiles] = useState(initialProfiles);
   const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
   const [bookingType] = useState<BookingType>('immediate'); // Always immediate
@@ -223,15 +226,55 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     console.log('Work Location:', immediateData.workLocation);
     console.log('Selected Profiles:', selectedProfiles);
     
+    if (!user?.id) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+      return;
+    }
+
+    if (selectedProfiles.length === 0) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn người cần chăm sóc');
+      return;
+    }
+    
     setIsSubmitting(true);
     
-    // Simulate API call - Create booking without payment
-    setTimeout(() => {
-      console.log('=== API call completed ===');
+    try {
+      // Get selected package info
+      const selectedPackage = servicePackages.find(pkg => pkg.id === immediateData.selectedPackage);
+      
+      // Prepare appointment data
+      const appointmentData = {
+        user_id: user.id,
+        caregiver_id: caregiver.id,
+        elderly_profile_id: selectedProfiles[0], // Use first selected profile
+        booking_type: 'immediate' as const,
+        status: 'pending' as const,
+        package_type: selectedPackage?.name || 'Gói cơ bản',
+        start_date: immediateData.selectedDate || new Date().toISOString().split('T')[0],
+        start_time: `${immediateData.startHour}:${immediateData.startMinute}` || '08:00',
+        end_time: immediateData.endTime,
+        duration: selectedPackage?.duration || '4 giờ',
+        work_location: immediateData.workLocation,
+        tasks: immediateData.tasks,
+        notes: immediateData.note,
+        total_amount: selectedPackage?.price || 0,
+        payment_status: 'pending' as const,
+      };
+
+      console.log('Creating appointment:', appointmentData);
+      
+      // Save to database
+      const appointmentId = await AppointmentRepository.createAppointment(appointmentData);
+      
+      console.log('Appointment created with ID:', appointmentId);
+      
       setIsSubmitting(false);
-      console.log('Showing success modal');
       setShowSuccessModal(true);
-    }, 1500);
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      setIsSubmitting(false);
+      Alert.alert('Lỗi', 'Không thể tạo lịch hẹn. Vui lòng thử lại.');
+    }
   };
 
   const handleSuccessClose = () => {

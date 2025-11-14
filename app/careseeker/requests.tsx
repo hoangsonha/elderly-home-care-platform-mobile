@@ -7,38 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookingModal } from '@/components/caregiver/BookingModal';
 import { RequestTabs } from '@/components/requests/RequestTabs';
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/AuthContext';
+import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 
 export default function RequestsScreen() {
+  const { user } = useAuth();
+  const { profiles: elderlyProfiles } = useElderlyProfiles(user?.id || '');
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedCaregiver, setSelectedCaregiver] = useState<any>(null);
-
-  // Mock elderly profiles data (same as caregiver-search)
-  const elderlyProfiles = [
-    {
-      id: '1',
-      name: 'Bà Nguyễn Thị Lan',
-      age: 75,
-      currentCaregivers: 1,
-      family: 'Gia đình Nguyễn',
-      healthStatus: 'fair' as const,
-    },
-    {
-      id: '2',
-      name: 'Ông Trần Văn Minh',
-      age: 82,
-      currentCaregivers: 0,
-      family: 'Gia đình Trần',
-      healthStatus: 'poor' as const,
-    },
-    {
-      id: '3',
-      name: 'Bà Lê Thị Hoa',
-      age: 68,
-      currentCaregivers: 2,
-      family: 'Gia đình Lê',
-      healthStatus: 'good' as const,
-    },
-  ];
 
   const handleChatPress = (caregiver: any) => {
     // Navigate to chat with specific caregiver

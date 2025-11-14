@@ -25,6 +25,7 @@ import { SearchFilters, type FilterOption } from '@/components/caregiver/SearchF
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
+import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 import { CaregiverRecommendation, MatchResponse } from '@/services/types';
 
 // Mock data
@@ -112,40 +113,13 @@ export default function CaregiverSearchScreen() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedCaregiver, setSelectedCaregiver] = useState<Caregiver | null>(null);
   const { user } = useAuth();
+  const { profiles: elderlyProfiles } = useElderlyProfiles(user?.id || '');
 
   // Floating AI position state
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
   const translateX = useSharedValue(screenWidth - 80); // Initial position (right side)
   const translateY = useSharedValue(screenHeight - 200); // Initial position (bottom)
-
-  // Mock elderly profiles data
-  const elderlyProfiles = [
-    {
-      id: '1',
-      name: 'Bà Nguyễn Thị Lan',
-      age: 75,
-      currentCaregivers: 1,
-      family: 'Gia đình Nguyễn',
-      healthStatus: 'fair' as const,
-    },
-    {
-      id: '2',
-      name: 'Ông Trần Văn Minh',
-      age: 82,
-      currentCaregivers: 0,
-      family: 'Gia đình Trần',
-      healthStatus: 'poor' as const,
-    },
-    {
-      id: '3',
-      name: 'Bà Lê Thị Hoa',
-      age: 68,
-      currentCaregivers: 2,
-      family: 'Gia đình Lê',
-      healthStatus: 'good' as const,
-    },
-  ];
 
   const handleCaregiverPress = (caregiver: Caregiver) => {
     router.push('/careseeker/caregiver-detail');

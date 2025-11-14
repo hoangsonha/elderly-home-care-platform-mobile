@@ -1,7 +1,8 @@
-import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 
 let db: SQLite.SQLiteDatabase | null = null;
+let tablesInitialized = false;
 
 /**
  * Check if SQLite is supported on current platform
@@ -23,6 +24,7 @@ export const openDatabase = async (): Promise<SQLite.SQLiteDatabase | null> => {
   
   db = await SQLite.openDatabaseAsync('elderly_care.db');
   await initializeTables();
+  tablesInitialized = true;
   return db;
 };
 
@@ -37,6 +39,18 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase | null> => {
   if (!db) {
     return await openDatabase();
   }
+
+  // If DB instance exists but tables were added in code after DB was opened,
+  // ensure initialization runs once to create any missing tables (migrations).
+  if (!tablesInitialized) {
+    try {
+      await initializeTables();
+      tablesInitialized = true;
+    } catch (err) {
+      console.warn('Failed to initialize tables on existing DB instance', err);
+    }
+  }
+
   return db;
 };
 
@@ -220,6 +234,58 @@ const initializeTables = async () => {
       );
     `);
 
+    // Users table (for auth) - store minimal fields for login/register
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        name TEXT,
+        phone TEXT,
+        dateOfBirth TEXT,
+        address TEXT,
+        avatar TEXT,
+        role TEXT DEFAULT 'Care Seeker',
+        status TEXT DEFAULT 'approved',
+        hasCompletedProfile BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Add missing columns to users table if they don't exist (migration)
+    try {
+      await db.execAsync(`
+        ALTER TABLE users ADD COLUMN phone TEXT;
+      `);
+    } catch (err) {
+      // Column already exists or other error - ignore
+    }
+    
+    try {
+      await db.execAsync(`
+        ALTER TABLE users ADD COLUMN dateOfBirth TEXT;
+      `);
+    } catch (err) {
+      // Column already exists or other error - ignore
+    }
+    
+    try {
+      await db.execAsync(`
+        ALTER TABLE users ADD COLUMN address TEXT;
+      `);
+    } catch (err) {
+      // Column already exists or other error - ignore
+    }
+    
+    try {
+      await db.execAsync(`
+        ALTER TABLE users ADD COLUMN avatar TEXT;
+      `);
+    } catch (err) {
+      // Column already exists or other error - ignore
+    }
+
     console.log('✅ Database tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing database tables:', error);
@@ -280,6 +346,77 @@ export const dropAllTables = async () => {
   
   console.log('🗑️ All tables dropped from database');
   await initializeTables();
+};
+
+/**
+ * Delete a user by email (development helper)
+ */
+export const deleteUserByEmail = async (email: string) => {
+  const database = await getDatabase();
+  if (!database) throw new Error('Database not available');
+
+  try {
+    const result = await database.runAsync(`DELETE FROM users WHERE email = ?`, [email]);
+    return result;
+  } catch (err) {
+    console.warn('Failed to delete user by email', email, err);
+    throw err;
+  }
+};
+
+/**
+ * Approve a caregiver profile (set status to approved)
+ */
+export const approveCaregiver = async (userName: string) => {
+  const database = await getDatabase();
+  if (!database) throw new Error('Database not available');
+
+  try {
+    // Find user by name
+    const user = await database.getFirstAsync<any>(
+      'SELECT id, email FROM users WHERE name = ? AND role = "Caregiver" LIMIT 1',
+      [userName]
+    );
+
+    if (!user) {
+      throw new Error(`Không tìm thấy caregiver với tên: ${userName}`);
+    }
+
+    // Update user status to approved
+    await database.runAsync(
+      `UPDATE users SET status = 'approved', hasCompletedProfile = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [user.id]
+    );
+
+    // Update profileStore
+    const { approveProfile } = require('@/data/profileStore');
+    approveProfile(user.id);
+
+    console.log(`✅ Approved caregiver profile for: ${userName} (${user.email})`);
+    return { success: true, userId: user.id, userName, email: user.email };
+  } catch (err: any) {
+    console.error('Failed to approve caregiver:', err);
+    throw err;
+  }
+};
+
+/**
+ * Get user by name (development helper)
+ */
+export const getUserByName = async (name: string) => {
+  const database = await getDatabase();
+  if (!database) throw new Error('Database not available');
+
+  try {
+    const user = await database.getFirstAsync<any>(
+      'SELECT * FROM users WHERE name LIKE ? LIMIT 1',
+      [`%${name}%`]
+    );
+    return user;
+  } catch (err) {
+    console.warn('Failed to get user by name', name, err);
+    throw err;
+  }
 };
 
 export default {

@@ -2,18 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  useErrorNotification,
-  useSuccessNotification,
+    useErrorNotification,
+    useSuccessNotification,
 } from "@/contexts/NotificationContext";
 import { AuthService } from "@/services/auth.service";
 
@@ -28,7 +28,7 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
-  const { login } = useAuth();
+  const { login, setUserDirect } = useAuth();
 
   // Validate password
   const validatePassword = () => {
@@ -73,22 +73,48 @@ export default function RegisterScreen() {
         hasCompletedProfile: formData.userType === "caregiver" ? false : true,
       };
 
-      await AuthService.register(newUser);
+      const createdUser = await AuthService.register(newUser);
+      console.log('✅ User registered:', createdUser);
 
       // If caregiver, auto login and navigate to complete profile
       if (formData.userType === "caregiver") {
+        console.log('🔄 Caregiver detected, starting auto-login...');
         showSuccessTooltip("🎉 Đăng ký thành công! Đang chuyển hướng...");
+        
+        // Try to login normally (this will populate AuthContext)
         const userData = await login(formData.email, formData.password);
+        console.log('📝 Login result:', userData);
+        
         if (userData) {
-          // Store email for complete profile screen
-          setTimeout(() => {
-            router.replace("/caregiver");
-            // Navigate to complete profile after caregiver screen loads
-            setTimeout(() => {
-              // This will be handled by checking if profile is incomplete
-            }, 500);
-          }, 1000);
+          // Navigate directly to complete profile with pre-filled email/fullName
+          console.log('✅ Login successful, navigating to complete-profile...');
+          // Use push instead of replace to ensure proper stack management
+          router.push({
+            pathname: '/caregiver/complete-profile',
+            params: { email: formData.email, fullName: newUser.fullName }
+          });
+        } else if (createdUser && setUserDirect) {
+          // If login failed for some reason but register returned the row, set the user into context
+          console.log('⚠️ Login failed, using setUserDirect fallback...');
+          setUserDirect({
+            id: createdUser.id,
+            email: createdUser.email,
+            name: createdUser.name,
+            dateOfBirth: createdUser.dateOfBirth,
+            phone: createdUser.phone,
+            address: createdUser.address,
+            avatar: createdUser.avatar,
+            hasCompletedProfile: !!createdUser.hasCompletedProfile,
+            role: createdUser.role ?? 'Caregiver',
+            status: createdUser.status,
+          });
+          // Use push instead of replace
+          router.push({
+            pathname: '/caregiver/complete-profile',
+            params: { email: formData.email, fullName: newUser.fullName }
+          });
         } else {
+          console.error('❌ Both login and setUserDirect failed');
           router.replace("/login");
         }
       } else {
@@ -96,8 +122,17 @@ export default function RegisterScreen() {
         router.replace("/login");
       }
     } catch (err: any) {
-      console.error("Register error:", err.response || err.message);
-      showErrorTooltip("Có lỗi xảy ra khi đăng ký!");
+      console.error("Register error:", err);
+      // Friendly handling for duplicate email
+      if (
+        err?.message === 'EMAIL_ALREADY_EXISTS' ||
+        err?.code === 'EMAIL_EXISTS' ||
+        (err?.message || '').includes('UNIQUE constraint failed')
+      ) {
+        showErrorTooltip('Email đã được sử dụng. Vui lòng dùng email khác hoặc đăng nhập.');
+      } else {
+        showErrorTooltip('Có lỗi xảy ra khi đăng ký!');
+      }
     } finally {
       setIsLoading(false);
     }

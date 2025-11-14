@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookingModal } from '@/components/caregiver/BookingModal';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/AuthContext';
+import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 
 interface CaregiverDetail {
   id: string;
@@ -44,31 +46,11 @@ interface Review {
 }
 
 export default function CaregiverDetailScreen() {
+  const { user } = useAuth();
+  const { profiles: elderlyProfiles } = useElderlyProfiles(user?.id || '');
   const [selectedTab, setSelectedTab] = useState<'info' | 'reviews'>('info');
   const [showBookingModal, setShowBookingModal] = useState(false);
   const { id } = useLocalSearchParams();
-
-  // Mock elderly profiles data
-  const elderlyProfiles = [
-    {
-      id: '1',
-      name: 'Bà Nguyễn Thị Lan',
-      age: 75,
-      currentCaregivers: 1,
-      family: 'Gia đình Nguyễn',
-      healthStatus: 'good' as const,
-      address: '123 Đường ABC, Quận 1, TP.HCM',
-    },
-    {
-      id: '2',
-      name: 'Ông Trần Văn Minh',
-      age: 82,
-      currentCaregivers: 0,
-      family: 'Gia đình Trần',
-      healthStatus: 'fair' as const,
-      address: '456 Đường XYZ, Quận 2, TP.HCM',
-    },
-  ];
 
   // Mock caregiver data - map from recommended caregivers
   const caregiverMap: { [key: string]: CaregiverDetail } = {

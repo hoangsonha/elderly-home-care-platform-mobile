@@ -1,19 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-    FlatList,
-    StyleSheet,
-    TouchableOpacity,
-    View,
-    ActivityIndicator
+  ActivityIndicator,
+  FlatList,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
-import { useAppointments } from '@/hooks/useDatabaseEntities';
 import { useAuth } from '@/contexts/AuthContext';
+import { getAppointmentStatus, subscribeToStatusChanges } from '@/data/appointmentStore';
+import { useAppointments } from '@/hooks/useDatabaseEntities';
+import * as CaregiverRepository from '@/services/caregiver.repository';
 import { Appointment } from '@/services/database.types';
 
 type StatusTab = 'all' | 'upcoming' | 'completed' | 'cancelled';
@@ -22,6 +26,56 @@ export default function AppointmentsScreen() {
   const { user } = useAuth();
   const { appointments, loading, error, refresh } = useAppointments(user?.id || '');
   const [activeTab, setActiveTab] = useState<StatusTab>('all');
+  const [refreshKey, setRefreshKey] = useState(0); // For triggering re-render when status changes
+  const [caregiverInfo, setCaregiverInfo] = useState<{ [key: string]: { name: string; avatar?: string } }>({});
+  
+  // Load caregiver information for all appointments
+  useEffect(() => {
+    const loadCaregiverInfo = async () => {
+      const info: { [key: string]: { name: string; avatar?: string } } = {};
+      for (const apt of appointments) {
+        if (apt.caregiver_id && !info[apt.caregiver_id]) {
+          try {
+            const caregiver = await CaregiverRepository.getCaregiverById(apt.caregiver_id);
+            if (caregiver) {
+              info[apt.caregiver_id] = {
+                name: caregiver.name,
+                avatar: caregiver.avatar,
+              };
+            }
+          } catch (err) {
+            console.error('Error loading caregiver:', err);
+          }
+        }
+      }
+      setCaregiverInfo(info);
+    };
+
+    if (appointments.length > 0) {
+      loadCaregiverInfo();
+    }
+  }, [appointments]);
+  
+  // Auto-refresh when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        refresh();
+      }
+    }, [user?.id, refresh])
+  );
+  
+  // Subscribe to status changes from global store
+  useEffect(() => {
+    const unsubscribe = subscribeToStatusChanges(() => {
+      // Trigger re-render when appointment status changes
+      setRefreshKey(prev => prev + 1);
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, []);
   const handleAppointmentPress = (appointment: Appointment) => {
     router.push({
       pathname: '/careseeker/appointment-detail',
@@ -62,11 +116,24 @@ export default function AppointmentsScreen() {
       return appointments;
     }
     if (activeTab === 'upcoming') {
-      return appointments.filter(apt => 
-        apt.status === 'pending' || apt.status === 'confirmed' || apt.status === 'in-progress'
-      );
+      return appointments.filter(apt => {
+        const globalStatus = getAppointmentStatus(apt.id);
+        const currentStatus = globalStatus || apt.status;
+        return currentStatus === 'pending' || currentStatus === 'confirmed' || currentStatus === 'in-progress';
+      });
     }
-    return appointments.filter(appointment => appointment.status === activeTab);
+    if (activeTab === 'cancelled') {
+      return appointments.filter(apt => {
+        const globalStatus = getAppointmentStatus(apt.id);
+        const currentStatus = globalStatus || apt.status;
+        return currentStatus === 'cancelled' || currentStatus === 'rejected';
+      });
+    }
+    return appointments.filter(apt => {
+      const globalStatus = getAppointmentStatus(apt.id);
+      const currentStatus = globalStatus || apt.status;
+      return currentStatus === activeTab;
+    });
   };
 
   const getTabCount = (tab: StatusTab) => {
@@ -74,11 +141,24 @@ export default function AppointmentsScreen() {
       return appointments.length;
     }
     if (tab === 'upcoming') {
-      return appointments.filter(apt => 
-        apt.status === 'pending' || apt.status === 'confirmed' || apt.status === 'in-progress'
-      ).length;
+      return appointments.filter(apt => {
+        const globalStatus = getAppointmentStatus(apt.id);
+        const currentStatus = globalStatus || apt.status;
+        return currentStatus === 'pending' || currentStatus === 'confirmed' || currentStatus === 'in-progress';
+      }).length;
     }
-    return appointments.filter(appointment => appointment.status === tab).length;
+    if (tab === 'cancelled') {
+      return appointments.filter(apt => {
+        const globalStatus = getAppointmentStatus(apt.id);
+        const currentStatus = globalStatus || apt.status;
+        return currentStatus === 'cancelled' || currentStatus === 'rejected';
+      }).length;
+    }
+    return appointments.filter(apt => {
+      const globalStatus = getAppointmentStatus(apt.id);
+      const currentStatus = globalStatus || apt.status;
+      return currentStatus === tab;
+    }).length;
   };
 
   const getStatusColor = (status: string) => {
@@ -87,7 +167,8 @@ export default function AppointmentsScreen() {
       case 'confirmed': return '#3B82F6';
       case 'in-progress': return '#10B981';
       case 'completed': return '#6B7280';
-      case 'cancelled': return '#EF4444';
+      case 'cancelled':
+      case 'rejected': return '#EF4444';
       default: return '#9CA3AF';
     }
   };
@@ -99,33 +180,48 @@ export default function AppointmentsScreen() {
       case 'in-progress': return 'Đang thực hiện';
       case 'completed': return 'Đã hoàn thành';
       case 'cancelled': return 'Đã hủy';
+      case 'rejected': return 'Đã từ chối';
       default: return 'Không xác định';
     }
   };
 
-  const renderAppointment = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.appointmentCard}
-      onPress={() => handleAppointmentPress(item)}
-      activeOpacity={0.7}
-    >
-      {/* Status Badge */}
-      <View style={styles.statusBadgeContainer}>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <ThemedText style={styles.statusText}>{getStatusText(item.status)}</ThemedText>
+  const renderAppointment = ({ item }: { item: any }) => {
+    // Get real-time status from global store
+    const globalStatus = getAppointmentStatus(item.id);
+    const currentStatus = globalStatus || item.status;
+    
+    // Get caregiver info
+    const caregiver = caregiverInfo[item.caregiver_id];
+    const caregiverName = caregiver?.name || 'Đang tải...';
+    const caregiverAvatar = caregiver?.avatar;
+    
+    return (
+      <TouchableOpacity
+        style={styles.appointmentCard}
+        onPress={() => handleAppointmentPress(item)}
+        activeOpacity={0.7}
+      >
+        {/* Status Badge */}
+        <View style={styles.statusBadgeContainer}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(currentStatus) }]}>
+            <ThemedText style={styles.statusText}>{getStatusText(currentStatus)}</ThemedText>
+          </View>
         </View>
-      </View>
 
       {/* Appointment Info */}
       <View style={styles.appointmentInfo}>
         <View style={styles.infoRow}>
           <View style={styles.avatarContainer}>
-            <ThemedText style={styles.avatarText}>
-              {item.caregiver_id?.charAt(0) || 'C'}
-            </ThemedText>
+            {caregiverAvatar ? (
+              <Image source={{ uri: caregiverAvatar }} style={styles.avatarImage} />
+            ) : (
+              <ThemedText style={styles.avatarText}>
+                {caregiverName.charAt(0).toUpperCase()}
+              </ThemedText>
+            )}
           </View>
           <View style={styles.infoContent}>
-            <ThemedText style={styles.caregiverName}>Caregiver {item.caregiver_id}</ThemedText>
+            <ThemedText style={styles.caregiverName}>{caregiverName}</ThemedText>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color="#FFB648" />
               <ThemedText style={styles.ratingText}>4.5</ThemedText>
@@ -166,12 +262,13 @@ export default function AppointmentsScreen() {
         </View>
       </View>
 
-      {/* View Detail Arrow */}
-      <View style={styles.arrowContainer}>
-        <Ionicons name="chevron-forward" size={20} color="#68C2E8" />
-      </View>
-    </TouchableOpacity>
-  );
+        {/* View Detail Arrow */}
+        <View style={styles.arrowContainer}>
+          <Ionicons name="chevron-forward" size={20} color="#68C2E8" />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -229,6 +326,7 @@ export default function AppointmentsScreen() {
           data={getFilteredAppointments()}
           renderItem={renderAppointment}
           keyExtractor={(item) => item.id}
+          extraData={refreshKey}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
@@ -388,6 +486,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarText: {
     fontSize: 18,

@@ -1,9 +1,11 @@
-import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { PaymentCode } from "@/components/caregiver/PaymentCode";
+import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
+import * as AppointmentRepository from "@/services/appointment.repository";
+import * as ElderlyRepository from "@/services/elderly.repository";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
@@ -15,6 +17,27 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+// Parse Vietnamese date format "T5, 13 Thg 11 2025" to "YYYY-MM-DD"
+const parseVietnameseDate = (dateStr: string): string | null => {
+  if (!dateStr) return null;
+  
+  // Match pattern: "T5, 13 Thg 11 2025" or "CN, 16 Thg 11 2025"
+  const match = dateStr.match(/(\d{1,2})\s+Thg\s+(\d{1,2})\s+(\d{4})/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // If already in YYYY-MM-DD format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  return null;
+};
 
 // Mock data - Multiple appointments
 export const appointmentsDataMap: { [key: string]: any } = {
@@ -554,10 +577,127 @@ export default function AppointmentDetailScreen() {
   const appointmentId = params?.appointmentId || "1";
   const fromScreen = params?.fromScreen;
   
-  // Get appointment data based on appointmentId
+  // State for database data
+  const [loading, setLoading] = useState(true);
+  const [appointment, setAppointment] = useState<any>(null);
+  const [elderlyProfile, setElderlyProfile] = useState<any>(null);
+  
+  // Get appointment data based on appointmentId - now from mock for fallback
   const appointmentData = appointmentsDataMap[appointmentId] || appointmentsDataMap["1"];
   
   const [selectedTab, setSelectedTab] = useState<"tasks" | "notes">("tasks");
+  
+  // Load appointment and elderly profile from database
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // Get appointment from database by ID
+        const foundAppointment = await AppointmentRepository.getAppointmentById(appointmentId);
+        
+        if (foundAppointment) {
+          setAppointment(foundAppointment);
+          
+          // Get elderly profile
+          if (foundAppointment.elderly_profile_id) {
+            const elderly = await ElderlyRepository.getElderlyProfileById(foundAppointment.elderly_profile_id);
+            setElderlyProfile(elderly);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading appointment data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [appointmentId]);
+  
+  // Helper to parse tasks JSON from database
+  const parseTasksFromDB = (tasksJson: string | null) => {
+    if (!tasksJson) return [];
+    try {
+      const tasks = JSON.parse(tasksJson);
+      return Array.isArray(tasks) ? tasks : [];
+    } catch {
+      return [];
+    }
+  };
+  
+  // Create merged data object that uses database data when available, fallback to mock
+  const displayData = useMemo(() => {
+    if (appointment && elderlyProfile) {
+      return {
+        id: appointment.id,
+        status: appointment.status || 'pending',
+        date: appointment.start_date || 'Không có',
+        timeSlot: appointment.start_time || 'Không có',
+        duration: 'Không có',
+        packageType: appointment.package_type || 'Gói cơ bản',
+        elderly: {
+          id: elderlyProfile.id,
+          name: elderlyProfile.name || 'Không có',
+          age: elderlyProfile.age || 0,
+          gender: elderlyProfile.gender || 'Không có',
+          avatar: elderlyProfile.avatar || 'https://via.placeholder.com/100',
+          address: elderlyProfile.address || 'Không có',
+          phone: elderlyProfile.phone || 'Không có',
+          bloodType: elderlyProfile.blood_type || 'Không có',
+          healthCondition: elderlyProfile.health_condition || 'Không có',
+          underlyingDiseases: elderlyProfile.underlying_diseases || [],
+          medications: elderlyProfile.medications || [],
+          allergies: elderlyProfile.allergies || [],
+          specialConditions: elderlyProfile.special_conditions || [],
+          independenceLevel: elderlyProfile.independence_level || {
+            eating: 'independent',
+            bathing: 'independent',
+            mobility: 'independent',
+            toileting: 'independent',
+            dressing: 'independent',
+          },
+          livingEnvironment: elderlyProfile.living_environment || {
+            houseType: 'Không có',
+            livingWith: [],
+            accessibility: [],
+          },
+          hobbies: elderlyProfile.hobbies || [],
+          favoriteActivities: elderlyProfile.favorite_activities || [],
+          foodPreferences: elderlyProfile.food_preferences || [],
+          emergencyContact: elderlyProfile.emergency_contact || {
+            name: 'Không có',
+            relationship: 'Không có',
+            phone: 'Không có',
+          },
+        },
+        tasks: {
+          fixed: parseTasksFromDB(appointment.tasks),
+          flexible: [],
+          optional: [],
+        },
+        notes: [],
+        specialInstructions: appointment.notes || 'Không có',
+        responseDeadline: appointment.start_date ? (() => {
+          try {
+            const [year, month, day] = appointment.start_date.split('-').map(Number);
+            if (!year || !month || !day) return undefined;
+            
+            const appointmentDate = new Date(year, month - 1, day);
+            if (isNaN(appointmentDate.getTime())) return undefined;
+            
+            const deadline = new Date(appointmentDate);
+            deadline.setDate(deadline.getDate() - 3);
+            deadline.setHours(23, 59, 59, 999);
+            return deadline.toISOString();
+          } catch (error) {
+            console.error('Error calculating deadline:', error);
+            return undefined;
+          }
+        })() : undefined,
+      };
+    }
+    return appointmentData;
+  }, [appointment, elderlyProfile, appointmentData]);
   
   // Get services based on package type
   const getServicesByPackage = (packageType: string) => {
@@ -596,11 +736,28 @@ export default function AppointmentDetailScreen() {
     ];
   };
 
-  const [services, setServices] = useState(() => getServicesByPackage(appointmentData.packageType));
+  const [services, setServices] = useState(() => getServicesByPackage(displayData.packageType));
   
-  // Get status from global store first, fallback to appointmentData.status
+  // Helper to map database status to Vietnamese display status
+  const mapDbStatusToVietnamese = (dbStatus: string) => {
+    switch (dbStatus) {
+      case 'pending': return 'Mới';
+      case 'confirmed': return 'Chờ thực hiện';
+      case 'in-progress': return 'Đang thực hiện';
+      case 'completed': return 'Hoàn thành';
+      case 'cancelled':
+      case 'rejected': return 'Đã hủy';
+      default: return 'Mới';
+    }
+  };
+  
+  // Get status from global store first, fallback to displayData.status, then map to Vietnamese
   const initialGlobalStatus = getAppointmentStatus(appointmentId);
-  const [status, setStatus] = useState(initialGlobalStatus || appointmentData.status);
+  const [status, setStatus] = useState(
+    initialGlobalStatus 
+      ? mapDbStatusToVietnamese(initialGlobalStatus) 
+      : mapDbStatusToVietnamese(displayData.status)
+  );
   
   // Check if already reviewed
   const initialHasReviewed = getAppointmentHasReviewed(appointmentId);
@@ -610,7 +767,7 @@ export default function AppointmentDetailScreen() {
   const hasComplained = getAppointmentHasComplained(appointmentId);
   
   // Notes state
-  const [notes, setNotes] = useState(appointmentData.notes);
+  const [notes, setNotes] = useState(displayData.notes);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
   
@@ -618,8 +775,8 @@ export default function AppointmentDetailScreen() {
   const [showPaymentCodeModal, setShowPaymentCodeModal] = useState(false);
 
   // Check if deadline is expired (simple check, no countdown)
-  const isDeadlineExpired = appointmentData.responseDeadline 
-    ? new Date(appointmentData.responseDeadline).getTime() <= new Date().getTime()
+  const isDeadlineExpired = displayData.responseDeadline 
+    ? new Date(displayData.responseDeadline).getTime() <= new Date().getTime()
     : false;
 
   // Format deadline to "Phản hồi trước DD/MM"
@@ -670,14 +827,18 @@ export default function AppointmentDetailScreen() {
     });
   }, [navigation, fromScreen]);
 
-  // Update services and status when appointmentId changes
+  // Update services and status when appointmentId or displayData changes
   useEffect(() => {
-    setServices(getServicesByPackage(appointmentData.packageType));
-    // Get status from global store first, fallback to appointmentData.status
+    setServices(getServicesByPackage(displayData.packageType));
+    // Get status from global store first, fallback to displayData.status, then map to Vietnamese
     const globalStatus = getAppointmentStatus(appointmentId);
-    setStatus(globalStatus || appointmentData.status);
-    setNotes(appointmentData.notes);
-  }, [appointmentId, appointmentData.packageType, appointmentData.status, appointmentData.notes]);
+    setStatus(
+      globalStatus 
+        ? mapDbStatusToVietnamese(globalStatus) 
+        : mapDbStatusToVietnamese(displayData.status)
+    );
+    setNotes(displayData.notes);
+  }, [appointmentId, displayData.packageType, displayData.status, displayData.notes]);
 
   // Sync status and review status from global store when component mounts or refocuses
   useFocusEffect(
@@ -755,7 +916,7 @@ export default function AppointmentDetailScreen() {
   };
   
   // Xử lý các action buttons
-  const handleAccept = () => {
+  const handleAccept = async () => {
     if (isDeadlineExpired) {
       Alert.alert("Đã quá hạn", "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.");
       return;
@@ -764,17 +925,25 @@ export default function AppointmentDetailScreen() {
       { text: "Hủy", style: "cancel" },
       {
         text: "Chấp nhận",
-        onPress: () => {
-          const newStatus = "pending";
+        onPress: async () => {
+          const newStatus = "confirmed";
           setStatus(newStatus);
           updateAppointmentStatus(appointmentId, newStatus);
+          // Save to database
+          if (appointment) {
+            try {
+              await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
+            } catch (error) {
+              console.error('Error updating appointment status:', error);
+            }
+          }
           Alert.alert("Thành công", "Đã chấp nhận lịch hẹn");
         },
       },
     ]);
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (isDeadlineExpired) {
       Alert.alert("Đã quá hạn", "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.");
       return;
@@ -784,10 +953,18 @@ export default function AppointmentDetailScreen() {
       {
         text: "Từ chối",
         style: "destructive",
-        onPress: () => {
+        onPress: async () => {
           const newStatus = "rejected";
           setStatus(newStatus);
           updateAppointmentStatus(appointmentId, newStatus);
+          // Save to database
+          if (appointment) {
+            try {
+              await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
+            } catch (error) {
+              console.error('Error updating appointment status:', error);
+            }
+          }
           Alert.alert("Đã từ chối", "Lịch hẹn đã bị từ chối");
         },
       },
@@ -837,7 +1014,23 @@ export default function AppointmentDetailScreen() {
     return null; // No conflict
   };
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    // Validate: Check if today is the appointment date
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    // Parse Vietnamese date format to YYYY-MM-DD
+    const parsedDate = parseVietnameseDate(displayData.date);
+    
+    if (parsedDate !== todayStr) {
+      Alert.alert(
+        "Chưa đến ngày thực hiện",
+        `Lịch hẹn này được đặt vào ngày ${displayData.date}. Bạn chỉ có thể bắt đầu vào đúng ngày thực hiện.`,
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
     // Validate: Check if there's another in-progress appointment
     const conflict = checkStartConflict(appointmentId);
     
@@ -854,24 +1047,40 @@ export default function AppointmentDetailScreen() {
       { text: "Hủy", style: "cancel" },
       {
         text: "Bắt đầu",
-        onPress: () => {
+        onPress: async () => {
           const newStatus = "in-progress";
           setStatus(newStatus);
           updateAppointmentStatus(appointmentId, newStatus);
+          // Save to database
+          if (appointment) {
+            try {
+              await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
+            } catch (error) {
+              console.error('Error updating appointment status:', error);
+            }
+          }
           alert("Đã bắt đầu thực hiện công việc");
         },
       },
     ]);
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     alert("Đã hủy lịch hẹn");
     const newStatus = "cancelled";
     setStatus(newStatus);
     updateAppointmentStatus(appointmentId, newStatus);
+    // Save to database
+    if (appointment) {
+      try {
+        await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
+      } catch (error) {
+        console.error('Error updating appointment status:', error);
+      }
+    }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     // Validate: Kiểm tra tất cả dịch vụ đã hoàn thành chưa
     const incompleteServices = services.filter(service => !service.completed);
     
@@ -887,24 +1096,24 @@ export default function AppointmentDetailScreen() {
       return;
     }
     
-    // Confirm trước khi hoàn thành
-    Alert.alert(
-      "Xác nhận hoàn thành",
-      "Bạn có chắc chắn muốn hoàn thành ca làm việc này?",
-      [
-        { text: "Hủy", style: "cancel" },
-        { 
-          text: "Hoàn thành", 
-          onPress: () => {
-            const newStatus = "completed";
-            setStatus(newStatus);
-            updateAppointmentStatus(appointmentId, newStatus);
-            // Show payment code modal instead of alert
-            setShowPaymentCodeModal(true);
-          }
-        }
-      ]
-    );
+    // Show payment modal directly without confirmation
+    setShowPaymentCodeModal(true);
+  };
+
+  const handlePaymentComplete = async () => {
+    const newStatus = "completed";
+    setStatus(newStatus);
+    updateAppointmentStatus(appointmentId, newStatus);
+    // Save to database
+    if (appointment) {
+      try {
+        await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
+        Alert.alert("Thành công", "Công việc đã hoàn thành và thanh toán đã được xác nhận");
+      } catch (error) {
+        console.error('Error updating appointment status:', error);
+        Alert.alert("Lỗi", "Không thể cập nhật trạng thái");
+      }
+    }
   };
 
   const handleReview = () => {
@@ -912,14 +1121,14 @@ export default function AppointmentDetailScreen() {
       // Đã đánh giá rồi - Xem đánh giá
       (navigation.navigate as any)("View Review", {
         appointmentId: appointmentId,
-        elderlyName: appointmentData.elderly?.name || "Người được chăm sóc",
+        elderlyName: displayData.elderly?.name || "Người được chăm sóc",
         fromScreen: "appointment-detail",
       });
     } else {
       // Chưa đánh giá - Đánh giá mới
       (navigation.navigate as any)("Review", {
         appointmentId: appointmentId,
-        elderlyName: appointmentData.elderly?.name || "Người được chăm sóc",
+        elderlyName: displayData.elderly?.name || "Người được chăm sóc",
         fromScreen: "appointment-detail",
       });
     }
@@ -929,10 +1138,10 @@ export default function AppointmentDetailScreen() {
     const hasComplained = getAppointmentHasComplained(appointmentId);
     const params = {
       bookingId: appointmentId,
-      elderlyName: appointmentData.elderly?.name || "Người được chăm sóc",
-      date: appointmentData.date,
-      time: appointmentData.timeSlot,
-      packageName: appointmentData.packageType,
+      elderlyName: displayData.elderly?.name || "Người được chăm sóc",
+      date: displayData.date,
+      time: displayData.timeSlot,
+      packageName: displayData.packageType,
       fromScreen: "appointment-detail",
     };
     
@@ -950,13 +1159,13 @@ export default function AppointmentDetailScreen() {
 
   const handleMessage = () => {
     // Lấy thông tin người được chăm sóc (ưu tiên) hoặc người liên hệ khẩn cấp (fallback)
-    const contactName = appointmentData.elderly?.name || appointmentData.elderly?.emergencyContact?.name || "Người dùng";
+    const contactName = displayData.elderly?.name || displayData.elderly?.emergencyContact?.name || "Người dùng";
     
     // Tạo avatar emoji dựa trên giới tính hoặc sử dụng emoji mặc định
     let contactAvatar = "👤"; // Default
-    if (appointmentData.elderly?.gender === "Nam") {
+    if (displayData.elderly?.gender === "Nam") {
       contactAvatar = "👨";
-    } else if (appointmentData.elderly?.gender === "Nữ") {
+    } else if (displayData.elderly?.gender === "Nữ") {
       contactAvatar = "👩";
     }
     
@@ -1011,7 +1220,7 @@ export default function AppointmentDetailScreen() {
 
   // Check if can cancel booking (more than 3 days before appointment)
   const canCancelBooking = () => {
-    const appointmentDate = new Date(appointmentData.date);
+    const appointmentDate = new Date(displayData.date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     appointmentDate.setHours(0, 0, 0, 0);
@@ -1025,7 +1234,7 @@ export default function AppointmentDetailScreen() {
   // Render bottom action buttons dựa trên trạng thái
   const renderBottomActions = () => {
     switch (status) {
-      case "new":
+      case "Mới":
         // Yêu cầu mới: Từ chối / Chấp nhận
         return (
           <View style={styles.bottomActions}>
@@ -1054,76 +1263,59 @@ export default function AppointmentDetailScreen() {
           </View>
         );
       
-      case "pending":
-        // Chờ thực hiện: Nhắn tin / (Hủy nếu còn >= 3 ngày) / Bắt đầu
-        const showCancelButton = canCancelBooking();
+      case "Chờ thực hiện":
+        // Chờ thực hiện: Hủy / Bắt đầu (giống booking.tsx)
         return (
           <View style={styles.bottomActions}>
             <TouchableOpacity 
-              style={styles.actionButtonSecondary}
-              onPress={handleMessage}
+              style={styles.actionButtonDanger}
+              onPress={handleCancel}
             >
-              <Ionicons name="chatbubble-outline" size={20} color="#10B981" />
-              <Text style={styles.actionButtonSecondaryText}>Nhắn tin</Text>
-            </TouchableOpacity>
-            {showCancelButton && (
-              <TouchableOpacity 
-                style={styles.actionButtonWarning}
-                onPress={handleCancel}
-              >
-                <Ionicons name="close-circle-outline" size={20} color="#fff" />
-                <Text style={styles.actionButtonWarningText}>Hủy</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity 
-              style={styles.actionButtonPrimary}
-              onPress={handleStart}
-            >
-              <Ionicons name="play-circle" size={20} color="#fff" />
-              <Text style={styles.actionButtonPrimaryText}>Bắt đầu</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      
-      case "confirmed":
-      case "in-progress":
-        // Đang thực hiện: Nhắn tin / Hoàn thành ca
-        return (
-          <View style={styles.bottomActions}>
-            <TouchableOpacity 
-              style={styles.actionButtonSecondary}
-              onPress={handleMessage}
-            >
-              <Ionicons name="chatbubble-outline" size={20} color="#10B981" />
-              <Text style={styles.actionButtonSecondaryText}>Nhắn tin</Text>
+              <Ionicons name="close-circle" size={20} color="#fff" />
+              <Text style={styles.actionButtonDangerText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionButtonSuccess}
-              onPress={handleComplete}
+              onPress={handleStart}
             >
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={styles.actionButtonSuccessText}>Hoàn thành ca</Text>
+              <Ionicons name="play-circle" size={20} color="#fff" />
+              <Text style={styles.actionButtonSuccessText}>Bắt đầu</Text>
             </TouchableOpacity>
           </View>
         );
       
-      case "completed":
-        // Đã hoàn thành: Khiếu nại / Đánh giá hoặc Xem đánh giá
-        const hasComplained = getAppointmentHasComplained(appointmentId);
+      case "Đang thực hiện":
+        // Đang thực hiện: Chỉ có nút Hoàn thành (giống booking.tsx)
         return (
           <View style={styles.bottomActions}>
             <TouchableOpacity 
-              style={styles.actionButtonSecondary}
+              style={[styles.actionButtonSuccess, { flex: 1 }]}
+              onPress={handleComplete}
+            >
+              <Ionicons name="checkmark-done-circle" size={20} color="#fff" />
+              <Text style={styles.actionButtonSuccessText}>Hoàn thành</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      
+      case "Hoàn thành":
+        // Hoàn thành: Khiếu nại / Đánh giá (giống booking.tsx)
+        return (
+          <View style={styles.bottomActions}>
+            <TouchableOpacity 
+              style={styles.actionButtonDanger}
               onPress={handleComplaint}
             >
-              <Ionicons name={hasComplained ? "eye-outline" : "alert-circle-outline"} size={20} color="#EF4444" />
-              <Text style={[styles.actionButtonSecondaryText, { color: "#EF4444" }]}>{hasComplained ? "Xem khiếu nại" : "Khiếu nại"}</Text>
+              <Ionicons name={hasComplained ? "eye" : "alert-circle-outline"} size={20} color="#fff" />
+              <Text style={styles.actionButtonDangerText}>
+                {hasComplained ? "Xem khiếu nại" : "Khiếu nại"}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionButtonPrimary}
               onPress={handleReview}
             >
-              <Ionicons name={hasReviewed ? "eye-outline" : "star"} size={20} color="#fff" />
+              <Ionicons name={hasReviewed ? "eye" : "star"} size={20} color="#fff" />
               <Text style={styles.actionButtonPrimaryText}>
                 {hasReviewed ? "Xem đánh giá" : "Đánh giá"}
               </Text>
@@ -1131,9 +1323,8 @@ export default function AppointmentDetailScreen() {
           </View>
         );
       
-      case "cancelled":
-      case "rejected":
-        // Đã hủy/từ chối: Không có action
+      case "Đã hủy":
+        // Đã hủy: Không có action buttons
         return null;
       
       default:
@@ -1161,7 +1352,7 @@ export default function AppointmentDetailScreen() {
 
   const renderService = (service: any) => {
     // Chỉ cho phép tick service khi đang thực hiện
-    const canEditService = status === "in-progress" || status === "confirmed";
+    const canEditService = status === "Đang thực hiện";
     
     return (
       <TouchableOpacity
@@ -1208,7 +1399,7 @@ export default function AppointmentDetailScreen() {
     <View style={styles.container}>
       <ScrollView 
         style={styles.scrollView} 
-        contentContainerStyle={appointmentData.specialInstructions ? { paddingTop: 100 } : { paddingTop: 20 }}
+        contentContainerStyle={displayData.specialInstructions ? { paddingTop: 100 } : { paddingTop: 20 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Status Badge */}
@@ -1231,11 +1422,11 @@ export default function AppointmentDetailScreen() {
               </View>
             )}
           </View>
-          <Text style={styles.appointmentId}>#{appointmentData.id}</Text>
+          <Text style={styles.appointmentId}>#{displayData.id}</Text>
         </View>
 
         {/* Deadline Display - Only for new appointments */}
-        {status === "new" && appointmentData.responseDeadline && (
+        {status === "Mới" && displayData.responseDeadline && (
           <View style={[
             styles.deadlineDisplay,
             isDeadlineExpired && styles.deadlineDisplayExpired
@@ -1251,7 +1442,7 @@ export default function AppointmentDetailScreen() {
             ]}>
               {isDeadlineExpired 
                 ? "Đã quá hạn phản hồi" 
-                : formatDeadlineDisplay(appointmentData.responseDeadline)
+                : formatDeadlineDisplay(displayData.responseDeadline)
               }
             </Text>
           </View>
@@ -1265,7 +1456,7 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="calendar-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Ngày</Text>
-                <Text style={styles.infoValue}>{appointmentData.date}</Text>
+                <Text style={styles.infoValue}>{displayData.date}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -1273,7 +1464,7 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="time-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Thời gian</Text>
-                <Text style={styles.infoValue}>{appointmentData.timeSlot}</Text>
+                <Text style={styles.infoValue}>{displayData.timeSlot}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -1281,7 +1472,7 @@ export default function AppointmentDetailScreen() {
               <MaterialCommunityIcons name="package-variant" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Gói dịch vụ</Text>
-                <Text style={styles.infoValue}>{appointmentData.packageType}</Text>
+                <Text style={styles.infoValue}>{displayData.packageType}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -1289,7 +1480,7 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="hourglass-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Thời lượng</Text>
-                <Text style={styles.infoValue}>{appointmentData.duration}</Text>
+                <Text style={styles.infoValue}>{displayData.duration}</Text>
               </View>
             </View>
           </View>
@@ -1301,24 +1492,24 @@ export default function AppointmentDetailScreen() {
           <View style={styles.card}>
             <View style={styles.elderlyHeader}>
               <Image
-                source={{ uri: appointmentData.elderly.avatar }}
+                source={{ uri: displayData.elderly.avatar }}
                 style={styles.avatar}
               />
               <View style={styles.elderlyInfo}>
-                <Text style={styles.elderlyName}>{appointmentData.elderly.name}</Text>
+                <Text style={styles.elderlyName}>{displayData.elderly.name}</Text>
                 <Text style={styles.elderlyMeta}>
-                  {appointmentData.elderly.age} tuổi • {appointmentData.elderly.gender}
+                  {displayData.elderly.age} tuổi • {displayData.elderly.gender}
                 </Text>
               </View>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={20} color="#6B7280" />
-              <Text style={styles.infoText}>{appointmentData.elderly.address}</Text>
+              <Text style={styles.infoText}>{displayData.elderly.address}</Text>
             </View>
             <View style={styles.infoRow}>
               <Ionicons name="call-outline" size={20} color="#6B7280" />
-              <Text style={styles.infoText}>{appointmentData.elderly.phone}</Text>
+              <Text style={styles.infoText}>{displayData.elderly.phone}</Text>
             </View>
             
             <View style={styles.divider} />
@@ -1328,7 +1519,7 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="water" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Nhóm máu</Text>
-                <Text style={styles.infoValue}>{appointmentData.elderly.bloodType}</Text>
+                <Text style={styles.infoValue}>{displayData.elderly.bloodType}</Text>
               </View>
             </View>
             
@@ -1337,29 +1528,37 @@ export default function AppointmentDetailScreen() {
               <MaterialCommunityIcons name="medical-bag" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Bệnh nền</Text>
-                {appointmentData.elderly.underlyingDiseases.map((disease, index) => (
-                  <View key={index} style={styles.diseaseTag}>
-                    <MaterialCommunityIcons name="circle-small" size={16} color="#EF4444" />
-                    <Text style={styles.diseaseText}>{disease}</Text>
-                  </View>
-                ))}
+                {displayData.elderly.underlyingDiseases.length > 0 ? (
+                  displayData.elderly.underlyingDiseases.map((disease: any, index: number) => (
+                    <View key={index} style={styles.diseaseTag}>
+                      <MaterialCommunityIcons name="circle-small" size={16} color="#EF4444" />
+                      <Text style={styles.diseaseText}>{disease}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>Không có</Text>
+                )}
               </View>
             </View>
             
             {/* Medications */}
             <View style={styles.medicationSection}>
               <Text style={styles.subsectionTitle}>Thuốc đang sử dụng:</Text>
-              {appointmentData.elderly.medications.map((med, index) => (
-                <View key={index} style={styles.medicationItem}>
-                  <View style={styles.medicationDot} />
-                  <View style={styles.medicationDetails}>
-                    <Text style={styles.medicationName}>{med.name}</Text>
-                    <Text style={styles.medicationDosage}>
-                      {med.dosage} - {med.frequency}
-                    </Text>
+              {displayData.elderly.medications.length > 0 ? (
+                displayData.elderly.medications.map((med: any, index: number) => (
+                  <View key={index} style={styles.medicationItem}>
+                    <View style={styles.medicationDot} />
+                    <View style={styles.medicationDetails}>
+                      <Text style={styles.medicationName}>{med.name}</Text>
+                      <Text style={styles.medicationDosage}>
+                        {med.dosage} - {med.frequency}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              ))}
+                ))
+              ) : (
+                <Text style={styles.infoText}>Không có</Text>
+              )}
             </View>
             
             {/* Allergies */}
@@ -1368,12 +1567,16 @@ export default function AppointmentDetailScreen() {
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Dị ứng</Text>
                 <View style={styles.allergyContainer}>
-                  {appointmentData.elderly.allergies.map((allergy, index) => (
-                    <View key={index} style={styles.allergyTag}>
-                      <MaterialCommunityIcons name="alert" size={14} color="#EF4444" />
-                      <Text style={styles.allergyText}>{allergy}</Text>
-                    </View>
-                  ))}
+                  {displayData.elderly.allergies.length > 0 ? (
+                    displayData.elderly.allergies.map((allergy: any, index: number) => (
+                      <View key={index} style={styles.allergyTag}>
+                        <MaterialCommunityIcons name="alert" size={14} color="#EF4444" />
+                        <Text style={styles.allergyText}>{allergy}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.infoText}>Không có</Text>
+                  )}
                 </View>
               </View>
             </View>
@@ -1387,29 +1590,29 @@ export default function AppointmentDetailScreen() {
                 <View style={styles.independenceItem}>
                   <Ionicons name="restaurant" size={18} color="#6B7280" />
                   <Text style={styles.independenceLabel}>Ăn uống</Text>
-                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(appointmentData.elderly.independenceLevel.eating) }]}>
-                    <Text style={styles.independenceBadgeText}>{getIndependenceText(appointmentData.elderly.independenceLevel.eating)}</Text>
+                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.eating) }]}>
+                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.eating)}</Text>
                   </View>
                 </View>
                 <View style={styles.independenceItem}>
                   <Ionicons name="water" size={18} color="#6B7280" />
                   <Text style={styles.independenceLabel}>Tắm rửa</Text>
-                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(appointmentData.elderly.independenceLevel.bathing) }]}>
-                    <Text style={styles.independenceBadgeText}>{getIndependenceText(appointmentData.elderly.independenceLevel.bathing)}</Text>
+                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.bathing) }]}>
+                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.bathing)}</Text>
                   </View>
                 </View>
                 <View style={styles.independenceItem}>
                   <Ionicons name="walk" size={18} color="#6B7280" />
                   <Text style={styles.independenceLabel}>Di chuyển</Text>
-                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(appointmentData.elderly.independenceLevel.mobility) }]}>
-                    <Text style={styles.independenceBadgeText}>{getIndependenceText(appointmentData.elderly.independenceLevel.mobility)}</Text>
+                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.mobility) }]}>
+                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.mobility)}</Text>
                   </View>
                 </View>
                 <View style={styles.independenceItem}>
                   <Ionicons name="shirt" size={18} color="#6B7280" />
                   <Text style={styles.independenceLabel}>Mặc đồ</Text>
-                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(appointmentData.elderly.independenceLevel.dressing) }]}>
-                    <Text style={styles.independenceBadgeText}>{getIndependenceText(appointmentData.elderly.independenceLevel.dressing)}</Text>
+                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.dressing) }]}>
+                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.dressing)}</Text>
                   </View>
                 </View>
               </View>
@@ -1426,15 +1629,19 @@ export default function AppointmentDetailScreen() {
               </View>
               <View style={styles.infoRow}>
                 <MaterialCommunityIcons name="account-multiple" size={18} color="#6B7280" />
-                <Text style={styles.infoText}>Sống cùng: {appointmentData.elderly.livingEnvironment.livingWith.join(", ")}</Text>
+                <Text style={styles.infoText}>Sống cùng: {displayData.elderly.livingEnvironment.livingWith.length > 0 ? displayData.elderly.livingEnvironment.livingWith.join(", ") : "Không có"}</Text>
               </View>
               <View style={styles.accessibilityTags}>
-                {appointmentData.elderly.livingEnvironment.accessibility.map((item, index) => (
-                  <View key={index} style={styles.accessibilityTag}>
-                    <MaterialCommunityIcons name="check-circle" size={14} color="#10B981" />
-                    <Text style={styles.accessibilityText}>{item}</Text>
-                  </View>
-                ))}
+                {displayData.elderly.livingEnvironment.accessibility.length > 0 ? (
+                  displayData.elderly.livingEnvironment.accessibility.map((item: any, index: number) => (
+                    <View key={index} style={styles.accessibilityTag}>
+                      <MaterialCommunityIcons name="check-circle" size={14} color="#10B981" />
+                      <Text style={styles.accessibilityText}>{item}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>Không có</Text>
+                )}
               </View>
             </View>
             
@@ -1444,21 +1651,29 @@ export default function AppointmentDetailScreen() {
             <View style={styles.preferencesSection}>
               <Text style={styles.subsectionTitle}>Sở thích & Ưa thích:</Text>
               <View style={styles.hobbyTags}>
-                {appointmentData.elderly.hobbies.map((hobby, index) => (
-                  <View key={index} style={styles.hobbyTag}>
-                    <Ionicons name="star" size={14} color="#F59E0B" />
-                    <Text style={styles.hobbyText}>{hobby}</Text>
-                  </View>
-                ))}
+                {displayData.elderly.hobbies.length > 0 ? (
+                  displayData.elderly.hobbies.map((hobby: any, index: number) => (
+                    <View key={index} style={styles.hobbyTag}>
+                      <Ionicons name="star" size={14} color="#F59E0B" />
+                      <Text style={styles.hobbyText}>{hobby}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>Không có</Text>
+                )}
               </View>
               <Text style={styles.preferencesLabel}>Món ăn yêu thích:</Text>
               <View style={styles.foodTags}>
-                {appointmentData.elderly.foodPreferences.map((food, index) => (
-                  <View key={index} style={styles.foodTag}>
-                    <Ionicons name="restaurant" size={14} color="#10B981" />
-                    <Text style={styles.foodText}>{food}</Text>
-                  </View>
-                ))}
+                {displayData.elderly.foodPreferences.length > 0 ? (
+                  displayData.elderly.foodPreferences.map((food: any, index: number) => (
+                    <View key={index} style={styles.foodTag}>
+                      <Ionicons name="restaurant" size={14} color="#10B981" />
+                      <Text style={styles.foodText}>{food}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>Không có</Text>
+                )}
               </View>
             </View>
             
@@ -1468,10 +1683,12 @@ export default function AppointmentDetailScreen() {
                 <Ionicons name="warning-outline" size={16} color="#EF4444" /> Liên hệ khẩn cấp
               </Text>
               <Text style={styles.emergencyName}>
-                {appointmentData.elderly.emergencyContact.name} ({appointmentData.elderly.emergencyContact.relationship})
+                {displayData.elderly.emergencyContact.name && displayData.elderly.emergencyContact.name !== 'Không có' && displayData.elderly.emergencyContact.relationship && displayData.elderly.emergencyContact.relationship !== 'Không có'
+                  ? `${displayData.elderly.emergencyContact.name} (${displayData.elderly.emergencyContact.relationship})`
+                  : displayData.elderly.emergencyContact.name || 'Không có'}
               </Text>
               <Text style={styles.emergencyPhone}>
-                {appointmentData.elderly.emergencyContact.phone}
+                {displayData.elderly.emergencyContact.phone || 'Không có'}
               </Text>
             </View>
           </View>
@@ -1513,7 +1730,7 @@ export default function AppointmentDetailScreen() {
             <View style={styles.taskSection}>
               <View style={styles.taskSectionHeader}>
                 <MaterialCommunityIcons name="package-variant" size={20} color="#10B981" />
-                <Text style={styles.taskSectionTitle}>Dịch vụ {appointmentData.packageType}</Text>
+                <Text style={styles.taskSectionTitle}>Dịch vụ {displayData.packageType}</Text>
                 <View style={styles.taskBadge}>
                   <Text style={styles.taskBadgeText}>
                     {services.filter((s) => s.completed).length}/{services.length}
@@ -1549,7 +1766,7 @@ export default function AppointmentDetailScreen() {
               </Text>
             </TouchableOpacity>
 
-            {notes.map((note) => (
+            {notes.map((note: any) => (
               <View key={note.id} style={styles.noteCard}>
                 <View style={styles.noteHeader}>
                   <View style={styles.noteAuthor}>
@@ -1573,14 +1790,14 @@ export default function AppointmentDetailScreen() {
     </ScrollView>
 
     {/* Special Instructions Header - Sticky */}
-    {appointmentData.specialInstructions && (
+    {displayData.specialInstructions && (
       <View style={styles.stickyHeaderContainer}>
         <View style={styles.stickyHeaderContent}>
           <Text style={styles.stickyHeaderTitle}>Lưu ý đặc biệt</Text>
           <View style={styles.stickyHeaderCard}>
             <MaterialCommunityIcons name="information" size={20} color="#F59E0B" />
             <Text style={styles.instructionsText}>
-              {appointmentData.specialInstructions}
+              {displayData.specialInstructions}
             </Text>
           </View>
         </View>
@@ -1646,7 +1863,8 @@ export default function AppointmentDetailScreen() {
     <PaymentCode
       visible={showPaymentCodeModal}
       onClose={() => setShowPaymentCodeModal(false)}
-      bookingId={appointmentData.id}
+      onComplete={handlePaymentComplete}
+      bookingId={displayData.id}
       amount={250000} // You can calculate this based on package type
       caregiverName="Người chăm sóc" // Or get from auth context
       completedAt={new Date()}
@@ -2511,3 +2729,4 @@ const styles = StyleSheet.create({
     color: "#991B1B",
   },
 });
+
