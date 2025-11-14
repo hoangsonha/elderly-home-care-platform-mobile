@@ -21,6 +21,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User | null>;
   logout: () => void;
   updateProfile: (profile: Partial<User>) => void;
+  setUserDirect?: (user: User | null) => void;
   switchRole: (role: "Caregiver" | "Care Seeker") => void; // 👈 NEW
 }
 
@@ -50,19 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         status: res.status, // Load status from API
       };
 
-      // If user is Caregiver and has status, load it into profileStore
-      if (userData.role === "Caregiver" && userData.status) {
-        const { setProfileStatus } = require("@/data/profileStore");
-        // Map API status to profileStore status
-        if (userData.status === "approved") {
-          setProfileStatus(userData.id, "approved");
-        } else if (userData.status === "rejected") {
-          setProfileStatus(userData.id, "rejected", "Hồ sơ không đáp ứng yêu cầu");
-        } else {
-          setProfileStatus(userData.id, "pending");
-        }
-      }
-
+      // Don't auto-set profileStore here - let complete-profile.tsx handle it
+      // This prevents premature redirection to profile-status
       setUser(userData);
       return userData; // ✅ trả về luôn user
     } catch (error) {
@@ -83,6 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Allow setting user object directly (used after register)
+  const setUserDirect = (u: User | null) => {
+    setUser(u);
+  };
+
   // 🔥 NEW: Switch role for testing
   const switchRole = (role: "Caregiver" | "Care Seeker") => {
     if (user) {
@@ -100,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         updateProfile,
+        setUserDirect,
         switchRole, // 👈 Add to context
       }}
     >

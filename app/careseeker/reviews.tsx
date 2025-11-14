@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookingModal } from '@/components/caregiver/BookingModal';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
+import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 
 interface VideoConsultationReview {
   id: string;
@@ -89,26 +90,7 @@ export default function ReviewsScreen() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedCaregiver, setSelectedCaregiver] = useState<any>(null);
-
-  // Mock elderly profiles for booking
-  const elderlyProfiles = [
-    {
-      id: '1',
-      name: 'Bà Nguyễn Thị Mai',
-      age: 75,
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
-      healthStatus: 'good',
-      familyName: 'Gia đình Nguyễn',
-    },
-    {
-      id: '2',
-      name: 'Ông Trần Văn Nam',
-      age: 82,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-      healthStatus: 'fair',
-      familyName: 'Gia đình Trần',
-    },
-  ];
+  const { profiles: elderlyProfiles } = useElderlyProfiles(user?.id || '');
 
   // Mock data - Video Consultation Reviews
   const videoReviews: VideoConsultationReview[] = [

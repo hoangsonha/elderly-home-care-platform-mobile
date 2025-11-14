@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     Alert,
     Animated,
@@ -25,7 +26,8 @@ import { CustomModal } from '@/components/ui/CustomModal';
 import { NotificationPanel } from '@/components/ui/NotificationPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
-import { DevMenu } from '@/components/dev/DevMenu'; // 👈 NEW
+import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
+import { getDatabase } from '@/services/database.service';
 
 const { width } = Dimensions.get('window');
 
@@ -42,6 +44,7 @@ interface ServiceModule {
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
   const { emergencyAlertVisible, hideEmergencyAlert } = useNotification();
+  const { profiles: elderlyProfiles, loading: loadingElderlyProfiles, refresh: refreshElderlyProfiles } = useElderlyProfiles(user?.id || '');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showAppInfoModal, setShowAppInfoModal] = useState(false);
@@ -51,6 +54,110 @@ export default function DashboardScreen() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showDevMenu, setShowDevMenu] = useState(false); // 👈 NEW
   const [selectedCaregiver, setSelectedCaregiver] = useState<any>(null);
+  const [recommendedCaregivers, setRecommendedCaregivers] = useState<any[]>([]);
+  const [loadingCaregivers, setLoadingCaregivers] = useState(true);
+  
+  // Refresh elderly profiles when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        refreshElderlyProfiles();
+      }
+    }, [user?.id, refreshElderlyProfiles])
+  );
+  
+  // Fetch caregivers from database on mount
+  useEffect(() => {
+    const fetchCaregivers = async () => {
+      try {
+        setLoadingCaregivers(true);
+        const db = await getDatabase();
+        if (!db) {
+          console.log('Database not available');
+          setLoadingCaregivers(false);
+          return;
+        }
+
+        // Get all caregivers with is_verified = 1
+        const caregivers = await db.getAllAsync<any>(
+          `SELECT 
+            c.*,
+            u.name as user_name,
+            u.email,
+            u.status
+           FROM caregivers c
+           LEFT JOIN users u ON c.id = u.id
+           WHERE u.role = 'Caregiver' AND u.status = 'approved'
+           ORDER BY c.rating DESC, c.created_at DESC
+           LIMIT 10`
+        );
+
+        console.log('📋 Fetched caregivers from DB:', caregivers?.length || 0);
+
+        if (caregivers && caregivers.length > 0) {
+          // Transform database data to UI format
+          const transformedCaregivers = caregivers.map((caregiver: any) => {
+            // Parse certificates if it's a JSON string
+            let specialties: string[] = [];
+            try {
+              if (caregiver.certificates) {
+                const certs = JSON.parse(caregiver.certificates);
+                specialties = Array.isArray(certs) 
+                  ? certs.map((cert: any) => cert.type || cert.name).filter(Boolean).slice(0, 2)
+                  : [];
+              }
+            } catch (err) {
+              console.warn('Failed to parse certificates for', caregiver.name);
+            }
+
+            return {
+              id: caregiver.id,
+              name: caregiver.name || caregiver.user_name || 'Chưa có tên',
+              age: caregiver.age || 30,
+              avatar: caregiver.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(caregiver.name || 'User')}&background=70C1F1&color=fff`,
+              rating: caregiver.rating || 0,
+              gender: caregiver.gender === 'Nam' ? 'male' as const : 'female' as const,
+              specialties: specialties.length > 0 ? specialties : ['Chăm sóc người già'],
+            };
+          });
+
+          setRecommendedCaregivers(transformedCaregivers);
+        } else {
+          // Fallback to mock data if no caregivers in DB
+          console.log('⚠️ No caregivers found in DB, using fallback');
+          setRecommendedCaregivers([
+            {
+              id: 'mock-1',
+              name: 'Mai',
+              age: 35,
+              avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+              rating: 4.9,
+              gender: 'female' as const,
+              specialties: ['Cao đẳng Điều dưỡng', 'Chăm sóc đái tháo đường'],
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching caregivers:', error);
+        // Use fallback mock data
+        setRecommendedCaregivers([
+          {
+            id: 'mock-1',
+            name: 'Mai',
+            age: 35,
+            avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
+            rating: 4.9,
+            gender: 'female' as const,
+            specialties: ['Cao đẳng Điều dưỡng', 'Chăm sóc đái tháo đường'],
+          },
+        ]);
+      } finally {
+        setLoadingCaregivers(false);
+      }
+    };
+
+    fetchCaregivers();
+  }, []);
   
   // Request notification data - TODO: Fetch from API
   const requestCount = 0; // Set to 0 to hide mock notification
@@ -126,96 +233,6 @@ export default function DashboardScreen() {
     setSelectedCaregiver(caregiver);
     setShowBookingModal(true);
   };
-
-  // Sample elderly profiles data
-  const elderlyProfiles = [
-    {
-      id: '1',
-      name: 'Bà Nguyễn Thị Lan',
-      age: 75,
-      avatar: 'https://via.placeholder.com/60x60/4ECDC4/FFFFFF?text=NL',
-      relationship: 'Bà nội',
-      gender: 'female' as const,
-      currentCaregivers: 1,
-      family: 'Gia đình Nguyễn',
-      healthStatus: 'good' as const,
-      address: '123 Nguyễn Văn Linh, Quận 7, TP.HCM',
-    },
-    {
-      id: '2',
-      name: 'Ông Trần Văn Minh',
-      age: 82,
-      healthStatus: 'fair' as const,
-      avatar: 'https://via.placeholder.com/60x60/27AE60/FFFFFF?text=TM',
-      relationship: 'Ông ngoại',
-      gender: 'male' as const,
-      currentCaregivers: 0,
-      family: 'Gia đình Trần',
-      address: '456 Lê Văn Việt, Quận 9, TP.HCM',
-    },
-    {
-      id: '3',
-      name: 'Bà Lê Thị Hoa',
-      age: 68,
-      healthStatus: 'good' as const,
-      avatar: 'https://via.placeholder.com/60x60/F39C12/FFFFFF?text=LH',
-      relationship: 'Bà ngoại',
-      gender: 'female' as const,
-      currentCaregivers: 2,
-      family: 'Gia đình Lê',
-      address: '789 Võ Văn Ngân, Thủ Đức, TP.HCM',
-    },
-    {
-      id: '4',
-      name: 'Ông Phạm Văn Đức',
-      age: 79,
-      healthStatus: 'Yếu',
-      avatar: 'https://via.placeholder.com/60x60/E74C3C/FFFFFF?text=PD',
-      relationship: 'Ông nội',
-      gender: 'male' as const,
-      address: '234 Phan Văn Trị, Gò Vấp, TP.HCM',
-    },
-  ];
-  
-  // Recommended caregivers - Fixed data
-  const recommendedCaregivers = [
-    {
-      id: '1',
-      name: 'Mai',
-      age: 35,
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
-      rating: 4.9,
-      gender: 'female' as const,
-      specialties: ['Cao đẳng Điều dưỡng', 'Chăm sóc đái tháo đường'],
-    },
-    {
-      id: '2',
-      name: 'Hùng',
-      age: 42,
-      avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&h=150&fit=crop&crop=face',
-      rating: 4.8,
-      gender: 'male' as const,
-      specialties: ['Vật lý trị liệu', 'Phục hồi chức năng'],
-    },
-    {
-      id: '3',
-      name: 'Linh',
-      age: 28,
-      avatar: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=150&h=150&fit=crop&crop=face',
-      rating: 4.7,
-      gender: 'female' as const,
-      specialties: ['Chăm sóc sau phẫu thuật', 'Y tế tại nhà'],
-    },
-    {
-      id: '4',
-      name: 'Nam',
-      age: 38,
-      avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&crop=face',
-      rating: 4.8,
-      gender: 'male' as const,
-      specialties: ['Chăm sóc bệnh Alzheimer', 'Hỗ trợ di chuyển'],
-    },
-  ];
   
   const [notifications, setNotifications] = useState([
     {

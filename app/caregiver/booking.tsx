@@ -1,9 +1,14 @@
 import { appointmentsDataMap } from "@/app/caregiver/appointment-detail";
+import { PaymentModal } from "@/components/caregiver/PaymentModal";
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { useAuth } from "@/contexts/AuthContext";
 import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
+import { useAppointments } from "@/hooks/useDatabaseEntities";
+import * as AppointmentRepository from "@/services/appointment.repository";
+import * as ElderlyRepository from "@/services/elderly.repository";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -35,6 +40,27 @@ interface Booking {
   avatar: string;
   responseDeadline?: string; // ISO string for deadline
 }
+
+// Parse Vietnamese date format "T5, 13 Thg 11 2025" to "YYYY-MM-DD"
+const parseVietnameseDate = (dateStr: string): string | null => {
+  if (!dateStr) return null;
+  
+  // Match pattern: "T5, 13 Thg 11 2025" or "CN, 16 Thg 11 2025"
+  const match = dateStr.match(/(\d{1,2})\s+Thg\s+(\d{1,2})\s+(\d{4})/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // If already in YYYY-MM-DD format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  return null;
+};
 
 const mockBookings: Booking[] = [
   {
@@ -115,12 +141,113 @@ export default function BookingManagement() {
   const navigation = useNavigation();
   const route = useRoute();
   const params = route.params as { initialTab?: BookingStatus } | undefined;
+  const { user } = useAuth();
+  const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
   
   const [activeTab, setActiveTab] = useState<BookingStatus>(params?.initialTab || "Mới");
-  const [bookings, setBookings] = useState<Booking[]>(mockBookings);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [refreshKey, setRefreshKey] = useState(0); // For triggering re-render when status changes
   
-  // Map appointment status to booking status
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<Booking | null>(null);
+  
+  // Helper to map database status to booking status
+  const mapDbStatusToBookingStatus = (status: string): BookingStatus => {
+    switch (status) {
+      case 'pending': return 'Mới';
+      case 'confirmed': return 'Chờ thực hiện';
+      case 'in-progress': return 'Đang thực hiện';
+      case 'completed': return 'Hoàn thành';
+      case 'cancelled':
+      case 'rejected': return 'Đã hủy';
+      default: return 'Mới';
+    }
+  };
+  
+  // Helper to calculate response deadline (3 days before appointment)
+  const calculateResponseDeadline = (startDate: string) => {
+    if (!startDate) return undefined;
+    
+    try {
+      // Parse YYYY-MM-DD format safely
+      const [year, month, day] = startDate.split('-').map(Number);
+      if (!year || !month || !day) return undefined;
+      
+      const appointmentDate = new Date(year, month - 1, day); // month is 0-indexed
+      
+      // Check if date is valid
+      if (isNaN(appointmentDate.getTime())) return undefined;
+      
+      const deadline = new Date(appointmentDate);
+      deadline.setDate(deadline.getDate() - 3);
+      deadline.setHours(23, 59, 59, 999);
+      return deadline.toISOString();
+    } catch (error) {
+      console.error('Error calculating deadline:', error);
+      return undefined;
+    }
+  };
+  
+  // Refresh appointments when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        refresh();
+      }
+    }, [user?.id, refresh])
+  );
+  
+  // Convert appointments to bookings format with elderly profile data
+  useEffect(() => {
+    const loadBookingsWithElderlyInfo = async () => {
+      const convertedBookings: Booking[] = await Promise.all(
+        appointments.map(async (apt) => {
+          let elderName = 'Đang tải...';
+          let age = 0;
+          let phone = '0909 123 456';
+          
+          // Fetch elderly profile info
+          if (apt.elderly_profile_id) {
+            try {
+              const elderlyProfile = await ElderlyRepository.getElderlyProfileById(apt.elderly_profile_id);
+              if (elderlyProfile) {
+                elderName = elderlyProfile.name || 'Không có tên';
+                age = elderlyProfile.age || 0;
+                phone = elderlyProfile.phone || '0909 123 456';
+              }
+            } catch (error) {
+              console.error('Error fetching elderly profile:', error);
+              elderName = apt.elderly_profile_id;
+            }
+          }
+          
+          return {
+            id: apt.id,
+            elderName,
+            age,
+            location: apt.work_location || 'Không xác định',
+            packageType: apt.package_type || 'Gói cơ bản',
+            packageDetail: apt.package_type || 'Gói cơ bản',
+            date: apt.start_date || 'Chưa xác định',
+            time: apt.start_time || 'Chưa xác định',
+            address: apt.work_location || 'Chưa có địa chỉ',
+            phone,
+            price: apt.total_amount || 0,
+            status: mapDbStatusToBookingStatus(apt.status),
+            statusBadge: mapDbStatusToBookingStatus(apt.status),
+            avatar: '👤',
+            responseDeadline: apt.start_date ? calculateResponseDeadline(apt.start_date) : undefined,
+          };
+        })
+      );
+      setBookings(convertedBookings);
+    };
+    
+    loadBookingsWithElderlyInfo();
+  }, [appointments]);
+  
+  // Map appointment status to booking status (legacy function)
   const mapStatusToBookingStatus = (status: string): BookingStatus => {
     switch (status) {
       case "new": return "Mới";
@@ -223,7 +350,7 @@ export default function BookingManagement() {
     return { hours, minutes, seconds, isExpired: false };
   };
 
-  const handleAccept = (bookingId: string) => {
+  const handleAccept = async (bookingId: string) => {
     const booking = bookings.find(b => b.id === bookingId);
     if (booking?.responseDeadline) {
       const remaining = calculateTimeRemaining(booking.responseDeadline);
@@ -237,21 +364,22 @@ export default function BookingManagement() {
       { text: "Hủy", style: "cancel" },
       {
         text: "Chấp nhận",
-        onPress: () => {
-          setBookings((prev) =>
-            prev.map((b) =>
-              b.id === bookingId ? { ...b, status: "Chờ thực hiện" } : b
-            )
-          );
-          // Update global store
-          updateAppointmentStatus(bookingId, "pending");
-          Alert.alert("Thành công", "Đã chấp nhận yêu cầu");
+        onPress: async () => {
+          try {
+            await AppointmentRepository.updateAppointmentStatus(bookingId, 'confirmed');
+            updateAppointmentStatus(bookingId, "confirmed");
+            await refresh();
+            Alert.alert("Thành công", "Đã chấp nhận yêu cầu");
+          } catch (error) {
+            console.error('Error accepting appointment:', error);
+            Alert.alert("Lỗi", "Không thể chấp nhận yêu cầu");
+          }
         },
       },
     ]);
   };
 
-  const handleReject = (bookingId: string) => {
+  const handleReject = async (bookingId: string) => {
     const booking = bookings.find(b => b.id === bookingId);
     if (booking?.responseDeadline) {
       const remaining = calculateTimeRemaining(booking.responseDeadline);
@@ -266,13 +394,16 @@ export default function BookingManagement() {
       {
         text: "Từ chối",
         style: "destructive",
-        onPress: () => {
-          setBookings((prev) =>
-            prev.map((b) => (b.id === bookingId ? { ...b, status: "Đã hủy" } : b))
-          );
-          // Update global store
-          updateAppointmentStatus(bookingId, "rejected");
-          Alert.alert("Đã từ chối", "Yêu cầu đã bị từ chối");
+        onPress: async () => {
+          try {
+            await AppointmentRepository.updateAppointmentStatus(bookingId, 'rejected');
+            updateAppointmentStatus(bookingId, "rejected");
+            await refresh();
+            Alert.alert("Đã từ chối", "Yêu cầu đã bị từ chối");
+          } catch (error) {
+            console.error('Error rejecting appointment:', error);
+            Alert.alert("Lỗi", "Không thể từ chối yêu cầu");
+          }
         },
       },
     ]);
@@ -292,13 +423,16 @@ export default function BookingManagement() {
       {
         text: "Hủy lịch",
         style: "destructive",
-        onPress: () => {
-          setBookings((prev) =>
-            prev.map((b) => (b.id === bookingId ? { ...b, status: "Đã hủy" } : b))
-          );
-          // Update global store
-          updateAppointmentStatus(bookingId, "cancelled");
-          Alert.alert("Đã hủy", "Lịch hẹn đã được hủy");
+        onPress: async () => {
+          try {
+            await AppointmentRepository.updateAppointmentStatus(bookingId, 'cancelled');
+            updateAppointmentStatus(bookingId, "cancelled");
+            await refresh();
+            Alert.alert("Đã hủy", "Lịch hẹn đã được hủy");
+          } catch (error) {
+            console.error('Error cancelling appointment:', error);
+            Alert.alert("Lỗi", "Không thể hủy lịch hẹn");
+          }
         },
       },
     ]);
@@ -347,7 +481,26 @@ export default function BookingManagement() {
     return null; // No conflict
   };
 
-  const handleStart = (bookingId: string) => {
+  const handleStart = async (bookingId: string) => {
+    // Validate: Check if today is the appointment date
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking) {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      // Parse Vietnamese date format to YYYY-MM-DD
+      const parsedDate = parseVietnameseDate(booking.date);
+      
+      if (parsedDate !== todayStr) {
+        Alert.alert(
+          "Chưa đến ngày thực hiện",
+          `Lịch hẹn này được đặt vào ngày ${booking.date}. Bạn chỉ có thể bắt đầu vào đúng ngày thực hiện.`,
+          [{ text: "OK" }]
+        );
+        return;
+      }
+    }
+    
     // Validate: Check if there's another in-progress appointment
     const conflict = checkStartConflict(bookingId);
     
@@ -364,15 +517,16 @@ export default function BookingManagement() {
       { text: "Hủy", style: "cancel" },
       {
         text: "Bắt đầu",
-        onPress: () => {
-          setBookings((prev) =>
-            prev.map((b) =>
-              b.id === bookingId ? { ...b, status: "Đang thực hiện" } : b
-            )
-          );
-          // Update global store
-          updateAppointmentStatus(bookingId, "in-progress");
-          Alert.alert("Thành công", "Đã bắt đầu công việc");
+        onPress: async () => {
+          try {
+            await AppointmentRepository.updateAppointmentStatus(bookingId, 'in-progress');
+            updateAppointmentStatus(bookingId, "in-progress");
+            await refresh();
+            Alert.alert("Thành công", "Đã bắt đầu công việc");
+          } catch (error) {
+            console.error('Error starting appointment:', error);
+            Alert.alert("Lỗi", "Không thể bắt đầu công việc");
+          }
         },
       },
     ]);
@@ -446,7 +600,7 @@ export default function BookingManagement() {
           {
             text: "Xem chi tiết",
             onPress: () => {
-              navigation.navigate("Appointment Detail" as never, { appointmentId: bookingId, fromScreen: "booking" } as never);
+              (navigation as any).navigate("Appointment Detail", { appointmentId: bookingId, fromScreen: "booking" });
             },
           },
         ]
@@ -454,22 +608,28 @@ export default function BookingManagement() {
       return;
     }
 
-    Alert.alert("Hoàn thành", "Xác nhận hoàn thành công việc?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Hoàn thành",
-        onPress: () => {
-          setBookings((prev) =>
-            prev.map((b) =>
-              b.id === bookingId ? { ...b, status: "Hoàn thành" } : b
-            )
-          );
-          // Update global store
-          updateAppointmentStatus(bookingId, "completed");
-          Alert.alert("Thành công", "Công việc đã hoàn thành");
-        },
-      },
-    ]);
+    // Show payment modal instead of completing directly
+    const booking = bookings.find(b => b.id === bookingId);
+    if (booking) {
+      setSelectedBookingForPayment(booking);
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handlePaymentComplete = async () => {
+    if (!selectedBookingForPayment) return;
+
+    try {
+      await AppointmentRepository.updateAppointmentStatus(selectedBookingForPayment.id, 'completed');
+      updateAppointmentStatus(selectedBookingForPayment.id, "completed");
+      await refresh();
+      setShowPaymentModal(false);
+      setSelectedBookingForPayment(null);
+      Alert.alert("Thành công", "Công việc đã hoàn thành và thanh toán đã được xác nhận");
+    } catch (error) {
+      console.error('Error completing appointment:', error);
+      Alert.alert("Lỗi", "Không thể hoàn thành công việc");
+    }
   };
 
   const handleReview = (bookingId: string) => {
@@ -524,7 +684,7 @@ export default function BookingManagement() {
   };
 
   const handleViewDetail = (bookingId: string) => {
-    navigation.navigate("Appointment Detail" as never, { appointmentId: bookingId, fromScreen: "booking" } as never);
+    (navigation as any).navigate("Appointment Detail", { appointmentId: bookingId, fromScreen: "booking" });
   };
 
   // Format deadline to "Phản hồi trước DD/MM"
@@ -802,6 +962,20 @@ export default function BookingManagement() {
 
       {/* Bottom Navigation */}
       <CaregiverBottomNav activeTab="jobs" />
+
+      {/* Payment Modal */}
+      {selectedBookingForPayment && (
+        <PaymentModal
+          visible={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedBookingForPayment(null);
+          }}
+          onComplete={handlePaymentComplete}
+          appointmentId={selectedBookingForPayment.id}
+          amount={selectedBookingForPayment.price}
+        />
+      )}
     </SafeAreaView>
   );
 }

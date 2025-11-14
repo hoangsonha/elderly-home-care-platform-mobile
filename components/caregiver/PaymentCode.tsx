@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import React from 'react';
 import {
-  Alert,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View
+    Alert,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 interface PaymentCodeProps {
   visible: boolean;
   onClose: () => void;
+  onComplete?: () => void; // Callback when payment is confirmed
   bookingId: string;
   amount: number;
   caregiverName: string;
@@ -24,6 +25,7 @@ interface PaymentCodeProps {
 export function PaymentCode({
   visible,
   onClose,
+  onComplete,
   bookingId,
   amount,
   caregiverName,
@@ -51,16 +53,18 @@ export function PaymentCode({
   const handleConfirmPayment = () => {
     Alert.alert(
       'Xác nhận thanh toán',
-      'Khách hàng đã thanh toán xong?',
+      'Bạn đã nhận được tiền từ khách hàng chưa?',
       [
         {
           text: 'Chưa',
           style: 'cancel'
         },
         {
-          text: 'Đã thanh toán',
+          text: 'Đã nhận tiền',
           onPress: () => {
-            Alert.alert('Thành công', 'Đã xác nhận thanh toán');
+            if (onComplete) {
+              onComplete();
+            }
             onClose();
           }
         }

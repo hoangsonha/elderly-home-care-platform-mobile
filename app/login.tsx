@@ -1,21 +1,21 @@
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  useErrorNotification,
-  useSuccessNotification,
+    useErrorNotification,
+    useSuccessNotification,
 } from "@/contexts/NotificationContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function LoginScreen() {
@@ -47,7 +47,15 @@ export default function LoginScreen() {
 
     setTimeout(() => {
       if (userData.role === "Caregiver") {
-        router.replace("/caregiver");
+        // If caregiver hasn't completed profile, send them to complete-profile to continue
+        if (!userData.hasCompletedProfile) {
+          router.replace({
+            pathname: '/caregiver/complete-profile',
+            params: { email: userData.email, fullName: userData.name || '' }
+          });
+        } else {
+          router.replace("/caregiver");
+        }
       } else {
         // Care Seeker và các role khác đều đi thẳng đến dashboard
         router.replace("/careseeker/dashboard");

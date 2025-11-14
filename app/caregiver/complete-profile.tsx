@@ -7,18 +7,20 @@ import React, { useEffect, useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { submitProfileForReview } from "@/data/profileStore";
+import { AuthService } from "@/services/auth.service";
+import { router } from "expo-router";
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface PersonalInfo {
@@ -63,7 +65,7 @@ interface CommitmentInfo {
 export default function CompleteProfileScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute();
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const params = route.params as { email?: string; fullName?: string } | undefined;
 
   // Registration info (pre-filled)
@@ -301,20 +303,81 @@ export default function CompleteProfileScreen() {
     navigation.goBack();
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!commitmentInfo.ethicalCommitment || !commitmentInfo.termsAgreement) {
       Alert.alert("Thiếu thông tin", "Vui lòng đồng ý với tất cả các cam kết");
       return;
     }
 
-    // TODO: Call API to save profile
-    // Set profile status to pending
-    if (user?.id) {
-      submitProfileForReview(user.id);
+    if (!user?.id) {
+      Alert.alert("Lỗi", "Không tìm thấy người dùng. Vui lòng đăng nhập lại.");
+      return;
     }
 
-    // Navigate to profile status screen
-    navigation.navigate("Trạng thái hồ sơ");
+    // Build a minimal profile payload to persist
+    const profilePayload = {
+      name: registrationInfo.fullName || personalInfo.fullName || "",
+      phone: personalInfo.phone || null,
+      address: personalInfo.permanentAddress || personalInfo.temporaryAddress || null,
+      dateOfBirth: personalInfo.dateOfBirth || null,
+      gender: personalInfo.gender || null,
+      idCard: personalInfo.idCard || null,
+      yearsOfExperience: professionalInfo.yearsOfExperience || null,
+      education: professionalInfo.education || null,
+      previousWorkplace: professionalInfo.previousWorkplace || null,
+      introduction: additionalInfo.introduction || null,
+      videoLink: additionalInfo.videoLink || null,
+      profileImage: additionalInfo.profileImage || null,
+      idCardFront: personalInfo.idCardFront || null,
+      idCardBack: personalInfo.idCardBack || null,
+      certificates: professionalInfo.certificates || [],
+    };
+
+    try {
+      console.log('📝 Submitting profile for user:', user.id);
+      console.log('📦 Profile data:', profilePayload);
+      
+      // Save profile to database
+      await AuthService.updateProfile(user.id, profilePayload);
+      console.log('✅ Profile saved to database successfully');
+
+      // Update in-memory auth context so UI reflects the change
+      if (updateProfile) {
+        console.log('🔄 Updating AuthContext with new profile data');
+        updateProfile({
+          hasCompletedProfile: true,
+          name: profilePayload.name,
+          phone: profilePayload.phone ?? undefined,
+          address: profilePayload.address ?? undefined,
+          avatar: profilePayload.profileImage ?? undefined,
+        });
+      }
+
+      // Mark profile as submitted for review
+      console.log('📋 Setting profile status to pending in profileStore');
+      submitProfileForReview(user.id);
+
+      // Show success message
+      Alert.alert(
+        'Thành công!',
+        'Hồ sơ của bạn đã được gửi để xét duyệt. Chúng tôi sẽ thông báo kết quả trong vòng 24-48 giờ.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              console.log('➡️ Navigating to profile-status screen');
+              router.replace('/caregiver/profile-status');
+            }
+          }
+        ]
+      );
+    } catch (err: any) {
+      console.error('❌ Failed to save profile:', err);
+      Alert.alert(
+        'Lỗi',
+        `Không thể lưu hồ sơ: ${err?.message || 'Lỗi không xác định'}. Vui lòng thử lại sau.`
+      );
+    }
   };
 
   // Initialize date picker when opening

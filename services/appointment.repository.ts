@@ -34,6 +34,18 @@ export const getAllAppointments = async (userId: string): Promise<Appointment[]>
 };
 
 /**
+ * Get all appointments for a caregiver
+ */
+export const getAppointmentsByCaregiver = async (caregiverId: string): Promise<Appointment[]> => {
+  const db = await getDatabase();
+  const result = await db.getAllAsync<AppointmentRow>(
+    'SELECT * FROM appointments WHERE caregiver_id = ? ORDER BY created_at DESC',
+    [caregiverId]
+  );
+  return result.map(rowToAppointment);
+};
+
+/**
  * Get appointments by status
  */
 export const getAppointmentsByStatus = async (userId: string, status: string): Promise<Appointment[]> => {
@@ -217,6 +229,7 @@ export const getAppointmentsByDateRange = async (
 
 export default {
   getAllAppointments,
+  getAppointmentsByCaregiver,
   getAppointmentsByStatus,
   getAppointmentById,
   createAppointment,

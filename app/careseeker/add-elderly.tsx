@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,8 +15,10 @@ import { ProfilePreview } from '@/components/elderly/ProfilePreview';
 import { ThemedText } from '@/components/themed-text';
 import { DynamicInputList } from '@/components/ui/DynamicInputList';
 import { DynamicMedicationList } from '@/components/ui/DynamicMedicationList';
+import { useAuth } from '@/contexts/AuthContext';
 import { useEmergencyContact } from '@/contexts/EmergencyContactContext';
 import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
+import * as ElderlyRepository from '@/services/elderly.repository';
 
 // Mock families data
 const mockFamilies = [
@@ -108,6 +110,7 @@ interface ElderlyProfile {
 }
 
 export default function AddElderlyScreen() {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const { tempContacts, setTempContacts } = useEmergencyContact();
   
@@ -297,7 +300,7 @@ export default function AddElderlyScreen() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validate all steps
     for (let step = 1; step <= 4; step++) {
       if (!validateStep(step)) {
@@ -306,13 +309,64 @@ export default function AddElderlyScreen() {
       }
     }
 
-    // Save profile logic here
-    showSuccessTooltip('Hồ sơ người già đã được tạo thành công!');
-    
-    // Navigate back after a short delay
-    setTimeout(() => {
-      router.back();
-    }, 2000);
+    if (!user?.id) {
+      showErrorTooltip('Không tìm thấy thông tin người dùng');
+      return;
+    }
+
+    try {
+      // Prepare data for database
+      const elderlyData = {
+        user_id: user.id,
+        name: profile.personalInfo.name,
+        age: parseInt(profile.personalInfo.age),
+        gender: profile.personalInfo.gender as 'male' | 'female' | 'other',
+        date_of_birth: profile.personalInfo.dateOfBirth,
+        phone: profile.personalInfo.phoneNumber,
+        address: profile.personalInfo.address,
+        blood_type: profile.personalInfo.bloodType,
+        weight: profile.personalInfo.weight ? parseFloat(profile.personalInfo.weight) : undefined,
+        height: profile.personalInfo.height ? parseFloat(profile.personalInfo.height) : undefined,
+        underlying_diseases: profile.medicalConditions.underlyingDiseases,
+        special_conditions: profile.medicalConditions.specialConditions,
+        allergies: profile.medicalConditions.allergies,
+        medications: profile.medicalConditions.medications,
+        independence_level: {
+          ...profile.independenceLevel,
+          toileting: profile.independenceLevel.dressing, // Use same as dressing as fallback
+        },
+        care_needs: profile.careNeeds.customNeeds,
+        hobbies: profile.preferences.hobbies,
+        favorite_activities: profile.preferences.favoriteActivities,
+        music_preference: profile.preferences.musicPreference,
+        tv_shows: profile.preferences.tvShows,
+        food_preferences: profile.preferences.foodPreferences,
+        living_environment: {
+          houseType: profile.livingEnvironment.houseType === 'other' 
+            ? 'private_house' 
+            : profile.livingEnvironment.houseType as 'private_house' | 'apartment' | 'nursing_home',
+          livingWith: profile.livingEnvironment.livingWith,
+          accessibility: profile.livingEnvironment.accessibility,
+        },
+        emergency_contact: profile.emergencyContacts.length > 0 ? profile.emergencyContacts[0] : undefined,
+      };
+
+      // Save to database
+      await ElderlyRepository.createElderlyProfile(elderlyData);
+      
+      // Clear temp contacts
+      setTempContacts([]);
+      
+      showSuccessTooltip('Hồ sơ người già đã được tạo thành công!');
+      
+      // Navigate back after a short delay
+      setTimeout(() => {
+        router.back();
+      }, 2000);
+    } catch (error) {
+      console.error('Error saving elderly profile:', error);
+      showErrorTooltip('Có lỗi xảy ra khi lưu hồ sơ. Vui lòng thử lại.');
+    }
   };
 
   const getStepName = (step: number) => {

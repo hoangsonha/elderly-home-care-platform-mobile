@@ -8,10 +8,11 @@ interface ElderlyProfile {
   id: string;
   name: string;
   age: number;
-  healthStatus: string;
-  avatar: string;
-  relationship: string;
-  gender?: 'male' | 'female';
+  healthStatus?: string;
+  health_condition?: string; // From database
+  avatar?: string;
+  relationship?: string;
+  gender?: 'male' | 'female' | 'other';
 }
 
 interface ElderlyProfilesProps {
@@ -35,25 +36,31 @@ export function ElderlyProfiles({ profiles }: ElderlyProfilesProps) {
   };
 
   const handleProfilePress = (profile: ElderlyProfile) => {
+    const healthStatus = profile.healthStatus || profile.health_condition || 'Chưa rõ';
     router.push({
       pathname: '/careseeker/elderly-detail',
       params: {
         profileId: profile.id,
         profileName: profile.name,
         profileAge: profile.age.toString(),
-        healthStatus: profile.healthStatus,
-        relationship: profile.relationship,
+        healthStatus: healthStatus,
+        relationship: profile.relationship || 'Người thân',
       }
     });
   };
 
   const getHealthStatusColor = (status: string) => {
+    if (!status) return '#95A5A6';
+    
     switch (status.toLowerCase()) {
       case 'tốt':
+      case 'good':
         return '#27AE60';
       case 'khá':
+      case 'fair':
         return '#F39C12';
       case 'yếu':
+      case 'poor':
         return '#E74C3C';
       default:
         return '#95A5A6';
@@ -103,13 +110,13 @@ export function ElderlyProfiles({ profiles }: ElderlyProfilesProps) {
             <View style={styles.healthStatusContainer}>
               <View style={[
                 styles.healthStatusDot, 
-                { backgroundColor: getHealthStatusColor(profile.healthStatus) }
+                { backgroundColor: getHealthStatusColor(profile.healthStatus || profile.health_condition || '') }
               ]} />
               <ThemedText style={[
                 styles.healthStatusText,
-                { color: getHealthStatusColor(profile.healthStatus) }
+                { color: getHealthStatusColor(profile.healthStatus || profile.health_condition || '') }
               ]}>
-                Sức khỏe {profile.healthStatus}
+                Sức khỏe {profile.healthStatus || profile.health_condition || 'Chưa rõ'}
               </ThemedText>
             </View>
           </View>
