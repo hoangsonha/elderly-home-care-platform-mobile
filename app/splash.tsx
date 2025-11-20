@@ -1,19 +1,13 @@
-import { approveCaregiver, deleteUserByEmail, getDatabase } from '@/services/database.service';
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
-  ActivityIndicator,
-  Alert,
   Animated,
-  FlatList,
-  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -49,56 +43,6 @@ export default function SplashScreen() {
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroTranslate = useRef(new Animated.Value(16)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
-  const [dbModalVisible, setDbModalVisible] = useState(false);
-  const [dbLoading, setDbLoading] = useState(false);
-  const [dbError, setDbError] = useState<string | null>(null);
-  const [dbData, setDbData] = useState<Record<string, any[]>>({});
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [deleteEmail, setDeleteEmail] = useState('');
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [approveUserName, setApproveUserName] = useState('');
-  const [isApproving, setIsApproving] = useState(false);
-
-  // Fetch DB data helper (load all tables and rows)
-  const fetchDbData = async () => {
-    setDbError(null);
-    try {
-      const db = await getDatabase();
-      if (!db) throw new Error('SQLite not available on this platform');
-
-      // Get all user-defined tables
-      const tablesRes = await db.getAllAsync<{ name: string }>(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-      );
-
-      const tables = tablesRes?.map((r: any) => r.name) || [];
-      const data: Record<string, any[]> = {};
-
-      for (const t of tables) {
-        try {
-          // Try to select all rows; if table has created_at, order by it
-          let rows = [] as any[];
-          try {
-            rows = await db.getAllAsync(`SELECT * FROM ${t} ORDER BY created_at DESC`);
-          } catch {
-            // Fallback to simple select if ordering fails
-            rows = await db.getAllAsync(`SELECT * FROM ${t}`);
-          }
-          data[t] = rows || [];
-        } catch (inner) {
-          console.warn('Failed to read table', t, inner);
-          data[t] = [];
-        }
-      }
-
-      setDbData(data);
-      // set selected table to first one if not selected
-      if (!selectedTable && Object.keys(data).length > 0) setSelectedTable(Object.keys(data)[0]);
-    } catch (err: any) {
-      console.warn('DB fetch error', err);
-      setDbError(String(err?.message || err));
-    }
-  };
 
   useEffect(() => {
     Animated.parallel([
@@ -215,210 +159,12 @@ export default function SplashScreen() {
           >
             <Text style={styles.secondaryButtonText}>Tạo tài khoản mới</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.dbButton}
-            onPress={async () => {
-              setDbModalVisible(true);
-              setDbLoading(true);
-              setDbError(null);
-              try {
-                await fetchDbData();
-              } finally {
-                setDbLoading(false);
-              }
-            }}
-          >
-            <Text style={styles.dbButtonText}>Xem SQLite DB</Text>
-          </TouchableOpacity>
         </Animated.View>
 
         <Text style={styles.caption}>
           © 2025 Elder Care Connect. All rights reserved.
         </Text>
       </ScrollView>
-      <Modal
-        visible={dbModalVisible}
-        animationType="slide"
-        onRequestClose={() => setDbModalVisible(false)}
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>SQLite Database</Text>
-            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => fetchDbData()}>
-                <Text style={[styles.modalClose, { color: '#2c3e50' }]}>Tải lại</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setDbModalVisible(false)}>
-                <Text style={styles.modalClose}>Đóng</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {dbLoading ? (
-            <View style={styles.modalBodyCenter}>
-              <ActivityIndicator size="large" color="#68C2E8" />
-              <Text style={{ marginTop: 12 }}>Đang tải dữ liệu...</Text>
-            </View>
-          ) : dbError ? (
-            <View style={styles.modalBodyCenter}>
-              <Text style={{ color: 'red' }}>{dbError}</Text>
-            </View>
-          ) : (
-            <View style={styles.modalBody}>
-              {/* Table selector */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ paddingHorizontal: 8 }}>
-                {Object.keys(dbData).length === 0 ? (
-                  <Text style={styles.emptyText}>Không có bảng dữ liệu</Text>
-                ) : (
-                  Object.keys(dbData).map((table) => (
-                    <TouchableOpacity
-                      key={table}
-                      style={[
-                        styles.tableButton,
-                        selectedTable === table && styles.tableButtonSelected,
-                      ]}
-                      onPress={() => setSelectedTable(table)}
-                    >
-                      <Text style={[styles.tableButtonText, selectedTable === table && { color: '#FFFFFF' }]}>{table}</Text>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-
-              {/* Selected table info */}
-              {selectedTable ? (
-                <View style={{ marginBottom: 8 }}>
-                  <Text style={styles.sectionHeading}>{selectedTable} · {dbData[selectedTable]?.length ?? 0} hàng</Text>
-                </View>
-              ) : null}
-
-              {/* Single FlatList to render the selected table rows */}
-              {selectedTable ? (
-                <>
-                  {selectedTable === 'users' && (
-                    <>
-                      <View style={{ marginBottom: 12 }}>
-                        <Text style={{ marginBottom: 8, fontWeight: '600' }}>Xóa user theo email</Text>
-                        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                          <TextInput
-                            value={deleteEmail}
-                            onChangeText={setDeleteEmail}
-                            placeholder="nhập email (ví dụ: c12@gmail.com)"
-                            style={{ flex: 1, borderWidth: 1, borderColor: '#E6F2F9', borderRadius: 8, paddingHorizontal: 12, height: 44, backgroundColor: '#fff' }}
-                            autoCapitalize="none"
-                          />
-                          <TouchableOpacity
-                            style={{ paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#EF4444', borderRadius: 8 }}
-                            onPress={async () => {
-                              if (!deleteEmail) {
-                                Alert.alert('Lỗi', 'Vui lòng nhập email cần xóa');
-                                return;
-                              }
-                              Alert.alert(
-                                'Xác nhận',
-                                `Bạn có chắc muốn xóa user với email: ${deleteEmail}?`,
-                                [
-                                  { text: 'Hủy', style: 'cancel' },
-                                  {
-                                    text: 'Xóa',
-                                    style: 'destructive',
-                                    onPress: async () => {
-                                      setIsDeleting(true);
-                                      try {
-                                        await deleteUserByEmail(deleteEmail);
-                                        await fetchDbData();
-                                        setDeleteEmail('');
-                                        Alert.alert('Thành công', 'Đã xóa user nếu tồn tại');
-                                      } catch (err) {
-                                        console.warn('Delete user error', err);
-                                        Alert.alert('Lỗi', 'Xóa user thất bại. Kiểm tra console để biết chi tiết.');
-                                      } finally {
-                                        setIsDeleting(false);
-                                      }
-                                    }
-                                  }
-                                ]
-                              );
-                            }}
-                            disabled={isDeleting}
-                          >
-                            <Text style={{ color: '#fff', fontWeight: '700' }}>{isDeleting ? 'Đang xóa...' : 'Xóa'}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-
-                      <View style={{ marginBottom: 12 }}>
-                        <Text style={{ marginBottom: 8, fontWeight: '600' }}>Duyệt profile Caregiver</Text>
-                        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                          <TextInput
-                            value={approveUserName}
-                            onChangeText={setApproveUserName}
-                            placeholder="Nhập tên (ví dụ: Trần Anh Tử)"
-                            style={{ flex: 1, borderWidth: 1, borderColor: '#E6F2F9', borderRadius: 8, paddingHorizontal: 12, height: 44, backgroundColor: '#fff' }}
-                          />
-                          <TouchableOpacity
-                            style={{ paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#10B981', borderRadius: 8 }}
-                            onPress={async () => {
-                              if (!approveUserName) {
-                                Alert.alert('Lỗi', 'Vui lòng nhập tên người dùng');
-                                return;
-                              }
-                              Alert.alert(
-                                'Xác nhận',
-                                `Duyệt profile cho: ${approveUserName}?`,
-                                [
-                                  { text: 'Hủy', style: 'cancel' },
-                                  {
-                                    text: 'Duyệt',
-                                    onPress: async () => {
-                                      setIsApproving(true);
-                                      try {
-                                        const result = await approveCaregiver(approveUserName);
-                                        await fetchDbData();
-                                        setApproveUserName('');
-                                        Alert.alert('Thành công', `Đã duyệt profile cho ${result.userName}`);
-                                      } catch (err: any) {
-                                        console.error('Approve caregiver error', err);
-                                        Alert.alert('Lỗi', err?.message || 'Duyệt profile thất bại');
-                                      } finally {
-                                        setIsApproving(false);
-                                      }
-                                    }
-                                  }
-                                ]
-                              );
-                            }}
-                            disabled={isApproving}
-                          >
-                            <Text style={{ color: '#fff', fontWeight: '700' }}>{isApproving ? 'Đang duyệt...' : 'Duyệt'}</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </>
-                  )}
-
-                  <FlatList
-                    data={dbData[selectedTable] || []}
-                    keyExtractor={(item, idx) => (item.id ? String(item.id) : String(idx))}
-                    nestedScrollEnabled={true}
-                    style={styles.list}
-                    renderItem={({ item }) => (
-                      <View style={styles.row}>
-                        <Text style={styles.rowTitle}>{item.name ?? item.id ?? JSON.stringify(item)}</Text>
-                        <Text style={styles.rowMeta}>{Object.keys(item).filter(k => k !== 'name' && k !== 'id').slice(0,3).map(k => `${k}: ${String(item[k])}`).join(' · ')}</Text>
-                      </View>
-                    )}
-                    ListEmptyComponent={<Text style={styles.emptyText}>Bảng này rỗng</Text>}
-                  />
-                </>
-              ) : (
-                <Text style={styles.emptyText}>Chọn một bảng để xem chi tiết</Text>
-              )}
-            </View>
-          )}
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }

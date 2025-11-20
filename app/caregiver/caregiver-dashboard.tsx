@@ -338,7 +338,7 @@ export default function CaregiverDashboardScreen() {
                   <View style={styles.appointmentTimeLocation}>
                     <View style={styles.timeRow}>
                       <Text style={styles.timeIcon}>🕐</Text>
-                      <Text style={styles.timeText}>{appointment.start_time} - {appointment.end_time}</Text>
+                      <Text style={styles.timeText}>{appointment.start_time}</Text>
                     </View>
                     <View style={styles.locationRow}>
                       <Text style={styles.locationIcon}>📍</Text>
