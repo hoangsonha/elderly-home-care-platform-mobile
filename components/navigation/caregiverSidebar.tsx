@@ -12,6 +12,7 @@ import CaregiverDashboardScreen from "@/app/caregiver/caregiver-dashboard";
 import CertificatesScreen from "@/app/caregiver/certificatesScreen";
 import ChatScreen from "@/app/caregiver/chat";
 import ChatListScreen from "@/app/caregiver/chat-list";
+import CheckInVerificationScreen from "@/app/caregiver/check-in-verification";
 import ComplaintScreen from "@/app/caregiver/complaint";
 import ComplaintFeedbackScreen from "@/app/caregiver/complaint-feedback";
 import CompleteProfileScreen from "@/app/caregiver/complete-profile";
@@ -823,6 +824,16 @@ export default function CaregiverSidebar() {
               fontWeight: "bold",
             },
             headerLeft: () => null,
+          }}
+        />
+
+        {/* Check-in Verification - hidden from drawer */}
+        <Drawer.Screen
+          name="Check-in Verification"
+          component={CheckInVerificationScreen}
+          options={{
+            drawerItemStyle: { height: 0 },
+            headerShown: false,
           }}
         />
 
