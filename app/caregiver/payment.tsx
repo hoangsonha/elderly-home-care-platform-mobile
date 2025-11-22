@@ -13,101 +13,301 @@ const transactionsData = [
   {
     id: "1",
     name: "Bà Nguyễn Thị Lan - Gói Cao Cấp",
-    date: "25/10/2025",
+    date: "20/11/2025",
     time: "8:00-12:00",
-    amount: 1100000,
-    status: "pending", // pending, completed, withdrawn, refunded
-    statusText: "Chờ xử lí",
-    icon: "timer-sand",
-    iconColor: "#F59E0B",
-    iconBg: "#FEF3C7",
-    remaining: "18 giờ 30 phút",
+    amount: 1100000, // Tổng tiền booking
+    actualAmount: 935000, // Tiền thực nhận (85% sau trừ phí)
+    platformFee: 165000, // Phí nền tảng 15%
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "18/11/2025 12:00",
   },
   {
     id: "2",
     name: "Ông Trần Văn Hùng - Gói Tiêu Chuẩn",
-    date: "23/10/2025",
+    date: "19/11/2025",
     time: "14:00-17:00",
     amount: 750000,
+    actualAmount: 637500,
+    platformFee: 112500,
     status: "completed",
     statusText: "Đã vào ví",
     icon: "check-circle",
     iconColor: "#10B981",
     iconBg: "#D1FAE5",
+    completedAt: "17/11/2025 17:00",
   },
   {
     id: "3",
     name: "Bà Mai Thị Hương - Gói Cơ Bản",
-    date: "24/10/2025",
+    date: "20/11/2025",
     time: "8:00-12:00",
     amount: 400000,
+    actualAmount: 340000,
+    platformFee: 60000,
     status: "pending",
-    statusText: "Chờ xử lí",
+    statusText: "Chờ 24h",
     icon: "timer-sand",
     iconColor: "#F59E0B",
     iconBg: "#FEF3C7",
-    remaining: "10 giờ 15 phút",
+    completedAt: "19/11/2025 12:00",
+    remaining: "4 giờ 30 phút",
   },
   {
     id: "4",
-    name: "Rút để trả lương nhân viên",
-    date: "22/10/2025",
-    time: "Công ty Elder Care",
-    amount: -1500000,
-    status: "withdrawn",
-    statusText: "Đã rút",
-    icon: "bank-transfer-out",
-    iconColor: "#F59E0B",
-    iconBg: "#FEF3C7",
+    name: "Ông Lê Văn Sơn - Gói Tiêu Chuẩn",
+    date: "18/11/2025",
+    time: "14:00-17:00",
+    amount: 750000,
+    actualAmount: 637500,
+    platformFee: 112500,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "16/11/2025 17:00",
   },
   {
     id: "5",
     name: "Bà Phạm Thị Lan - Gói Cao Cấp",
-    date: "20/10/2025",
+    date: "17/11/2025",
     time: "8:00-12:00",
     amount: 1100000,
+    actualAmount: 935000,
+    platformFee: 165000,
     status: "completed",
     statusText: "Đã vào ví",
     icon: "check-circle",
     iconColor: "#10B981",
     iconBg: "#D1FAE5",
+    completedAt: "15/11/2025 12:00",
   },
   {
     id: "6",
-    name: "Ông Lê Văn Sơn - Gói Tiêu Chuẩn",
-    date: "25/10/2025",
-    time: "14:00-17:00",
-    amount: 750000,
-    status: "pending",
-    statusText: "Chờ xử lí",
-    icon: "timer-sand",
-    iconColor: "#F59E0B",
-    iconBg: "#FEF3C7",
-    remaining: "20 giờ 45 phút",
-  },
-  {
-    id: "8",
-    name: "Ông Nguyễn Văn Minh - Gói Cao Cấp",
-    date: "21/10/2025",
-    time: "8:00-12:00",
-    amount: 1100000,
-    status: "completed",
-    statusText: "Đã vào ví",
-    icon: "check-circle",
-    iconColor: "#10B981",
-    iconBg: "#D1FAE5",
-  },
-  {
-    id: "7",
     name: "Hoàn tiền - Khiếu nại",
-    date: "18/10/2025",
+    date: "16/11/2025",
     time: "Ông Nguyễn Văn B - Gói Tiêu Chuẩn",
     amount: -750000,
+    actualAmount: -637500,
+    platformFee: 0,
     status: "refunded",
     statusText: "Hoàn tiền",
     icon: "close-circle",
     iconColor: "#EF4444",
     iconBg: "#FEE2E2",
+  },
+  {
+    id: "7",
+    name: "Ông Nguyễn Văn Minh - Gói Cao Cấp",
+    date: "15/11/2025",
+    time: "8:00-12:00",
+    amount: 1100000,
+    actualAmount: 935000,
+    platformFee: 165000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "13/11/2025 12:00",
+  },
+  {
+    id: "8",
+    name: "Bà Võ Thị Kim - Gói Cơ Bản",
+    date: "14/11/2025",
+    time: "8:00-12:00",
+    amount: 400000,
+    actualAmount: 340000,
+    platformFee: 60000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "12/11/2025 12:00",
+  },
+  {
+    id: "9",
+    name: "Ông Đặng Văn Tú - Gói Tiêu Chuẩn",
+    date: "13/11/2025",
+    time: "14:00-17:00",
+    amount: 750000,
+    actualAmount: 637500,
+    platformFee: 112500,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "11/11/2025 17:00",
+  },
+  {
+    id: "10",
+    name: "Bà Hoàng Thị Mai - Gói Cao Cấp",
+    date: "12/11/2025",
+    time: "8:00-12:00",
+    amount: 1100000,
+    actualAmount: 935000,
+    platformFee: 165000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "10/11/2025 12:00",
+  },
+  {
+    id: "11",
+    name: "Ông Phan Văn Long - Gói Cơ Bản",
+    date: "11/11/2025",
+    time: "8:00-12:00",
+    amount: 400000,
+    actualAmount: 340000,
+    platformFee: 60000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "09/11/2025 12:00",
+  },
+  {
+    id: "12",
+    name: "Bà Ngô Thị Hoa - Gói Tiêu Chuẩn",
+    date: "10/11/2025",
+    time: "14:00-17:00",
+    amount: 750000,
+    actualAmount: 637500,
+    platformFee: 112500,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "08/11/2025 17:00",
+  },
+  {
+    id: "13",
+    name: "Ông Lý Văn Dũng - Gói Cao Cấp",
+    date: "09/11/2025",
+    time: "8:00-12:00",
+    amount: 1100000,
+    actualAmount: 935000,
+    platformFee: 165000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "07/11/2025 12:00",
+  },
+  {
+    id: "14",
+    name: "Bà Trương Thị Bích - Gói Cơ Bản",
+    date: "08/11/2025",
+    time: "8:00-12:00",
+    amount: 400000,
+    actualAmount: 340000,
+    platformFee: 60000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "06/11/2025 12:00",
+  },
+  {
+    id: "15",
+    name: "Ông Vũ Văn Thành - Gói Tiêu Chuẩn",
+    date: "07/11/2025",
+    time: "14:00-17:00",
+    amount: 750000,
+    actualAmount: 637500,
+    platformFee: 112500,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "05/11/2025 17:00",
+  },
+  {
+    id: "16",
+    name: "Bà Đinh Thị Ngọc - Gói Cao Cấp",
+    date: "06/11/2025",
+    time: "8:00-12:00",
+    amount: 1100000,
+    actualAmount: 935000,
+    platformFee: 165000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "04/11/2025 12:00",
+  },
+  {
+    id: "17",
+    name: "Hoàn tiền - Khiếu nại",
+    date: "05/11/2025",
+    time: "Bà Cao Thị Xuân - Gói Cơ Bản",
+    amount: -400000,
+    actualAmount: -340000,
+    platformFee: 0,
+    status: "refunded",
+    statusText: "Hoàn tiền",
+    icon: "close-circle",
+    iconColor: "#EF4444",
+    iconBg: "#FEE2E2",
+  },
+  {
+    id: "18",
+    name: "Ông Dương Văn Phú - Gói Tiêu Chuẩn",
+    date: "04/11/2025",
+    time: "14:00-17:00",
+    amount: 750000,
+    actualAmount: 637500,
+    platformFee: 112500,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "02/11/2025 17:00",
+  },
+  {
+    id: "19",
+    name: "Bà Lương Thị Yến - Gói Cao Cấp",
+    date: "03/11/2025",
+    time: "8:00-12:00",
+    amount: 1100000,
+    actualAmount: 935000,
+    platformFee: 165000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "01/11/2025 12:00",
+  },
+  {
+    id: "20",
+    name: "Ông Bùi Văn Hải - Gói Cơ Bản",
+    date: "02/11/2025",
+    time: "8:00-12:00",
+    amount: 400000,
+    actualAmount: 340000,
+    platformFee: 60000,
+    status: "completed",
+    statusText: "Đã vào ví",
+    icon: "check-circle",
+    iconColor: "#10B981",
+    iconBg: "#D1FAE5",
+    completedAt: "31/10/2025 12:00",
   },
 ];
 
@@ -140,22 +340,22 @@ export default function PaymentScreen() {
 
   // Calculate totals for current month only
   const { totalBalance, availableBalance, pendingBalance } = useMemo(() => {
-    // Calculate completed transactions (income from bookings)
+    // Calculate completed transactions (income from bookings) - using actualAmount (85%)
     const completedAmount = currentMonthTransactions
       .filter(t => t.status === 'completed')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + t.actualAmount, 0);
     
-    // Calculate refunded transactions (complaints)
+    // Calculate refunded transactions (complaints) - using actualAmount
     const refundedAmount = Math.abs(
       currentMonthTransactions
         .filter(t => t.status === 'refunded')
-        .reduce((sum, t) => sum + t.amount, 0)
+        .reduce((sum, t) => sum + t.actualAmount, 0)
     );
     
     // Available = completed - refunded (only positive transactions affect balance)
     const available = completedAmount - refundedAmount;
     
-    // Pending transactions (will be processed)
+    // Pending transactions (will be processed after 24h) - using actualAmount
     const pendingAmount = transactionsData
       .filter(t => {
         const transactionDate = parseDate(t.date);
@@ -164,7 +364,7 @@ export default function PaymentScreen() {
           transactionDate.getFullYear() === currentYear;
         return isCurrentMonth && t.status === 'pending';
       })
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + t.actualAmount, 0);
 
     return {
       totalBalance: available + pendingAmount,
@@ -248,14 +448,22 @@ export default function PaymentScreen() {
                 <Text style={styles.transactionDateTime}>
                   {transaction.date} · {transaction.time}
                 </Text>
+                {/* Show both amounts: actual received and total */}
+                {transaction.status === 'completed' && (
+                  <View style={styles.amountBreakdown}>
+                    <Text style={styles.amountBreakdownText}>
+                      Tổng: {formatCurrency(transaction.amount)} · Phí 15%: {formatCurrency(transaction.platformFee)}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               <View style={styles.transactionRight}>
                 <Text style={[
                   styles.transactionAmount,
-                  transaction.amount > 0 ? styles.amountPositive : styles.amountNegative
+                  transaction.actualAmount > 0 ? styles.amountPositive : styles.amountNegative
                 ]}>
-                  {transaction.amount > 0 ? '+' : ''}{formatCurrency(transaction.amount)}
+                  {transaction.actualAmount > 0 ? '+' : ''}{formatCurrency(transaction.actualAmount)}
                 </Text>
                 <Text style={[
                   styles.transactionStatus,
@@ -414,6 +622,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748B",
     marginBottom: 4,
+  },
+  amountBreakdown: {
+    marginTop: 4,
+  },
+  amountBreakdownText: {
+    fontSize: 11,
+    color: "#64748B",
+    fontStyle: "italic",
   },
   remainingBadge: {
     flexDirection: "row",

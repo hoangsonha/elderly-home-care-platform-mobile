@@ -1,4 +1,5 @@
 import { appointmentsDataMap } from "@/app/caregiver/appointment-detail";
+import { CustomAlert } from "@/components/alerts/CustomAlert";
 import { PaymentModal } from "@/components/caregiver/PaymentModal";
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,8 +11,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   FlatList,
+  Linking,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -27,6 +28,7 @@ interface Booking {
   id: string;
   elderName: string;
   age: number;
+  gender?: 'male' | 'female';
   location: string;
   packageType: string;
   packageDetail: string;
@@ -67,6 +69,7 @@ const mockBookings: Booking[] = [
     id: "1",
     elderName: "Bà Nguyễn Thị Lan",
     age: 75,
+    gender: 'female',
     location: "Q7, TP.HCM",
     packageType: "Gói Cao Cấp",
     packageDetail: "Gói Cao Cấp",
@@ -83,6 +86,7 @@ const mockBookings: Booking[] = [
     id: "2",
     elderName: "Ông Trần Văn Hùng",
     age: 68,
+    gender: 'male',
     location: "Q9, TP.HCM",
     packageType: "Gói Chuyên Nghiệp",
     packageDetail: "Gói Chuyên Nghiệp",
@@ -99,6 +103,7 @@ const mockBookings: Booking[] = [
     id: "3",
     elderName: "Bà Lê Thị Hoa",
     age: 82,
+    gender: 'female',
     location: "Q1, TP.HCM",
     packageType: "Gói Cơ Bản",
     packageDetail: "Gói Cơ Bản",
@@ -123,6 +128,7 @@ const mockBookings: Booking[] = [
     id: "4",
     elderName: "Ông Phạm Văn Đức",
     age: 70,
+    gender: 'male',
     location: "Q2, TP.HCM",
     packageType: "Gói Chuyên Nghiệp",
     packageDetail: "Gói Chuyên Nghiệp",
@@ -152,6 +158,38 @@ export default function BookingManagement() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<Booking | null>(null);
   
+  // Alert state
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    icon?: any;
+    iconColor?: string;
+    buttons?: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[];
+  }>({
+    visible: false,
+    title: '',
+    message: '',
+    buttons: [],
+  });
+  
+  // Helper to show custom alert
+  const showAlert = (
+    title: string,
+    message: string,
+    buttons?: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[],
+    options?: { icon?: any; iconColor?: string }
+  ) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      buttons: buttons || [{ text: 'OK', style: 'default' }],
+      icon: options?.icon || 'information',
+      iconColor: options?.iconColor || '#70C1F1',
+    });
+  };
+  
   // Helper to map database status to booking status
   const mapDbStatusToBookingStatus = (status: string): BookingStatus => {
     switch (status) {
@@ -162,30 +200,6 @@ export default function BookingManagement() {
       case 'cancelled':
       case 'rejected': return 'Đã hủy';
       default: return 'Mới';
-    }
-  };
-  
-  // Helper to calculate response deadline (3 days before appointment)
-  const calculateResponseDeadline = (startDate: string) => {
-    if (!startDate) return undefined;
-    
-    try {
-      // Parse YYYY-MM-DD format safely
-      const [year, month, day] = startDate.split('-').map(Number);
-      if (!year || !month || !day) return undefined;
-      
-      const appointmentDate = new Date(year, month - 1, day); // month is 0-indexed
-      
-      // Check if date is valid
-      if (isNaN(appointmentDate.getTime())) return undefined;
-      
-      const deadline = new Date(appointmentDate);
-      deadline.setDate(deadline.getDate() - 3);
-      deadline.setHours(23, 59, 59, 999);
-      return deadline.toISOString();
-    } catch (error) {
-      console.error('Error calculating deadline:', error);
-      return undefined;
     }
   };
   
@@ -205,6 +219,7 @@ export default function BookingManagement() {
         appointments.map(async (apt) => {
           let elderName = 'Đang tải...';
           let age = 0;
+          let gender: 'male' | 'female' | undefined = undefined;
           let phone = '0909 123 456';
           
           // Fetch elderly profile info
@@ -215,6 +230,7 @@ export default function BookingManagement() {
                 elderName = elderlyProfile.name || 'Không có tên';
                 age = elderlyProfile.age || 0;
                 phone = elderlyProfile.phone || '0909 123 456';
+                gender = elderlyProfile.gender as 'male' | 'female' | undefined;
               }
             } catch (error) {
               console.error('Error fetching elderly profile:', error);
@@ -222,10 +238,15 @@ export default function BookingManagement() {
             }
           }
           
+          const responseDeadline = (apt.start_date && apt.package_type) 
+            ? calculateResponseDeadline(apt.package_type, apt.start_date)
+            : null;
+          
           return {
             id: apt.id,
             elderName,
             age,
+            gender,
             location: apt.work_location || 'Không xác định',
             packageType: apt.package_type || 'Gói cơ bản',
             packageDetail: apt.package_type || 'Gói cơ bản',
@@ -237,7 +258,7 @@ export default function BookingManagement() {
             status: mapDbStatusToBookingStatus(apt.status),
             statusBadge: mapDbStatusToBookingStatus(apt.status),
             avatar: '👤',
-            responseDeadline: apt.start_date ? calculateResponseDeadline(apt.start_date) : undefined,
+            responseDeadline: responseDeadline || undefined,
           };
         })
       );
@@ -355,28 +376,49 @@ export default function BookingManagement() {
     if (booking?.responseDeadline) {
       const remaining = calculateTimeRemaining(booking.responseDeadline);
       if (remaining.isExpired) {
-        Alert.alert("Đã quá hạn", "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.");
+        showAlert(
+          "Đã quá hạn", 
+          "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'clock-alert', iconColor: '#EF4444' }
+        );
         return;
       }
     }
     
-    Alert.alert("Xác nhận", "Bạn có chắc chắn muốn chấp nhận yêu cầu này?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Chấp nhận",
-        onPress: async () => {
-          try {
-            await AppointmentRepository.updateAppointmentStatus(bookingId, 'confirmed');
-            updateAppointmentStatus(bookingId, "confirmed");
-            await refresh();
-            Alert.alert("Thành công", "Đã chấp nhận yêu cầu");
-          } catch (error) {
-            console.error('Error accepting appointment:', error);
-            Alert.alert("Lỗi", "Không thể chấp nhận yêu cầu");
-          }
+    showAlert(
+      "Xác nhận", 
+      "Bạn có chắc chắn muốn chấp nhận yêu cầu này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Chấp nhận",
+          style: "default",
+          onPress: async () => {
+            try {
+              await AppointmentRepository.updateAppointmentStatus(bookingId, 'confirmed');
+              updateAppointmentStatus(bookingId, "confirmed");
+              await refresh();
+              showAlert(
+                "Thành công", 
+                "Đã chấp nhận yêu cầu",
+                [{ text: 'OK', style: 'default' }],
+                { icon: 'check-circle', iconColor: '#10B981' }
+              );
+            } catch (error) {
+              console.error('Error accepting appointment:', error);
+              showAlert(
+                "Lỗi", 
+                "Không thể chấp nhận yêu cầu",
+                [{ text: 'OK', style: 'default' }],
+                { icon: 'alert-circle', iconColor: '#EF4444' }
+              );
+            }
+          },
         },
-      },
-    ]);
+      ],
+      { icon: 'help-circle', iconColor: '#70C1F1' }
+    );
   };
 
   const handleReject = async (bookingId: string) => {
@@ -384,58 +426,95 @@ export default function BookingManagement() {
     if (booking?.responseDeadline) {
       const remaining = calculateTimeRemaining(booking.responseDeadline);
       if (remaining.isExpired) {
-        Alert.alert("Đã quá hạn", "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.");
+        showAlert(
+          "Đã quá hạn", 
+          "Thời gian chấp nhận/từ chối lịch hẹn đã hết. Lịch hẹn này sẽ tự động bị hủy.",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'clock-alert', iconColor: '#EF4444' }
+        );
         return;
       }
     }
     
-    Alert.alert("Từ chối", "Bạn có chắc chắn muốn từ chối yêu cầu này?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Từ chối",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await AppointmentRepository.updateAppointmentStatus(bookingId, 'rejected');
-            updateAppointmentStatus(bookingId, "rejected");
-            await refresh();
-            Alert.alert("Đã từ chối", "Yêu cầu đã bị từ chối");
-          } catch (error) {
-            console.error('Error rejecting appointment:', error);
-            Alert.alert("Lỗi", "Không thể từ chối yêu cầu");
-          }
+    showAlert(
+      "Từ chối", 
+      "Bạn có chắc chắn muốn từ chối yêu cầu này?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Từ chối",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AppointmentRepository.updateAppointmentStatus(bookingId, 'rejected');
+              updateAppointmentStatus(bookingId, "rejected");
+              await refresh();
+              showAlert(
+                "Đã từ chối", 
+                "Yêu cầu đã bị từ chối",
+                [{ text: 'OK', style: 'default' }],
+                { icon: 'close-circle', iconColor: '#EF4444' }
+              );
+            } catch (error) {
+              console.error('Error rejecting appointment:', error);
+              showAlert(
+                "Lỗi", 
+                "Không thể từ chối yêu cầu",
+                [{ text: 'OK', style: 'default' }],
+                { icon: 'alert-circle', iconColor: '#EF4444' }
+              );
+            }
+          },
         },
-      },
-    ]);
+      ],
+      { icon: 'help-circle', iconColor: '#EF4444' }
+    );
   };
 
   const handleCancel = (bookingId: string, dateStr: string) => {
     if (!canCancelBooking(dateStr)) {
-      Alert.alert(
+      showAlert(
         "Không thể hủy",
-        "Bạn chỉ có thể hủy lịch hẹn trước 3 ngày. Lịch hẹn này còn ít hơn 3 ngày nên không thể hủy."
+        "Bạn chỉ có thể hủy lịch hẹn trước 3 ngày. Lịch hẹn này còn ít hơn 3 ngày nên không thể hủy.",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'calendar-remove', iconColor: '#EF4444' }
       );
       return;
     }
 
-    Alert.alert("Hủy lịch hẹn", "Bạn có chắc chắn muốn hủy lịch hẹn này?", [
-      { text: "Không", style: "cancel" },
-      {
-        text: "Hủy lịch",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await AppointmentRepository.updateAppointmentStatus(bookingId, 'cancelled');
-            updateAppointmentStatus(bookingId, "cancelled");
-            await refresh();
-            Alert.alert("Đã hủy", "Lịch hẹn đã được hủy");
-          } catch (error) {
-            console.error('Error cancelling appointment:', error);
-            Alert.alert("Lỗi", "Không thể hủy lịch hẹn");
-          }
+    showAlert(
+      "Hủy lịch hẹn", 
+      "Bạn có chắc chắn muốn hủy lịch hẹn này?",
+      [
+        { text: "Không", style: "cancel" },
+        {
+          text: "Hủy lịch",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AppointmentRepository.updateAppointmentStatus(bookingId, 'cancelled');
+              updateAppointmentStatus(bookingId, "cancelled");
+              await refresh();
+              showAlert(
+                "Đã hủy", 
+                "Lịch hẹn đã được hủy",
+                [{ text: 'OK', style: 'default' }],
+                { icon: 'check-circle', iconColor: '#70C1F1' }
+              );
+            } catch (error) {
+              console.error('Error cancelling appointment:', error);
+              showAlert(
+                "Lỗi", 
+                "Không thể hủy lịch hẹn",
+                [{ text: 'OK', style: 'default' }],
+                { icon: 'alert-circle', iconColor: '#EF4444' }
+              );
+            }
+          },
         },
-      },
-    ]);
+      ],
+      { icon: 'help-circle', iconColor: '#EF4444' }
+    );
   };
 
   // Check if there's a conflict with other in-progress appointments
@@ -492,10 +571,11 @@ export default function BookingManagement() {
       const parsedDate = parseVietnameseDate(booking.date);
       
       if (parsedDate !== todayStr) {
-        Alert.alert(
+        showAlert(
           "Chưa đến ngày thực hiện",
           `Lịch hẹn này được đặt vào ngày ${booking.date}. Bạn chỉ có thể bắt đầu vào đúng ngày thực hiện.`,
-          [{ text: "OK" }]
+          [{ text: "OK", style: "default" }],
+          { icon: 'calendar-clock', iconColor: '#F59E0B' }
         );
         return;
       }
@@ -505,31 +585,28 @@ export default function BookingManagement() {
     const conflict = checkStartConflict(bookingId);
     
     if (conflict) {
-      Alert.alert(
+      showAlert(
         "Không thể bắt đầu lịch hẹn",
         `Bạn đang thực hiện lịch hẹn với ${conflict.conflictingElderlyName} tại ${conflict.conflictingAddress}.\n\nBạn chỉ có thể bắt đầu lịch hẹn mới khi:\n• Cùng người đặt (liên hệ khẩn cấp)\n• Cùng địa chỉ\n\nVui lòng hoàn thành lịch hẹn hiện tại trước.`,
-        [{ text: "OK" }]
+        [{ text: "OK", style: "default" }],
+        { icon: 'alert-circle', iconColor: '#EF4444' }
       );
       return;
     }
 
-    Alert.alert("Bắt đầu công việc", "Xác nhận bắt đầu thực hiện công việc?", [
-      { text: "Hủy", style: "cancel" },
-      {
-        text: "Bắt đầu",
-        onPress: async () => {
-          try {
-            await AppointmentRepository.updateAppointmentStatus(bookingId, 'in-progress');
-            updateAppointmentStatus(bookingId, "in-progress");
-            await refresh();
-            Alert.alert("Thành công", "Đã bắt đầu công việc");
-          } catch (error) {
-            console.error('Error starting appointment:', error);
-            Alert.alert("Lỗi", "Không thể bắt đầu công việc");
-          }
-        },
-      },
-    ]);
+    // Navigate to check-in verification screen
+    if (booking) {
+      (navigation as any).navigate("Check-in Verification", {
+        appointmentId: bookingId,
+        elderlyName: booking.elderName,
+        address: booking.address,
+        amount: booking.price || 0,
+        fromScreen: "booking",
+        // Mock coordinates - in real app, get from appointment data
+        elderlyLat: 10.7769,
+        elderlyLng: 106.7009,
+      });
+    }
   };
 
   const handleComplete = (bookingId: string) => {
@@ -592,18 +669,20 @@ export default function BookingManagement() {
         incompleteFlexibleTasks.forEach((t: any) => missingTasks.push(`• ${t.title}`));
       }
 
-      Alert.alert(
+      showAlert(
         "Chưa hoàn thành nhiệm vụ",
         `Vui lòng hoàn thành tất cả nhiệm vụ cố định và linh hoạt trước khi kết thúc ca!\n\nCòn thiếu:\n${missingTasks.join("\n")}\n\nVui lòng vào trang chi tiết để hoàn thành các nhiệm vụ.`,
         [
-          { text: "OK" },
+          { text: "OK", style: "cancel" },
           {
             text: "Xem chi tiết",
+            style: "default",
             onPress: () => {
               (navigation as any).navigate("Appointment Detail", { appointmentId: bookingId, fromScreen: "booking" });
             },
           },
-        ]
+        ],
+        { icon: 'clipboard-list-outline', iconColor: '#F59E0B' }
       );
       return;
     }
@@ -625,10 +704,20 @@ export default function BookingManagement() {
       await refresh();
       setShowPaymentModal(false);
       setSelectedBookingForPayment(null);
-      Alert.alert("Thành công", "Công việc đã hoàn thành và thanh toán đã được xác nhận");
+      showAlert(
+        "Thành công", 
+        "Công việc đã hoàn thành và thanh toán đã được xác nhận",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'check-circle', iconColor: '#10B981' }
+      );
     } catch (error) {
       console.error('Error completing appointment:', error);
-      Alert.alert("Lỗi", "Không thể hoàn thành công việc");
+      showAlert(
+        "Lỗi", 
+        "Không thể hoàn thành công việc",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'alert-circle', iconColor: '#EF4444' }
+      );
     }
   };
 
@@ -687,6 +776,58 @@ export default function BookingManagement() {
     (navigation as any).navigate("Appointment Detail", { appointmentId: bookingId, fromScreen: "booking" });
   };
 
+  // Calculate response deadline based on package type and booking time
+  const calculateResponseDeadline = (packageType: string, appointmentDateStr: string): string | null => {
+    try {
+      const parsedDate = parseVietnameseDate(appointmentDateStr);
+      if (!parsedDate) return null;
+      
+      const [year, month, day] = parsedDate.split('-').map(Number);
+      const appointmentDate = new Date(year, month - 1, day);
+      const now = new Date();
+      
+      // Calculate days until appointment
+      const diffTime = appointmentDate.getTime() - now.getTime();
+      const daysUntilAppointment = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Determine response time based on RULE 2
+      let responseHours = 6; // Default: <24h before
+      if (daysUntilAppointment >= 3) {
+        responseHours = 24; // ≥3 days: 24h to respond
+      } else if (daysUntilAppointment >= 1) {
+        responseHours = 12; // 1-2 days: 12h to respond
+      }
+      
+      // Response deadline = now + responseHours
+      const deadline = new Date(now.getTime() + (responseHours * 60 * 60 * 1000));
+      return deadline.toISOString();
+    } catch (error) {
+      console.error('Error calculating response deadline:', error);
+      return null;
+    }
+  };
+
+  // Format countdown timer (excluding seconds)
+  const formatCountdown = (deadline: string) => {
+    const now = new Date().getTime();
+    const deadlineTime = new Date(deadline).getTime();
+    const diff = deadlineTime - now;
+
+    if (diff <= 0) return 'Hết hạn';
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) {
+      return `Còn ${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+      return `Còn ${hours}h ${minutes}m`;
+    } else {
+      return `Còn ${minutes}m`;
+    }
+  };
+
   // Format deadline to "Phản hồi trước DD/MM"
   const formatDeadlineDisplay = (deadline: string) => {
     const deadlineDate = new Date(deadline);
@@ -707,6 +848,35 @@ export default function BookingManagement() {
       ? new Date(item.responseDeadline).getTime() <= new Date().getTime()
       : false;
     
+    // Check if appointment is starting soon (within 1 hour)
+    const isStartingSoon = () => {
+      // Only check for "Chờ thực hiện" status
+      if (currentStatus !== "Chờ thực hiện") return false;
+      
+      try {
+        const now = new Date();
+        const parsedDate = parseVietnameseDate(item.date);
+        if (!parsedDate) return false;
+        
+        // Parse start time from "8:00 - 16:00 (8 giờ)" -> "8:00"
+        const timeMatch = item.time.match(/^(\d{1,2}):(\d{2})/);
+        if (!timeMatch) return false;
+        
+        const [_, hours, minutes] = timeMatch;
+        const [year, month, day] = parsedDate.split('-').map(Number);
+        
+        const appointmentStart = new Date(year, month - 1, day, parseInt(hours), parseInt(minutes));
+        const diffMs = appointmentStart.getTime() - now.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+        
+        // Return true if appointment starts within 1 hour (and hasn't started yet)
+        return diffHours > 0 && diffHours <= 1;
+      } catch (error) {
+        console.error('Error checking if starting soon:', error);
+        return false;
+      }
+    };
+    
     return (
       <TouchableOpacity 
         style={[
@@ -721,6 +891,21 @@ export default function BookingManagement() {
           <View style={styles.complaintWarningBadge}>
             <MaterialCommunityIcons name="alert-circle" size={16} color="#EF4444" />
             <Text style={styles.complaintWarningText}>Khiếu nại</Text>
+          </View>
+        )}
+
+        {/* Starting Soon Badge - For appointments starting within 1 hour */}
+        {!hasComplained && isStartingSoon() && (
+          <View style={styles.startingSoonBadge}>
+            <Text style={styles.startingSoonText}>Sắp bắt đầu</Text>
+          </View>
+        )}
+
+        {/* Countdown Timer - Only for new bookings */}
+        {currentStatus === "Mới" && item.responseDeadline && !isDeadlineExpired && (
+          <View style={styles.countdownBadge}>
+            <MaterialCommunityIcons name="clock-outline" size={12} color="#DC2626" />
+            <Text style={styles.countdownText}>{formatCountdown(item.responseDeadline)}</Text>
           </View>
         )}
 
@@ -773,33 +958,72 @@ export default function BookingManagement() {
           <Text style={styles.priceText}>{item.price.toLocaleString()}đ</Text>
         </View>
 
-        {/* Deadline Display - Only for new bookings */}
-        {currentStatus === "Mới" && item.responseDeadline && (
-          <View style={[
-            styles.deadlineDisplay,
-            isDeadlineExpired && styles.deadlineDisplayExpired
-          ]}>
-            <MaterialCommunityIcons 
-              name={isDeadlineExpired ? "clock-alert" : "clock-outline"} 
-              size={16} 
-              color={isDeadlineExpired ? "#EF4444" : "#F59E0B"} 
-            />
-            <Text style={[
-              styles.deadlineDisplayText,
-              isDeadlineExpired && styles.deadlineDisplayTextExpired
-            ]}>
-              {isDeadlineExpired 
-                ? "Đã quá hạn phản hồi" 
-                : formatDeadlineDisplay(item.responseDeadline)
-              }
-            </Text>
-          </View>
-        )}
-
         {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          {currentStatus === "Mới" && (
-            <>
+        {currentStatus === "Mới" && (
+          <View style={styles.actionButtonsContainer}>
+            {/* Map and Message buttons */}
+            <View style={styles.utilityButtonsRow}>
+              <TouchableOpacity
+                style={styles.utilityButton}
+                onPress={async () => {
+                  // Open Google Maps with full address
+                  const fullAddress = `${item.address}, Việt Nam`;
+                  const encodedAddress = encodeURIComponent(fullAddress);
+                  
+                  // Use search query format for better accuracy
+                  const url = Platform.select({
+                    ios: `maps://maps.apple.com/?q=${encodedAddress}`,
+                    android: `geo:0,0?q=${encodedAddress}`,
+                  });
+                  
+                  // Fallback to web URL
+                  const webUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+                  
+                  try {
+                    const canOpen = url ? await Linking.canOpenURL(url) : false;
+                    if (canOpen && url) {
+                      await Linking.openURL(url);
+                    } else {
+                      await Linking.openURL(webUrl);
+                    }
+                  } catch (error) {
+                    console.error('Error opening maps:', error);
+                    showAlert(
+                      "Lỗi",
+                      "Không thể mở bản đồ. Vui lòng thử lại.",
+                      [{ text: 'OK', style: 'default' }],
+                      { icon: 'alert-circle', iconColor: '#EF4444' }
+                    );
+                  }
+                }}
+              >
+                <MaterialCommunityIcons name="map-marker" size={18} color="#6B7280" />
+                <Text style={styles.utilityButtonText}>Xem bản đồ</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.utilityButton}
+                onPress={() => {
+                  // Navigate to chat with booking client
+                  (navigation as any).navigate("Tin nhắn", {
+                    chatName: item.elderName,
+                    chatAvatar: item.avatar,
+                    clientName: item.elderName,
+                    clientAvatar: item.avatar,
+                    fromScreen: "booking",
+                    appointmentId: item.id,
+                  });
+                }}
+              >
+                <MaterialCommunityIcons name="message-text" size={18} color="#6B7280" />
+                <Text style={styles.utilityButtonText}>Nhắn tin</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.buttonDivider} />
+
+            {/* Reject and Accept buttons */}
+            <View style={styles.mainButtonsRow}>
               <TouchableOpacity
                 style={[
                   styles.actionButton, 
@@ -824,67 +1048,152 @@ export default function BookingManagement() {
                 <MaterialCommunityIcons name="check" size={16} color="#fff" />
                 <Text style={styles.acceptButtonText}>Chấp nhận</Text>
               </TouchableOpacity>
-            </>
-          )}
-
-          {currentStatus === "Chờ thực hiện" && (
-            <>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.cancelButton]}
-                onPress={() => handleCancel(item.id, item.date)}
-              >
-                <MaterialCommunityIcons name="close" size={16} color="#EF4444" />
-                <Text style={styles.cancelButtonText}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.acceptButton]}
-                onPress={() => handleStart(item.id)}
-              >
-                {/* <MaterialCommunityIcons name="play" size={16} color="#fff" /> */}
-                <Text style={styles.acceptButtonText}>Bắt đầu</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {currentStatus === "Đang thực hiện" && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.acceptButton]}
-              onPress={() => handleComplete(item.id)}
-            >
-              <MaterialCommunityIcons name="check-circle" size={16} color="#fff" />
-              <Text style={styles.acceptButtonText}>Hoàn thành</Text>
-            </TouchableOpacity>
-          )}
-
-          {currentStatus === "Hoàn thành" && (() => {
-            const globalHasReviewed = getAppointmentHasReviewed(item.id);
-            const globalHasComplained = getAppointmentHasComplained(item.id);
-            return (
-              <>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.complaintButton]}
-                  onPress={() => handleComplaint(item.id)}
-                >
-                  <MaterialCommunityIcons name={globalHasComplained ? "eye" : "alert-circle"} size={16} color="#EF4444" />
-                  <Text style={styles.complaintButtonText}>{globalHasComplained ? "Xem khiếu nại" : "Khiếu nại"}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.reviewButton]}
-                  onPress={() => handleReview(item.id)}
-                >
-                  <MaterialCommunityIcons name={globalHasReviewed ? "eye" : "star"} size={16} color="#F59E0B" />
-                  <Text style={styles.reviewButtonText}>{globalHasReviewed ? "Xem đánh giá" : "Đánh giá"}</Text>
-                </TouchableOpacity>
-              </>
-            );
-          })()}
-
-          {currentStatus === "Đã hủy" && (
-            <View style={styles.cancelledInfo}>
-              <Text style={styles.cancelledText}>Lịch hẹn đã bị hủy</Text>
             </View>
-          )}
-        </View>
+          </View>
+        )}
+
+        {currentStatus !== "Mới" && (
+          <>
+            {currentStatus === "Chờ thực hiện" && (
+              <View style={styles.actionButtonsContainer}>
+                {/* Map and Message buttons */}
+                <View style={styles.utilityButtonsRow}>
+                  <TouchableOpacity
+                    style={styles.utilityButton}
+                    onPress={async () => {
+                      // Open Google Maps with full address
+                      const fullAddress = `${item.address}, Việt Nam`;
+                      const encodedAddress = encodeURIComponent(fullAddress);
+                      
+                      // Use search query format for better accuracy
+                      const url = Platform.select({
+                        ios: `maps://maps.apple.com/?q=${encodedAddress}`,
+                        android: `geo:0,0?q=${encodedAddress}`,
+                      });
+                      
+                      // Fallback to web URL
+                      const webUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+                      
+                      try {
+                        const canOpen = url ? await Linking.canOpenURL(url) : false;
+                        if (canOpen && url) {
+                          await Linking.openURL(url);
+                        } else {
+                          await Linking.openURL(webUrl);
+                        }
+                      } catch (error) {
+                        console.error('Error opening maps:', error);
+                        showAlert(
+                          "Lỗi",
+                          "Không thể mở bản đồ. Vui lòng thử lại.",
+                          [{ text: 'OK', style: 'default' }],
+                          { icon: 'alert-circle', iconColor: '#EF4444' }
+                        );
+                      }
+                    }}
+                  >
+                    <MaterialCommunityIcons name="map-marker" size={18} color="#6B7280" />
+                    <Text style={styles.utilityButtonText}>Xem bản đồ</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.utilityButton}
+                    onPress={() => {
+                      // Navigate to chat with booking client
+                      (navigation as any).navigate("Tin nhắn", {
+                        chatName: item.elderName,
+                        chatAvatar: item.avatar,
+                        clientName: item.elderName,
+                        clientAvatar: item.avatar,
+                        fromScreen: "booking",
+                        appointmentId: item.id,
+                      });
+                    }}
+                  >
+                    <MaterialCommunityIcons name="message-text" size={18} color="#6B7280" />
+                    <Text style={styles.utilityButtonText}>Nhắn tin</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Divider */}
+                <View style={styles.buttonDivider} />
+
+                {/* Cancel and Start buttons */}
+                <View style={styles.mainButtonsRow}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.cancelButton]}
+                    onPress={() => handleCancel(item.id, item.date)}
+                  >
+                    <MaterialCommunityIcons name="close" size={16} color="#EF4444" />
+                    <Text style={styles.cancelButtonText}>Hủy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.acceptButton]}
+                    onPress={() => handleStart(item.id)}
+                  >
+                    {/* <MaterialCommunityIcons name="play" size={16} color="#fff" /> */}
+                    <Text style={styles.acceptButtonText}>Bắt đầu</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {currentStatus === "Đang thực hiện" && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.utilityButton]}
+                  onPress={() => {
+                    (navigation as any).navigate("Tin nhắn", {
+                      chatId: item.id,
+                      chatName: item.elderName,
+                      chatAvatar: item.avatar,
+                    });
+                  }}
+                >
+                  <MaterialCommunityIcons name="message-text" size={16} color="#6B7280" />
+                  <Text style={styles.utilityButtonText}>Nhắn tin</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.acceptButton]}
+                  onPress={() => handleComplete(item.id)}
+                >
+                  <MaterialCommunityIcons name="check-circle" size={16} color="#fff" />
+                  <Text style={styles.acceptButtonText}>Hoàn thành</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {currentStatus === "Hoàn thành" && (() => {
+              const globalHasReviewed = getAppointmentHasReviewed(item.id);
+              const globalHasComplained = getAppointmentHasComplained(item.id);
+              return (
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.complaintButton]}
+                    onPress={() => handleComplaint(item.id)}
+                  >
+                    <MaterialCommunityIcons name={globalHasComplained ? "eye" : "alert-circle"} size={16} color="#EF4444" />
+                    <Text style={styles.complaintButtonText}>{globalHasComplained ? "Xem khiếu nại" : "Khiếu nại"}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.reviewButton]}
+                    onPress={() => handleReview(item.id)}
+                  >
+                    <MaterialCommunityIcons name={globalHasReviewed ? "eye" : "star"} size={16} color="#F59E0B" />
+                    <Text style={styles.reviewButtonText}>{globalHasReviewed ? "Xem đánh giá" : "Đánh giá"}</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })()}
+
+            {currentStatus === "Đã hủy" && (
+              <View style={styles.actionButtons}>
+                <View style={styles.cancelledInfo}>
+                  <Text style={styles.cancelledText}>Lịch hẹn đã bị hủy</Text>
+                </View>
+              </View>
+            )}
+          </>
+        )}
       </TouchableOpacity>
     );
   };
@@ -976,6 +1285,17 @@ export default function BookingManagement() {
           amount={selectedBookingForPayment.price}
         />
       )}
+
+      {/* Custom Alert Modal */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        icon={alertConfig.icon}
+        iconColor={alertConfig.iconColor}
+        buttons={alertConfig.buttons}
+        onClose={() => setAlertConfig({ visible: false, title: '', message: '', buttons: [] })}
+      />
     </SafeAreaView>
   );
 }
@@ -1171,6 +1491,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  actionButtonsContainer: {
+    gap: 0,
+  },
   actionButton: {
     flex: 1,
     flexDirection: "row",
@@ -1265,6 +1588,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#DC2626",
   },
+  startingSoonBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "#F59E0B",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    zIndex: 10,
+  },
+  startingSoonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
   deadlineWarning: {
     flexDirection: "row",
     alignItems: "center",
@@ -1316,5 +1654,54 @@ const styles = StyleSheet.create({
   },
   deadlineDisplayTextExpired: {
     color: "#991B1B",
+  },
+  countdownBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    zIndex: 5,
+  },
+  countdownText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  utilityButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  utilityButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 6,
+  },
+  utilityButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  buttonDivider: {
+    height: 1,
+    backgroundColor: '#D1D5DB',
+    marginVertical: 8,
+  },
+  mainButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
 });
