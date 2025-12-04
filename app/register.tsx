@@ -2,35 +2,42 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    useErrorNotification,
-    useSuccessNotification,
+  useErrorNotification,
+  useSuccessNotification,
 } from "@/contexts/NotificationContext";
-import { AuthService } from "@/services/auth.service";
+import { AccountService } from "@/services/account.service";
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
-    userType: "care-seeker", // 'care-seeker' hoặc 'caregiver'
+    userType: "care-seeker",
   });
+
+  const [otp, setOtp] = useState("");
+  const [isOtpStage, setIsOtpStage] = useState(false);
+
   const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
-  const { login, setUserDirect } = useAuth();
+  const { login } = useAuth();
 
-  // Validate password
+  // -------------------------------------------------------
+  // VALIDATE MẬT KHẨU
+  // -------------------------------------------------------
   const validatePassword = () => {
     if (!formData.password) {
       setPasswordError("Vui lòng nhập mật khẩu");
@@ -52,7 +59,10 @@ export default function RegisterScreen() {
     return true;
   };
 
-  const handleSubmit = async () => {
+  // -------------------------------------------------------
+  // GỬI ĐĂNG KÝ → BACKEND TRẢ OTP
+  // -------------------------------------------------------
+  const handleRegister = async () => {
     if (!formData.email) {
       showErrorTooltip("Vui lòng nhập email");
       return;
@@ -61,78 +71,56 @@ export default function RegisterScreen() {
     if (!validatePassword()) return;
 
     setIsLoading(true);
-
     try {
-      // Gọi API mockapi tạo user
-      const newUser = {
+      const payload = {
         email: formData.email,
         password: formData.password,
-        role: formData.userType === "care-seeker" ? "Care Seeker" : "Caregiver",
-        fullName: "",
-        status: formData.userType === "caregiver" ? "pending" : "approved",
-        hasCompletedProfile: formData.userType === "caregiver" ? false : true,
+        role: "ROLE_CAREGIVER", // tuỳ backend
       };
 
-      const createdUser = await AuthService.register(newUser);
-      console.log('✅ User registered:', createdUser);
+      await AccountService.register(payload);
 
-      // If caregiver, auto login and navigate to complete profile
+      showSuccessTooltip("🎉 Mã OTP đã gửi đến email!");
+      setIsOtpStage(true); // => Bật phần nhập OTP
+    } catch (e: any) {
+      console.log("Register error:", e);
+      showErrorTooltip(e?.message || "Không thể đăng ký. Vui lòng thử lại!");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // -------------------------------------------------------
+  // XÁC MINH OTP
+  // -------------------------------------------------------
+  const handleVerify = async () => {
+    if (!otp) {
+      showErrorTooltip("Vui lòng nhập mã OTP!");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const payload = {
+        email: formData.email,
+        verificationCode: otp,
+      };
+
+      await AccountService.verifyEmail(payload);
+      showSuccessTooltip("🎉 Xác minh thành công!");
+
+      // Auto login
+      const userData = await login(formData.email, formData.password);
+
       if (formData.userType === "caregiver") {
-        console.log('🔄 Caregiver detected, starting auto-login...');
-        showSuccessTooltip("🎉 Đăng ký thành công! Đang chuyển hướng...");
-        
-        // Try to login normally (this will populate AuthContext)
-        const userData = await login(formData.email, formData.password);
-        console.log('📝 Login result:', userData);
-        
-        if (userData) {
-          // Navigate directly to complete profile with pre-filled email/fullName
-          console.log('✅ Login successful, navigating to complete-profile...');
-          // Use push instead of replace to ensure proper stack management
-          router.push({
-            pathname: '/caregiver/complete-profile',
-            params: { email: formData.email, fullName: newUser.fullName }
-          });
-        } else if (createdUser && setUserDirect) {
-          // If login failed for some reason but register returned the row, set the user into context
-          console.log('⚠️ Login failed, using setUserDirect fallback...');
-          setUserDirect({
-            id: createdUser.id,
-            email: createdUser.email,
-            name: createdUser.name,
-            dateOfBirth: createdUser.dateOfBirth,
-            phone: createdUser.phone,
-            address: createdUser.address,
-            avatar: createdUser.avatar,
-            hasCompletedProfile: !!createdUser.hasCompletedProfile,
-            role: createdUser.role ?? 'Caregiver',
-            status: createdUser.status,
-          });
-          // Use push instead of replace
-          router.push({
-            pathname: '/caregiver/complete-profile',
-            params: { email: formData.email, fullName: newUser.fullName }
-          });
-        } else {
-          console.error('❌ Both login and setUserDirect failed');
-          router.replace("/login");
-        }
+        router.push("/caregiver/complete-profile");
       } else {
-        showSuccessTooltip("🎉 Đăng ký thành công! Vui lòng đăng nhập.");
-        router.replace("/login");
+        router.replace("/");
       }
-    } catch (err: any) {
-      console.error("Register error:", err);
-      // Friendly handling for duplicate email
-      if (
-        err?.message === 'EMAIL_ALREADY_EXISTS' ||
-        err?.code === 'EMAIL_EXISTS' ||
-        (err?.message || '').includes('UNIQUE constraint failed')
-      ) {
-        showErrorTooltip('Email đã được sử dụng. Vui lòng dùng email khác hoặc đăng nhập.');
-      } else {
-        showErrorTooltip('Có lỗi xảy ra khi đăng ký!');
-      }
+    } catch (e: any) {
+      console.log("Verify error:", e);
+      showErrorTooltip("Mã OTP không đúng hoặc đã hết hạn!");
     } finally {
       setIsLoading(false);
     }
@@ -152,105 +140,102 @@ export default function RegisterScreen() {
 
       <View style={styles.content}>
         <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Email *</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
-              placeholder="Nhập địa chỉ email"
-              placeholderTextColor="#999"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Mật khẩu *</ThemedText>
-            <TextInput
-              style={[styles.input, passwordError ? styles.inputError : null]}
-              value={formData.password}
-              onChangeText={(text) => {
-                setFormData({ ...formData, password: text });
-                if (passwordError) setPasswordError("");
-              }}
-              placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
-              placeholderTextColor="#999"
-              secureTextEntry
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Xác nhận mật khẩu *</ThemedText>
-            <TextInput
-              style={[styles.input, passwordError ? styles.inputError : null]}
-              value={formData.confirmPassword}
-              onChangeText={(text) => {
-                setFormData({ ...formData, confirmPassword: text });
-                if (passwordError) setPasswordError("");
-              }}
-              placeholder="Nhập lại mật khẩu"
-              placeholderTextColor="#999"
-              secureTextEntry
-            />
-            {passwordError ? (
-              <ThemedText style={styles.errorText}>{passwordError}</ThemedText>
-            ) : null}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Bạn là:</ThemedText>
-            <View style={styles.radioGroup}>
-              <TouchableOpacity
-                style={styles.radioOption}
-                onPress={() =>
-                  setFormData({ ...formData, userType: "care-seeker" })
-                }
-              >
-                <View
-                  style={[
-                    styles.radioCircle,
-                    formData.userType === "care-seeker" && styles.radioSelected,
-                  ]}
+          {/* ================== FORM ĐĂNG KÝ ================== */}
+          {!isOtpStage && (
+            <>
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.label}>Email *</ThemedText>
+                <TextInput
+                  style={styles.input}
+                  value={formData.email}
+                  onChangeText={(t) => setFormData({ ...formData, email: t })}
+                  placeholder="Nhập email"
+                  placeholderTextColor="#999"
+                  keyboardType="email-address"
                 />
-                <ThemedText style={styles.radioText}>
-                  Người cần dịch vụ chăm sóc
+              </View>
+
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.label}>Mật khẩu *</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    passwordError ? styles.inputError : null,
+                  ]}
+                  value={formData.password}
+                  onChangeText={(t) => {
+                    setFormData({ ...formData, password: t });
+                    if (passwordError) setPasswordError("");
+                  }}
+                  placeholder="Nhập mật khẩu"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.label}>
+                  Xác nhận mật khẩu *
                 </ThemedText>
-              </TouchableOpacity>
+                <TextInput
+                  style={[
+                    styles.input,
+                    passwordError ? styles.inputError : null,
+                  ]}
+                  value={formData.confirmPassword}
+                  onChangeText={(t) => {
+                    setFormData({ ...formData, confirmPassword: t });
+                    if (passwordError) setPasswordError("");
+                  }}
+                  placeholder="Nhập lại mật khẩu"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+                {passwordError && (
+                  <ThemedText style={styles.errorText}>
+                    {passwordError}
+                  </ThemedText>
+                )}
+              </View>
 
               <TouchableOpacity
-                style={styles.radioOption}
-                onPress={() =>
-                  setFormData({ ...formData, userType: "caregiver" })
-                }
+                style={styles.submitButton}
+                onPress={handleRegister}
+                disabled={isLoading}
               >
-                <View
-                  style={[
-                    styles.radioCircle,
-                    formData.userType === "caregiver" && styles.radioSelected,
-                  ]}
-                />
-                <ThemedText style={styles.radioText}>
-                  Người chăm sóc chuyên nghiệp
+                <ThemedText style={styles.submitButtonText}>
+                  {isLoading ? "Đang xử lý..." : "Đăng ký"}
                 </ThemedText>
               </TouchableOpacity>
-            </View>
-          </View>
+            </>
+          )}
 
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={handleSubmit}
-            disabled={isLoading}
-          >
-            <ThemedText style={styles.submitButtonText}>
-              {isLoading ? "Đang đăng ký..." : "Đăng ký"}
-            </ThemedText>
-          </TouchableOpacity>
+          {/* ================== FORM XÁC MINH OTP ================== */}
+          {isOtpStage && (
+            <>
+              <ThemedText style={styles.label}>
+                Nhập mã OTP đã gửi đến email {formData.email}
+              </ThemedText>
 
-          <ThemedText style={styles.note}>
-            * Bằng cách đăng ký, bạn đồng ý với Điều khoản sử dụng và Chính sách
-            bảo mật.
-          </ThemedText>
+              <TextInput
+                style={styles.input}
+                value={otp}
+                onChangeText={setOtp}
+                placeholder="Mã OTP"
+                keyboardType="numeric"
+              />
+
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleVerify}
+                disabled={isLoading}
+              >
+                <ThemedText style={styles.submitButtonText}>
+                  {isLoading ? "Đang xác minh..." : "Xác minh OTP"}
+                </ThemedText>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
     </ScrollView>
@@ -276,10 +261,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 16, fontWeight: "600", color: "#2c3e50", marginBottom: 8 },
@@ -293,18 +274,6 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: "#dc3545", backgroundColor: "#fff5f5" },
   errorText: { fontSize: 12, color: "#dc3545", marginTop: 4 },
-  radioGroup: { marginTop: 8 },
-  radioOption: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  radioCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "#dee2e6",
-    marginRight: 12,
-  },
-  radioSelected: { borderColor: "#667eea", backgroundColor: "#667eea" },
-  radioText: { fontSize: 16, color: "#495057" },
   submitButton: {
     backgroundColor: "#667eea",
     borderRadius: 8,
@@ -314,5 +283,4 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   submitButtonText: { color: "white", fontSize: 18, fontWeight: "bold" },
-  note: { fontSize: 12, color: "#6c757d", textAlign: "center", lineHeight: 18 },
 });

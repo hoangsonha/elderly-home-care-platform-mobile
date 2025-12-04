@@ -1,21 +1,21 @@
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    useErrorNotification,
-    useSuccessNotification,
+  useErrorNotification,
+  useSuccessNotification,
 } from "@/contexts/NotificationContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function LoginScreen() {
@@ -35,32 +35,43 @@ export default function LoginScreen() {
     }
 
     setIsLoading(true);
-    const userData = await login(email, password);
-    setIsLoading(false);
 
-    if (!userData) {
-      showErrorTooltip("Email hoặc mật khẩu không đúng");
-      return;
-    }
+    try {
+      // Gọi login trong AuthContext
+      const user = await login(email, password);
 
-    showSuccessTooltip("Đăng nhập thành công! Đang chuyển hướng...");
+      setIsLoading(false);
 
-    setTimeout(() => {
-      if (userData.role === "Caregiver") {
-        // If caregiver hasn't completed profile, send them to complete-profile to continue
-        if (!userData.hasCompletedProfile) {
-          router.replace({
-            pathname: '/caregiver/complete-profile',
-            params: { email: userData.email, fullName: userData.name || '' }
-          });
-        } else {
-          router.replace("/caregiver");
-        }
-      } else {
-        // Care Seeker và các role khác đều đi thẳng đến dashboard
-        router.replace("/careseeker/dashboard");
+      if (!user) {
+        showErrorTooltip("Email hoặc mật khẩu không đúng");
+        return;
       }
-    }, 1000);
+
+      showSuccessTooltip("Đăng nhập thành công!");
+
+      // Điều hướng theo role
+      setTimeout(() => {
+        if (user.role === "Caregiver" || user.role === "ROLE_CAREGIVER") {
+          if (!user.hasCompletedProfile) {
+            router.replace({
+              pathname: "/caregiver/complete-profile",
+              params: {
+                email: user.email,
+                accountId: user.id,
+              },
+            });
+          } else {
+            router.replace("/caregiver");
+          }
+        } else {
+          router.replace("/careseeker/dashboard");
+        }
+      }, 600);
+    } catch (error) {
+      setIsLoading(false);
+      console.log(error);
+      showErrorTooltip("Đăng nhập thất bại");
+    }
   };
 
   return (

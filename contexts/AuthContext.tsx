@@ -1,17 +1,17 @@
 import { NavigationHelper } from "@/components/navigation/NavigationHelper";
-import { AuthService } from "@/services/auth.service";
+import { AccountService } from "@/services/account.service";
 import React, { createContext, ReactNode, useContext, useState } from "react";
 
 interface User {
   id: string;
   email: string;
   name?: string;
-  dateOfBirth?: string;
   phone?: string;
-  address?: string;
   avatar?: string;
+  role: string;
+  token: string;
+  refreshToken: string;
   hasCompletedProfile?: boolean;
-  role: "Caregiver" | "Care Seeker" | "Admin" | string;
   status?: "pending" | "approved" | "rejected";
 }
 
@@ -21,8 +21,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User | null>;
   logout: () => void;
   updateProfile: (profile: Partial<User>) => void;
-  setUserDirect?: (user: User | null) => void;
-  switchRole: (role: "Caregiver" | "Care Seeker") => void; // 👈 NEW
+  setUserDirect: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,37 +34,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string
   ): Promise<User | null> => {
     try {
-      const res = await AuthService.login(email, password);
-      if (!res) return null;
+      const res = await AccountService.login({ email, password });
+
+      if (!res || !res.token) return null;
 
       const userData: User = {
         id: res.id,
         email: res.email,
         name: res.name,
-        dateOfBirth: res.dateOfBirth,
         phone: res.phone,
-        address: res.address,
         avatar: res.avatar,
-        hasCompletedProfile: res.hasCompletedProfile ?? false,
         role: res.role ?? "Care Seeker",
-        status: res.status, // Load status from API
+        token: res.token,
+        refreshToken: res.refreshToken,
+        hasCompletedProfile: res.hasCompletedProfile ?? false,
+        status: res.status,
       };
 
-      // Don't auto-set profileStore here - let complete-profile.tsx handle it
-      // This prevents premature redirection to profile-status
       setUser(userData);
-      return userData; // ✅ trả về luôn user
+      return userData;
     } catch (error) {
       console.error("Login error:", error);
       return null;
     }
   };
 
+  // LOGOUT
   const logout = () => {
     setUser(null);
     NavigationHelper.goToLogin();
   };
 
+  // UPDATE LOCAL PROFILE (không gọi API)
   const updateProfile = (profile: Partial<User>) => {
     if (user) {
       const updatedUser = { ...user, ...profile };
@@ -73,18 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Allow setting user object directly (used after register)
+  // Dùng khi đăng ký xong và verify xong → set user thẳng
   const setUserDirect = (u: User | null) => {
     setUser(u);
-  };
-
-  // 🔥 NEW: Switch role for testing
-  const switchRole = (role: "Caregiver" | "Care Seeker") => {
-    if (user) {
-      const updatedUser = { ...user, role };
-      setUser(updatedUser);
-      console.log(`🔄 Switched role to: ${role}`);
-    }
   };
 
   return (
@@ -96,7 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         updateProfile,
         setUserDirect,
-        switchRole, // 👈 Add to context
       }}
     >
       {children}
@@ -106,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
