@@ -53,7 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Don't auto-set profileStore here - let complete-profile.tsx handle it
       // This prevents premature redirection to profile-status
+      console.log('🟢 AuthContext: Setting user:', userData.email, userData.role);
       setUser(userData);
+      console.log('🟢 AuthContext: User set, state should update');
       return userData; // ✅ trả về luôn user
     } catch (error) {
       console.error("Login error:", error);

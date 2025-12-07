@@ -1,3 +1,4 @@
+import "react-native-reanimated";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
@@ -8,9 +9,19 @@ import React from "react";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { user } = useAuth();
+  
+  // Safe useAuth - return null if not in provider
+  let user = null;
+  try {
+    const auth = useAuth();
+    user = auth?.user;
+  } catch (e) {
+    // Not in AuthProvider yet, return null
+    return null;
+  }
 
-  if (user?.role === "Caregiver") {
+  // Nếu chưa có user hoặc là Caregiver, không hiển thị tabs
+  if (!user || user.role === "Caregiver") {
     return null;
   }
 

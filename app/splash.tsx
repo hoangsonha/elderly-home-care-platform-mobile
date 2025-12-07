@@ -40,11 +40,13 @@ const stats = [
 ];
 
 export default function SplashScreen() {
+  console.log('🟣 SplashScreen rendering...');
   const heroOpacity = useRef(new Animated.Value(0)).current;
   const heroTranslate = useRef(new Animated.Value(16)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    console.log('🟣 SplashScreen useEffect running...');
     Animated.parallel([
       Animated.timing(heroOpacity, {
         toValue: 1,
@@ -66,6 +68,7 @@ export default function SplashScreen() {
     }).start();
   }, [contentOpacity, heroOpacity, heroTranslate]);
 
+  console.log('🟣 SplashScreen returning JSX...');
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
