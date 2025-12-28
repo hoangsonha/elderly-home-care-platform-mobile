@@ -1,5 +1,6 @@
 import { NavigationHelper } from "@/components/navigation/NavigationHelper";
 import { AccountService } from "@/services/account.service";
+import { saveToken, removeToken } from "@/services/apiClient";
 import React, { createContext, ReactNode, useContext, useState } from "react";
 
 interface User {
@@ -38,16 +39,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!res || !res.token) return null;
 
+      // Lưu token vào AsyncStorage
+      await saveToken(res.token, res.refreshToken);
+
       const userData: User = {
-        id: res.id,
+        id: res.accountId || res.id,
         email: res.email,
-        name: res.name,
-        phone: res.phone,
-        avatar: res.avatar,
-        role: res.role ?? "Care Seeker",
+        name: res.profile?.fullName || res.name,
+        phone: res.profile?.phoneNumber || res.phone,
+        avatar: res.avatarUrl || res.profile?.avatarUrl || res.avatar,
+        role: (res.roleName || res.role) ?? "Care Seeker",
         token: res.token,
         refreshToken: res.refreshToken,
-        hasCompletedProfile: res.hasCompletedProfile ?? false,
+        hasCompletedProfile: res.hasProfile ?? res.hasCompletedProfile ?? false,
         status: res.status,
       };
 
@@ -60,7 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // LOGOUT
-  const logout = () => {
+  const logout = async () => {
+    // Xóa token khỏi AsyncStorage
+    await removeToken();
     setUser(null);
     NavigationHelper.goToLogin();
   };

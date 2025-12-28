@@ -358,7 +358,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
         const response = await matchService.matchCaregivers(requestBody);
         
         // Log chi tiết với score_breakdown
-        console.log('✅ API Response với Score Breakdown:');
+        console.log('API Response với Score Breakdown:');
         console.log(JSON.stringify({
           total_matches: response.total_matches,
           recommendations: response.recommendations.map(rec => ({
@@ -371,7 +371,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
         
         onGetRecommendations(response);
       } catch (error: any) {
-        console.error('❌ API Error:', error);
+        console.error('API Error:', error);
         Alert.alert(
           'Lỗi API',
           error.message || 'Có lỗi xảy ra khi gọi API. Vui lòng thử lại.',

@@ -4,9 +4,10 @@ import { PaymentModal } from "@/components/caregiver/PaymentModal";
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
-import { useAppointments } from "@/hooks/useDatabaseEntities";
-import * as AppointmentRepository from "@/services/appointment.repository";
-import * as ElderlyRepository from "@/services/elderly.repository";
+// TODO: Replace with API calls
+// import { useAppointments } from "@/hooks/useDatabaseEntities";
+// import * as AppointmentRepository from "@/services/appointment.repository";
+// import * as ElderlyRepository from "@/services/elderly.repository";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
@@ -148,7 +149,34 @@ export default function BookingManagement() {
   const route = useRoute();
   const params = route.params as { initialTab?: BookingStatus } | undefined;
   const { user } = useAuth();
-  const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
+  // TODO: Replace with API call
+  // const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
+  // Mock data tạm thời
+  const appointments: any[] = [
+    {
+      id: 'apt-1',
+      elderly_profile_id: 'elderly-1',
+      start_date: '2024-12-25',
+      start_time: '08:00',
+      package_type: 'Gói cơ bản',
+      work_location: '123 Đường ABC, Quận 1, TP.HCM',
+      total_amount: 400000,
+      status: 'pending',
+    },
+    {
+      id: 'apt-2',
+      elderly_profile_id: 'elderly-2',
+      start_date: '2024-12-26',
+      start_time: '14:00',
+      package_type: 'Gói chuyên nghiệp',
+      work_location: '456 Đường XYZ, Quận 2, TP.HCM',
+      total_amount: 750000,
+      status: 'confirmed',
+    },
+  ];
+  const loading = false;
+  const error = null;
+  const refresh = async () => {};
   
   const [activeTab, setActiveTab] = useState<BookingStatus>(params?.initialTab || "Mới");
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -222,19 +250,18 @@ export default function BookingManagement() {
           let gender: 'male' | 'female' | undefined = undefined;
           let phone = '0909 123 456';
           
-          // Fetch elderly profile info
+          // Mock data tạm thời - TODO: Replace with API call
           if (apt.elderly_profile_id) {
-            try {
-              const elderlyProfile = await ElderlyRepository.getElderlyProfileById(apt.elderly_profile_id);
-              if (elderlyProfile) {
-                elderName = elderlyProfile.name || 'Không có tên';
-                age = elderlyProfile.age || 0;
-                phone = elderlyProfile.phone || '0909 123 456';
-                gender = elderlyProfile.gender as 'male' | 'female' | undefined;
-              }
-            } catch (error) {
-              console.error('Error fetching elderly profile:', error);
-              elderName = apt.elderly_profile_id;
+            const mockElderlyProfiles: { [key: string]: any } = {
+              'elderly-1': { name: 'Bà Nguyễn Thị Mai', age: 75, phone: '0901234567', gender: 'female' },
+              'elderly-2': { name: 'Ông Trần Văn Nam', age: 80, phone: '0907654321', gender: 'male' },
+            };
+            const elderlyProfile = mockElderlyProfiles[apt.elderly_profile_id];
+            if (elderlyProfile) {
+              elderName = elderlyProfile.name;
+              age = elderlyProfile.age;
+              phone = elderlyProfile.phone;
+              gender = elderlyProfile.gender;
             }
           }
           
@@ -396,7 +423,8 @@ export default function BookingManagement() {
           style: "default",
           onPress: async () => {
             try {
-              await AppointmentRepository.updateAppointmentStatus(bookingId, 'confirmed');
+              // TODO: Replace with API call
+              // await apiClient.patch(`/api/v1/appointments/${bookingId}/status`, { status: 'confirmed' });
               updateAppointmentStatus(bookingId, "confirmed");
               await refresh();
               showAlert(
@@ -446,7 +474,8 @@ export default function BookingManagement() {
           style: "destructive",
           onPress: async () => {
             try {
-              await AppointmentRepository.updateAppointmentStatus(bookingId, 'rejected');
+              // TODO: Replace with API call
+              // await apiClient.patch(`/api/v1/appointments/${bookingId}/status`, { status: 'rejected' });
               updateAppointmentStatus(bookingId, "rejected");
               await refresh();
               showAlert(
@@ -492,7 +521,8 @@ export default function BookingManagement() {
           style: "destructive",
           onPress: async () => {
             try {
-              await AppointmentRepository.updateAppointmentStatus(bookingId, 'cancelled');
+              // TODO: Replace with API call
+              // await apiClient.patch(`/api/v1/appointments/${bookingId}/status`, { status: 'cancelled' });
               updateAppointmentStatus(bookingId, "cancelled");
               await refresh();
               showAlert(
@@ -699,7 +729,8 @@ export default function BookingManagement() {
     if (!selectedBookingForPayment) return;
 
     try {
-      await AppointmentRepository.updateAppointmentStatus(selectedBookingForPayment.id, 'completed');
+      // TODO: Replace with API call
+      // await apiClient.patch(`/api/v1/appointments/${selectedBookingForPayment.id}/status`, { status: 'completed' });
       updateAppointmentStatus(selectedBookingForPayment.id, "completed");
       await refresh();
       setShowPaymentModal(false);

@@ -58,12 +58,12 @@ export class CaregiverService {
    */
   async getAllCaregivers(): Promise<CaregiverProfile[]> {
     try {
-      console.log('🔍 Fetching all caregivers...');
+      console.log('Fetching all caregivers...');
       const response = await apiClient.get<CaregiverApiResponse>('/api/match/caregivers');
-      console.log(`✅ Found ${response.data.total} caregivers`);
+      console.log(`Found ${response.data.total} caregivers`);
       return response.data.caregivers;
     } catch (error: any) {
-      console.error('❌ Get caregivers error:', error);
+      console.error('Get caregivers error:', error);
       throw new Error(`Failed to fetch caregivers: ${error.message}`);
     }
   }
@@ -93,7 +93,7 @@ export class CaregiverService {
       // Return top N
       return sorted.slice(0, limit);
     } catch (error: any) {
-      console.error('❌ Get recommended caregivers error:', error);
+      console.error('Get recommended caregivers error:', error);
       // Fallback to mock data if API fails
       return [];
     }

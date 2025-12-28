@@ -9,7 +9,6 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useDatabase } from "@/hooks/useDatabase";
 import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
 import "react-native-reanimated";
 
@@ -30,7 +29,13 @@ function RootNavigator() {
     );
   }
 
-  if (user.role === "Caregiver") {
+  // Check role - support both "Caregiver"/"ROLE_CAREGIVER" formats
+  const isCaregiver = 
+    user.role === "Caregiver" || 
+    user.role === "ROLE_CAREGIVER" ||
+    user.role?.toUpperCase() === "ROLE_CAREGIVER";
+
+  if (isCaregiver) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="caregiver" options={{ headerShown: false }} />
@@ -48,24 +53,6 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const { isReady, error } = useDatabase();
-
-  if (!isReady) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2DC2D7" />
-        <Text style={styles.loadingText}>Đang khởi tạo database...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Lỗi khởi tạo database: {error.message}</Text>
-      </View>
-    );
-  }
 
   return (
     <AuthProvider>

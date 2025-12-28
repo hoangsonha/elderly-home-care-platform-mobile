@@ -100,7 +100,7 @@ export function PaymentCode({
             </View>
 
             <ThemedText style={styles.completedTitle}>
-              Đã hoàn thành công việc! 🎉
+              Đã hoàn thành công việc!
             </ThemedText>
 
             <ThemedText style={styles.completedMessage}>

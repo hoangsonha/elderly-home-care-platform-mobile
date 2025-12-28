@@ -2,8 +2,9 @@ import { CustomAlert } from "@/components/alerts/CustomAlert";
 import { PaymentCode } from "@/components/caregiver/PaymentCode";
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
-import * as AppointmentRepository from "@/services/appointment.repository";
-import * as ElderlyRepository from "@/services/elderly.repository";
+// TODO: Replace with API calls
+// import * as AppointmentRepository from "@/services/appointment.repository";
+// import * as ElderlyRepository from "@/services/elderly.repository";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
@@ -595,17 +596,36 @@ export default function AppointmentDetailScreen() {
       try {
         setLoading(true);
         // Get appointment from database by ID
-        const foundAppointment = await AppointmentRepository.getAppointmentById(appointmentId);
+        // Mock data tạm thời - TODO: Replace with API calls
+        const mockAppointment = {
+          id: appointmentId,
+          elderly_profile_id: 'elderly-1',
+          start_date: '2024-12-25',
+          start_time: '08:00',
+          package_type: 'Gói cơ bản',
+          work_location: '123 Đường ABC, Quận 1, TP.HCM',
+          status: 'pending',
+          tasks: null,
+          notes: 'Không có ghi chú đặc biệt',
+        };
+        setAppointment(mockAppointment);
         
-        if (foundAppointment) {
-          setAppointment(foundAppointment);
-          
-          // Get elderly profile
-          if (foundAppointment.elderly_profile_id) {
-            const elderly = await ElderlyRepository.getElderlyProfileById(foundAppointment.elderly_profile_id);
-            setElderlyProfile(elderly);
-          }
-        }
+        const mockElderlyProfile = {
+          id: 'elderly-1',
+          name: 'Bà Nguyễn Thị Mai',
+          age: 75,
+          gender: 'female',
+          avatar: 'https://via.placeholder.com/100',
+          address: '123 Đường ABC, Quận 1, TP.HCM',
+          phone: '0901234567',
+          blood_type: 'O',
+          health_condition: 'Ổn định',
+          underlying_diseases: [],
+          medications: [],
+          allergies: [],
+          special_conditions: [],
+        };
+        setElderlyProfile(mockElderlyProfile);
       } catch (error) {
         console.error('Error loading appointment data:', error);
       } finally {
@@ -998,7 +1018,8 @@ export default function AppointmentDetailScreen() {
             // Save to database
             if (appointment) {
               try {
-                await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
+                // TODO: Replace with API call
+                // await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
               } catch (error) {
                 console.error('Error updating appointment status:', error);
               }
@@ -1041,7 +1062,8 @@ export default function AppointmentDetailScreen() {
             // Save to database
             if (appointment) {
               try {
-                await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
+                // TODO: Replace with API call
+                // await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
               } catch (error) {
                 console.error('Error updating appointment status:', error);
               }
@@ -1150,20 +1172,20 @@ export default function AppointmentDetailScreen() {
     const newStatus = "cancelled";
     setStatus(newStatus);
     updateAppointmentStatus(appointmentId, newStatus);
-    // Save to database
-    if (appointment) {
-      try {
-        await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
-        showAlert(
-          "Đã hủy", 
-          "Lịch hẹn đã được hủy",
-          [{ text: 'OK', style: 'default' }],
-          { icon: 'check-circle', iconColor: '#70C1F1' }
-        );
-      } catch (error) {
-        console.error('Error updating appointment status:', error);
-      }
-    }
+    // TODO: Save to API
+    // if (appointment) {
+    //   try {
+    //     await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
+    //   } catch (error) {
+    //     console.error('Error updating appointment status:', error);
+    //   }
+    // }
+    showAlert(
+      "Đã hủy", 
+      "Lịch hẹn đã được hủy",
+      [{ text: 'OK', style: 'default' }],
+      { icon: 'check-circle', iconColor: '#70C1F1' }
+    );
   };
 
   const handleComplete = async () => {
@@ -1191,26 +1213,20 @@ export default function AppointmentDetailScreen() {
     const newStatus = "completed";
     setStatus(newStatus);
     updateAppointmentStatus(appointmentId, newStatus);
-    // Save to database
-    if (appointment) {
-      try {
-        await AppointmentRepository.updateAppointmentStatus(appointmentId, newStatus);
-        showAlert(
-          "Thành công", 
-          "Công việc đã hoàn thành và thanh toán đã được xác nhận",
-          [{ text: 'OK', style: 'default' }],
-          { icon: 'check-circle', iconColor: '#10B981' }
-        );
-      } catch (error) {
-        console.error('Error updating appointment status:', error);
-        showAlert(
-          "Lỗi", 
-          "Không thể cập nhật trạng thái",
-          [{ text: 'OK', style: 'default' }],
-          { icon: 'alert-circle', iconColor: '#EF4444' }
-        );
-      }
-    }
+    // TODO: Save to API
+    // if (appointment) {
+    //   try {
+    //     await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
+    //   } catch (error) {
+    //     console.error('Error updating appointment status:', error);
+    //   }
+    // }
+    showAlert(
+      "Thành công", 
+      "Công việc đã hoàn thành và thanh toán đã được xác nhận",
+      [{ text: 'OK', style: 'default' }],
+      { icon: 'check-circle', iconColor: '#10B981' }
+    );
   };
 
   const handleReview = () => {

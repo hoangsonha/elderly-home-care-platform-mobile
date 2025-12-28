@@ -16,15 +16,31 @@ import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppointmentStatus, subscribeToStatusChanges } from '@/data/appointmentStore';
-import { useAppointments } from '@/hooks/useDatabaseEntities';
-import * as CaregiverRepository from '@/services/caregiver.repository';
+// TODO: Replace with API calls
+// import { useAppointments } from '@/hooks/useDatabaseEntities';
+// import * as CaregiverRepository from '@/services/caregiver.repository';
 import { Appointment } from '@/services/database.types';
 
 type StatusTab = 'all' | 'upcoming' | 'completed' | 'cancelled';
 
 export default function AppointmentsScreen() {
   const { user } = useAuth();
-  const { appointments, loading, error, refresh } = useAppointments(user?.id || '');
+  // TODO: Replace with API call
+  // const { appointments, loading, error, refresh } = useAppointments(user?.id || '');
+  // Mock data tạm thời
+  const appointments: any[] = [
+    {
+      id: 'apt-1',
+      caregiver_id: 'caregiver-1',
+      start_date: '2024-12-25',
+      start_time: '08:00',
+      package_type: 'Gói cơ bản',
+      status: 'confirmed',
+    },
+  ];
+  const loading = false;
+  const error = null;
+  const refresh = async () => {};
   const [activeTab, setActiveTab] = useState<StatusTab>('all');
   const [refreshKey, setRefreshKey] = useState(0); // For triggering re-render when status changes
   const [caregiverInfo, setCaregiverInfo] = useState<{ [key: string]: { name: string; avatar?: string } }>({});
@@ -36,7 +52,11 @@ export default function AppointmentsScreen() {
       for (const apt of appointments) {
         if (apt.caregiver_id && !info[apt.caregiver_id]) {
           try {
-            const caregiver = await CaregiverRepository.getCaregiverById(apt.caregiver_id);
+            // Mock data tạm thời - TODO: Replace with API call
+            const mockCaregivers: { [key: string]: any } = {
+              'caregiver-1': { id: 'caregiver-1', name: 'Chị Nguyễn Thị Lan', rating: 4.8 },
+            };
+            const caregiver = mockCaregivers[apt.caregiver_id] || null;
             if (caregiver) {
               info[apt.caregiver_id] = {
                 name: caregiver.name,

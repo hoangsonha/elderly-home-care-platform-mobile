@@ -472,7 +472,7 @@ export default function CertificatesScreen() {
                         </Text>
                       </View>
                       <View style={styles.rejectBox}>
-                        <Text style={styles.rejectTitle}>⚠️ Lý do từ chối</Text>
+                        <Text style={styles.rejectTitle}>Lý do từ chối</Text>
                         <Text style={styles.rejectText}>{cert.rejectReason}</Text>
                       </View>
                     </>
@@ -480,11 +480,11 @@ export default function CertificatesScreen() {
 
                   <View style={styles.certActions}>
                     <TouchableOpacity style={styles.btnView}>
-                      <Text style={styles.btnViewText}>👁️ Xem ảnh</Text>
+                      <Text style={styles.btnViewText}>Xem ảnh</Text>
                     </TouchableOpacity>
                     {isRejected && (
                       <TouchableOpacity style={styles.btnDelete}>
-                        <Text style={styles.btnDeleteText}>🗑️ Xóa</Text>
+                        <Text style={styles.btnDeleteText}>Xóa</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -676,7 +676,7 @@ export default function CertificatesScreen() {
                 
                 <View style={styles.warningBox}>
                   <Text style={styles.warningText}>
-                    💡 Meo: Chụp ảnh rõ ràng, đầy đủ 4 góc để tăng tỷ lệ duyệt
+                    Meo: Chụp ảnh rõ ràng, đầy đủ 4 góc để tăng tỷ lệ duyệt
                   </Text>
                 </View>
               </View>

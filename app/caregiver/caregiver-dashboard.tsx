@@ -1,8 +1,9 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
-import { useAppointments } from "@/hooks/useDatabaseEntities";
-import * as ElderlyRepository from "@/services/elderly.repository";
+// TODO: Replace with API calls
+// import { useAppointments } from "@/hooks/useDatabaseEntities";
+// import * as ElderlyRepository from "@/services/elderly.repository";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
@@ -75,7 +76,22 @@ const parseVietnameseDate = (dateStr: string): string | null => {
 export default function CaregiverDashboardScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
+  // TODO: Replace with API call
+  // const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
+  // Mock data tạm thời
+  const appointments: any[] = [
+    {
+      id: 'apt-1',
+      elderly_profile_id: 'elderly-1',
+      start_date: '2024-12-25',
+      start_time: '08:00',
+      package_type: 'Gói cơ bản',
+      status: 'pending',
+    },
+  ];
+  const loading = false;
+  const error = null;
+  const refresh = async () => {};
   const [refreshKey, setRefreshKey] = useState(0);
   const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>({});
 
@@ -86,10 +102,12 @@ export default function CaregiverDashboardScreen() {
       for (const apt of appointments) {
         if (apt.elderly_profile_id && !names[apt.elderly_profile_id]) {
           try {
-            const elderly = await ElderlyRepository.getElderlyProfileById(apt.elderly_profile_id);
-            if (elderly) {
-              names[apt.elderly_profile_id] = elderly.name;
-            }
+            // Mock data tạm thời - TODO: Replace with API call
+            const mockElderlyNames: { [key: string]: string } = {
+              'elderly-1': 'Bà Nguyễn Thị Mai',
+              'elderly-2': 'Ông Trần Văn Nam',
+            };
+            names[apt.elderly_profile_id] = mockElderlyNames[apt.elderly_profile_id] || 'Người già';
           } catch (err) {
             console.error('Error loading elderly profile:', err);
           }
@@ -125,7 +143,7 @@ export default function CaregiverDashboardScreen() {
   // Use local date, not UTC
   const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   
-  console.log('🔍 DEBUG Dashboard:');
+  console.log('DEBUG Dashboard:');
   console.log('  Today date:', todayDateString);
   console.log('  Total appointments:', appointments.length);
   console.log('  User ID:', user?.id);
@@ -163,7 +181,7 @@ export default function CaregiverDashboardScreen() {
     return isToday && isAccepted;
   });
   
-  console.log('  ✅ Final today appointments count:', todayAppointments.length);
+  console.log('  Final today appointments count:', todayAppointments.length);
 
   // Count new requests (appointments with status 'new' or 'pending')
   const newRequestsCount = appointments.filter(apt => {
@@ -176,7 +194,7 @@ export default function CaregiverDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       if (user && user.role === "Caregiver") {
-        console.log('🔍 Dashboard check - user.hasCompletedProfile:', user.hasCompletedProfile);
+        console.log('Dashboard check - user.hasCompletedProfile:', user.hasCompletedProfile);
         // Small delay to ensure navigation is ready
         setTimeout(() => {
           // Check if profile has been submitted (exists in profileStore)
@@ -187,11 +205,11 @@ export default function CaregiverDashboardScreen() {
           // Check status from API (user.status) or profileStore
           const currentStatus = user.status || profileStatus.status;
           
-          console.log('🔍 Dashboard check - hasProfileInStore:', hasProfileInStore, 'currentStatus:', currentStatus);
+          console.log('Dashboard check - hasProfileInStore:', hasProfileInStore, 'currentStatus:', currentStatus);
           
           // If no profile submitted yet and user hasn't completed profile, navigate to complete profile
           if (!hasProfileInStore && !user.hasCompletedProfile) {
-            console.log('➡️ Dashboard redirecting to complete-profile');
+            console.log('Dashboard redirecting to complete-profile');
             navigation.navigate("Hoàn thiện hồ sơ", {
               email: user.email,
               fullName: user.name || "",
@@ -201,13 +219,13 @@ export default function CaregiverDashboardScreen() {
 
           // If profile is approved (from API or profileStore), stay on dashboard
           if (currentStatus === "approved") {
-            console.log('✅ Profile approved, staying on dashboard');
+            console.log('Profile approved, staying on dashboard');
             return; // Stay on dashboard
           }
 
           // If profile is pending or rejected, navigate to status screen
           if (currentStatus === "pending" || currentStatus === "rejected") {
-            console.log('⏳ Profile pending/rejected, navigating to status screen');
+            console.log('Profile pending/rejected, navigating to status screen');
             navigation.navigate("Trạng thái hồ sơ");
             return;
           }
@@ -281,7 +299,7 @@ export default function CaregiverDashboardScreen() {
             onPress={() => navigation.navigate("Yêu cầu dịch vụ", { initialTab: "Mới" })}
           >
             <View style={styles.alertIconContainer}>
-              <Text style={styles.alertIcon}>🔔</Text>
+              <Text style={styles.alertIcon}></Text>
             </View>
             <View style={styles.alertContent}>
               <Text style={styles.alertTitle}>{newRequestsCount} yêu cầu mới</Text>
@@ -402,7 +420,7 @@ export default function CaregiverDashboardScreen() {
 
             <View style={[styles.statCard, { backgroundColor: "#EDE7F6" }]}>
               <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>✅</Text>
+                <Text style={styles.statIcon}></Text>
               </View>
               <Text style={styles.statValue}>{caregiverStats.completionRate}%</Text>
               <Text style={styles.statLabel}>Tỷ lệ hoàn thành nhiệm vụ</Text>

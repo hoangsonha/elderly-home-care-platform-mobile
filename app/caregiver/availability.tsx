@@ -4,8 +4,9 @@ import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import AvailabilityModal from "@/components/schedule/AvailabilityModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
-import { useAppointments } from "@/hooks/useDatabaseEntities";
-import * as ElderlyRepository from "@/services/elderly.repository";
+// TODO: Replace with API calls
+// import { useAppointments } from "@/hooks/useDatabaseEntities";
+// import * as ElderlyRepository from "@/services/elderly.repository";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
@@ -125,7 +126,20 @@ const scheduleData = [
 export default function AvailabilityScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
-  const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
+  // TODO: Replace with API call
+  // const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
+  // Mock data tạm thời
+  const appointments: any[] = [
+    {
+      id: 'apt-1',
+      elderly_profile_id: 'elderly-1',
+      start_date: '2024-12-25',
+      status: 'confirmed',
+    },
+  ];
+  const loading = false;
+  const error = null;
+  const refresh = async () => {};
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -141,10 +155,12 @@ export default function AvailabilityScreen() {
       for (const apt of appointments) {
         if (apt.elderly_profile_id && !names[apt.elderly_profile_id]) {
           try {
-            const elderly = await ElderlyRepository.getElderlyProfileById(apt.elderly_profile_id);
-            if (elderly) {
-              names[apt.elderly_profile_id] = elderly.name;
-            }
+            // Mock data tạm thời - TODO: Replace with API call
+            const mockElderlyNames: { [key: string]: string } = {
+              'elderly-1': 'Bà Nguyễn Thị Mai',
+              'elderly-2': 'Ông Trần Văn Nam',
+            };
+            names[apt.elderly_profile_id] = mockElderlyNames[apt.elderly_profile_id] || 'Người già';
           } catch (err) {
             console.error('Error loading elderly profile:', err);
           }

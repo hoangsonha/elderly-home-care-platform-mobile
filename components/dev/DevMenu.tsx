@@ -39,7 +39,7 @@ export function DevMenu({ visible, onClose }: DevMenuProps) {
       >
         <View style={styles.menu}>
           <View style={styles.header}>
-            <Text style={styles.title}>🛠️ Dev Menu</Text>
+            <Text style={styles.title}>Dev Menu</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color="#666" />
             </TouchableOpacity>
@@ -74,7 +74,7 @@ export function DevMenu({ visible, onClose }: DevMenuProps) {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>⚠️ Development Only</Text>
+            <Text style={styles.footerText}>Development Only</Text>
           </View>
         </View>
       </TouchableOpacity>

@@ -1,8 +1,8 @@
-import axiosInstance from "./axiosInstance";
+import apiClient from "./apiClient";
 
 export const UserService = {
   getAllUsers: async () => {
-    const response = await axiosInstance.get(`/users`);
+    const response = await apiClient.get(`/users`);
     return response.data;
   },
 };

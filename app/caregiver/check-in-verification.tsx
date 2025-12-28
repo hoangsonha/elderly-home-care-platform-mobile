@@ -1,6 +1,8 @@
 import { CustomAlert } from "@/components/alerts/CustomAlert";
 import { updateAppointmentStatus } from "@/data/appointmentStore";
-import * as AppointmentRepository from "@/services/appointment.repository";
+// TODO: Replace with API call
+// import * as AppointmentRepository from "@/services/appointment.repository";
+import apiClient from "@/services/apiClient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from 'expo-image-picker';
@@ -107,7 +109,8 @@ export default function CheckInVerificationScreen() {
   // Step 2: Start work
   const handleStartWork = async () => {
     try {
-      await AppointmentRepository.updateAppointmentStatus(params.appointmentId, 'in-progress');
+      // TODO: Replace with API call
+      // await apiClient.patch(`/api/v1/appointments/${params.appointmentId}/status`, { status: 'in-progress' });
       updateAppointmentStatus(params.appointmentId, 'in-progress');
 
       showAlert(

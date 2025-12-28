@@ -110,13 +110,6 @@ export function NotificationPanel({
     >
       <View style={styles.notificationContent}>
         <View style={styles.notificationHeader}>
-          <View style={styles.notificationIconContainer}>
-            <Ionicons
-              name={getNotificationIcon(notification.type)}
-              size={20}
-              color={getNotificationColor(notification.type)}
-            />
-          </View>
           <View style={styles.notificationTextContainer}>
             <ThemedText style={styles.notificationTitle}>
               {notification.title}
@@ -204,10 +197,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 8,
   },
-  notificationIconContainer: {
-    marginRight: 12,
-    marginTop: 2,
-  },
   notificationTextContainer: {
     flex: 1,
   },
@@ -225,7 +214,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#495057',
     lineHeight: 20,
-    marginLeft: 32,
   },
   unreadDot: {
     width: 8,

@@ -7,7 +7,6 @@ import React, { useEffect, useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { submitProfileForReview } from "@/data/profileStore";
-import { AuthService } from "@/services/auth.service";
 import { router } from "expo-router";
 import {
   Alert,
@@ -334,16 +333,15 @@ export default function CompleteProfileScreen() {
     };
 
     try {
-      console.log('📝 Submitting profile for user:', user.id);
-      console.log('📦 Profile data:', profilePayload);
+      console.log('Submitting profile for user:', user.id);
+      console.log('Profile data:', profilePayload);
       
-      // Save profile to database
-      await AuthService.updateProfile(user.id, profilePayload);
-      console.log('✅ Profile saved to database successfully');
-
+      // TODO: Implement API call to save profile to backend
+      // await apiClient.post('/api/v1/caregiver/profile', profilePayload);
+      
       // Update in-memory auth context so UI reflects the change
       if (updateProfile) {
-        console.log('🔄 Updating AuthContext with new profile data');
+        console.log('Updating AuthContext with new profile data');
         updateProfile({
           hasCompletedProfile: true,
           name: profilePayload.name,
@@ -354,7 +352,7 @@ export default function CompleteProfileScreen() {
       }
 
       // Mark profile as submitted for review
-      console.log('📋 Setting profile status to pending in profileStore');
+      console.log('Setting profile status to pending in profileStore');
       submitProfileForReview(user.id);
 
       // Show success message
@@ -365,14 +363,14 @@ export default function CompleteProfileScreen() {
           {
             text: 'OK',
             onPress: () => {
-              console.log('➡️ Navigating to profile-status screen');
+              console.log('Navigating to profile-status screen');
               router.replace('/caregiver/profile-status');
             }
           }
         ]
       );
     } catch (err: any) {
-      console.error('❌ Failed to save profile:', err);
+      console.error('Failed to save profile:', err);
       Alert.alert(
         'Lỗi',
         `Không thể lưu hồ sơ: ${err?.message || 'Lỗi không xác định'}. Vui lòng thử lại sau.`

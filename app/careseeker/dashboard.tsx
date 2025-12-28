@@ -26,8 +26,8 @@ import { CustomModal } from '@/components/ui/CustomModal';
 import { NotificationPanel } from '@/components/ui/NotificationPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
-import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
-import { getDatabase } from '@/services/database.service';
+// TODO: Replace with API calls to fetch elderly profiles
+// import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 
 const { width } = Dimensions.get('window');
 
@@ -44,7 +44,10 @@ interface ServiceModule {
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
   const { emergencyAlertVisible, hideEmergencyAlert } = useNotification();
-  const { profiles: elderlyProfiles, loading: loadingElderlyProfiles, refresh: refreshElderlyProfiles } = useElderlyProfiles(user?.id || '');
+  // TODO: Replace with API call to fetch elderly profiles
+  const elderlyProfiles: any[] = [];
+  const loadingElderlyProfiles = false;
+  const refreshElderlyProfiles = () => {};
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showAppInfoModal, setShowAppInfoModal] = useState(false);
@@ -57,89 +60,26 @@ export default function DashboardScreen() {
   const [recommendedCaregivers, setRecommendedCaregivers] = useState<any[]>([]);
   const [loadingCaregivers, setLoadingCaregivers] = useState(true);
   
-  // Refresh elderly profiles when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      if (user?.id) {
-        refreshElderlyProfiles();
-      }
-    }, [user?.id, refreshElderlyProfiles])
-  );
+  // TODO: Refresh elderly profiles from API when screen is focused
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     if (user?.id) {
+  //       // Call API to refresh elderly profiles
+  //       refreshElderlyProfiles();
+  //     }
+  //   }, [user?.id, refreshElderlyProfiles])
+  // );
   
-  // Fetch caregivers from database on mount
+  // TODO: Replace with API call to fetch caregivers
   useEffect(() => {
     const fetchCaregivers = async () => {
       try {
         setLoadingCaregivers(true);
-        const db = await getDatabase();
-        if (!db) {
-          console.log('Database not available');
-          setLoadingCaregivers(false);
-          return;
-        }
-
-        // Get all caregivers with is_verified = 1
-        const caregivers = await db.getAllAsync<any>(
-          `SELECT 
-            c.*,
-            u.name as user_name,
-            u.email,
-            u.status
-           FROM caregivers c
-           LEFT JOIN users u ON c.id = u.id
-           WHERE u.role = 'Caregiver' AND u.status = 'approved'
-           ORDER BY c.rating DESC, c.created_at DESC
-           LIMIT 10`
-        );
-
-        console.log('📋 Fetched caregivers from DB:', caregivers?.length || 0);
-
-        if (caregivers && caregivers.length > 0) {
-          // Transform database data to UI format
-          const transformedCaregivers = caregivers.map((caregiver: any) => {
-            // Parse certificates if it's a JSON string
-            let specialties: string[] = [];
-            try {
-              if (caregiver.certificates) {
-                const certs = JSON.parse(caregiver.certificates);
-                specialties = Array.isArray(certs) 
-                  ? certs.map((cert: any) => cert.type || cert.name).filter(Boolean).slice(0, 2)
-                  : [];
-              }
-            } catch (err) {
-              console.warn('Failed to parse certificates for', caregiver.name);
-            }
-
-            return {
-              id: caregiver.id,
-              name: caregiver.name || caregiver.user_name || 'Chưa có tên',
-              age: caregiver.age || 30,
-              avatar: caregiver.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(caregiver.name || 'User')}&background=70C1F1&color=fff`,
-              rating: caregiver.rating || 0,
-              gender: caregiver.gender === 'Nam' ? 'male' as const : 'female' as const,
-              specialties: specialties.length > 0 ? specialties : ['Chăm sóc người già'],
-            };
-          });
-
-          setRecommendedCaregivers(transformedCaregivers);
-        } else {
-          // Fallback to mock data if no caregivers in DB
-          console.log('⚠️ No caregivers found in DB, using fallback');
-          setRecommendedCaregivers([
-            {
-              id: 'mock-1',
-              name: 'Mai',
-              age: 35,
-              avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
-              rating: 4.9,
-              gender: 'female' as const,
-              specialties: ['Cao đẳng Điều dưỡng', 'Chăm sóc đái tháo đường'],
-            },
-          ]);
-        }
-      } catch (error) {
-        console.error('❌ Error fetching caregivers:', error);
-        // Use fallback mock data
+        // TODO: Call API to get caregivers
+        // const response = await apiClient.get('/api/v1/public/caregivers');
+        // setRecommendedCaregivers(response.data);
+        
+        // Temporary fallback mock data
         setRecommendedCaregivers([
           {
             id: 'mock-1',

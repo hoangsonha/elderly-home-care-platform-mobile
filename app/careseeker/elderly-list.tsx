@@ -13,14 +13,24 @@ import ElderlyList from '@/components/elderly/ElderlyList';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { ElderlyProfile } from '@/types/elderly';
-import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
+// TODO: Replace with API call
+// import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 import { useAuth } from '@/contexts/AuthContext';
 
 type ElderlyPerson = Pick<ElderlyProfile, 'id' | 'name' | 'age' | 'avatar' | 'family' | 'healthStatus' | 'currentCaregivers'> & { gender?: 'male' | 'female' };
 
 export default function ElderlyListScreen() {
   const { user } = useAuth();
-  const { profiles, loading, error, refresh } = useElderlyProfiles(user?.id || '');
+  // TODO: Replace with API call
+  // const { profiles, loading, error, refresh } = useElderlyProfiles(user?.id || '');
+  // Mock data tạm thời
+  const profiles: any[] = [
+    { id: 'elderly-1', name: 'Bà Nguyễn Thị Mai', age: 75, gender: 'female', phone: '0901234567' },
+    { id: 'elderly-2', name: 'Ông Trần Văn Nam', age: 80, gender: 'male', phone: '0907654321' },
+  ];
+  const loading = false;
+  const error = null;
+  const refresh = async () => {};
 
   const handlePersonPress = (person: ElderlyPerson) => {
     router.push(`/careseeker/elderly-detail?id=${person.id}`);

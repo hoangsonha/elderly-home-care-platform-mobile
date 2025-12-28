@@ -1,12 +1,12 @@
-import axiosInstance from "./axiosInstance";
+import apiClient from "./apiClient";
 
 export const mainService = {
-  get: (url: string, config = {}) => axiosInstance.get(url, config),
+  get: (url: string, config = {}) => apiClient.get(url, config),
   post: (url: string, data: any, config = {}) =>
-    axiosInstance.post(url, data, config),
+    apiClient.post(url, data, config),
   put: (url: string, data: any, config = {}) =>
-    axiosInstance.put(url, data, config),
+    apiClient.put(url, data, config),
   patch: (url: string, data: any, config = {}) =>
-    axiosInstance.patch(url, data, config),
-  delete: (url: string, config = {}) => axiosInstance.delete(url, config),
+    apiClient.patch(url, data, config),
+  delete: (url: string, config = {}) => apiClient.delete(url, config),
 };

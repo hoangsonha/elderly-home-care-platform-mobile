@@ -18,7 +18,8 @@ import { DynamicMedicationList } from '@/components/ui/DynamicMedicationList';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmergencyContact } from '@/contexts/EmergencyContactContext';
 import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
-import * as ElderlyRepository from '@/services/elderly.repository';
+// TODO: Replace with API call
+// import * as ElderlyRepository from '@/services/elderly.repository';
 
 // Mock families data
 const mockFamilies = [
@@ -352,7 +353,8 @@ export default function AddElderlyScreen() {
       };
 
       // Save to database
-      await ElderlyRepository.createElderlyProfile(elderlyData);
+      // TODO: Replace with API call
+      // await apiClient.post('/api/v1/elderly', elderlyData);
       
       // Clear temp contacts
       setTempContacts([]);

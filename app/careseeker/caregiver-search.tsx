@@ -25,7 +25,8 @@ import { SearchFilters, type FilterOption } from '@/components/caregiver/SearchF
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
-import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
+// TODO: Replace with API call
+// import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 import { CaregiverRecommendation, MatchResponse } from '@/services/types';
 
 // Mock data
@@ -113,7 +114,13 @@ export default function CaregiverSearchScreen() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedCaregiver, setSelectedCaregiver] = useState<Caregiver | null>(null);
   const { user } = useAuth();
-  const { profiles: elderlyProfiles } = useElderlyProfiles(user?.id || '');
+  // TODO: Replace with API call
+  // const { profiles: elderlyProfiles } = useElderlyProfiles(user?.id || '');
+  // Mock data tạm thời
+  const elderlyProfiles: any[] = [
+    { id: 'elderly-1', name: 'Bà Nguyễn Thị Mai', age: 75 },
+    { id: 'elderly-2', name: 'Ông Trần Văn Nam', age: 80 },
+  ];
 
   // Floating AI position state
   const screenWidth = Dimensions.get('window').width;

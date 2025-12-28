@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import {
     Animated,
@@ -145,14 +144,6 @@ export const SafeNotification: React.FC<SafeNotificationProps> = ({
         disabled={!onPress}
         activeOpacity={onPress ? 0.7 : 1}
       >
-        <View style={styles.iconContainer}>
-          <Ionicons
-            name={typeStyles.iconName}
-            size={24}
-            color={typeStyles.iconColor}
-          />
-        </View>
-        
         <View style={styles.textContainer}>
           <ThemedText
             style={[styles.title, { color: typeStyles.textColor }]}
@@ -167,10 +158,6 @@ export const SafeNotification: React.FC<SafeNotificationProps> = ({
             </ThemedText>
           )}
         </View>
-
-        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-          <Ionicons name="close" size={20} color={typeStyles.textColor} />
-        </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -198,10 +185,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: 18,
   },
-  iconContainer: {
-    marginRight: 12,
-    marginTop: 2,
-  },
   textContainer: {
     flex: 1,
   },
@@ -214,11 +197,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     opacity: 0.9,
-  },
-  closeButton: {
-    padding: 4,
-    marginLeft: 8,
-    marginTop: -2,
   },
 });
 

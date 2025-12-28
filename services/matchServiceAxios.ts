@@ -10,13 +10,13 @@ export class MatchService {
    */
   async matchCaregivers(request: MobileMatchRequest): Promise<MatchResponse> {
     try {
-      console.log('🔍 Matching caregivers with request:', request);
+      console.log('Matching caregivers with request:', request);
       
       const response = await apiClient.post('/api/match-mobile', request);
       
       return response.data;
     } catch (error: any) {
-      console.error('❌ Match API Error:', error);
+      console.error('Match API Error:', error);
       
       if (error.response) {
         // Server responded with error status
@@ -39,7 +39,7 @@ export class MatchService {
       const response = await apiClient.post('/api/match', { request_id: requestId });
       return response.data;
     } catch (error: any) {
-      console.error('❌ Match by ID API Error:', error);
+      console.error('Match by ID API Error:', error);
       throw new Error(`Match by ID failed: ${error.message}`);
     }
   }

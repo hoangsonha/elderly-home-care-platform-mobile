@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     Animated,
@@ -156,20 +155,11 @@ export const Tooltip: React.FC<TooltipProps> = ({
               ]}
             >
               <View style={styles.content}>
-                <Ionicons
-                  name={typeStyles.iconName}
-                  size={20}
-                  color={typeStyles.iconColor}
-                  style={styles.icon}
-                />
                 <ThemedText
                   style={[styles.message, { color: typeStyles.textColor }]}
                 >
                   {message}
                 </ThemedText>
-                <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                  <Ionicons name="close" size={18} color={typeStyles.textColor} />
-                </TouchableOpacity>
               </View>
             </Animated.View>
           </TouchableWithoutFeedback>
@@ -250,17 +240,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 18,
   },
-  icon: {
-    marginRight: 12,
-  },
   message: {
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 20,
-  },
-  closeButton: {
-    padding: 4,
-    marginLeft: 8,
   },
 });

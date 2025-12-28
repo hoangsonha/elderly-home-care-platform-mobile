@@ -16,7 +16,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Task } from '@/components/ui/TaskSelector';
 import { SERVICE_PACKAGES } from '@/constants/servicePackages';
 import { useAuth } from '@/contexts/AuthContext';
-import * as AppointmentRepository from '@/services/appointment.repository';
+// TODO: Replace with API call
+// import * as AppointmentRepository from '@/services/appointment.repository';
 
 interface Caregiver {
   id: string;
@@ -264,7 +265,10 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       console.log('Creating appointment:', appointmentData);
       
       // Save to database
-      const appointmentId = await AppointmentRepository.createAppointment(appointmentData);
+      // TODO: Replace with API call
+      // const response = await apiClient.post('/api/v1/appointments', appointmentData);
+      // const appointmentId = response.data.id;
+      const appointmentId = 'apt-mock-' + Date.now(); // Mock ID tạm thời
       
       console.log('Appointment created with ID:', appointmentId);
       
@@ -457,7 +461,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           {/* Section 3: Service Package */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>📦 Chọn gói dịch vụ</ThemedText>
+              <ThemedText style={styles.sectionTitle}>Chọn gói dịch vụ</ThemedText>
             </View>
             
             <View style={styles.sectionContent}>
@@ -580,7 +584,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
           {/* Selected Package */}
           <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>📦 Gói dịch vụ:</ThemedText>
+            <ThemedText style={styles.reviewLabel}>Gói dịch vụ:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.selectedPackage ? 
                 servicePackages.find(p => p.id === immediateData.selectedPackage)?.name : 'Chưa chọn'}
@@ -1125,7 +1129,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                 <Ionicons name="checkmark-circle" size={80} color="#68C2E8" />
               </View>
               
-              <ThemedText style={styles.successTitle}>Đặt lịch thành công! 🎉</ThemedText>
+              <ThemedText style={styles.successTitle}>Đặt lịch thành công!</ThemedText>
               
               <ThemedText style={styles.successMessage}>
                 Yêu cầu thuê ngay lập tức của bạn đã được gửi đi.
