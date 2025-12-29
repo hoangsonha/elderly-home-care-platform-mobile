@@ -16,8 +16,6 @@ export class MatchService {
       
       return response.data;
     } catch (error: any) {
-      console.error('Match API Error:', error);
-      
       if (error.response) {
         // Server responded with error status
         throw new Error(`Server error: ${error.response.status} - ${error.response.data?.message || error.message}`);
@@ -39,7 +37,6 @@ export class MatchService {
       const response = await apiClient.post('/api/match', { request_id: requestId });
       return response.data;
     } catch (error: any) {
-      console.error('Match by ID API Error:', error);
       throw new Error(`Match by ID failed: ${error.message}`);
     }
   }

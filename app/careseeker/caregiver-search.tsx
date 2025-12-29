@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dimensions,
     ScrollView,
@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/AuthContext';
 // TODO: Replace with API call
 // import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 import { CaregiverRecommendation, MatchResponse } from '@/services/types';
+import { caregiverService, type PublicCaregiver } from '@/services/caregiver.service';
 
 // Mock data
 const mockElderlyProfiles = [
@@ -105,7 +106,8 @@ const filterOptions: FilterOption[] = [
 export default function CaregiverSearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const [caregivers] = useState<Caregiver[]>(mockCaregivers);
+  const [caregivers, setCaregivers] = useState<Caregiver[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<CaregiverRecommendation[]>([]);
   const [showAIResults, setShowAIResults] = useState(false);
@@ -121,6 +123,38 @@ export default function CaregiverSearchScreen() {
     { id: 'elderly-1', name: 'Bà Nguyễn Thị Mai', age: 75 },
     { id: 'elderly-2', name: 'Ông Trần Văn Nam', age: 80 },
   ];
+
+  // Fetch caregivers from API
+  useEffect(() => {
+    const fetchCaregivers = async () => {
+      try {
+        setIsLoading(true);
+        const publicCaregivers = await caregiverService.getPublicCaregivers();
+        
+        // Map API response to Caregiver interface
+        const mappedCaregivers: Caregiver[] = publicCaregivers.map((cg: PublicCaregiver) => ({
+          id: cg.caregiverProfileId,
+          name: cg.fullName,
+          avatar: cg.avatarUrl || 'https://via.placeholder.com/150',
+          rating: 0, // Tạm thời set 0
+          experience: cg.profileData?.experience || 'Chưa có',
+          hourlyRate: 0, // Không hiển thị nữa nhưng vẫn cần trong interface
+          distance: '5km', // Fix cứng 5km
+          isVerified: cg.isVerified,
+          totalReviews: 0, // Tạm thời set 0
+        }));
+        
+        setCaregivers(mappedCaregivers);
+      } catch (error) {
+        // Fallback to mock data on error
+        setCaregivers(mockCaregivers);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCaregivers();
+  }, []);
 
   // Floating AI position state
   const screenWidth = Dimensions.get('window').width;
@@ -267,25 +301,33 @@ export default function CaregiverSearchScreen() {
         >
           <View style={styles.resultsHeader}>
             <ThemedText style={styles.resultsCount}>
-              Tìm thấy {caregivers.length} người chăm sóc
+              {isLoading ? 'Đang tải...' : `Tìm thấy ${caregivers.length} người chăm sóc`}
             </ThemedText>
-            <TouchableOpacity style={styles.sortButton}>
-              <Ionicons name="swap-vertical" size={16} color="#667eea" />
-              <ThemedText style={styles.sortButtonText}>Sắp xếp</ThemedText>
-            </TouchableOpacity>
+            {!isLoading && (
+              <TouchableOpacity style={styles.sortButton}>
+                <Ionicons name="swap-vertical" size={16} color="#667eea" />
+                <ThemedText style={styles.sortButtonText}>Sắp xếp</ThemedText>
+              </TouchableOpacity>
+            )}
           </View>
 
-          <View style={styles.caregiversList}>
-            {caregivers.map((caregiver) => (
-              <CaregiverCard
-                key={caregiver.id}
-                caregiver={caregiver}
-                onPress={handleCaregiverPress}
-                onBookPress={handleBookNow}
-                onChatPress={handleChatPress}
-              />
-            ))}
-          </View>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ThemedText style={styles.loadingText}>Đang tải danh sách người chăm sóc...</ThemedText>
+            </View>
+          ) : (
+            <View style={styles.caregiversList}>
+              {caregivers.map((caregiver) => (
+                <CaregiverCard
+                  key={caregiver.id}
+                  caregiver={caregiver}
+                  onPress={handleCaregiverPress}
+                  onBookPress={handleBookNow}
+                  onChatPress={handleChatPress}
+                />
+              ))}
+            </View>
+          )}
 
           {/* Bottom spacing */}
           <View style={styles.bottomSpacing} />
@@ -456,6 +498,15 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 20,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#6c757d',
   },
 });
 

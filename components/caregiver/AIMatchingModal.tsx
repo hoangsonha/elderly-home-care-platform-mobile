@@ -277,7 +277,6 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
           setIsLoading(false);
           onGetRecommendations(response);
         } catch (error: any) {
-          console.error('Error:', error);
           setIsLoading(false);
           Alert.alert('Lỗi', 'Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.');
         }
@@ -371,7 +370,6 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
         
         onGetRecommendations(response);
       } catch (error: any) {
-        console.error('API Error:', error);
         Alert.alert(
           'Lỗi API',
           error.message || 'Có lỗi xảy ra khi gọi API. Vui lòng thử lại.',

@@ -38,20 +38,21 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
       activeOpacity={0.8}
     >
       <View style={styles.cardHeader}>
-        <View style={styles.avatarContainer}>
-          <Image source={{ uri: caregiver.avatar }} style={styles.avatar} />
-          {caregiver.isVerified && (
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark" size={12} color="white" />
-            </View>
-          )}
-        </View>
+        <Image source={{ uri: caregiver.avatar }} style={styles.avatar} />
         
         <View style={styles.caregiverInfo}>
           <View style={styles.nameRow}>
-            <ThemedText style={styles.caregiverName} numberOfLines={1}>
-              {caregiver.name}
-            </ThemedText>
+            <View style={styles.nameContainer}>
+              <ThemedText style={styles.caregiverName} numberOfLines={1}>
+                {caregiver.name}
+              </ThemedText>
+              {caregiver.isVerified && (
+                <View style={styles.verifiedLabel}>
+                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  <ThemedText style={styles.verifiedText}>Đã xác thực</ThemedText>
+                </View>
+              )}
+            </View>
             <View style={styles.ratingContainer}>
               <Ionicons name="star" size={14} color="#FFD700" />
               <ThemedText style={styles.rating}>
@@ -79,15 +80,8 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
         </View>
       </View>
 
-      <View style={styles.cardFooter}>
-        <View style={styles.priceContainer}>
-          <ThemedText style={styles.priceLabel}>Giá/giờ:</ThemedText>
-          <ThemedText style={styles.price}>
-            {(caregiver.hourlyRate || 0).toLocaleString('vi-VN')}đ
-          </ThemedText>
-        </View>
-        
-        {showActions && (
+      {showActions && (
+        <View style={styles.cardFooter}>
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={styles.chatButton}
@@ -106,8 +100,8 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
               </TouchableOpacity>
             )}
           </View>
-        )}
-      </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -127,28 +121,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 12,
   },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 12,
-  },
   avatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
     backgroundColor: '#e9ecef',
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#28a745',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
+    marginRight: 12,
   },
   caregiverInfo: {
     flex: 1,
@@ -159,12 +137,32 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 4,
   },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    flex: 1,
+    marginRight: 8,
+  },
   caregiverName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2c3e50',
-    flex: 1,
-    marginRight: 8,
+  },
+  verifiedLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    gap: 4,
+  },
+  verifiedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#065F46',
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -201,22 +199,9 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  priceLabel: {
-    fontSize: 14,
-    color: '#6c757d',
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#28a745',
+    marginTop: 8,
   },
   actionButtons: {
     flexDirection: 'row',

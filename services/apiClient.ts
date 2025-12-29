@@ -79,7 +79,7 @@ apiClient.interceptors.request.use(
           config.headers.Authorization = `Bearer ${token}`;
         }
       } catch (error) {
-        console.error('Error getting token from AsyncStorage:', error);
+        // Silent error handling
       }
     }
 
@@ -94,7 +94,6 @@ apiClient.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -133,7 +132,6 @@ export const saveToken = async (token: string, refreshToken?: string): Promise<v
     }
     console.log('Token saved to AsyncStorage');
   } catch (error) {
-    console.error('Error saving token:', error);
     throw error;
   }
 };
@@ -147,7 +145,7 @@ export const removeToken = async (): Promise<void> => {
     await AsyncStorage.removeItem('refreshToken');
     console.log('Token removed from AsyncStorage');
   } catch (error) {
-    console.error('Error removing token:', error);
+    // Silent error handling
   }
 };
 
@@ -158,7 +156,6 @@ export const getToken = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem('token');
   } catch (error) {
-    console.error('Error getting token:', error);
     return null;
   }
 };

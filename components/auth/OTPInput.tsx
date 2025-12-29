@@ -1,8 +1,8 @@
 import React, { useRef, useState } from "react";
 import {
-  StyleSheet,
-  TextInput,
-  View,
+    StyleSheet,
+    TextInput,
+    View,
 } from "react-native";
 
 interface OTPInputProps {

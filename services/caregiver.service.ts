@@ -49,6 +49,39 @@ export interface CaregiverApiResponse {
   caregivers: CaregiverProfile[];
 }
 
+// Public API response types
+export interface PublicCaregiverLocation {
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface PublicCaregiverProfileData {
+  experience?: string;
+  specializations?: string[];
+  certifications?: string[];
+}
+
+export interface PublicCaregiver {
+  caregiverProfileId: string;
+  fullName: string;
+  phoneNumber: string;
+  location: PublicCaregiverLocation;
+  bio: string;
+  isVerified: boolean;
+  birthDate: string;
+  age: number;
+  gender: string;
+  avatarUrl: string;
+  profileData?: PublicCaregiverProfileData;
+}
+
+export interface PublicCaregiverApiResponse {
+  status: string;
+  message: string;
+  data: PublicCaregiver[];
+}
+
 /**
  * Caregiver Service - Lấy thông tin caregivers từ API
  */
@@ -63,7 +96,6 @@ export class CaregiverService {
       console.log(`Found ${response.data.total} caregivers`);
       return response.data.caregivers;
     } catch (error: any) {
-      console.error('Get caregivers error:', error);
       throw new Error(`Failed to fetch caregivers: ${error.message}`);
     }
   }
@@ -93,7 +125,6 @@ export class CaregiverService {
       // Return top N
       return sorted.slice(0, limit);
     } catch (error: any) {
-      console.error('Get recommended caregivers error:', error);
       // Fallback to mock data if API fails
       return [];
     }
@@ -126,6 +157,20 @@ export class CaregiverService {
   private getFirstName(fullName: string): string {
     const parts = fullName.split(' ');
     return parts[parts.length - 1]; // Vietnamese names: last part is first name
+  }
+
+  /**
+   * Lấy danh sách caregivers từ public API
+   */
+  async getPublicCaregivers(): Promise<PublicCaregiver[]> {
+    try {
+      console.log('Fetching public caregivers...');
+      const response = await apiClient.get<PublicCaregiverApiResponse>('/api/v1/public/caregivers');
+      console.log(`Found ${response.data.data.length} caregivers`);
+      return response.data.data;
+    } catch (error: any) {
+      throw new Error(`Failed to fetch public caregivers: ${error.message}`);
+    }
   }
 }
 

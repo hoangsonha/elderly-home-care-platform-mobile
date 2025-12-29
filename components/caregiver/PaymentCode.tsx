@@ -45,7 +45,6 @@ export function PaymentCode({
       await Clipboard.setStringAsync(text);
       Alert.alert('Đã sao chép', `${label} đã được sao chép vào clipboard`);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
       Alert.alert('Lỗi', 'Không thể sao chép');
     }
   };

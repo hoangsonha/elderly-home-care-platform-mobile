@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SimpleNavBar } from "@/components/navigation/SimpleNavBar";
+import { mainService, type MyCareServiceData } from "@/services/main.service";
 
 // Mock data
 const appointmentsDataMap: { [key: string]: any } = {
@@ -186,15 +187,20 @@ const appointmentsDataMap: { [key: string]: any } = {
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams();
-  const appointmentId = (id as string) || "1";
-  const appointmentData = appointmentsDataMap[appointmentId] || appointmentsDataMap["1"];
+  const appointmentId = (id as string) || "";
   
-  const [status, setStatus] = useState(appointmentData.status);
-  const [notes, setNotes] = useState(appointmentData.notes);
+  const [appointmentData, setAppointmentData] = useState<MyCareServiceData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("");
+  const [notes, setNotes] = useState<any[]>([]);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
+  const [showCancelErrorModal, setShowCancelErrorModal] = useState(false);
+  const [cancelErrorMessage, setCancelErrorMessage] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [rating, setRating] = useState(0);
@@ -213,26 +219,149 @@ export default function AppointmentDetailScreen() {
     punctuality: false,
     quality: false,
   });
+  const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
+
+  // Calculate remaining minutes until deadline
+  const calculateRemainingMinutes = (deadline: string): number | null => {
+    try {
+      const deadlineDate = new Date(deadline);
+      const now = new Date();
+      const diffMs = deadlineDate.getTime() - now.getTime();
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      return diffMinutes > 0 ? diffMinutes : 0;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  // Update remaining minutes every minute
+  useEffect(() => {
+    if (appointmentData?.caregiverResponseDeadline && status === "PENDING_CAREGIVER") {
+      const updateRemaining = () => {
+        const minutes = calculateRemainingMinutes(appointmentData.caregiverResponseDeadline);
+        setRemainingMinutes(minutes);
+      };
+      
+      updateRemaining();
+      const interval = setInterval(updateRemaining, 60000); // Update every minute
+      
+      return () => clearInterval(interval);
+    }
+  }, [appointmentData?.caregiverResponseDeadline, status]);
+
+  // Fetch appointment data
+  useEffect(() => {
+    const fetchAppointment = async () => {
+      try {
+        setLoading(true);
+        const response = await mainService.getMyCareServices();
+        
+        if (response.status === 'Success' && response.data) {
+          const appointment = response.data.find((service: MyCareServiceData) => 
+            service.careServiceId === appointmentId
+          );
+          
+          if (appointment) {
+            setAppointmentData(appointment);
+            setStatus(appointment.status);
+            // Calculate remaining minutes if status is PENDING_CAREGIVER
+            if (appointment.status === "PENDING_CAREGIVER" && appointment.caregiverResponseDeadline) {
+              const minutes = calculateRemainingMinutes(appointment.caregiverResponseDeadline);
+              setRemainingMinutes(minutes);
+            }
+          } else {
+            Alert.alert('Lỗi', 'Không tìm thấy lịch hẹn');
+            router.back();
+          }
+        } else {
+          Alert.alert('Lỗi', response.message || 'Không thể tải thông tin lịch hẹn');
+          router.back();
+        }
+      } catch (error: any) {
+        Alert.alert('Lỗi', 'Không thể tải thông tin lịch hẹn');
+        router.back();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (appointmentId) {
+      fetchAppointment();
+    }
+  }, [appointmentId]);
+
+  if (loading || !appointmentData) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Đang tải...</Text>
+        </View>
+        <SimpleNavBar activeTab="home" />
+      </SafeAreaView>
+    );
+  }
+
+  // Parse location if it's a JSON string
+  let locationObj = { address: '', latitude: 0, longitude: 0 };
+  try {
+    if (typeof appointmentData.location === 'string') {
+      locationObj = JSON.parse(appointmentData.location);
+    } else {
+      locationObj = appointmentData.location as any;
+    }
+  } catch (e) {
+    locationObj = {
+      address: appointmentData.elderlyProfile.location.address,
+      latitude: appointmentData.elderlyProfile.location.latitude,
+      longitude: appointmentData.elderlyProfile.location.longitude,
+    };
+  }
+
+  // Format time from "06:20:00" to "06:20"
+  const formatTime = (timeStr: string) => {
+    return timeStr.split(':').slice(0, 2).join(':');
+  };
+
+  // Get rating (default to 0 if not available)
+  const caregiverRating = 0; // API doesn't provide rating yet
+
+  // Get payment status text
+  const getPaymentStatusText = () => {
+    return appointmentData.status === 'COMPLETED' ? 'Đã thanh toán' : 'Chờ thanh toán';
+  };
+
+  // Get payment status color
+  const getPaymentStatusColor = () => {
+    return appointmentData.status === 'COMPLETED' ? '#D1FAE5' : '#FEF3C7';
+  };
+
+  const getPaymentStatusTextColor = () => {
+    return appointmentData.status === 'COMPLETED' ? '#065F46' : '#92400E';
+  };
 
   // Status helpers
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "pending": return "#F59E0B";
-      case "confirmed": return "#3B82F6";
-      case "in-progress": return "#10B981";
-      case "completed": return "#6B7280";
-      case "cancelled": return "#EF4444";
+      case "PENDING_CAREGIVER": return "#F59E0B";
+      case "CAREGIVER_APPROVED": return "#3B82F6";
+      case "IN_PROGRESS": return "#10B981";
+      case "COMPLETED_WAITING_REVIEW": return "#8B5CF6";
+      case "COMPLETED": return "#6B7280";
+      case "CANCELLED": return "#EF4444";
+      case "EXPIRED": return "#9CA3AF";
       default: return "#9CA3AF";
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "pending": return "Chờ xác nhận";
-      case "confirmed": return "Đã xác nhận";
-      case "in-progress": return "Đang thực hiện";
-      case "completed": return "Hoàn thành";
-      case "cancelled": return "Đã hủy";
+      case "PENDING_CAREGIVER": return "Chờ phản hồi";
+      case "CAREGIVER_APPROVED": return "Đã xác nhận";
+      case "IN_PROGRESS": return "Đang thực hiện";
+      case "COMPLETED_WAITING_REVIEW": return "Chờ đánh giá";
+      case "COMPLETED": return "Hoàn thành";
+      case "CANCELLED": return "Đã hủy";
+      case "EXPIRED": return "Đã hết hạn";
       default: return "Không xác định";
     }
   };
@@ -346,29 +475,43 @@ export default function AppointmentDetailScreen() {
   };
 
   // Cancel appointment
-  const handleCancelAppointment = () => {
+  const handleCancelAppointment = async () => {
     if (!cancelReason.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập lý do hủy");
       return;
     }
 
-    Alert.alert(
-      "Xác nhận hủy",
-      "Bạn có chắc chắn muốn hủy lịch hẹn này?",
-      [
-        { text: "Không", style: "cancel" },
-        {
-          text: "Hủy lịch",
-          style: "destructive",
-          onPress: () => {
-            setStatus("cancelled");
-            setShowCancelModal(false);
-            setCancelReason("");
-            Alert.alert("Thành công", "Đã hủy lịch hẹn");
-          },
-        },
-      ]
-    );
+    if (!appointmentData) return;
+    
+    setIsCancelling(true);
+    try {
+      const response = await mainService.declineCareService(appointmentData.careServiceId, cancelReason);
+      
+      if (response.status === "Success") {
+        setShowCancelModal(false);
+        setCancelReason("");
+        setShowCancelSuccessModal(true);
+        // Refresh appointment data
+        const refreshResponse = await mainService.getMyCareServices();
+        if (refreshResponse.status === 'Success' && refreshResponse.data) {
+          const updatedAppointment = refreshResponse.data.find((service: MyCareServiceData) => 
+            service.careServiceId === appointmentId
+          );
+          if (updatedAppointment) {
+            setAppointmentData(updatedAppointment);
+            setStatus(updatedAppointment.status);
+          }
+        }
+      } else {
+        setCancelErrorMessage(response.message || "Không thể hủy lịch hẹn. Vui lòng thử lại.");
+        setShowCancelErrorModal(true);
+      }
+    } catch (error: any) {
+      setCancelErrorMessage("Không thể kết nối đến server. Vui lòng thử lại sau.");
+      setShowCancelErrorModal(true);
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   // Contact caregiver
@@ -376,8 +519,8 @@ export default function AppointmentDetailScreen() {
     router.push({
       pathname: "/careseeker/chat",
       params: {
-        caregiverId: appointmentData.caregiver.id,
-        caregiverName: appointmentData.caregiver.name,
+        caregiverId: appointmentData.caregiverProfile.caregiverProfileId,
+        caregiverName: appointmentData.caregiverProfile.fullName,
       },
     });
   };
@@ -409,8 +552,24 @@ export default function AppointmentDetailScreen() {
           >
             <Text style={styles.statusText}>{getStatusText(status)}</Text>
           </View>
-          <Text style={styles.appointmentId}>#{appointmentData.id}</Text>
+          <Text style={styles.appointmentId}>#{appointmentData.bookingCode}</Text>
         </View>
+
+        {/* Caregiver Response Deadline Warning */}
+        {status === "PENDING_CAREGIVER" && appointmentData?.caregiverResponseDeadline && remainingMinutes !== null && remainingMinutes > 0 && (
+          <View style={styles.section}>
+            <View style={styles.deadlineCard}>
+              <View style={styles.deadlineHeader}>
+                <Ionicons name="time-outline" size={24} color="#F59E0B" />
+                <Text style={styles.deadlineTitle}>Đang đợi phản hồi</Text>
+              </View>
+              <Text style={styles.deadlineMessage}>
+                Đang đợi người chăm sóc phản hồi dịch vụ, nếu trong vòng{" "}
+                <Text style={styles.deadlineMinutes}>{remainingMinutes} phút</Text> nữa người chăm sóc không có phản hồi thì sẽ tự động hủy dịch vụ
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Appointment Info */}
         <View style={styles.section}>
@@ -420,7 +579,7 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="calendar-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Ngày</Text>
-                <Text style={styles.infoValue}>{appointmentData.date}</Text>
+                <Text style={styles.infoValue}>{appointmentData.workDate}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -428,7 +587,9 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="time-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Thời gian</Text>
-                <Text style={styles.infoValue}>{appointmentData.timeSlot}</Text>
+                <Text style={styles.infoValue}>
+                  {formatTime(appointmentData.startTime)} - {formatTime(appointmentData.endTime)}
+                </Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -436,7 +597,7 @@ export default function AppointmentDetailScreen() {
               <MaterialCommunityIcons name="package-variant" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Gói dịch vụ</Text>
-                <Text style={styles.infoValue}>{appointmentData.packageType}</Text>
+                <Text style={styles.infoValue}>{appointmentData.servicePackage.packageName}</Text>
               </View>
             </View>
             <View style={styles.divider} />
@@ -444,7 +605,15 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="hourglass-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Thời lượng</Text>
-                <Text style={styles.infoValue}>{appointmentData.duration}</Text>
+                <Text style={styles.infoValue}>{appointmentData.servicePackage.durationHours} giờ</Text>
+              </View>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.infoRow}>
+              <Ionicons name="location-outline" size={20} color="#6B7280" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Vị trí làm việc</Text>
+                <Text style={styles.infoValue}>{locationObj.address}</Text>
               </View>
             </View>
           </View>
@@ -452,36 +621,40 @@ export default function AppointmentDetailScreen() {
 
         {/* Caregiver Info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Điều dưỡng viên</Text>
+          <Text style={styles.sectionTitle}>Người chăm sóc</Text>
           <View style={styles.card}>
             <View style={styles.caregiverHeader}>
-              <Image
-                source={{ uri: appointmentData.caregiver.avatar }}
-                style={styles.avatar}
-              />
+              {appointmentData.caregiverProfile.avatarUrl ? (
+                <Image
+                  source={{ uri: appointmentData.caregiverProfile.avatarUrl }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: '#68C2E8', alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={styles.avatarText}>
+                    {appointmentData.caregiverProfile.fullName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
               <View style={styles.caregiverInfo}>
-                <Text style={styles.caregiverName}>{appointmentData.caregiver.name}</Text>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={16} color="#FFB648" />
-                  <Text style={styles.ratingText}>{appointmentData.caregiver.rating}</Text>
+                <View style={styles.caregiverNameRow}>
+                  <View style={styles.caregiverNameContainer}>
+                    <Text style={styles.caregiverName}>{appointmentData.caregiverProfile.fullName}</Text>
+                    {appointmentData.caregiverProfile.isVerified && (
+                      <View style={styles.verifiedLabel}>
+                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                        <Text style={styles.verifiedText}>Đã xác thực</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.ratingRow}>
+                    <Ionicons name="star" size={16} color="#FFB648" />
+                    <Text style={styles.ratingText}>{caregiverRating}</Text>
+                  </View>
                 </View>
                 <Text style={styles.caregiverMeta}>
-                  {appointmentData.caregiver.age} tuổi • {appointmentData.caregiver.gender}
+                  {appointmentData.caregiverProfile.age} tuổi • {appointmentData.caregiverProfile.gender === 'MALE' ? 'Nam' : 'Nữ'}
                 </Text>
-                <Text style={styles.experienceText}>{appointmentData.caregiver.experience}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.specialtiesContainer}>
-              <Text style={styles.subsectionTitle}>Chuyên môn:</Text>
-              <View style={styles.specialtyTags}>
-                {appointmentData.caregiver.specialties.map((specialty: string, index: number) => (
-                  <View key={index} style={styles.specialtyTag}>
-                    <Text style={styles.specialtyText}>{specialty}</Text>
-                  </View>
-                ))}
               </View>
             </View>
             
@@ -505,19 +678,32 @@ export default function AppointmentDetailScreen() {
           <Text style={styles.sectionTitle}>Người được chăm sóc</Text>
           <View style={styles.card}>
             <View style={styles.elderlyHeader}>
-              <Image
-                source={{ uri: appointmentData.elderly.avatar }}
-                style={styles.avatar}
-              />
+              {appointmentData.elderlyProfile.avatarUrl ? (
+                <Image
+                  source={{ uri: appointmentData.elderlyProfile.avatarUrl }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: '#68C2E8', alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={styles.avatarText}>
+                    {appointmentData.elderlyProfile.fullName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
               <View style={styles.elderlyInfo}>
-                <Text style={styles.elderlyName}>{appointmentData.elderly.name}</Text>
-                <Text style={styles.elderlyAge}>{appointmentData.elderly.age} tuổi</Text>
+                <Text style={styles.elderlyName}>{appointmentData.elderlyProfile.fullName}</Text>
+                <Text style={styles.elderlyAge}>{appointmentData.elderlyProfile.age} tuổi</Text>
               </View>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
-              <Ionicons name="location-outline" size={20} color="#6B7280" />
-              <Text style={styles.infoText}>{appointmentData.elderly.address}</Text>
+              <Ionicons name="medical-outline" size={20} color="#6B7280" />
+              <Text style={styles.infoText}>
+                <Text style={styles.healthStatusLabel}>Tình trạng sức khỏe: </Text>
+                <Text style={styles.healthStatusValue}>
+                  {appointmentData.elderlyProfile.healthStatus || "Chưa cập nhật"}
+                </Text>
+              </Text>
             </View>
           </View>
         </View>
@@ -526,22 +712,22 @@ export default function AppointmentDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Dịch vụ</Text>
           <View style={styles.card}>
-            {appointmentData.services.map((service: string, index: number) => (
+            {appointmentData.servicePackage.serviceTasks.map((task, index: number) => (
               <View key={index} style={styles.serviceItem}>
                 <Ionicons name="checkmark-circle" size={20} color="#68C2E8" />
-                <Text style={styles.serviceText}>{service}</Text>
+                <Text style={styles.serviceText}>{task.taskName}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        {/* Special Instructions */}
-        {appointmentData.specialInstructions && (
+        {/* Notes */}
+        {appointmentData.note && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Lưu ý đặc biệt</Text>
+            <Text style={styles.sectionTitle}>Ghi chú</Text>
             <View style={[styles.card, styles.instructionsCard]}>
               <Ionicons name="information-circle" size={20} color="#F59E0B" />
-              <Text style={styles.instructionsText}>{appointmentData.specialInstructions}</Text>
+              <Text style={styles.instructionsText}>{appointmentData.note}</Text>
             </View>
           </View>
         )}
@@ -551,19 +737,11 @@ export default function AppointmentDetailScreen() {
           <Text style={styles.sectionTitle}>Thanh toán</Text>
           <View style={styles.card}>
             <View style={styles.infoRow}>
-              <Ionicons name="card-outline" size={20} color="#6B7280" />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Phương thức</Text>
-                <Text style={styles.infoValue}>{appointmentData.payment.method}</Text>
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.infoRow}>
               <Ionicons name="cash-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Số tiền</Text>
                 <Text style={[styles.infoValue, styles.amountText]}>
-                  {appointmentData.payment.amount.toLocaleString("vi-VN")} đ
+                  {appointmentData.servicePackage.price.toLocaleString("vi-VN")} đ
                 </Text>
               </View>
             </View>
@@ -572,9 +750,9 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="checkmark-circle" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Trạng thái</Text>
-                <View style={styles.paymentStatusBadge}>
-                  <Text style={styles.paymentStatusText}>
-                    Đã thanh toán
+                <View style={[styles.paymentStatusBadge, { backgroundColor: getPaymentStatusColor() }]}>
+                  <Text style={[styles.paymentStatusText, { color: getPaymentStatusTextColor() }]}>
+                    {getPaymentStatusText()}
                   </Text>
                 </View>
               </View>
@@ -582,36 +760,18 @@ export default function AppointmentDetailScreen() {
           </View>
         </View>
 
-        {/* Notes */}
-        <View style={styles.section}>
-          <View style={styles.notesHeader}>
-            <Text style={styles.sectionTitle}>Ghi chú</Text>
-            <TouchableOpacity
-              style={styles.addNoteButton}
-              onPress={() => setIsNoteModalVisible(true)}
-            >
-              <Ionicons name="add-circle" size={24} color="#68C2E8" />
-            </TouchableOpacity>
+        {/* Work Notes - Only show for IN_PROGRESS status */}
+        {appointmentData.status === 'IN_PROGRESS' && appointmentData.work_note && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Ghi chú trong thời gian làm việc</Text>
+            <View style={styles.card}>
+              <Text style={styles.noteContent}>{appointmentData.work_note}</Text>
+            </View>
           </View>
-          <View style={styles.card}>
-            {notes.length === 0 ? (
-              <Text style={styles.emptyText}>Chưa có ghi chú nào</Text>
-            ) : (
-              notes.map((note: any) => (
-                <View key={note.id} style={styles.noteItem}>
-                  <View style={styles.noteHeader}>
-                    <Text style={styles.noteTime}>{note.time}</Text>
-                    <Text style={styles.noteAuthor}>{note.author}</Text>
-                  </View>
-                  <Text style={styles.noteContent}>{note.content}</Text>
-                </View>
-              ))
-            )}
-          </View>
-        </View>
+        )}
 
         {/* Actions */}
-        {(status === "pending" || status === "confirmed") && (
+        {(status === "PENDING_CAREGIVER" || status === "CAREGIVER_APPROVED") && (
           <View style={styles.actionsSection}>
             <TouchableOpacity
               style={styles.cancelButton}
@@ -624,7 +784,7 @@ export default function AppointmentDetailScreen() {
         )}
 
         {/* Review Action for Completed Appointments */}
-        {status === "completed" && !hasReviewed && (
+        {status === "COMPLETED" && !hasReviewed && (
           <View style={styles.actionsSection}>
             <TouchableOpacity
               style={styles.reviewButton}
@@ -637,7 +797,7 @@ export default function AppointmentDetailScreen() {
         )}
         
         {/* Spacer for navbar */}
-        {(status === "completed" && hasReviewed) && (
+        {(status === "COMPLETED" && hasReviewed) && (
           <View style={{ height: 120 }} />
         )}
       </ScrollView>
@@ -731,16 +891,18 @@ export default function AppointmentDetailScreen() {
               <View style={styles.reviewCaregiverInfo}>
                 <View style={styles.reviewAvatar}>
                   <Text style={styles.reviewAvatarText}>
-                    {appointmentData.caregiver.name.charAt(0)}
+                    {appointmentData.caregiverProfile.fullName.charAt(0)}
                   </Text>
                 </View>
                 <View style={styles.reviewCaregiverDetails}>
                   <Text style={styles.reviewCaregiverName}>
-                    {appointmentData.caregiver.name}
+                    {appointmentData.caregiverProfile.fullName}
                   </Text>
-                  <Text style={styles.reviewCaregiverSpecialty}>
-                    {appointmentData.caregiver.specialties[0]}
-                  </Text>
+                  {appointmentData.caregiverProfile.bio && (
+                    <Text style={styles.reviewCaregiverSpecialty}>
+                      {appointmentData.caregiverProfile.bio}
+                    </Text>
+                  )}
                 </View>
               </View>
 
@@ -939,6 +1101,59 @@ export default function AppointmentDetailScreen() {
         </View>
       </Modal>
 
+      {/* Cancel Success Modal */}
+      <Modal
+        visible={showCancelSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCancelSuccessModal(false)}
+      >
+        <View style={styles.modalOverlayCenter}>
+          <View style={styles.successModalContent}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark-circle" size={64} color="#10B981" />
+            </View>
+            <Text style={styles.successTitle}>Hủy lịch hẹn thành công</Text>
+            <Text style={styles.successMessage}>
+              Lịch hẹn đã được hủy thành công.
+            </Text>
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={() => {
+                setShowCancelSuccessModal(false);
+                router.back();
+              }}
+            >
+              <Text style={styles.successButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cancel Error Modal */}
+      <Modal
+        visible={showCancelErrorModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCancelErrorModal(false)}
+      >
+        <View style={styles.modalOverlayCenter}>
+          <View style={styles.errorModalContent}>
+            <View style={styles.errorIconContainer}>
+              <Ionicons name="close-circle" size={64} color="#EF4444" />
+            </View>
+            <Text style={styles.errorTitle}>Hủy lịch hẹn thất bại</Text>
+            <Text style={styles.errorMessage}>{cancelErrorMessage}</Text>
+            <TouchableOpacity
+              style={styles.errorButton}
+              onPress={() => setShowCancelErrorModal(false)}
+            >
+              <Text style={styles.errorButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <SimpleNavBar activeTab="home" />
     </SafeAreaView>
   );
@@ -1004,6 +1219,33 @@ const styles = StyleSheet.create({
     color: "#12394A",
     marginBottom: 12,
   },
+  deadlineCard: {
+    backgroundColor: "#FEF3C7",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+  },
+  deadlineHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  deadlineTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#92400E",
+  },
+  deadlineMessage: {
+    fontSize: 14,
+    color: "#78350F",
+    lineHeight: 20,
+  },
+  deadlineMinutes: {
+    fontWeight: "700",
+    color: "#B45309",
+  },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
@@ -1053,21 +1295,52 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
+    marginRight: 12,
+  },
+  avatarText: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   caregiverInfo: {
-    marginLeft: 12,
+    flex: 1,
+  },
+  caregiverNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  caregiverNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
     flex: 1,
   },
   caregiverName: {
     fontSize: 16,
     fontWeight: "700",
     color: "#12394A",
-    marginBottom: 4,
+  },
+  verifiedLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D1FAE5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  verifiedText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#065F46",
   },
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    gap: 4,
   },
   ratingText: {
     fontSize: 14,
@@ -1153,7 +1426,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   elderlyInfo: {
-    marginLeft: 12,
     flex: 1,
   },
   elderlyName: {
@@ -1165,6 +1437,15 @@ const styles = StyleSheet.create({
   elderlyAge: {
     fontSize: 14,
     color: "#6B7280",
+  },
+  healthStatusLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  healthStatusValue: {
+    fontSize: 14,
+    color: "#12394A",
+    fontWeight: "600",
   },
   serviceItem: {
     flexDirection: "row",
@@ -1267,6 +1548,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
+  },
+  modalOverlayCenter: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
     backgroundColor: "#FFFFFF",
@@ -1483,6 +1770,87 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
     fontWeight: "500",
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  // Success Modal Styles
+  successModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    width: "85%",
+    maxWidth: 400,
+  },
+  successIconContainer: {
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#12394A",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  successMessage: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  successButton: {
+    backgroundColor: "#10B981",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  successButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Error Modal Styles
+  errorModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    alignItems: "center",
+    width: "85%",
+    maxWidth: 400,
+  },
+  errorIconContainer: {
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#12394A",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  errorButton: {
+    backgroundColor: "#EF4444",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  errorButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 

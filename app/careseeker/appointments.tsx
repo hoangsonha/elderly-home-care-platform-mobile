@@ -16,73 +16,93 @@ import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppointmentStatus, subscribeToStatusChanges } from '@/data/appointmentStore';
-// TODO: Replace with API calls
-// import { useAppointments } from '@/hooks/useDatabaseEntities';
-// import * as CaregiverRepository from '@/services/caregiver.repository';
+import { mainService, type MyCareServiceData } from '@/services/main.service';
 import { Appointment } from '@/services/database.types';
 
 type StatusTab = 'all' | 'upcoming' | 'completed' | 'cancelled';
 
 export default function AppointmentsScreen() {
   const { user } = useAuth();
-  // TODO: Replace with API call
-  // const { appointments, loading, error, refresh } = useAppointments(user?.id || '');
-  // Mock data tạm thời
-  const appointments: any[] = [
-    {
-      id: 'apt-1',
-      caregiver_id: 'caregiver-1',
-      start_date: '2024-12-25',
-      start_time: '08:00',
-      package_type: 'Gói cơ bản',
-      status: 'confirmed',
-    },
-  ];
-  const loading = false;
-  const error = null;
-  const refresh = async () => {};
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [activeTab, setActiveTab] = useState<StatusTab>('all');
   const [refreshKey, setRefreshKey] = useState(0); // For triggering re-render when status changes
-  const [caregiverInfo, setCaregiverInfo] = useState<{ [key: string]: { name: string; avatar?: string } }>({});
   
-  // Load caregiver information for all appointments
-  useEffect(() => {
-    const loadCaregiverInfo = async () => {
-      const info: { [key: string]: { name: string; avatar?: string } } = {};
-      for (const apt of appointments) {
-        if (apt.caregiver_id && !info[apt.caregiver_id]) {
+  // Fetch appointments from API
+  const fetchAppointments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await mainService.getMyCareServices();
+      
+      if (response.status === 'Success' && response.data) {
+        // Map API data to appointment format
+        const mappedAppointments = response.data.map((service: MyCareServiceData) => {
+          // Parse location if it's a JSON string
+          let locationObj = { address: '', latitude: 0, longitude: 0 };
           try {
-            // Mock data tạm thời - TODO: Replace with API call
-            const mockCaregivers: { [key: string]: any } = {
-              'caregiver-1': { id: 'caregiver-1', name: 'Chị Nguyễn Thị Lan', rating: 4.8 },
-            };
-            const caregiver = mockCaregivers[apt.caregiver_id] || null;
-            if (caregiver) {
-              info[apt.caregiver_id] = {
-                name: caregiver.name,
-                avatar: caregiver.avatar,
-              };
+            if (typeof service.location === 'string') {
+              locationObj = JSON.parse(service.location);
+            } else {
+              locationObj = service.location as any;
             }
-          } catch (err) {
-            console.error('Error loading caregiver:', err);
+          } catch (e) {
+            // Use elderly profile location as fallback
+            locationObj = {
+              address: service.elderlyProfile.location.address,
+              latitude: service.elderlyProfile.location.latitude,
+              longitude: service.elderlyProfile.location.longitude,
+            };
           }
-        }
-      }
-      setCaregiverInfo(info);
-    };
 
-    if (appointments.length > 0) {
-      loadCaregiverInfo();
+          return {
+            id: service.careServiceId,
+            caregiver_id: service.caregiverProfile.caregiverProfileId,
+            elderly_profile_id: service.elderlyProfile.elderlyProfileId,
+            start_date: service.workDate,
+            start_time: service.startTime.split(':').slice(0, 2).join(':'), // Convert "06:20:00" to "06:20"
+            end_time: service.endTime.split(':').slice(0, 2).join(':'),
+            package_type: service.servicePackage.packageName,
+            status: service.status,
+            work_location: locationObj.address,
+            total_amount: service.totalPrice,
+            caregiver: {
+              id: service.caregiverProfile.caregiverProfileId,
+              name: service.caregiverProfile.fullName,
+              avatar: service.caregiverProfile.avatarUrl,
+            },
+            elderly: {
+              id: service.elderlyProfile.elderlyProfileId,
+              name: service.elderlyProfile.fullName,
+              avatar: service.elderlyProfile.avatarUrl,
+            },
+            servicePackage: service.servicePackage,
+            bookingCode: service.bookingCode,
+            note: service.note,
+          };
+        });
+        
+        setAppointments(mappedAppointments);
+      } else {
+        setError(new Error(response.message || 'Không thể tải danh sách lịch hẹn'));
+        setAppointments([]);
+      }
+    } catch (err: any) {
+      setError(err);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
     }
-  }, [appointments]);
-  
+  }, []);
+
   // Auto-refresh when screen is focused
   useFocusEffect(
     useCallback(() => {
       if (user?.id) {
-        refresh();
+        fetchAppointments();
       }
-    }, [user?.id, refresh])
+    }, [user?.id, fetchAppointments])
   );
   
   // Subscribe to status changes from global store
@@ -122,7 +142,7 @@ export default function AppointmentsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ThemedText style={styles.errorText}>Lỗi: {error.message}</ThemedText>
-          <TouchableOpacity style={styles.retryButton} onPress={refresh}>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchAppointments}>
             <ThemedText style={styles.retryText}>Thử lại</ThemedText>
           </TouchableOpacity>
         </View>
@@ -133,74 +153,91 @@ export default function AppointmentsScreen() {
 
   const getFilteredAppointments = () => {
     if (activeTab === 'all') {
+      // Show all appointments (including EXPIRED and PENDING_CAREGIVER)
       return appointments;
     }
     if (activeTab === 'upcoming') {
+      // CAREGIVER_APPROVED, IN_PROGRESS, COMPLETED_WAITING_REVIEW
       return appointments.filter(apt => {
         const globalStatus = getAppointmentStatus(apt.id);
         const currentStatus = globalStatus || apt.status;
-        return currentStatus === 'pending' || currentStatus === 'confirmed' || currentStatus === 'in-progress';
+        return currentStatus === 'CAREGIVER_APPROVED' || 
+               currentStatus === 'IN_PROGRESS' || 
+               currentStatus === 'COMPLETED_WAITING_REVIEW';
+      });
+    }
+    if (activeTab === 'completed') {
+      // COMPLETED
+      return appointments.filter(apt => {
+        const globalStatus = getAppointmentStatus(apt.id);
+        const currentStatus = globalStatus || apt.status;
+        return currentStatus === 'COMPLETED';
       });
     }
     if (activeTab === 'cancelled') {
+      // CANCELLED
       return appointments.filter(apt => {
         const globalStatus = getAppointmentStatus(apt.id);
         const currentStatus = globalStatus || apt.status;
-        return currentStatus === 'cancelled' || currentStatus === 'rejected';
+        return currentStatus === 'CANCELLED';
       });
     }
-    return appointments.filter(apt => {
-      const globalStatus = getAppointmentStatus(apt.id);
-      const currentStatus = globalStatus || apt.status;
-      return currentStatus === activeTab;
-    });
+    return appointments;
   };
 
   const getTabCount = (tab: StatusTab) => {
     if (tab === 'all') {
+      // Count all appointments
       return appointments.length;
     }
     if (tab === 'upcoming') {
       return appointments.filter(apt => {
         const globalStatus = getAppointmentStatus(apt.id);
         const currentStatus = globalStatus || apt.status;
-        return currentStatus === 'pending' || currentStatus === 'confirmed' || currentStatus === 'in-progress';
+        return currentStatus === 'CAREGIVER_APPROVED' || 
+               currentStatus === 'IN_PROGRESS' || 
+               currentStatus === 'COMPLETED_WAITING_REVIEW';
+      }).length;
+    }
+    if (tab === 'completed') {
+      return appointments.filter(apt => {
+        const globalStatus = getAppointmentStatus(apt.id);
+        const currentStatus = globalStatus || apt.status;
+        return currentStatus === 'COMPLETED';
       }).length;
     }
     if (tab === 'cancelled') {
       return appointments.filter(apt => {
         const globalStatus = getAppointmentStatus(apt.id);
         const currentStatus = globalStatus || apt.status;
-        return currentStatus === 'cancelled' || currentStatus === 'rejected';
+        return currentStatus === 'CANCELLED';
       }).length;
     }
-    return appointments.filter(apt => {
-      const globalStatus = getAppointmentStatus(apt.id);
-      const currentStatus = globalStatus || apt.status;
-      return currentStatus === tab;
-    }).length;
+    return 0;
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return '#F59E0B';
-      case 'confirmed': return '#3B82F6';
-      case 'in-progress': return '#10B981';
-      case 'completed': return '#6B7280';
-      case 'cancelled':
-      case 'rejected': return '#EF4444';
+      case 'PENDING_CAREGIVER': return '#F59E0B';
+      case 'CAREGIVER_APPROVED': return '#3B82F6';
+      case 'IN_PROGRESS': return '#10B981';
+      case 'COMPLETED_WAITING_REVIEW': return '#8B5CF6';
+      case 'COMPLETED': return '#6B7280';
+      case 'CANCELLED': return '#EF4444';
+      case 'EXPIRED': return '#9CA3AF';
       default: return '#9CA3AF';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending': return 'Chờ xác nhận';
-      case 'confirmed': return 'Đã xác nhận';
-      case 'in-progress': return 'Đang thực hiện';
-      case 'completed': return 'Đã hoàn thành';
-      case 'cancelled': return 'Đã hủy';
-      case 'rejected': return 'Đã từ chối';
+      case 'PENDING_CAREGIVER': return 'Chờ phản hồi';
+      case 'CAREGIVER_APPROVED': return 'Đã xác nhận';
+      case 'IN_PROGRESS': return 'Đang thực hiện';
+      case 'COMPLETED_WAITING_REVIEW': return 'Chờ đánh giá';
+      case 'COMPLETED': return 'Đã hoàn thành';
+      case 'CANCELLED': return 'Đã hủy';
+      case 'EXPIRED': return 'Đã hết hạn';
       default: return 'Không xác định';
     }
   };
@@ -210,10 +247,9 @@ export default function AppointmentsScreen() {
     const globalStatus = getAppointmentStatus(item.id);
     const currentStatus = globalStatus || item.status;
     
-    // Get caregiver info
-    const caregiver = caregiverInfo[item.caregiver_id];
-    const caregiverName = caregiver?.name || 'Đang tải...';
-    const caregiverAvatar = caregiver?.avatar;
+    // Get caregiver info from mapped data
+    const caregiverName = item.caregiver?.name || 'Đang tải...';
+    const caregiverAvatar = item.caregiver?.avatar;
     
     return (
       <TouchableOpacity
@@ -254,7 +290,7 @@ export default function AppointmentsScreen() {
         <View style={styles.detailsGrid}>
           <View style={styles.detailItem}>
             <Ionicons name="person" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText}>Elderly {item.elderly_profile_id}</ThemedText>
+            <ThemedText style={styles.detailText}>{item.elderly?.name || 'Người già'}</ThemedText>
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="calendar" size={18} color="#6B7280" />

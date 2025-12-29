@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
     Alert,
+    Image,
     Modal,
     ScrollView,
     StyleSheet,
@@ -191,6 +192,20 @@ export function ElderlyProfileSelector({
         onPress={() => handleProfileToggle(item.id)}
       >
         <View style={styles.profileHeader}>
+          {/* Avatar */}
+          {item.avatar ? (
+            <Image 
+              source={{ uri: item.avatar }} 
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <ThemedText style={styles.avatarText}>
+                {item.name.split(' ').pop()?.charAt(0) || '?'}
+              </ThemedText>
+            </View>
+          )}
+          
           <View style={styles.profileInfo}>
             <View style={styles.nameRow}>
               <ThemedText style={[
@@ -218,16 +233,6 @@ export function ElderlyProfileSelector({
         </View>
 
         <View style={styles.profileDetails}>
-          <View style={styles.detailRow}>
-            <Ionicons name="home" size={16} color={isSelected ? '#4ECDC4' : '#6c757d'} />
-            <ThemedText style={[
-              styles.detailText,
-              isSelected && styles.detailTextSelected
-            ]}>
-              Gia đình: {item.family}
-            </ThemedText>
-          </View>
-
           <View style={styles.detailRow}>
             <Ionicons name="medical" size={16} color={isSelected ? '#4ECDC4' : '#6c757d'} />
             <ThemedText style={[
@@ -571,6 +576,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#e9ecef',
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#68C2E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
   },
   profileInfo: {
     flex: 1,

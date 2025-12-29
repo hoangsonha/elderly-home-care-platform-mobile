@@ -2,20 +2,23 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 import { ElderlyProfileSelector } from '@/components/elderly/ElderlyProfileSelector';
 import { ThemedText } from '@/components/themed-text';
 import { Task } from '@/components/ui/TaskSelector';
-import { SERVICE_PACKAGES } from '@/constants/servicePackages';
+import { SERVICE_PACKAGES, type ServicePackage } from '@/constants/servicePackages';
 import { useAuth } from '@/contexts/AuthContext';
+import { mainService, type ServicePackageApiResponse } from '@/services/main.service';
+import { UserService, type ElderlyProfileApiResponse } from '@/services/user.service';
 // TODO: Replace with API call
 // import * as AppointmentRepository from '@/services/appointment.repository';
 
@@ -41,6 +44,11 @@ interface ElderlyProfile {
   healthStatus: 'good' | 'fair' | 'poor';
   avatar?: string;
   address?: string;
+  location?: {
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
 }
 
 interface BookingModalProps {
@@ -61,14 +69,112 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [isLoadingElderly, setIsLoadingElderly] = useState(false);
+  const [servicePackages, setServicePackages] = useState<ServicePackage[]>(SERVICE_PACKAGES);
+  const [isLoadingPackages, setIsLoadingPackages] = useState(false);
 
-  // Sync elderlyProfiles when initialProfiles changes
+  // Fetch elderly profiles from API when modal opens
   useEffect(() => {
-    setElderlyProfiles(initialProfiles);
+    if (visible) {
+      const fetchElderlyProfiles = async () => {
+        try {
+          setIsLoadingElderly(true);
+          const apiProfiles = await UserService.getElderlyProfiles();
+          
+          // Map API response to ElderlyProfile format
+          const mappedProfiles: ElderlyProfile[] = apiProfiles.map((profile: ElderlyProfileApiResponse) => {
+            // Map healthStatus from API to component format
+            let healthStatus: 'good' | 'fair' | 'poor' = 'good';
+            if (profile.healthStatus) {
+              const statusLower = profile.healthStatus.toLowerCase();
+              if (statusLower === 'good' || statusLower === 'tốt') {
+                healthStatus = 'good';
+              } else if (statusLower === 'fair' || statusLower === 'trung bình' || statusLower === 'khá') {
+                healthStatus = 'fair';
+              } else if (statusLower === 'poor' || statusLower === 'yếu' || statusLower === 'kém') {
+                healthStatus = 'poor';
+              }
+            }
+            
+            return {
+              id: profile.elderlyProfileId,
+              name: profile.fullName,
+              age: profile.age,
+              currentCaregivers: 0, // Not available in API
+              family: '', // Will be removed from UI
+              healthStatus: healthStatus,
+              avatar: profile.avatarUrl || undefined,
+              address: profile.location?.address,
+              location: profile.location ? {
+                address: profile.location.address,
+                latitude: profile.location.latitude,
+                longitude: profile.location.longitude,
+              } : undefined,
+            };
+          });
+          
+          setElderlyProfiles(mappedProfiles);
+        } catch (error) {
+          // Fallback to initial profiles on error
+          setElderlyProfiles(initialProfiles);
+        } finally {
+          setIsLoadingElderly(false);
+        }
+      };
+
+      fetchElderlyProfiles();
+    }
+  }, [visible]);
+
+  // Sync elderlyProfiles when initialProfiles changes (fallback)
+  useEffect(() => {
+    if (!isLoadingElderly && elderlyProfiles.length === 0) {
+      setElderlyProfiles(initialProfiles);
+    }
   }, [initialProfiles]);
 
-  // Use service packages from constants
-  const servicePackages = SERVICE_PACKAGES;
+  // Set work location from selected elderly profile when moving to step 2
+  useEffect(() => {
+    if (currentStep === 2 && selectedProfiles.length > 0) {
+      const selectedProfile = elderlyProfiles.find(p => p.id === selectedProfiles[0]);
+      if (selectedProfile && selectedProfile.address) {
+        setImmediateData(prev => ({
+          ...prev,
+          workLocation: selectedProfile.address || prev.workLocation
+        }));
+      }
+    }
+  }, [currentStep, selectedProfiles, elderlyProfiles]);
+
+  // Fetch service packages from API when modal opens
+  useEffect(() => {
+    if (visible) {
+      const fetchServicePackages = async () => {
+        try {
+          setIsLoadingPackages(true);
+          const apiPackages = await mainService.getActiveServicePackages();
+          
+          // Map API response to ServicePackage format
+          const mappedPackages: ServicePackage[] = apiPackages.map((pkg: ServicePackageApiResponse) => ({
+            id: pkg.servicePackageId,
+            name: pkg.packageName,
+            duration: pkg.durationHours,
+            price: pkg.price,
+            services: pkg.serviceTasks.map(task => task.taskName),
+          }));
+          
+          setServicePackages(mappedPackages);
+        } catch (error) {
+          // Fallback to constants on error
+          setServicePackages(SERVICE_PACKAGES);
+        } finally {
+          setIsLoadingPackages(false);
+        }
+      };
+
+      fetchServicePackages();
+    }
+  }, [visible]);
 
   // Payment methods
   const paymentMethods = [
@@ -114,6 +220,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   const [showCustomLocationInput, setShowCustomLocationInput] = useState(false);
   const [customLocation, setCustomLocation] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleClose = () => {
     setSelectedProfiles([]);
@@ -123,6 +231,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     setShowLocationModal(false);
     setShowCustomLocationInput(false);
     setCustomLocation('');
+    setShowErrorModal(false);
+    setErrorMessage('');
     onClose();
   };
 
@@ -221,6 +331,47 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     }
   };
 
+  // Helper function to format date from "T2, 29 Thg 12 2025" to "2025-12-29"
+  const formatDateForAPI = (dateStr: string): string => {
+    if (!dateStr) {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    // Try to parse the date string
+    // Format: "T2, 29 Thg 12 2025" or similar
+    const monthMap: { [key: string]: string } = {
+      'Thg 1': '01', 'Thg 2': '02', 'Thg 3': '03', 'Thg 4': '04',
+      'Thg 5': '05', 'Thg 6': '06', 'Thg 7': '07', 'Thg 8': '08',
+      'Thg 9': '09', 'Thg 10': '10', 'Thg 11': '11', 'Thg 12': '12',
+    };
+
+    try {
+      // Extract date parts
+      const parts = dateStr.split(', ');
+      if (parts.length >= 2) {
+        const datePart = parts[1]; // "29 Thg 12 2025"
+        const dateMatch = datePart.match(/(\d+)\s+(Thg \d+)\s+(\d+)/);
+        if (dateMatch) {
+          const day = dateMatch[1].padStart(2, '0');
+          const month = monthMap[dateMatch[2]] || '01';
+          const year = dateMatch[3];
+          return `${year}-${month}-${day}`;
+        }
+      }
+      
+      // Fallback: try to parse as ISO date or use today
+      const parsed = new Date(dateStr);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0];
+      }
+    } catch (error) {
+      // Default to today on error
+    }
+
+    // Default to today
+    return new Date().toISOString().split('T')[0];
+  };
+
   const handleSubmit = async () => {
     console.log('=== handleSubmit called ===');
     console.log('Selected Package:', immediateData.selectedPackage);
@@ -236,48 +387,100 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn người cần chăm sóc');
       return;
     }
+
+    if (!immediateData.selectedPackage) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn gói dịch vụ');
+      return;
+    }
+
+    if (!immediateData.selectedDate) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn ngày làm việc');
+      return;
+    }
+
+    if (!immediateData.startHour || !immediateData.startMinute) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn giờ bắt đầu');
+      return;
+    }
+
+    if (!immediateData.workLocation) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn địa điểm làm việc');
+      return;
+    }
     
     setIsSubmitting(true);
     
     try {
-      // Get selected package info
-      const selectedPackage = servicePackages.find(pkg => pkg.id === immediateData.selectedPackage);
-      
-      // Prepare appointment data
-      const appointmentData = {
-        user_id: user.id,
-        caregiver_id: caregiver.id,
-        elderly_profile_id: selectedProfiles[0], // Use first selected profile
-        booking_type: 'immediate' as const,
-        status: 'pending' as const,
-        package_type: selectedPackage?.name || 'Gói cơ bản',
-        start_date: immediateData.selectedDate || new Date().toISOString().split('T')[0],
-        start_time: `${immediateData.startHour}:${immediateData.startMinute}` || '08:00',
-        end_time: immediateData.endTime,
-        duration: selectedPackage?.duration || '4 giờ',
-        work_location: immediateData.workLocation,
-        tasks: immediateData.tasks,
-        notes: immediateData.note,
-        total_amount: selectedPackage?.price || 0,
-        payment_status: 'pending' as const,
+      // Get selected elderly profile
+      const selectedProfile = elderlyProfiles.find(p => p.id === selectedProfiles[0]);
+      if (!selectedProfile) {
+        throw new Error('Không tìm thấy hồ sơ người già đã chọn');
+      }
+
+      // Get location from elderly profile
+      const location = selectedProfile.location || {
+        address: immediateData.workLocation,
+        latitude: 0.1, // Default fallback
+        longitude: 0.1, // Default fallback
       };
 
-      console.log('Creating appointment:', appointmentData);
+      // Format date for API
+      const workDate = formatDateForAPI(immediateData.selectedDate);
+
+      // Parse hour and minute to numbers
+      const startHour = parseInt(immediateData.startHour, 10);
+      const startMinute = parseInt(immediateData.startMinute, 10);
+
+      if (isNaN(startHour) || isNaN(startMinute)) {
+        throw new Error('Giờ bắt đầu không hợp lệ');
+      }
+
+      // Prepare API request
+      const requestData = {
+        elderlyProfileId: selectedProfile.id,
+        caregiverProfileId: caregiver.id, // Assuming caregiver.id is the caregiverProfileId
+        location: {
+          address: location.address,
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+        workDate: workDate,
+        startHour: startHour,
+        startMinute: startMinute,
+        servicePackageId: immediateData.selectedPackage,
+        note: immediateData.note || undefined,
+      };
+
+      console.log('Creating care service:', requestData);
       
-      // Save to database
-      // TODO: Replace with API call
-      // const response = await apiClient.post('/api/v1/appointments', appointmentData);
-      // const appointmentId = response.data.id;
-      const appointmentId = 'apt-mock-' + Date.now(); // Mock ID tạm thời
+      // Call API
+      const response = await mainService.createCareService(requestData);
       
-      console.log('Appointment created with ID:', appointmentId);
+      console.log('API Response:', response);
       
+      if (response.status === 'Success') {
+        setIsSubmitting(false);
+        setShowSuccessModal(true);
+      } else {
+        // Handle error response
+        const errorMsg = response.message || 'Không thể tạo lịch hẹn. Vui lòng thử lại.';
+        setIsSubmitting(false);
+        setErrorMessage(errorMsg);
+        setShowErrorModal(true);
+      }
+    } catch (error: any) {
       setIsSubmitting(false);
-      setShowSuccessModal(true);
-    } catch (error) {
-      console.error('Error creating appointment:', error);
-      setIsSubmitting(false);
-      Alert.alert('Lỗi', 'Không thể tạo lịch hẹn. Vui lòng thử lại.');
+      
+      // Handle unexpected errors (should not happen if service handles errors properly)
+      let errorMsg = 'Không thể tạo lịch hẹn. Vui lòng thử lại.';
+      
+      // Only use error message if it's from API response
+      if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      }
+      
+      setErrorMessage(errorMsg);
+      setShowErrorModal(true);
     }
   };
 
@@ -287,12 +490,16 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     handleClose();
   };
 
+  const handleErrorClose = () => {
+    setShowErrorModal(false);
+    setErrorMessage('');
+  };
+
   const handleCopyToClipboard = async (text: string, label: string) => {
     try {
       await Clipboard.setStringAsync(text);
       Alert.alert('Đã sao chép', `${label} đã được sao chép vào clipboard`);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
       Alert.alert('Lỗi', 'Không thể sao chép');
     }
   };
@@ -320,21 +527,27 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       <ThemedText style={styles.stepDescription}>
         Vui lòng chọn người thân cần được chăm sóc cho lịch hẹn này. Bạn có thể chọn 1 người hoặc thêm mới.
       </ThemedText>
-      <ElderlyProfileSelector
-        profiles={elderlyProfiles}
-        selectedProfiles={selectedProfiles}
-        onSelectionChange={setSelectedProfiles}
-        showValidation={showValidation}
-        hideTitle={true}
-        onAddNewProfile={handleAddNewProfile}
-      />
+      {isLoadingElderly ? (
+        <View style={styles.loadingContainer}>
+          <ThemedText style={styles.loadingText}>Đang tải danh sách người cần chăm sóc...</ThemedText>
+        </View>
+      ) : (
+        <ElderlyProfileSelector
+          profiles={elderlyProfiles}
+          selectedProfiles={selectedProfiles}
+          onSelectionChange={setSelectedProfiles}
+          showValidation={showValidation}
+          hideTitle={true}
+          onAddNewProfile={handleAddNewProfile}
+        />
+      )}
     </View>
   );
 
   const renderStep2 = () => {
       return (
         <View style={styles.stepContent}>
-          <ThemedText style={styles.stepTitle}>Thông tin thuê ngay lập tức</ThemedText>
+          <ThemedText style={styles.stepTitle}>Thông tin thuê dịch vụ</ThemedText>
           
           {/* Section 1: Basic Info */}
           <View style={styles.sectionContainer}>
@@ -358,15 +571,12 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                     <ThemedText style={styles.requiredMark}>*</ThemedText>
                   </View>
 
-                  <TouchableOpacity 
-                    style={styles.locationSelector}
-                    onPress={() => setShowLocationModal(true)}
-                  >
+                  <View style={[styles.locationSelector, styles.locationSelectorDisabled]}>
                     <View style={styles.locationContent}>
                       <Ionicons name="location" size={20} color="white" />
                       <View style={styles.locationTextContainer}>
                         <ThemedText style={styles.locationTitle}>
-                          {immediateData.workLocation ? 'Địa chỉ đã chọn' : 'Chọn địa điểm làm việc'}
+                          {immediateData.workLocation ? 'Địa chỉ từ hồ sơ người già' : 'Chưa có địa chỉ'}
                         </ThemedText>
                         {immediateData.workLocation && (
                           <ThemedText style={styles.locationAddress}>
@@ -375,8 +585,14 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                         )}
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="white" />
-                  </TouchableOpacity>
+                  </View>
+                  
+                  <View style={styles.locationWarning}>
+                    <ThemedText style={styles.locationWarningMark}>*</ThemedText>
+                    <ThemedText style={styles.locationWarningText}>
+                      Bạn chỉ có thể thay đổi địa chỉ từ thông tin cơ bản của người già trong mục Hồ sơ người già
+                    </ThemedText>
+                  </View>
                 </View>
               </View>
             )}
@@ -465,46 +681,60 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             </View>
             
             <View style={styles.sectionContent}>
-              <View style={styles.packagesContainer}>
-                {servicePackages.map((pkg) => (
-                  <TouchableOpacity
-                    key={pkg.id}
-                    style={[
-                      styles.packageCard,
-                      immediateData.selectedPackage === pkg.id && styles.packageCardSelected
-                    ]}
-                    onPress={() => setImmediateData(prev => ({ ...prev, selectedPackage: pkg.id }))}
-                  >
-                    {immediateData.selectedPackage === pkg.id && (
-                      <View style={styles.packageCheckmark}>
-                        <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
-                      </View>
-                    )}
-                    
-                    <ThemedText style={styles.packageName}>{pkg.name}</ThemedText>
-                    
-                    <View style={styles.packageDetails}>
-                      <View style={styles.packageDetailItem}>
-                        <Ionicons name="time-outline" size={16} color="#6c757d" />
-                        <ThemedText style={styles.packageDetailText}>{pkg.duration}h</ThemedText>
-                      </View>
-                      <ThemedText style={styles.packagePrice}>
-                        {pkg.price.toLocaleString('vi-VN')} VNĐ
-                      </ThemedText>
-                    </View>
-                    
-                    <View style={styles.packageServices}>
-                      <ThemedText style={styles.packageServicesTitle}>Dịch vụ bao gồm:</ThemedText>
-                      {pkg.services.map((service, index) => (
-                        <View key={index} style={styles.packageServiceItem}>
-                          <Ionicons name="checkmark" size={16} color="#68C2E8" />
-                          <ThemedText style={styles.packageServiceText}>{service}</ThemedText>
+              {isLoadingPackages ? (
+                <View style={styles.loadingContainer}>
+                  <ThemedText style={styles.loadingText}>Đang tải danh sách gói dịch vụ...</ThemedText>
+                </View>
+              ) : (
+                <ScrollView 
+                  style={styles.packagesScrollView}
+                  contentContainerStyle={styles.packagesContainer}
+                  showsVerticalScrollIndicator={true}
+                  nestedScrollEnabled={true}
+                  indicatorStyle={Platform.OS === 'ios' ? 'default' : undefined}
+                  scrollIndicatorInsets={{ right: 8, top: 4, bottom: 4 }}
+                  fadingEdgeLength={Platform.OS === 'android' ? 20 : undefined}
+                >
+                  {servicePackages.map((pkg) => (
+                    <TouchableOpacity
+                      key={pkg.id}
+                      style={[
+                        styles.packageCard,
+                        immediateData.selectedPackage === pkg.id && styles.packageCardSelected
+                      ]}
+                      onPress={() => setImmediateData(prev => ({ ...prev, selectedPackage: pkg.id }))}
+                    >
+                      {immediateData.selectedPackage === pkg.id && (
+                        <View style={styles.packageCheckmark}>
+                          <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
                         </View>
-                      ))}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                      )}
+                      
+                      <ThemedText style={styles.packageName}>{pkg.name}</ThemedText>
+                      
+                      <View style={styles.packageDetails}>
+                        <View style={styles.packageDetailItem}>
+                          <Ionicons name="time-outline" size={16} color="#6c757d" />
+                          <ThemedText style={styles.packageDetailText}>{pkg.duration}h</ThemedText>
+                        </View>
+                        <ThemedText style={styles.packagePrice}>
+                          {pkg.price.toLocaleString('vi-VN')} VNĐ
+                        </ThemedText>
+                      </View>
+                      
+                      <View style={styles.packageServices}>
+                        <ThemedText style={styles.packageServicesTitle}>Dịch vụ bao gồm:</ThemedText>
+                        {pkg.services.map((service, index) => (
+                          <View key={index} style={styles.packageServiceItem}>
+                            <Ionicons name="checkmark" size={16} color="#68C2E8" />
+                            <ThemedText style={styles.packageServiceText}>{service}</ThemedText>
+                          </View>
+                        ))}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
             </View>
           </View>
 
@@ -559,7 +789,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         <View style={styles.reviewContainer}>
           {/* Work Location */}
           <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>📍 Địa điểm làm việc:</ThemedText>
+            <ThemedText style={styles.reviewLabel}>Địa điểm làm việc:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.workLocation || 'Chưa chọn'}
             </ThemedText>
@@ -567,14 +797,14 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
           {/* Date and Time */}
           <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>📅 Ngày làm việc:</ThemedText>
+            <ThemedText style={styles.reviewLabel}>Ngày làm việc:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.selectedDate || 'Chưa chọn'}
             </ThemedText>
           </View>
 
           <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>⏰ Giờ bắt đầu:</ThemedText>
+            <ThemedText style={styles.reviewLabel}>Giờ bắt đầu:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.startHour && immediateData?.startMinute 
                 ? `${immediateData.startHour}:${immediateData.startMinute}` 
@@ -593,7 +823,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
           {/* Total Price */}
           <View style={styles.reviewItem}>
-            <ThemedText style={styles.reviewLabel}>💰 Tổng chi phí:</ThemedText>
+            <ThemedText style={styles.reviewLabel}>Tổng chi phí:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.selectedPackage ? 
                 `${servicePackages.find(p => p.id === immediateData.selectedPackage)?.price.toLocaleString('vi-VN')} VNĐ` : 'Chưa tính'}
@@ -603,7 +833,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           {/* Note */}
           {immediateData?.note && (
             <View style={styles.reviewItem}>
-              <ThemedText style={styles.reviewLabel}>📄 Ghi chú:</ThemedText>
+              <ThemedText style={styles.reviewLabel}>Ghi chú:</ThemedText>
               <ThemedText style={styles.reviewValue}>{immediateData.note}</ThemedText>
             </View>
           )}
@@ -1132,9 +1362,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
               <ThemedText style={styles.successTitle}>Đặt lịch thành công!</ThemedText>
               
               <ThemedText style={styles.successMessage}>
-                Yêu cầu thuê ngay lập tức của bạn đã được gửi đi.
+                Yêu cầu thuê dịch vụ của bạn đã được gửi đi.
                 {'\n\n'}
-                Nhân viên chăm sóc sẽ liên hệ với bạn trong thời gian sớm nhất.
+                Nhân viên chăm sóc sẽ phản hồi với bạn trong thời gian sớm nhất.
                 {'\n\n'}
                 <ThemedText style={styles.successMessageBold}>Lưu ý:</ThemedText> Bạn sẽ thanh toán sau khi nhân viên hoàn thành công việc.
               </ThemedText>
@@ -1144,6 +1374,35 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                 onPress={handleSuccessClose}
               >
                 <ThemedText style={styles.successButtonText}>Đóng</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Error Modal */}
+        <Modal
+          visible={showErrorModal}
+          transparent
+          animationType="fade"
+          onRequestClose={handleErrorClose}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.errorModal}>
+              <View style={styles.errorIconContainer}>
+                <Ionicons name="close-circle" size={80} color="#EF4444" />
+              </View>
+              
+              <ThemedText style={styles.errorTitle}>Đặt lịch thất bại</ThemedText>
+              
+              <ThemedText style={styles.errorMessage}>
+                {errorMessage || 'Không thể tạo lịch hẹn. Vui lòng thử lại.'}
+              </ThemedText>
+              
+              <TouchableOpacity 
+                style={styles.errorButton}
+                onPress={handleErrorClose}
+              >
+                <ThemedText style={styles.errorButtonText}>Đóng</ThemedText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1209,6 +1468,7 @@ const styles = StyleSheet.create({
   },
   stepContent: {
     flex: 1,
+    paddingTop: 8,
   },
   titleContainer: {
     flexDirection: 'row',
@@ -1219,7 +1479,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2c3e50',
-    marginBottom: 8,
+    marginTop: -10,
+    marginBottom: 10,
   },
   stepDescription: {
     fontSize: 15,
@@ -1469,6 +1730,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  locationSelectorDisabled: {
+    backgroundColor: '#68C2E8',
+    opacity: 0.8,
+  },
   locationContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1488,6 +1753,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'white',
     opacity: 0.9,
+  },
+  locationWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    gap: 4,
+  },
+  locationWarningMark: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#dc3545',
+    lineHeight: 16,
+  },
+  locationWarningText: {
+    fontSize: 12,
+    color: '#dc3545',
+    flex: 1,
+    lineHeight: 16,
   },
   changeLocationButton: {
     padding: 8,
@@ -1854,8 +2137,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   // Package Styles
+  packagesScrollView: {
+    maxHeight: 400,
+    paddingRight: 12,
+  },
   packagesContainer: {
     gap: 16,
+    paddingBottom: 8,
+    paddingRight: 8,
   },
   packageCard: {
     backgroundColor: '#FFFFFF',
@@ -2118,6 +2407,53 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
+  // Error Modal Styles
+  errorModal: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 32,
+    width: '85%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  errorIconContainer: {
+    marginBottom: 24,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#6c757d',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  errorButton: {
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    width: '100%',
+    alignItems: 'center',
+  },
+  errorButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+  },
   // Payment Styles
   paymentContainer: {
     gap: 24,
@@ -2326,5 +2662,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2c3e50',
     fontWeight: '600',
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#6c757d',
   },
 });
