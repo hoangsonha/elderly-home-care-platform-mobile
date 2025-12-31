@@ -38,6 +38,9 @@ yarn-error.*
 
 app-example
 
-# generated native folders
-/ios
-/android
+# generated native folders (commented out to allow tracking)
+# /ios
+# /android
+
+# Android local properties (contains local SDK path)
+android/local.properties

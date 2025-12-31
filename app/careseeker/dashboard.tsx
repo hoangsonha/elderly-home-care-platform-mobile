@@ -3,14 +3,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { EmergencyAlert } from '@/components/alerts/EmergencyAlert';
@@ -26,8 +27,7 @@ import { CustomModal } from '@/components/ui/CustomModal';
 import { NotificationPanel } from '@/components/ui/NotificationPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
-// TODO: Replace with API calls to fetch elderly profiles
-// import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
+import { ElderlyProfileApiResponse, UserService } from '@/services/user.service';
 
 const { width } = Dimensions.get('window');
 
@@ -44,10 +44,8 @@ interface ServiceModule {
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
   const { emergencyAlertVisible, hideEmergencyAlert } = useNotification();
-  // TODO: Replace with API call to fetch elderly profiles
-  const elderlyProfiles: any[] = [];
-  const loadingElderlyProfiles = false;
-  const refreshElderlyProfiles = () => {};
+  const [elderlyProfiles, setElderlyProfiles] = useState<any[]>([]);
+  const [loadingElderlyProfiles, setLoadingElderlyProfiles] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showAppInfoModal, setShowAppInfoModal] = useState(false);
@@ -60,15 +58,41 @@ export default function DashboardScreen() {
   const [recommendedCaregivers, setRecommendedCaregivers] = useState<any[]>([]);
   const [loadingCaregivers, setLoadingCaregivers] = useState(true);
   
-  // TODO: Refresh elderly profiles from API when screen is focused
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     if (user?.id) {
-  //       // Call API to refresh elderly profiles
-  //       refreshElderlyProfiles();
-  //     }
-  //   }, [user?.id, refreshElderlyProfiles])
-  // );
+  // Map API response to component format
+  const mapElderlyProfile = (apiProfile: ElderlyProfileApiResponse) => {
+    return {
+      id: apiProfile.elderlyProfileId,
+      name: apiProfile.fullName,
+      age: apiProfile.age,
+      healthStatus: apiProfile.healthStatus,
+      avatar: apiProfile.avatarUrl,
+      gender: apiProfile.gender === 'FEMALE' ? 'female' : apiProfile.gender === 'MALE' ? 'male' : 'other',
+      relationship: 'Người thân', // Default value, can be updated if API provides this
+    };
+  };
+
+  // Fetch elderly profiles from API
+  const fetchElderlyProfiles = useCallback(async () => {
+    try {
+      setLoadingElderlyProfiles(true);
+      const profiles = await UserService.getElderlyProfiles();
+      const mappedProfiles = profiles.map(mapElderlyProfile);
+      setElderlyProfiles(mappedProfiles);
+    } catch (error: any) {
+      console.error('Error fetching elderly profiles:', error);
+      // On error, set empty array
+      setElderlyProfiles([]);
+    } finally {
+      setLoadingElderlyProfiles(false);
+    }
+  }, []);
+
+  // Refresh elderly profiles when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchElderlyProfiles();
+    }, [fetchElderlyProfiles])
+  );
   
   // TODO: Replace with API call to fetch caregivers
   useEffect(() => {
@@ -286,9 +310,13 @@ export default function DashboardScreen() {
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             <TouchableOpacity style={styles.avatarButton} onPress={handleProfilePress}>
-              <View style={styles.userAvatar}>
-                <Ionicons name="person" size={20} color="#FFFFFF" />
-              </View>
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.userAvatarImage} />
+              ) : (
+                <View style={styles.userAvatar}>
+                  <Ionicons name="person" size={20} color="#FFFFFF" />
+                </View>
+              )}
             </TouchableOpacity>
             <View style={styles.greetingContainer}>
               <ThemedText style={styles.greeting}>Xin chào!</ThemedText>
@@ -331,11 +359,30 @@ export default function DashboardScreen() {
         <View style={styles.elderlySection}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>Hồ sơ người già</ThemedText>
-            <TouchableOpacity onPress={() => router.push('/careseeker/elderly-list')}>
-              <ThemedText style={styles.seeAllText}>Xem tất cả →</ThemedText>
-            </TouchableOpacity>
+            {elderlyProfiles.length > 0 && (
+              <TouchableOpacity onPress={() => router.push('/careseeker/elderly-list')}>
+                <ThemedText style={styles.seeAllText}>Xem tất cả →</ThemedText>
+              </TouchableOpacity>
+            )}
           </View>
-          <ElderlyProfiles profiles={elderlyProfiles.slice(0, 3)} />
+          {loadingElderlyProfiles ? (
+            <View style={styles.loadingContainer}>
+              <ThemedText style={styles.loadingText}>Đang tải...</ThemedText>
+            </View>
+          ) : elderlyProfiles.length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="person-outline" size={48} color="#BDC3C7" />
+              <ThemedText style={styles.emptyStateText}>Bạn chưa có hồ sơ người già</ThemedText>
+              <TouchableOpacity 
+                style={styles.createButton}
+                onPress={() => router.push('/careseeker/add-elderly')}
+              >
+                <ThemedText style={styles.createButtonText}>Tạo ngay</ThemedText>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ElderlyProfiles profiles={elderlyProfiles.slice(0, 5)} />
+          )}
         </View>
 
         {/* Appointment Today - Compact */}
@@ -466,9 +513,13 @@ export default function DashboardScreen() {
             onTouchEnd={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHeader}>
-              <View style={styles.modalAvatar}>
-                <Ionicons name="person" size={40} color="#68C2E8" />
-              </View>
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.modalAvatarImage} />
+              ) : (
+                <View style={styles.modalAvatar}>
+                  <Ionicons name="person" size={40} color="#68C2E8" />
+                </View>
+              )}
               <ThemedText style={styles.modalName}>
                 {user?.name || 'Người dùng'}
               </ThemedText>
@@ -607,7 +658,7 @@ const styles = StyleSheet.create({
   // Header - bTaskee Style
   header: {
     backgroundColor: '#68C2E8',
-    paddingTop: 30,
+    paddingTop: 45,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
@@ -634,6 +685,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  userAvatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   greetingContainer: {
     flex: 1,
@@ -673,7 +731,7 @@ const styles = StyleSheet.create({
   elderlySection: {
     marginTop: 16,
     backgroundColor: '#FFFFFF',
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 24,
     paddingHorizontal: 20,
   },
@@ -687,6 +745,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#68C2E8',
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#7F8C8D',
+  },
+  emptyStateContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#7F8C8D',
+    marginTop: 12,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  createButton: {
+    backgroundColor: '#68C2E8',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#68C2E8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  createButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   // Appointment Section
   appointmentSection: {
@@ -833,6 +928,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 3,
+    borderColor: '#68C2E8',
+  },
+  modalAvatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     marginBottom: 12,
     borderWidth: 3,
     borderColor: '#68C2E8',

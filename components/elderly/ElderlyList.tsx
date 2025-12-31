@@ -11,11 +11,23 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ElderlyProfile } from '@/types/elderly';
 
 const { width } = Dimensions.get('window');
+const cardWidth = (width - 44) / 2; // 16*2 padding + 12 gap
 
-type ElderlyPerson = Pick<ElderlyProfile, 'id' | 'name' | 'age' | 'avatar' | 'family' | 'healthStatus' | 'currentCaregivers'>;
+interface ElderlyPerson {
+  id?: string;
+  elderlyProfileId?: string;
+  name?: string;
+  fullName?: string;
+  age: number | null;
+  avatar?: string;
+  avatarUrl?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'male' | 'female' | 'other';
+  family?: string;
+  healthStatus?: string | null;
+  currentCaregivers?: any[];
+}
 
 interface ElderlyListProps {
   data: ElderlyPerson[];
@@ -43,51 +55,55 @@ export default function ElderlyList({
   };
 
   const getHealthStatusColor = (status: ElderlyPerson['healthStatus']) => {
-    switch (status) {
-      case 'good':
-        return '#28a745';
-      case 'fair':
-        return '#ffc107';
-      case 'poor':
-        return '#dc3545';
+    if (!status) return '#95A5A6';
+    const upperStatus = status.toUpperCase();
+    switch (upperStatus) {
+      case 'GOOD':
+      case 'TỐT':
+        return '#27AE60';
+      case 'MODERATE':
+      case 'FAIR':
+      case 'TRUNG BÌNH':
+      case 'KHÁ':
+        return '#F39C12';
+      case 'WEAK':
+      case 'POOR':
+      case 'YẾU':
+        return '#E74C3C';
       default:
-        return '#6c757d';
+        return '#95A5A6';
     }
   };
 
   const getHealthStatusText = (status: ElderlyPerson['healthStatus']) => {
-    switch (status) {
-      case 'good':
+    if (!status) return 'Chưa xác định';
+    const upperStatus = status.toUpperCase();
+    switch (upperStatus) {
+      case 'GOOD':
         return 'Tốt';
-      case 'fair':
+      case 'MODERATE':
         return 'Trung bình';
-      case 'poor':
+      case 'WEAK':
         return 'Yếu';
       default:
-        return 'Không rõ';
+        return 'Chưa xác định';
     }
   };
 
-  const getHealthIcon = (status: string) => {
-    switch (status) {
-      case 'good':
-        return 'checkmark-circle';
-      case 'average':
-        return 'alert-circle';
-      case 'critical':
-        return 'warning';
-      default:
-        return 'help-circle';
-    }
+  const getHealthIcon = (status: string | null | undefined) => {
+    // Tất cả health status đều dùng icon medical
+    return 'medical';
   };
 
-  const getHealthBgColor = (status: string) => {
-    switch (status) {
-      case 'good':
+  const getHealthBgColor = (status: string | null | undefined) => {
+    if (!status) return '#F5F5F5';
+    const upperStatus = status.toUpperCase();
+    switch (upperStatus) {
+      case 'GOOD':
         return '#E8F5E9';
-      case 'average':
+      case 'MODERATE':
         return '#FFF3E0';
-      case 'critical':
+      case 'WEAK':
         return '#FFEBEE';
       default:
         return '#F5F5F5';
@@ -100,32 +116,30 @@ export default function ElderlyList({
       onPress={() => handlePersonPress(item)}
       activeOpacity={0.7}
     >
-      {/* Health Status Badge - Top Right */}
-      <View style={[styles.healthBadge, { backgroundColor: getHealthBgColor(item.healthStatus) }]}>
-        <Ionicons 
-          name={getHealthIcon(item.healthStatus)} 
-          size={16} 
-          color={getHealthStatusColor(item.healthStatus)} 
-        />
-      </View>
-
       {/* Avatar */}
       <View style={styles.avatarSection}>
-        <View style={[
-          styles.defaultAvatar,
-          { backgroundColor: item.gender === 'female' ? '#E91E63' : '#2196F3' }
-        ]}>
-          <ThemedText style={styles.avatarText}>
-            {item.name.split(' ').pop()?.charAt(0)}
-          </ThemedText>
-        </View>
+        {(item.avatar || item.avatarUrl) ? (
+          <Image 
+            source={{ uri: item.avatar || item.avatarUrl }} 
+            style={styles.defaultAvatar}
+          />
+        ) : (
+          <View style={[
+            styles.defaultAvatar,
+            { backgroundColor: '#9E9E9E' } // Màu xám khi không có avatar
+          ]}>
+            <ThemedText style={styles.avatarText}>
+              {(item.name || item.fullName || 'N/A').split(' ').pop()?.charAt(0) || '?'}
+            </ThemedText>
+          </View>
+        )}
         {/* Gender indicator */}
         <View style={[
           styles.genderBadge,
-          { backgroundColor: item.gender === 'female' ? '#E91E63' : '#2196F3' }
+          { backgroundColor: item.gender === 'female' || item.gender === 'FEMALE' ? '#E91E63' : '#2196F3' }
         ]}>
           <Ionicons 
-            name={item.gender === 'female' ? 'female' : 'male'} 
+            name={item.gender === 'female' || item.gender === 'FEMALE' ? 'female' : 'male'} 
             size={14} 
             color="#FFFFFF" 
           />
@@ -135,13 +149,13 @@ export default function ElderlyList({
       {/* Info */}
       <View style={styles.cardInfo}>
         <ThemedText style={styles.personName} numberOfLines={1}>
-          {item.name}
+          {item.name || item.fullName || 'Chưa có tên'}
         </ThemedText>
         
         <View style={styles.infoRow}>
           <View style={styles.ageContainer}>
             <Ionicons name="calendar-outline" size={12} color="#95A5A6" />
-            <ThemedText style={styles.ageText}>{item.age} tuổi</ThemedText>
+            <ThemedText style={styles.ageText}>{item.age ? `${item.age} tuổi` : 'Tuổi không rõ'}</ThemedText>
           </View>
         </View>
 
@@ -226,7 +240,7 @@ export default function ElderlyList({
       <FlatList
         data={data}
         renderItem={renderElderlyCard}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id || item.elderlyProfileId}
         numColumns={2}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
@@ -295,10 +309,11 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   columnWrapper: {
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    gap: 12,
   },
   elderlyCard: {
-    flex: 0.48,
+    width: cardWidth,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginBottom: 16,
@@ -311,6 +326,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F0F0F0',
     position: 'relative',
+    minHeight: 200,
+    maxHeight: 220,
   },
   healthBadge: {
     position: 'absolute',
@@ -368,6 +385,7 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     marginBottom: 6,
     textAlign: 'center',
+    width: '100%',
   },
   infoRow: {
     marginBottom: 10,
@@ -388,6 +406,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
     gap: 5,
+    alignSelf: 'center',
   },
   healthStatusText: {
     fontSize: 11,

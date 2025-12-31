@@ -84,14 +84,14 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           // Map API response to ElderlyProfile format
           const mappedProfiles: ElderlyProfile[] = apiProfiles.map((profile: ElderlyProfileApiResponse) => {
             // Map healthStatus from API to component format
-            let healthStatus: 'good' | 'fair' | 'poor' = 'good';
+            let healthStatus: 'good' | 'fair' | 'poor' = 'fair'; // Default to 'fair' instead of 'good'
             if (profile.healthStatus) {
               const statusLower = profile.healthStatus.toLowerCase();
               if (statusLower === 'good' || statusLower === 'tốt') {
                 healthStatus = 'good';
-              } else if (statusLower === 'fair' || statusLower === 'trung bình' || statusLower === 'khá') {
+              } else if (statusLower === 'moderate' || statusLower === 'fair' || statusLower === 'trung bình' || statusLower === 'khá') {
                 healthStatus = 'fair';
-              } else if (statusLower === 'poor' || statusLower === 'yếu' || statusLower === 'kém') {
+              } else if (statusLower === 'weak' || statusLower === 'poor' || statusLower === 'yếu' || statusLower === 'kém') {
                 healthStatus = 'poor';
               }
             }
@@ -137,10 +137,15 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   useEffect(() => {
     if (currentStep === 2 && selectedProfiles.length > 0) {
       const selectedProfile = elderlyProfiles.find(p => p.id === selectedProfiles[0]);
-      if (selectedProfile && selectedProfile.address) {
+      if (selectedProfile) {
+        const displayLocation = formatLocationDisplay(
+          selectedProfile.address,
+          selectedProfile.location?.latitude,
+          selectedProfile.location?.longitude
+        );
         setImmediateData(prev => ({
           ...prev,
-          workLocation: selectedProfile.address || prev.workLocation
+          workLocation: displayLocation
         }));
       }
     }
@@ -236,8 +241,20 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     onClose();
   };
 
-  const handleSelectLocation = (location: string) => {
-    setImmediateData(prev => ({ ...prev, workLocation: location }));
+  // Helper function to format location display
+  const formatLocationDisplay = (address?: string, latitude?: number, longitude?: number): string => {
+    if (address && address.trim() !== '' && address !== 'Chưa có địa chỉ') {
+      return address;
+    }
+    if (latitude !== undefined && longitude !== undefined) {
+      return `Tọa độ: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+    }
+    return 'Chưa có địa chỉ';
+  };
+
+  const handleSelectLocation = (location: string, latitude?: number, longitude?: number) => {
+    const displayLocation = formatLocationDisplay(location, latitude, longitude);
+    setImmediateData(prev => ({ ...prev, workLocation: displayLocation }));
     setShowLocationModal(false);
     setShowCustomLocationInput(false);
     setCustomLocation('');
@@ -1092,12 +1109,16 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                           key={profile.id}
                           style={[
                             styles.locationOption,
-                            immediateData.workLocation === profile.address && styles.locationOptionSelected
+                            immediateData.workLocation === formatLocationDisplay(profile.address, profile.location?.latitude, profile.location?.longitude) && styles.locationOptionSelected
                           ]}
                         >
                           <TouchableOpacity
                             style={styles.locationOptionTouchable}
-                            onPress={() => handleSelectLocation(profile.address)}
+                            onPress={() => handleSelectLocation(
+                              profile.address, 
+                              profile.location?.latitude, 
+                              profile.location?.longitude
+                            )}
                           >
                             <View style={styles.locationOptionContent}>
                               <View style={styles.locationOptionIcon}>
@@ -1106,11 +1127,15 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                               <View style={styles.locationOptionText}>
                                 <ThemedText style={styles.locationOptionName}>{profile.name}</ThemedText>
                                 <ThemedText style={styles.locationOptionAddress}>
-                                  {profile.address || 'Chưa có địa chỉ'}
+                                  {formatLocationDisplay(
+                                    profile.address, 
+                                    profile.location?.latitude, 
+                                    profile.location?.longitude
+                                  )}
                                 </ThemedText>
                               </View>
                             </View>
-                            {immediateData.workLocation === profile.address && (
+                            {immediateData.workLocation === formatLocationDisplay(profile.address, profile.location?.latitude, profile.location?.longitude) && (
                               <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
                             )}
                           </TouchableOpacity>

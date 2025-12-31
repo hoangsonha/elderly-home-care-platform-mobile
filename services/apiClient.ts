@@ -61,6 +61,9 @@ const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // Cấu hình cho file upload
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
 });
 
 /**
@@ -70,6 +73,15 @@ apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const url = config.url || '';
     const fullUrl = config.baseURL ? `${config.baseURL}${url}` : url;
+
+    // Nếu là FormData, xóa Content-Type để axios tự động set multipart/form-data với boundary
+    // Theo hướng dẫn BE: Axios sẽ tự động thêm boundary khi set Content-Type: multipart/form-data
+    // Nhưng tốt nhất là để axios tự set để đảm bảo boundary đúng
+    if (config.data instanceof FormData) {
+      // Xóa Content-Type để axios tự động set với boundary
+      delete config.headers['Content-Type'];
+      delete config.headers['content-type'];
+    }
 
     // Nếu không phải public API, thêm token
     if (!isPublicAPI(fullUrl)) {
@@ -86,7 +98,7 @@ apiClient.interceptors.request.use(
     // Log request (optional, có thể tắt trong production)
     if (__DEV__) {
       console.log('API Request:', config.method?.toUpperCase(), fullUrl);
-      if (config.data) {
+      if (config.data && !(config.data instanceof FormData)) {
         console.log('Request data:', config.data);
       }
     }

@@ -18,7 +18,6 @@ interface Contact {
   name: string;
   relationship: string;
   phone: string;
-  useMyPhone?: boolean;
 }
 
 export default function EmergencyContactsScreen() {
@@ -96,7 +95,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#FFFFFF',
-    paddingTop: 30,
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
     flexDirection: 'row',

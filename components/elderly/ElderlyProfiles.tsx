@@ -2,17 +2,20 @@ import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity, View, Image } from 'react-native';
 
 interface ElderlyProfile {
   id: string;
-  name: string;
+  elderlyProfileId?: string;
+  name?: string;
+  fullName?: string;
   age: number;
   healthStatus?: string;
   health_condition?: string; // From database
   avatar?: string;
+  avatarUrl?: string;
   relationship?: string;
-  gender?: 'male' | 'female' | 'other';
+  gender?: 'male' | 'female' | 'other' | 'MALE' | 'FEMALE' | 'OTHER';
 }
 
 interface ElderlyProfilesProps {
@@ -49,21 +52,39 @@ export function ElderlyProfiles({ profiles }: ElderlyProfilesProps) {
     });
   };
 
-  const getHealthStatusColor = (status: string) => {
+  const getHealthStatusColor = (status: string | null | undefined) => {
     if (!status) return '#95A5A6';
     
-    switch (status.toLowerCase()) {
-      case 'tốt':
-      case 'good':
+    switch (status.toUpperCase()) {
+      case 'GOOD':
+      case 'TỐT':
         return '#27AE60';
-      case 'khá':
-      case 'fair':
+      case 'MODERATE':
+      case 'FAIR':
+      case 'TRUNG BÌNH':
+      case 'KHÁ':
         return '#F39C12';
-      case 'yếu':
-      case 'poor':
+      case 'WEAK':
+      case 'POOR':
+      case 'YẾU':
         return '#E74C3C';
       default:
         return '#95A5A6';
+    }
+  };
+
+  const getHealthStatusText = (status: string | null | undefined) => {
+    if (!status) return 'Không xác định';
+    
+    switch (status.toUpperCase()) {
+      case 'GOOD':
+        return 'Tốt';
+      case 'MODERATE':
+        return 'Trung bình';
+      case 'WEAK':
+        return 'Yếu';
+      default:
+        return status; // Return original value if not recognized
     }
   };
 
@@ -82,21 +103,28 @@ export function ElderlyProfiles({ profiles }: ElderlyProfilesProps) {
           activeOpacity={0.8}
         >
            <View style={styles.profileImageContainer}>
-             <View style={[
-               styles.profileImage,
-               { backgroundColor: profile.gender === 'female' ? '#E91E63' : '#2196F3' }
-             ]}>
-               <ThemedText style={styles.profileImageText}>
-                 {profile.name.split(' ').pop()?.charAt(0)}
-               </ThemedText>
-             </View>
+             {(profile.avatar || profile.avatarUrl) ? (
+               <Image 
+                 source={{ uri: profile.avatar || profile.avatarUrl }} 
+                 style={styles.profileImage}
+               />
+             ) : (
+               <View style={[
+                 styles.profileImage,
+                 { backgroundColor: '#9E9E9E' } // Màu xám khi không có avatar
+               ]}>
+                 <ThemedText style={styles.profileImageText}>
+                   {((profile.name || profile.fullName || 'N/A').split(' ').pop()?.charAt(0) || '?')}
+                 </ThemedText>
+               </View>
+             )}
              {/* Gender indicator */}
              <View style={[
                styles.genderBadge,
-               { backgroundColor: profile.gender === 'female' ? '#E91E63' : '#2196F3' }
+               { backgroundColor: (profile.gender === 'female' || profile.gender === 'FEMALE') ? '#E91E63' : '#2196F3' }
              ]}>
                <Ionicons 
-                 name={profile.gender === 'female' ? 'female' : 'male'} 
+                 name={(profile.gender === 'female' || profile.gender === 'FEMALE') ? 'female' : 'male'} 
                  size={12} 
                  color="#FFFFFF" 
                />
@@ -104,19 +132,20 @@ export function ElderlyProfiles({ profiles }: ElderlyProfilesProps) {
            </View>
           
           <View style={styles.profileInfo}>
-            <ThemedText style={styles.profileName}>{profile.name}</ThemedText>
-            <ThemedText style={styles.profileAge}>{profile.age} tuổi</ThemedText>
+            <ThemedText style={styles.profileName}>{profile.name || profile.fullName}</ThemedText>
+            <ThemedText style={styles.profileAge}>{profile.age || 'N/A'} tuổi</ThemedText>
             
             <View style={styles.healthStatusContainer}>
-              <View style={[
-                styles.healthStatusDot, 
-                { backgroundColor: getHealthStatusColor(profile.healthStatus || profile.health_condition || '') }
-              ]} />
+              <Ionicons 
+                name="medical" 
+                size={14} 
+                color={getHealthStatusColor(profile.healthStatus || profile.health_condition)} 
+              />
               <ThemedText style={[
                 styles.healthStatusText,
-                { color: getHealthStatusColor(profile.healthStatus || profile.health_condition || '') }
+                { color: getHealthStatusColor(profile.healthStatus || profile.health_condition) }
               ]}>
-                Sức khỏe {profile.healthStatus || profile.health_condition || 'Chưa rõ'}
+                {getHealthStatusText(profile.healthStatus || profile.health_condition)}
               </ThemedText>
             </View>
           </View>
@@ -199,12 +228,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-  },
-  healthStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
+    gap: 4,
   },
   healthStatusText: {
     fontSize: 12,

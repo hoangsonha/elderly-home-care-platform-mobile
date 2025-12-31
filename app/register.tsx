@@ -204,7 +204,12 @@ export default function RegisterScreen() {
             router.replace("/caregiver");
           }
         } else {
-          router.replace("/careseeker/dashboard");
+          // Care Seeker
+          if (!response.hasProfile) {
+            router.replace("/careseeker/complete-profile");
+          } else {
+            router.replace("/careseeker/dashboard");
+          }
         }
       }, 600);
     } catch (error: any) {

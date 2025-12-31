@@ -14,7 +14,6 @@ interface Contact {
   name: string;
   relationship: string;
   phone: string;
-  useMyPhone?: boolean;
 }
 
 interface DynamicContactListProps {
@@ -34,7 +33,7 @@ export function DynamicContactList({
     if (contacts.length < maxItems) {
       onContactsChange([
         ...contacts,
-        { name: '', relationship: '', phone: '', useMyPhone: false },
+        { name: '', relationship: '', phone: '' },
       ]);
     }
   };
@@ -50,16 +49,6 @@ export function DynamicContactList({
     onContactsChange(newContacts);
   };
 
-  const toggleUseMyPhone = (index: number) => {
-    const newContacts = [...contacts];
-    const useMyPhone = !newContacts[index].useMyPhone;
-    newContacts[index] = { 
-      ...newContacts[index], 
-      useMyPhone,
-      phone: useMyPhone ? (user?.phone || '') : ''
-    };
-    onContactsChange(newContacts);
-  };
 
   return (
     <View style={styles.container}>
@@ -119,30 +108,13 @@ export function DynamicContactList({
                 <ThemedText style={styles.requiredMark}>*</ThemedText>
               </View>
               
-              {/* Option to use own phone */}
-              <TouchableOpacity 
-                style={styles.useMyPhoneOption}
-                onPress={() => toggleUseMyPhone(index)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, contact.useMyPhone && styles.checkboxActive]}>
-                  {contact.useMyPhone && (
-                    <Ionicons name="checkmark" size={16} color="white" />
-                  )}
-                </View>
-                <ThemedText style={styles.useMyPhoneText}>
-                  Dùng số điện thoại của tôi
-                </ThemedText>
-              </TouchableOpacity>
-              
               <TextInput
-                style={[styles.textInput, contact.useMyPhone && styles.textInputDisabled]}
+                style={styles.textInput}
                 value={contact.phone}
                 onChangeText={(text) => updateContact(index, 'phone', text)}
-                placeholder={contact.useMyPhone ? "Số điện thoại của bạn" : "Ví dụ: 0901234567"}
+                placeholder="Ví dụ: 0901234567"
                 placeholderTextColor="#999"
                 keyboardType="phone-pad"
-                editable={!contact.useMyPhone}
               />
             </View>
           </View>
@@ -244,36 +216,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#2C3E50',
     backgroundColor: 'white',
-  },
-  textInputDisabled: {
-    backgroundColor: '#F5F7FA',
-    color: '#7F8C8D',
-  },
-  useMyPhoneOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingVertical: 8,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#E8EBED',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    backgroundColor: 'white',
-  },
-  checkboxActive: {
-    backgroundColor: '#68C2E8',
-    borderColor: '#68C2E8',
-  },
-  useMyPhoneText: {
-    fontSize: 14,
-    color: '#2C3E50',
-    fontWeight: '500',
   },
   emptyState: {
     padding: 20,

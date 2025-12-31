@@ -64,7 +64,12 @@ export default function LoginScreen() {
             router.replace("/caregiver");
           }
         } else {
-          router.replace("/careseeker/dashboard");
+          // Care Seeker
+          if (!user.hasCompletedProfile) {
+            router.replace("/careseeker/complete-profile");
+          } else {
+            router.replace("/careseeker/dashboard");
+          }
         }
       }, 600);
     } catch (error) {

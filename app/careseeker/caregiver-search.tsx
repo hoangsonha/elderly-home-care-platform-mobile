@@ -182,9 +182,8 @@ export default function CaregiverSearchScreen() {
   };
 
   const handleAIMatching = () => {
-    // Open booking modal with first caregiver or null
-    setSelectedCaregiver(mockCaregivers[0] || null);
-    setShowBookingModal(true);
+    // Open AI matching modal
+    setShowAIModal(true);
   };
 
   const handleGetAIRecommendations = (response: MatchResponse) => {

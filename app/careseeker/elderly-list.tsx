@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useState, useCallback } from 'react';
 import {
     StyleSheet,
     TouchableOpacity,
@@ -12,28 +12,73 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ElderlyList from '@/components/elderly/ElderlyList';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
-import { ElderlyProfile } from '@/types/elderly';
-// TODO: Replace with API call
-// import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserService } from '@/services/user.service';
 
-type ElderlyPerson = Pick<ElderlyProfile, 'id' | 'name' | 'age' | 'avatar' | 'family' | 'healthStatus' | 'currentCaregivers'> & { gender?: 'male' | 'female' };
+interface ElderlyPerson {
+  id?: string;
+  elderlyProfileId?: string;
+  name?: string;
+  fullName?: string;
+  age: number | null;
+  avatar?: string;
+  avatarUrl?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'male' | 'female' | 'other';
+  family?: string;
+  healthStatus?: string | null;
+  currentCaregivers?: any[];
+}
 
 export default function ElderlyListScreen() {
   const { user } = useAuth();
-  // TODO: Replace with API call
-  // const { profiles, loading, error, refresh } = useElderlyProfiles(user?.id || '');
-  // Mock data tạm thời
-  const profiles: any[] = [
-    { id: 'elderly-1', name: 'Bà Nguyễn Thị Mai', age: 75, gender: 'female', phone: '0901234567' },
-    { id: 'elderly-2', name: 'Ông Trần Văn Nam', age: 80, gender: 'male', phone: '0907654321' },
-  ];
-  const loading = false;
-  const error = null;
-  const refresh = async () => {};
+  const [profiles, setProfiles] = useState<ElderlyPerson[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await UserService.getElderlyProfiles();
+      console.log('Elderly profiles data:', data);
+      
+      // getElderlyProfiles returns array directly, not an object with status/data
+      const mappedProfiles = data.map((profile: any) => ({
+        id: profile.elderlyProfileId,
+        elderlyProfileId: profile.elderlyProfileId,
+        name: profile.fullName,
+        fullName: profile.fullName,
+        age: profile.age,
+        avatar: profile.avatarUrl,
+        avatarUrl: profile.avatarUrl,
+        gender: profile.gender,
+        healthStatus: profile.healthStatus,
+        currentCaregivers: profile.currentCaregivers || [],
+      }));
+      console.log('Mapped profiles:', mappedProfiles);
+      setProfiles(mappedProfiles);
+    } catch (err: any) {
+      console.error('Error loading elderly profiles:', err);
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load profiles when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadProfiles();
+    }, [loadProfiles])
+  );
+
+  const refresh = async () => {
+    await loadProfiles();
+  };
 
   const handlePersonPress = (person: ElderlyPerson) => {
-    router.push(`/careseeker/elderly-detail?id=${person.id}`);
+    const id = person.elderlyProfileId || person.id;
+    router.push(`/careseeker/elderly-detail?id=${id}`);
   };
 
   const handleAddPerson = () => {
@@ -68,19 +113,18 @@ export default function ElderlyListScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Header - Clean & Simple */}
+      {/* Header - Similar to caregiver-search */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#2C3E50" />
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
           <ThemedText style={styles.headerTitle}>Hồ sơ người già</ThemedText>
-          <ThemedText style={styles.headerSubtitle}>Quản lý thông tin sức khỏe gia đình</ThemedText>
         </View>
 
         <TouchableOpacity style={styles.addButton} onPress={handleAddPerson}>
-          <Ionicons name="add-circle" size={32} color="#68C2E8" />
+          <Ionicons name="add-circle" size={32} color="white" />
         </TouchableOpacity>
       </View>
 
@@ -133,15 +177,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   header: {
-    backgroundColor: '#FFFFFF',
-    paddingTop: 30,
+    backgroundColor: '#68C2E8',
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   backButton: {
     padding: 8,
@@ -149,17 +191,11 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: 12,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#2C3E50',
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#7F8C8D',
-    marginTop: 4,
+    fontWeight: 'bold',
+    color: 'white',
   },
   addButton: {
     padding: 4,
