@@ -356,6 +356,11 @@ export const renderCaregiverTab = (profile: any) => {
   );
 };
 
+// Default export to fix route warning
+export default function ElderlyProfileTabs() {
+  return null; // This file only exports helper functions
+}
+
 const styles = StyleSheet.create({
   tabContent: {
     backgroundColor: 'white',

@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 import { mainService, type MyCareServiceData } from "@/services/main.service";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import {
@@ -17,7 +18,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 type TabStatus = "Tất cả" | "Mới" | "Chờ thực hiện" | "Đang thực hiện" | "Hoàn thành" | "Đã hủy" | "Đã hết hạn";
 
@@ -66,9 +66,12 @@ export default function BookingScreen() {
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showMapModal, setShowMapModal] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<BookingItem | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Calculate time remaining until deadline
   const calculateTimeRemaining = useCallback((deadline: string | null): string | null => {
@@ -158,40 +161,39 @@ export default function BookingScreen() {
     }, [fetchBookings])
   );
 
-  // Handle accept booking
-  const handleAccept = useCallback(async (booking: BookingItem) => {
-    Alert.alert(
-      "Xác nhận chấp nhận",
-      `Bạn có chắc chắn muốn chấp nhận yêu cầu chăm sóc ${booking.elderlyName}?`,
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Chấp nhận",
-          onPress: async () => {
-            try {
-              setProcessingIds((prev) => new Set(prev).add(booking.careServiceId));
-              const response = await mainService.acceptCareService(booking.careServiceId);
+  // Handle accept booking - show modal
+  const handleAccept = useCallback((booking: BookingItem) => {
+    setSelectedBooking(booking);
+    setShowAcceptModal(true);
+  }, []);
 
-              if (response.status === "Success") {
-                Alert.alert("Thành công", "Bạn đã chấp nhận yêu cầu thành công!");
-                fetchBookings(); // Refresh list
-              } else {
-                Alert.alert("Lỗi", response.message || "Không thể chấp nhận yêu cầu");
-              }
-            } catch (error: any) {
-              Alert.alert("Lỗi", "Có lỗi xảy ra. Vui lòng thử lại.");
-            } finally {
-              setProcessingIds((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(booking.careServiceId);
-                return newSet;
-              });
-            }
-          },
-        },
-      ]
-    );
-  }, [fetchBookings]);
+  // Confirm accept booking
+  const confirmAccept = useCallback(async () => {
+    if (!selectedBooking) return;
+
+    try {
+      setShowAcceptModal(false);
+      setProcessingIds((prev) => new Set(prev).add(selectedBooking.careServiceId));
+      const response = await mainService.acceptCareService(selectedBooking.careServiceId);
+
+      if (response.status === "Success") {
+        setShowSuccessModal(true);
+        fetchBookings(); // Refresh list
+      } else {
+        setErrorMessage(response.message || "Không thể chấp nhận yêu cầu");
+        setShowErrorModal(true);
+      }
+    } catch (error: any) {
+      setErrorMessage("Có lỗi xảy ra. Vui lòng thử lại.");
+      setShowErrorModal(true);
+    } finally {
+      setProcessingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedBooking.careServiceId);
+        return newSet;
+      });
+    }
+  }, [selectedBooking, fetchBookings]);
 
   // Handle decline booking
   const handleDecline = useCallback(async (booking: BookingItem) => {
@@ -230,23 +232,91 @@ export default function BookingScreen() {
     );
   }, [fetchBookings]);
 
-  // Open map view
+  // Open map view in external app
   const handleShowMap = useCallback((location: { latitude: number; longitude: number; address: string }) => {
-    setSelectedLocation(location);
-    setShowMapModal(true);
+    if (!location.latitude || !location.longitude || location.latitude === 0 || location.longitude === 0) {
+      Alert.alert("Thông báo", "Chưa có tọa độ địa điểm");
+      return;
+    }
+
+    const lat = location.latitude;
+    const lng = location.longitude;
+    
+    const url = Platform.select({
+      ios: `maps://maps.apple.com/?q=${lat},${lng}`,
+      android: `geo:${lat},${lng}?q=${lat},${lng}`,
+    });
+
+    const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+    Linking.openURL(url || webUrl).catch((err) => {
+      console.error("Error opening maps:", err);
+      Alert.alert("Lỗi", "Không thể mở bản đồ");
+    });
   }, []);
 
   // Open phone dialer
   const handleCallPhone = useCallback((phone: string) => {
-    const phoneUrl = Platform.OS === "ios" ? `telprompt:${phone}` : `tel:${phone}`;
+    console.log("handleCallPhone called with:", phone);
+    
+    if (!phone || phone.trim() === "") {
+      Alert.alert("Thông báo", "Chưa có số điện thoại");
+      return;
+    }
+
+    // Remove all spaces, dashes, parentheses, and other formatting characters
+    // Keep only digits and + sign
+    let cleanPhone = phone.replace(/[\s\-\(\)\.]/g, "");
+    
+    // If phone starts with +84 (Vietnam country code), keep it
+    // If phone starts with 84 (without +), add +
+    // If phone starts with 0, remove 0 and add +84
+    if (cleanPhone.startsWith("+84")) {
+      // Already in international format
+    } else if (cleanPhone.startsWith("84") && cleanPhone.length >= 10) {
+      cleanPhone = "+" + cleanPhone;
+    } else if (cleanPhone.startsWith("0")) {
+      cleanPhone = "+84" + cleanPhone.substring(1);
+    } else if (cleanPhone.length >= 9 && cleanPhone.length <= 10) {
+      // Assume it's a Vietnamese phone number without country code
+      cleanPhone = "+84" + cleanPhone;
+    }
+    
+    // Final cleanup: remove any remaining non-digit characters except +
+    cleanPhone = cleanPhone.replace(/[^\d+]/g, "");
+    
+    // Ensure it starts with + for international format
+    if (!cleanPhone.startsWith("+")) {
+      cleanPhone = "+" + cleanPhone;
+    }
+    
+    console.log("Cleaned phone:", cleanPhone);
+    
+    // For Android, use tel: scheme (works better)
+    // For iOS, use telprompt: to show confirmation dialog
+    const phoneUrl = Platform.OS === "ios" ? `telprompt:${cleanPhone}` : `tel:${cleanPhone}`;
+    
+    console.log("Phone URL:", phoneUrl);
+    
     Linking.canOpenURL(phoneUrl)
       .then((supported) => {
+        console.log("Can open URL:", supported);
         if (supported) {
           return Linking.openURL(phoneUrl);
+        } else {
+          // Try with tel: scheme for both platforms
+          const fallbackUrl = `tel:${cleanPhone}`;
+          console.log("Trying fallback URL:", fallbackUrl);
+          return Linking.openURL(fallbackUrl).catch((err) => {
+            console.error("Fallback URL also failed:", err);
+            Alert.alert("Lỗi", "Không thể mở ứng dụng gọi điện. Vui lòng kiểm tra số điện thoại.");
+          });
         }
-        Alert.alert("Lỗi", "Không thể mở ứng dụng gọi điện");
       })
-      .catch((err) => console.error("Error opening phone:", err));
+      .catch((err) => {
+        console.error("Error opening phone:", err);
+        Alert.alert("Lỗi", `Không thể mở ứng dụng gọi điện. Lỗi: ${err.message || "Không xác định"}`);
+      });
   }, []);
 
   // Format date
@@ -305,13 +375,28 @@ export default function BookingScreen() {
     }
   };
 
+  // Handle card press to view details
+  const handleCardPress = useCallback((item: BookingItem) => {
+    console.log('Navigating to appointment detail with ID:', item.careServiceId);
+    
+    // Use React Navigation since CaregiverSidebar uses Drawer Navigator
+    (navigation.navigate as any)("Appointment Detail", {
+      appointmentId: item.careServiceId,
+      fromScreen: "booking",
+    });
+  }, [navigation]);
+
   // Render booking item
   const renderBookingItem = ({ item }: { item: BookingItem }) => {
     const isProcessing = processingIds.has(item.careServiceId);
     const isNew = item.status === "PENDING_CAREGIVER";
 
     return (
-      <View style={styles.bookingCard}>
+      <TouchableOpacity
+        style={styles.bookingCard}
+        onPress={() => handleCardPress(item)}
+        activeOpacity={0.7}
+      >
         {/* Booking Code at top */}
         <Text style={styles.bookingCodeTop}>Mã: {item.bookingCode}</Text>
 
@@ -361,11 +446,23 @@ export default function BookingScreen() {
 
         {/* Action Buttons - Map and Phone */}
         <View style={styles.actionButtonsRow}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleShowMap(item.location)}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleShowMap(item.location);
+            }}
+          >
             <Ionicons name="location" size={18} color="#3B82F6" />
             <Text style={styles.actionButtonText}>Xem bản đồ</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} onPress={() => handleCallPhone(item.careSeekerPhone)}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleCallPhone(item.careSeekerPhone);
+            }}
+          >
             <Ionicons name="call" size={18} color="#10B981" />
             <Text style={styles.actionButtonText}>Gọi điện</Text>
           </TouchableOpacity>
@@ -388,7 +485,10 @@ export default function BookingScreen() {
           <View style={styles.actionsContainer}>
             <TouchableOpacity
               style={[styles.button, styles.declineButton]}
-              onPress={() => handleDecline(item)}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDecline(item);
+              }}
               disabled={isProcessing}
             >
               {isProcessing ? (
@@ -399,7 +499,10 @@ export default function BookingScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.acceptButton]}
-              onPress={() => handleAccept(item)}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleAccept(item);
+              }}
               disabled={isProcessing}
             >
               {isProcessing ? (
@@ -410,7 +513,7 @@ export default function BookingScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -459,41 +562,112 @@ export default function BookingScreen() {
         />
       )}
 
-      {/* Map Modal */}
-      <Modal visible={showMapModal} animationType="slide" onRequestClose={() => setShowMapModal(false)}>
-        <View style={styles.mapModalContainer}>
-          <View style={styles.mapHeader}>
-            <Text style={styles.mapHeaderTitle}>Vị trí chăm sóc</Text>
-            <TouchableOpacity onPress={() => setShowMapModal(false)} style={styles.mapCloseButton}>
-              <Ionicons name="close" size={24} color="#1F2937" />
+      {/* Accept Confirmation Modal */}
+      <Modal
+        visible={showAcceptModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAcceptModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmModalContent}>
+            <View style={styles.confirmIconContainer}>
+              <View style={styles.confirmIconCircle}>
+                <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+              </View>
+            </View>
+            <Text style={styles.confirmModalTitle}>Xác nhận chấp nhận</Text>
+            <Text style={styles.confirmModalMessage}>
+              Bạn có chắc chắn muốn chấp nhận yêu cầu chăm sóc{" "}
+              <Text style={styles.confirmModalHighlight}>{selectedBooking?.elderlyName}</Text>?
+            </Text>
+            <View style={styles.confirmModalInfo}>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+                <Text style={styles.confirmInfoText}>
+                  {selectedBooking && formatDate(selectedBooking.workDate)} • {selectedBooking?.startTime} - {selectedBooking?.endTime}
+                </Text>
+              </View>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="cube-outline" size={16} color="#6B7280" />
+                <Text style={styles.confirmInfoText}>{selectedBooking?.packageName}</Text>
+              </View>
+              <View style={styles.confirmInfoRow}>
+                <Ionicons name="cash-outline" size={16} color="#6B7280" />
+                <Text style={styles.confirmInfoText}>
+                  Bạn sẽ nhận: <Text style={styles.confirmEarningText}>{selectedBooking && formatPrice(selectedBooking.caregiverEarnings)}</Text>
+                </Text>
+              </View>
+            </View>
+            <View style={styles.confirmModalButtons}>
+              <TouchableOpacity
+                style={styles.confirmCancelButton}
+                onPress={() => setShowAcceptModal(false)}
+              >
+                <Text style={styles.confirmCancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmAcceptButton}
+                onPress={confirmAccept}
+              >
+                <Text style={styles.confirmAcceptButtonText}>Chấp nhận</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModalContent}>
+            <View style={styles.successIconContainer}>
+              <View style={styles.successIconCircle}>
+                <Ionicons name="checkmark-circle" size={64} color="#10B981" />
+              </View>
+            </View>
+            <Text style={styles.successModalTitle}>Thành công!</Text>
+            <Text style={styles.successModalMessage}>
+              Bạn đã chấp nhận yêu cầu chăm sóc thành công.
+            </Text>
+            <TouchableOpacity
+              style={styles.successModalButton}
+              onPress={() => setShowSuccessModal(false)}
+            >
+              <Text style={styles.successModalButtonText}>Đóng</Text>
             </TouchableOpacity>
           </View>
-          {selectedLocation && (
-            <>
-              <MapView
-                provider={PROVIDER_GOOGLE}
-                style={styles.map}
-                initialRegion={{
-                  latitude: selectedLocation.latitude,
-                  longitude: selectedLocation.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-              >
-                <Marker
-                  coordinate={{
-                    latitude: selectedLocation.latitude,
-                    longitude: selectedLocation.longitude,
-                  }}
-                  title="Vị trí chăm sóc"
-                  description={selectedLocation.address}
-                />
-              </MapView>
-              <View style={styles.mapAddressContainer}>
-                <Text style={styles.mapAddress}>{selectedLocation.address}</Text>
+        </View>
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        visible={showErrorModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowErrorModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.errorModalContent}>
+            <View style={styles.errorIconContainer}>
+              <View style={styles.errorIconCircle}>
+                <Ionicons name="close-circle" size={64} color="#EF4444" />
               </View>
-            </>
-          )}
+            </View>
+            <Text style={styles.errorModalTitle}>Lỗi</Text>
+            <Text style={styles.errorModalMessage}>{errorMessage}</Text>
+            <TouchableOpacity
+              style={styles.errorModalButton}
+              onPress={() => setShowErrorModal(false)}
+            >
+              <Text style={styles.errorModalButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -710,48 +884,203 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  mapModalContainer: {
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  mapHeader: {
-    flexDirection: "row",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 45,
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    padding: 20,
   },
-  mapHeaderTitle: {
-    fontSize: 18,
+  confirmModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  confirmIconContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  confirmIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#D1FAE5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmModalTitle: {
+    fontSize: 22,
     fontWeight: "700",
     color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 12,
   },
-  mapCloseButton: {
-    padding: 4,
+  confirmModalMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 20,
   },
-  map: {
+  confirmModalHighlight: {
+    fontWeight: "700",
+    color: "#10B981",
+  },
+  confirmModalInfo: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    gap: 12,
+  },
+  confirmInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  confirmInfoText: {
+    fontSize: 14,
+    color: "#4B5563",
     flex: 1,
   },
-  mapAddressContainer: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+  confirmEarningText: {
+    fontWeight: "700",
+    color: "#10B981",
   },
-  mapAddress: {
-    fontSize: 14,
+  confirmModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  confirmCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  confirmCancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  confirmAcceptButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+  },
+  confirmAcceptButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  successModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 32,
+    width: "100%",
+    maxWidth: 350,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  successIconContainer: {
+    marginBottom: 20,
+  },
+  successIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#D1FAE5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successModalTitle: {
+    fontSize: 24,
+    fontWeight: "700",
     color: "#1F2937",
+    marginBottom: 12,
+  },
+  successModalMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  successModalButton: {
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+  },
+  successModalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  errorModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 32,
+    width: "100%",
+    maxWidth: 350,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  errorIconContainer: {
+    marginBottom: 20,
+  },
+  errorIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorModalTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  errorModalMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  errorModalButton: {
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+  },
+  errorModalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

@@ -19,7 +19,7 @@ import {
     renderMedicalTab,
     renderNeedsTab,
     renderPreferencesTab
-} from './elderly-profile-tabs';
+} from './_elderly-profile-tabs';
 
 
 export default function ElderlyDetailScreen() {

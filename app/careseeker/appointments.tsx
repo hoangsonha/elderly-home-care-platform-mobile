@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   StyleSheet,
@@ -68,6 +71,8 @@ export default function AppointmentsScreen() {
             package_type: service.servicePackage.packageName,
             status: service.status,
             work_location: locationObj.address,
+            latitude: locationObj.latitude,
+            longitude: locationObj.longitude,
             total_amount: service.totalPrice,
             caregiver: {
               id: service.caregiverProfile.caregiverProfileId,
@@ -244,6 +249,30 @@ export default function AppointmentsScreen() {
     }
   };
 
+  const handleViewMap = (item: any, event: any) => {
+    event.stopPropagation(); // Prevent triggering the card press
+    
+    if (!item.latitude || !item.longitude || item.latitude === 0 || item.longitude === 0) {
+      Alert.alert('Thông báo', 'Chưa có tọa độ địa điểm');
+      return;
+    }
+
+    const lat = item.latitude;
+    const lng = item.longitude;
+    
+    const url = Platform.select({
+      ios: `maps://maps.apple.com/?q=${lat},${lng}`,
+      android: `geo:${lat},${lng}?q=${lat},${lng}`,
+    });
+
+    const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+    Linking.openURL(url || webUrl).catch((err) => {
+      console.error('Error opening maps:', err);
+      Alert.alert('Lỗi', 'Không thể mở bản đồ');
+    });
+  };
+
   const renderAppointment = ({ item }: { item: any }) => {
     // Get real-time status from global store
     const globalStatus = getAppointmentStatus(item.id);
@@ -304,7 +333,18 @@ export default function AppointmentsScreen() {
           </View>
           <View style={styles.detailItem}>
             <Ionicons name="location" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText} numberOfLines={1}>{item.work_location || 'N/A'}</ThemedText>
+            {item.latitude && item.longitude && item.latitude !== 0 && item.longitude !== 0 ? (
+              <TouchableOpacity
+                style={styles.mapButton}
+                onPress={(e) => handleViewMap(item, e)}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={styles.mapButtonText}>Xem bản đồ</ThemedText>
+                <Ionicons name="map-outline" size={16} color="#68C2E8" />
+              </TouchableOpacity>
+            ) : (
+              <ThemedText style={styles.detailText}>Chưa có địa điểm</ThemedText>
+            )}
           </View>
         </View>
 
@@ -590,6 +630,22 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 14,
     color: '#6B7280',
+    flex: 1,
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#E0F2FE',
+    borderRadius: 8,
+    flex: 1,
+  },
+  mapButtonText: {
+    fontSize: 14,
+    color: '#68C2E8',
+    fontWeight: '600',
     flex: 1,
   },
   footer: {

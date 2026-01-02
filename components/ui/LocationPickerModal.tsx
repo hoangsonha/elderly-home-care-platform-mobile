@@ -1,32 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Camera, MapView, PointAnnotation, setAccessToken, StyleURL } from '@rnmapbox/maps';
 import * as Location from 'expo-location';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 
-// Try to import react-native-maps if available (for development build)
-let MapView: any = null;
-let Marker: any = null;
-try {
-  const maps = require('react-native-maps');
-  MapView = maps.default || maps.MapView;
-  Marker = maps.Marker || maps.default?.Marker;
-} catch (e) {
-  // react-native-maps not installed, will use fallback
-  console.log('react-native-maps not available, using fallback');
-}
+// Mapbox access token - get from environment variable or use default
+const MAPBOX_ACCESS_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || 'pk.eyJ1IjoiaGFocyIsImEiOiJjbWU2aTNmNXYxNm10MmlzY29zYTlldm93In0.h6GD-qsgCvBU0m36Z5-fWw';
 
 interface LocationPickerModalProps {
   visible: boolean;
@@ -43,12 +33,34 @@ export function LocationPickerModal({
 }: LocationPickerModalProps) {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [manualLat, setManualLat] = useState('');
-  const [manualLng, setManualLng] = useState('');
   const [loading, setLoading] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [hasMapSupport, setHasMapSupport] = useState(true); // Start with true, will be set to false if error
+  const [zoomLevel, setZoomLevel] = useState(15);
+  const insets = useSafeAreaInsets();
 
-  const hasMapSupport = MapView !== null;
+  // Set Mapbox access token when component mounts
+  useEffect(() => {
+    const setupMapbox = async () => {
+      try {
+        // Try to set access token
+        if (MAPBOX_ACCESS_TOKEN) {
+          await setAccessToken(MAPBOX_ACCESS_TOKEN);
+          console.log('✅ Mapbox token set');
+          setHasMapSupport(true);
+        } else {
+          console.warn('⚠️ Mapbox access token not found');
+          setHasMapSupport(false);
+        }
+      } catch (error) {
+        console.warn('❌ Mapbox setup error:', error);
+        // Don't disable - native module might not be ready yet but will work after rebuild
+        // setHasMapSupport(false);
+      }
+    };
+    
+    setupMapbox();
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -57,11 +69,11 @@ export function LocationPickerModal({
           lat: initialLocation.latitude,
           lng: initialLocation.longitude,
         });
-        setManualLat(initialLocation.latitude.toString());
-        setManualLng(initialLocation.longitude.toString());
+      } else {
+        getCurrentLocation();
       }
-      getCurrentLocation();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, initialLocation]);
 
   const getCurrentLocation = async () => {
@@ -82,8 +94,6 @@ export function LocationPickerModal({
       setCurrentLocation({ lat, lng });
       if (!initialLocation) {
         setSelectedLocation({ lat, lng });
-        setManualLat(lat.toString());
-        setManualLng(lng.toString());
       }
     } catch (error) {
       console.error('Error getting location:', error);
@@ -94,67 +104,20 @@ export function LocationPickerModal({
   };
 
   const handleMapPress = (event: any) => {
-    const { latitude, longitude } = event.nativeEvent.coordinate;
-    setSelectedLocation({ lat: latitude, lng: longitude });
-    setManualLat(latitude.toString());
-    setManualLng(longitude.toString());
-  };
-
-  const handleMarkerDragEnd = (event: any) => {
-    const { latitude, longitude } = event.nativeEvent.coordinate;
-    setSelectedLocation({ lat: latitude, lng: longitude });
-    setManualLat(latitude.toString());
-    setManualLng(longitude.toString());
-  };
-
-  const handleUseCurrentLocation = () => {
-    if (currentLocation) {
-      setSelectedLocation(currentLocation);
-      setManualLat(currentLocation.lat.toString());
-      setManualLng(currentLocation.lng.toString());
+    const { geometry } = event;
+    if (geometry && geometry.coordinates) {
+      const [longitude, latitude] = geometry.coordinates;
+      setSelectedLocation({ lat: latitude, lng: longitude });
     }
   };
 
-  const handleOpenMaps = () => {
-    const lat = parseFloat(manualLat) || selectedLocation?.lat || 10.762622;
-    const lng = parseFloat(manualLng) || selectedLocation?.lng || 106.660172;
-    
-    const url = Platform.select({
-      ios: `maps://maps.apple.com/?q=${lat},${lng}`,
-      android: `geo:${lat},${lng}?q=${lat},${lng}`,
-    });
 
-    const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-
-    Linking.openURL(url || webUrl).catch((err) => {
-      console.error('Error opening maps:', err);
-      Alert.alert('Lỗi', 'Không thể mở bản đồ');
-    });
-  };
-
-  const handleManualInput = () => {
-    const lat = parseFloat(manualLat);
-    const lng = parseFloat(manualLng);
-    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-      setSelectedLocation({ lat, lng });
-    } else {
-      Alert.alert('Lỗi', 'Vui lòng nhập tọa độ hợp lệ (Lat: -90 đến 90, Lng: -180 đến 180)');
-    }
-  };
 
   const handleConfirm = () => {
     if (selectedLocation) {
       onSelectLocation(selectedLocation.lat, selectedLocation.lng, undefined);
-    } else if (manualLat && manualLng) {
-      const lat = parseFloat(manualLat);
-      const lng = parseFloat(manualLng);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        onSelectLocation(lat, lng, undefined);
-      } else {
-        Alert.alert('Lỗi', 'Vui lòng nhập tọa độ hợp lệ');
-      }
     } else {
-      Alert.alert('Lỗi', 'Vui lòng chọn vị trí hoặc nhập tọa độ');
+      Alert.alert('Lỗi', 'Vui lòng chọn vị trí trên bản đồ');
     }
   };
 
@@ -188,64 +151,90 @@ export function LocationPickerModal({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
           >
-            {/* Map View (if react-native-maps is available) */}
-            {hasMapSupport ? (
+            {/* Map View (using Mapbox) */}
+            {MAPBOX_ACCESS_TOKEN ? (
               <View style={styles.mapContainer}>
-                <MapView
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: mapRegion.lat,
-                    longitude: mapRegion.lng,
-                    latitudeDelta: 0.0922,
-                    longitudeDelta: 0.0421,
-                  }}
-                  region={{
-                    latitude: mapRegion.lat,
-                    longitude: mapRegion.lng,
-                    latitudeDelta: 0.0922,
-                    longitudeDelta: 0.0421,
-                  }}
-                  onPress={handleMapPress}
-                  onMapReady={() => {
-                    setMapReady(true);
-                  }}
-                  mapType="standard"
-                >
-                  {selectedLocation && mapReady && (
-                    <Marker
-                      coordinate={{
-                        latitude: selectedLocation.lat,
-                        longitude: selectedLocation.lng,
+                {hasMapSupport ? (
+                  <MapView
+                    style={styles.map}
+                    styleURL={StyleURL.Street}
+                    onPress={handleMapPress}
+                    onDidFinishLoadingMap={() => {
+                      setMapReady(true);
+                    }}
+                    zoomEnabled={true}
+                    scrollEnabled={true}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                  >
+                    <Camera
+                      defaultSettings={{
+                        centerCoordinate: [mapRegion.lng, mapRegion.lat],
+                        zoomLevel: zoomLevel,
                       }}
-                      draggable
-                      onDragEnd={handleMarkerDragEnd}
-                      title="Vị trí đã chọn"
-                      pinColor="#68C2E8"
+                      centerCoordinate={selectedLocation ? [selectedLocation.lng, selectedLocation.lat] : [mapRegion.lng, mapRegion.lat]}
+                      zoomLevel={zoomLevel}
+                      animationMode="flyTo"
+                      animationDuration={300}
                     />
-                  )}
-                </MapView>
+                    {selectedLocation && mapReady && (
+                      <PointAnnotation
+                        id="selectedLocation"
+                        coordinate={[selectedLocation.lng, selectedLocation.lat]}
+                        draggable
+                      onDragEnd={(feature) => {
+                        const [longitude, latitude] = feature.geometry.coordinates;
+                        setSelectedLocation({ lat: latitude, lng: longitude });
+                      }}
+                      >
+                        <View style={styles.markerContainer}>
+                          <View style={styles.markerPin} />
+                        </View>
+                      </PointAnnotation>
+                    )}
+                  </MapView>
+                ) : (
+                  <View style={styles.map}>
+                    <ActivityIndicator size="large" color="#68C2E8" style={{ marginTop: 180 }} />
+                    <ThemedText style={{ textAlign: 'center', marginTop: 16, color: '#7F8C8D' }}>
+                      Đang tải bản đồ...
+                    </ThemedText>
+                  </View>
+                )}
                 <View style={styles.mapOverlay}>
                   <ThemedText style={styles.mapHint}>
                     Chạm vào bản đồ hoặc kéo marker để chọn vị trí
                   </ThemedText>
+                </View>
+                {/* Zoom Controls */}
+                <View style={styles.zoomControls}>
+                  <TouchableOpacity
+                    style={styles.zoomButton}
+                    onPress={() => {
+                      setZoomLevel(Math.min(zoomLevel + 1, 20));
+                    }}
+                  >
+                    <Ionicons name="add" size={20} color="#2C3E50" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.zoomButton}
+                    onPress={() => {
+                      setZoomLevel(Math.max(zoomLevel - 1, 5));
+                    }}
+                  >
+                    <Ionicons name="remove" size={20} color="#2C3E50" />
+                  </TouchableOpacity>
                 </View>
               </View>
             ) : (
               <View style={styles.noMapContainer}>
                 <Ionicons name="map-outline" size={64} color="#BDC3C7" />
                 <ThemedText style={styles.noMapText}>
-                  Để sử dụng bản đồ tương tác, vui lòng cài đặt react-native-maps
+                  Để sử dụng bản đồ tương tác, vui lòng cấu hình Mapbox Access Token
                 </ThemedText>
                 <ThemedText style={styles.noMapSubtext}>
-                  npm install react-native-maps
+                  setAccessToken(&apos;YOUR_TOKEN&apos;)
                 </ThemedText>
-                <TouchableOpacity
-                  style={styles.openMapsButton}
-                  onPress={handleOpenMaps}
-                >
-                  <Ionicons name="open-outline" size={20} color="#68C2E8" />
-                  <ThemedText style={styles.openMapsText}>Mở bản đồ bên ngoài</ThemedText>
-                </TouchableOpacity>
               </View>
             )}
 
@@ -266,60 +255,18 @@ export function LocationPickerModal({
                 </ThemedText>
               </TouchableOpacity>
 
-              {currentLocation && (
-                <TouchableOpacity
-                  style={styles.useLocationButton}
-                  onPress={handleUseCurrentLocation}
-                >
-                  <Ionicons name="checkmark-circle" size={18} color="#27AE60" />
-                  <ThemedText style={styles.useLocationText}>
-                    Dùng vị trí: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
-                  </ThemedText>
-                </TouchableOpacity>
-              )}
-
-              {/* Manual Input */}
-              <View style={styles.inputContainer}>
-                <ThemedText style={styles.inputTitle}>Hoặc nhập tọa độ thủ công</ThemedText>
-                <View style={styles.inputRow}>
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Vĩ độ (Latitude)</ThemedText>
-                    <TextInput
-                      style={styles.textInput}
-                      value={manualLat}
-                      onChangeText={setManualLat}
-                      placeholder="Ví dụ: 10.762622"
-                      keyboardType="numeric"
-                      placeholderTextColor="#999"
-                    />
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Kinh độ (Longitude)</ThemedText>
-                    <TextInput
-                      style={styles.textInput}
-                      value={manualLng}
-                      onChangeText={setManualLng}
-                      placeholder="Ví dụ: 106.660172"
-                      keyboardType="numeric"
-                      placeholderTextColor="#999"
-                    />
-                  </View>
-                </View>
-                <TouchableOpacity
-                  style={styles.applyButton}
-                  onPress={handleManualInput}
-                >
-                  <ThemedText style={styles.applyButtonText}>Áp dụng tọa độ</ThemedText>
-                </TouchableOpacity>
-              </View>
-
               {/* Selected Location Info */}
               {selectedLocation && (
                 <View style={styles.selectedLocationContainer}>
                   <Ionicons name="checkmark-circle" size={20} color="#27AE60" />
-                  <ThemedText style={styles.selectedLocationText}>
-                    Đã chọn: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
-                  </ThemedText>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.selectedLocationText}>
+                      Vị trí đã chọn:
+                    </ThemedText>
+                    <ThemedText style={styles.selectedLocationCoordinates}>
+                      {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+                    </ThemedText>
+                  </View>
                 </View>
               )}
             </View>
@@ -327,7 +274,7 @@ export function LocationPickerModal({
         )}
 
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={onClose}
@@ -335,9 +282,9 @@ export function LocationPickerModal({
             <ThemedText style={styles.cancelButtonText}>Hủy</ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.confirmButton, !selectedLocation && !manualLat && styles.confirmButtonDisabled]}
+            style={[styles.confirmButton, !selectedLocation && styles.confirmButtonDisabled]}
             onPress={handleConfirm}
-            disabled={!selectedLocation && !manualLat}
+            disabled={!selectedLocation}
           >
             <ThemedText style={styles.confirmButtonText}>Xác nhận</ThemedText>
           </TouchableOpacity>
@@ -415,6 +362,26 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     fontWeight: '500',
   },
+  zoomControls: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    flexDirection: 'column',
+    gap: 8,
+  },
+  zoomButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
   noMapContainer: {
     height: 300,
     justifyContent: 'center',
@@ -458,84 +425,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#68C2E8',
   },
-  useLocationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: '#F0FDFA',
-    borderRadius: 8,
-    gap: 8,
-    marginBottom: 20,
-  },
-  useLocationText: {
-    fontSize: 14,
-    color: '#27AE60',
-    fontWeight: '500',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2C3E50',
-    marginBottom: 12,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  inputGroup: {
-    flex: 1,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#7F8C8D',
-    marginBottom: 6,
-  },
-  textInput: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#E8EBED',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: '#2C3E50',
-    backgroundColor: '#F8F9FA',
-  },
-  applyButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: '#68C2E8',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  openMapsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E8EBED',
-    gap: 8,
-    marginTop: 12,
-  },
-  openMapsText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#68C2E8',
-  },
   selectedLocationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -546,16 +435,42 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   selectedLocationText: {
+    fontSize: 12,
+    color: '#7F8C8D',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  selectedLocationCoordinates: {
     fontSize: 14,
     color: '#27AE60',
-    fontWeight: '500',
+    fontWeight: '600',
+    fontFamily: 'monospace',
   },
   footer: {
     flexDirection: 'row',
     padding: 20,
+    paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#E8EBED',
     gap: 12,
+    backgroundColor: '#fff',
+  },
+  markerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markerPin: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#68C2E8',
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   cancelButton: {
     flex: 1,

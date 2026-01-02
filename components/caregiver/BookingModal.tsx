@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ElderlyProfileSelector } from '@/components/elderly/ElderlyProfileSelector';
 import { ThemedText } from '@/components/themed-text';
@@ -63,6 +64,7 @@ type BookingType = 'immediate' | 'schedule';
 
 export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: initialProfiles, immediateOnly = false }: BookingModalProps) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [elderlyProfiles, setElderlyProfiles] = useState(initialProfiles);
   const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
   const [bookingType] = useState<BookingType>('immediate'); // Always immediate
@@ -1043,7 +1045,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         </ScrollView>
 
         {/* Navigation */}
-        <View style={styles.navigation}>
+        <View style={[styles.navigation, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {currentStep > 1 && (
             <TouchableOpacity style={styles.previousButton} onPress={() => setCurrentStep(prev => prev - 1)}>
               <Ionicons name="chevron-back" size={20} color="#68C2E8" />

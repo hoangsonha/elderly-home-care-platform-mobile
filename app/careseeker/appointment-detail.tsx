@@ -1,5 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -532,6 +534,29 @@ export default function AppointmentDetailScreen() {
     router.push("/careseeker/video-call");
   };
 
+  // Handle view map
+  const handleViewMap = () => {
+    if (!locationObj.latitude || !locationObj.longitude || locationObj.latitude === 0 || locationObj.longitude === 0) {
+      Alert.alert('Thông báo', 'Chưa có tọa độ địa điểm');
+      return;
+    }
+
+    const lat = locationObj.latitude;
+    const lng = locationObj.longitude;
+    
+    const url = Platform.select({
+      ios: `maps://maps.apple.com/?q=${lat},${lng}`,
+      android: `geo:${lat},${lng}?q=${lat},${lng}`,
+    });
+
+    const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+    Linking.openURL(url || webUrl).catch((err) => {
+      console.error('Error opening maps:', err);
+      Alert.alert('Lỗi', 'Không thể mở bản đồ');
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -619,7 +644,18 @@ export default function AppointmentDetailScreen() {
               <Ionicons name="location-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Vị trí làm việc</Text>
-                <Text style={styles.infoValue}>{locationObj.address}</Text>
+                {locationObj.latitude && locationObj.longitude && locationObj.latitude !== 0 && locationObj.longitude !== 0 ? (
+                  <TouchableOpacity
+                    style={styles.mapButton}
+                    onPress={handleViewMap}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.mapButtonText}>Xem bản đồ</Text>
+                    <Ionicons name="map-outline" size={16} color="#68C2E8" />
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.infoValue}>Chưa có địa điểm</Text>
+                )}
               </View>
             </View>
           </View>
@@ -1479,6 +1515,22 @@ const styles = StyleSheet.create({
   amountText: {
     color: "#68C2E8",
     fontSize: 16,
+  },
+  mapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: "#E0F2FE",
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
+  mapButtonText: {
+    fontSize: 14,
+    color: "#68C2E8",
+    fontWeight: "600",
   },
   paymentStatusBadge: {
     backgroundColor: "#D1FAE5",

@@ -1,5 +1,6 @@
 // Learn more https://docs.expo.dev/guides/customizing-metro
 const { getDefaultConfig } = require('expo/metro-config');
+const path = require('path');
 
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
@@ -15,6 +16,11 @@ config.resolver.blockList.push(
   /.*\/node_modules\/.*\/build\/.*/,
   /.*\/node_modules\/.*\/\.gradle\/.*/,
 );
+
+// Configure path alias for @/*
+config.resolver.alias = {
+  '@': path.resolve(__dirname),
+};
 
 module.exports = config;
 

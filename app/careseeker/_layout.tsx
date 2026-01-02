@@ -28,7 +28,6 @@ export default function CareSeekerLayout() {
       <Stack.Screen name="alert-detail" options={{ headerShown: false }} />
       <Stack.Screen name="family-list" options={{ headerShown: false }} />
       <Stack.Screen name="family-detail" options={{ headerShown: false }} />
-      <Stack.Screen name="elderly-profile-tabs" options={{ headerShown: false }} />
       <Stack.Screen name="system-info" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ headerShown: false }} />
       <Stack.Screen name="emergency-contacts" options={{ headerShown: false }} />

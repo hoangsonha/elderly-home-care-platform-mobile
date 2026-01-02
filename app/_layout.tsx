@@ -15,15 +15,16 @@ import "react-native-reanimated";
 // Ẩn tất cả các warning trên màn hình
 LogBox.ignoreAllLogs(true);
 
-// Hoặc nếu muốn chỉ ẩn một số warning cụ thể, dùng:
-// LogBox.ignoreLogs([
-//   'Warning: ...',
-//   'Require cycle:',
-//   'Non-serializable values were found in the navigation state',
-// ]);
+// Ignore keep awake errors - expo-router tự động activate trong dev mode
+LogBox.ignoreLogs([
+  'Unable to activate keep awake',
+  'Error: Unable to activate keep awake',
+  'Uncaught (in promise',
+  'Cannot read property',
+]);
 
 export const unstable_settings = {
-  anchor: "splash",
+  anchor: "login",
 };
 
 function RootNavigator() {

@@ -8,9 +8,17 @@ import React from "react";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { user } = useAuth();
+  // Safely get user - handle case when AuthProvider is not yet mounted
+  let user = null;
+  try {
+    const auth = useAuth();
+    user = auth?.user || null;
+  } catch (error) {
+    // AuthProvider not mounted yet, user will be null
+    user = null;
+  }
 
-  if (user?.role === "Caregiver") {
+  if (user?.role === "Caregiver" || user?.role === "ROLE_CAREGIVER") {
     return null;
   }
 

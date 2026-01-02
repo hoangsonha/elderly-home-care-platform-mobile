@@ -84,11 +84,6 @@ export default function LoginScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* Back Button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color={colors.text} />
-      </TouchableOpacity>
-
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.text }]}>Đăng Nhập</Text>
         <Text style={[styles.subtitle, { color: colors.text }]}>
@@ -146,6 +141,17 @@ export default function LoginScreen() {
             Quên mật khẩu?
           </Text>
         </TouchableOpacity>
+
+        <View style={styles.registerContainer}>
+          <Text style={[styles.registerText, { color: colors.text }]}>
+            Chưa có tài khoản?{" "}
+          </Text>
+          <TouchableOpacity onPress={() => router.push("/register")}>
+            <Text style={[styles.registerLink, { color: colors.tint }]}>
+              Đăng ký ngay
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -154,13 +160,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  backButton: {
-    position: "absolute",
-    top: 50,
-    left: 20,
-    zIndex: 1,
-    padding: 10,
   },
   content: {
     flex: 1,
@@ -207,5 +206,19 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: 14,
+  },
+  registerContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 32,
+  },
+  registerText: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  registerLink: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
