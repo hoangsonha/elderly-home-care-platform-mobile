@@ -9,8 +9,18 @@ import {
 } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, Text, StyleSheet } from "react-native";
+import { View, ActivityIndicator, Text, StyleSheet, LogBox } from "react-native";
 import "react-native-reanimated";
+
+// Ẩn tất cả các warning trên màn hình
+LogBox.ignoreAllLogs(true);
+
+// Hoặc nếu muốn chỉ ẩn một số warning cụ thể, dùng:
+// LogBox.ignoreLogs([
+//   'Warning: ...',
+//   'Require cycle:',
+//   'Non-serializable values were found in the navigation state',
+// ]);
 
 export const unstable_settings = {
   anchor: "splash",

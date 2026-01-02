@@ -4,12 +4,15 @@ import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointme
 // TODO: Replace with API calls
 // import { useAppointments } from "@/hooks/useDatabaseEntities";
 // import * as ElderlyRepository from "@/services/elderly.repository";
+import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
+import { mainService, type MyCareServiceData } from "@/services/main.service";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,23 +27,34 @@ const CARD_WIDTH = (screenWidth - CARD_PADDING * 2 - CARD_GAP) / 2;
 
 // Map appointment status to dashboard status display
 const mapStatusToDashboard = (status: string | undefined) => {
-  switch (status) {
-    case "new":
+  if (!status) return { text: "Không xác định", color: "#9CA3AF" };
+  
+  // Convert to uppercase for consistent comparison
+  const upperStatus = status.toUpperCase().replace(/-/g, '_');
+  
+  switch (upperStatus) {
+    case "NEW":
+    case "PENDING_CAREGIVER":
       return { text: "Yêu cầu mới", color: "#3B82F6" };
-    case "pending":
+    case "PENDING":
+    case "CAREGIVER_APPROVED":
       return { text: "Chờ thực hiện", color: "#F59E0B" };
-    case "confirmed":
+    case "CONFIRMED":
       return { text: "Đã xác nhận", color: "#10B981" };
-    case "in-progress":
+    case "IN_PROGRESS":
+    case "IN-PROGRESS":
       return { text: "Đang thực hiện", color: "#8B5CF6" };
-    case "completed":
+    case "COMPLETED":
+    case "COMPLETED_WAITING_REVIEW":
       return { text: "Hoàn thành", color: "#6B7280" };
-    case "cancelled":
+    case "CANCELLED":
       return { text: "Đã hủy", color: "#EF4444" };
-    case "rejected":
+    case "REJECTED":
       return { text: "Đã từ chối", color: "#DC2626" };
+    case "EXPIRED":
+      return { text: "Đã hết hạn", color: "#9CA3AF" };
     default:
-      return { text: "Đang thực hiện", color: "#8B5CF6" };
+      return { text: "Không xác định", color: "#9CA3AF" };
   }
 };
 
@@ -76,24 +90,113 @@ const parseVietnameseDate = (dateStr: string): string | null => {
 export default function CaregiverDashboardScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  // TODO: Replace with API call
-  // const { appointments, loading, error, refresh } = useAppointments(user?.id || '', user?.role);
-  // Mock data tạm thời
-  const appointments: any[] = [
-    {
-      id: 'apt-1',
-      elderly_profile_id: 'elderly-1',
-      start_date: '2024-12-25',
-      start_time: '08:00',
-      package_type: 'Gói cơ bản',
-      status: 'pending',
-    },
-  ];
-  const loading = false;
-  const error = null;
-  const refresh = async () => {};
+  const bottomNavPadding = useBottomNavPadding();
+  
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const refresh = useCallback(async () => {
+    // Refresh will be called by fetchTodayAppointments
+  }, []);
   const [refreshKey, setRefreshKey] = useState(0);
   const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>({});
+  const [newRequestsCount, setNewRequestsCount] = useState(0);
+  const [loadingNewRequests, setLoadingNewRequests] = useState(true);
+  
+  // Mock notifications (unread count for badge)
+  const [notifications] = useState([
+    { id: '1', isRead: false },
+    { id: '2', isRead: false },
+    { id: '3', isRead: true },
+  ]);
+
+  // Fetch today's appointments from API
+  const fetchTodayAppointments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+      
+      const response = await mainService.getMyCareServices(todayStr);
+      
+      if (response.status === 'Success' && response.data) {
+        // Map API data to appointment format
+        const mappedAppointments = response.data.map((service: MyCareServiceData) => {
+          // Parse location
+          let locationObj = { address: '', latitude: 0, longitude: 0 };
+          try {
+            if (typeof service.location === 'string') {
+              locationObj = JSON.parse(service.location);
+            } else {
+              locationObj = service.location as any;
+            }
+          } catch (e) {
+            locationObj = {
+              address: service.elderlyProfile.location.address,
+              latitude: service.elderlyProfile.location.latitude,
+              longitude: service.elderlyProfile.location.longitude,
+            };
+          }
+
+          return {
+            id: service.careServiceId,
+            elderly_profile_id: service.elderlyProfile.elderlyProfileId,
+            start_date: service.workDate,
+            start_time: service.startTime,
+            package_type: service.servicePackage.packageName,
+            status: service.status,
+            caregiver_id: service.caregiverProfile.caregiverProfileId,
+            total_amount: service.totalPrice,
+            work_location: locationObj.address,
+            elderlyName: service.elderlyProfile.fullName,
+            bookingCode: service.bookingCode,
+          };
+        });
+        setAppointments(mappedAppointments);
+      } else {
+        setAppointments([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching today appointments:', error);
+      setError(error);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch new requests count from API
+  const fetchNewRequestsCount = useCallback(async () => {
+    try {
+      setLoadingNewRequests(true);
+      const response = await mainService.getMyCareServices(undefined, 'PENDING_CAREGIVER');
+      
+      if (response.status === 'Success' && response.data) {
+        setNewRequestsCount(response.data.length);
+      } else {
+        setNewRequestsCount(0);
+      }
+    } catch (error: any) {
+      console.error('Error fetching new requests:', error);
+      setNewRequestsCount(0);
+    } finally {
+      setLoadingNewRequests(false);
+    }
+  }, []);
+
+  // Fetch new requests when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchNewRequestsCount();
+      fetchTodayAppointments();
+    }, [fetchNewRequestsCount, fetchTodayAppointments])
+  );
 
   // Load elderly names for appointments
   useEffect(() => {
@@ -101,16 +204,8 @@ export default function CaregiverDashboardScreen() {
       const names: { [key: string]: string } = {};
       for (const apt of appointments) {
         if (apt.elderly_profile_id && !names[apt.elderly_profile_id]) {
-          try {
-            // Mock data tạm thời - TODO: Replace with API call
-            const mockElderlyNames: { [key: string]: string } = {
-              'elderly-1': 'Bà Nguyễn Thị Mai',
-              'elderly-2': 'Ông Trần Văn Nam',
-            };
-            names[apt.elderly_profile_id] = mockElderlyNames[apt.elderly_profile_id] || 'Người già';
-          } catch (err) {
-            console.error('Error loading elderly profile:', err);
-          }
+          // Use elderlyName from API response
+          names[apt.elderly_profile_id] = apt.elderlyName || 'Người già';
         }
       }
       setElderlyNames(names);
@@ -122,13 +217,7 @@ export default function CaregiverDashboardScreen() {
   }, [appointments]);
 
   // Refresh appointments when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      if (user?.id) {
-        refresh();
-      }
-    }, [user?.id, refresh])
-  );
+  // Already handled in fetchNewRequestsCount useFocusEffect above
 
   // Subscribe to status changes
   useEffect(() => {
@@ -138,63 +227,17 @@ export default function CaregiverDashboardScreen() {
     return () => unsubscribe();
   }, []);
 
-  // Get today's appointments (only confirmed or in-progress)
-  const today = new Date();
-  // Use local date, not UTC
-  const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  
-  console.log('DEBUG Dashboard:');
-  console.log('  Today date:', todayDateString);
-  console.log('  Total appointments:', appointments.length);
-  console.log('  User ID:', user?.id);
-  console.log('  User role:', user?.role);
-  
-  appointments.forEach((apt, index) => {
-    const globalStatus = getAppointmentStatus(apt.id);
-    const parsedDate = parseVietnameseDate(apt.start_date);
-    console.log(`  [${index}] ID: ${apt.id}`);
-    console.log(`      Date: ${apt.start_date}`);
-    console.log(`      Parsed Date: ${parsedDate}`);
-    console.log(`      DB Status: ${apt.status}`);
-    console.log(`      Global Status: ${globalStatus}`);
-    console.log(`      Match today: ${parsedDate === todayDateString}`);
-  });
-  
-  const todayAppointments = appointments.filter(apt => {
-    // Check global store status first
-    const globalStatus = getAppointmentStatus(apt.id);
-    const currentStatus = globalStatus || apt.status;
-    
-    // Parse Vietnamese date format to YYYY-MM-DD
-    const parsedDate = parseVietnameseDate(apt.start_date);
-    
-    // Check if appointment is for today
-    const isToday = parsedDate === todayDateString;
-    
-    // Check if appointment is accepted (confirmed, pending, or in-progress)
-    // 'pending' here means it's been confirmed/accepted and waiting to start
-    // 'new' means not yet accepted by caregiver
-    const isAccepted = currentStatus === 'confirmed' || currentStatus === 'in-progress' || currentStatus === 'pending';
-    
-    console.log(`  Filter result for ${apt.id}: isToday=${isToday}, isAccepted=${isAccepted}, currentStatus=${currentStatus}`);
-    
-    return isToday && isAccepted;
-  });
-  
-  console.log('  Final today appointments count:', todayAppointments.length);
-
-  // Count new requests (appointments with status 'new' or 'pending')
-  const newRequestsCount = appointments.filter(apt => {
-    const globalStatus = getAppointmentStatus(apt.id);
-    const currentStatus = globalStatus || apt.status;
-    return currentStatus === 'pending' || currentStatus === 'new';
-  }).length;
+  // Today's appointments already filtered by API (workDate = today)
+  // Just display all appointments from state
+  const todayAppointments = appointments;
 
   // Check profile status and navigate accordingly
+  // DISABLED: This was causing infinite re-renders
+  /*
   useFocusEffect(
     useCallback(() => {
       if (user && user.role === "Caregiver") {
-        console.log('Dashboard check - user.hasCompletedProfile:', user.hasCompletedProfile);
+        // console.log('Dashboard check - user.hasCompletedProfile:', user.hasCompletedProfile);
         // Small delay to ensure navigation is ready
         setTimeout(() => {
           // Check if profile has been submitted (exists in profileStore)
@@ -205,11 +248,11 @@ export default function CaregiverDashboardScreen() {
           // Check status from API (user.status) or profileStore
           const currentStatus = user.status || profileStatus.status;
           
-          console.log('Dashboard check - hasProfileInStore:', hasProfileInStore, 'currentStatus:', currentStatus);
+          // console.log('Dashboard check - hasProfileInStore:', hasProfileInStore, 'currentStatus:', currentStatus);
           
           // If no profile submitted yet and user hasn't completed profile, navigate to complete profile
           if (!hasProfileInStore && !user.hasCompletedProfile) {
-            console.log('Dashboard redirecting to complete-profile');
+            // console.log('Dashboard redirecting to complete-profile');
             navigation.navigate("Hoàn thiện hồ sơ", {
               email: user.email,
               fullName: user.name || "",
@@ -219,13 +262,13 @@ export default function CaregiverDashboardScreen() {
 
           // If profile is approved (from API or profileStore), stay on dashboard
           if (currentStatus === "approved") {
-            console.log('Profile approved, staying on dashboard');
+            // console.log('Profile approved, staying on dashboard');
             return; // Stay on dashboard
           }
 
           // If profile is pending or rejected, navigate to status screen
           if (currentStatus === "pending" || currentStatus === "rejected") {
-            console.log('Profile pending/rejected, navigating to status screen');
+            // console.log('Profile pending/rejected, navigating to status screen');
             navigation.navigate("Trạng thái hồ sơ");
             return;
           }
@@ -233,6 +276,7 @@ export default function CaregiverDashboardScreen() {
       }
     }, [user, navigation])
   );
+  */
 
   if (loading) {
     return (
@@ -264,46 +308,78 @@ export default function CaregiverDashboardScreen() {
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollContainer}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ 
+          paddingBottom: bottomNavPadding
+        }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.headerWrapper}>
-          <View style={styles.header}>
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.greeting}>Xin chào</Text>
-              <Text style={styles.userName}>{user?.name || 'Người dùng'}</Text>
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate("Cá nhân")}>
+                {user?.avatar ? (
+                  <Image source={{ uri: user.avatar }} style={styles.userAvatarImage} />
+                ) : (
+                  <View style={styles.userAvatar}>
+                    <Ionicons name="person" size={20} color="#FFFFFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+              <View style={styles.greetingContainer}>
+                <Text style={styles.greeting}>Xin chào!</Text>
+                <Text style={styles.userName}>{user?.name || user?.email?.split('@')[0] || 'Người dùng'}</Text>
+              </View>
             </View>
-            <View style={styles.headerIconsContainer}>
+            
+            {/* Chat & Notification buttons */}
+            <View style={styles.headerRight}>
               <TouchableOpacity 
-                style={styles.headerIcon}
+                style={styles.iconButton}
                 onPress={() => navigation.navigate("Danh sách tin nhắn")}
               >
-                <Ionicons name="chatbubble-outline" size={24} color="#fff" />
+                <Ionicons name="chatbubble-outline" size={24} color="#FFFFFF" />
               </TouchableOpacity>
+              
               <TouchableOpacity 
-                style={styles.headerIcon}
+                style={styles.iconButton}
                 onPress={() => {/* Navigate to notifications */}}
               >
-                <Ionicons name="notifications-outline" size={24} color="#fff" />
+                <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
+                {notifications.filter(n => !n.isRead).length > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {notifications.filter(n => !n.isRead).length}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
         
 
-        {/* New Requests Alert - Only show if there are new requests */}
-        {newRequestsCount > 0 && (
+        {/* New Requests Alert - Always show, even with 0 requests */}
+        {loadingNewRequests ? (
+          <View style={styles.alertCard}>
+            <ActivityIndicator size="small" color="#FF9800" />
+            <Text style={[styles.alertSubtitle, { marginLeft: 12 }]}>Đang tải yêu cầu mới...</Text>
+          </View>
+        ) : (
           <TouchableOpacity 
             style={styles.alertCard}
             onPress={() => navigation.navigate("Yêu cầu dịch vụ", { initialTab: "Mới" })}
           >
             <View style={styles.alertIconContainer}>
-              <Text style={styles.alertIcon}></Text>
+              <Text style={styles.alertIcon}>📋</Text>
             </View>
             <View style={styles.alertContent}>
-              <Text style={styles.alertTitle}>{newRequestsCount} yêu cầu mới</Text>
-              <Text style={styles.alertSubtitle}>Hãy phản hồi để nhận việc</Text>
+              <Text style={styles.alertTitle}>
+                {newRequestsCount} yêu cầu mới
+              </Text>
+              <Text style={styles.alertSubtitle}>
+                {newRequestsCount > 0 ? 'Hãy phản hồi để nhận việc' : 'Chưa có yêu cầu mới'}
+              </Text>
             </View>
             <Text style={styles.alertArrow}>›</Text>
           </TouchableOpacity>
@@ -494,41 +570,89 @@ const styles = StyleSheet.create({
   },
 
   // Header wrapper
-  headerWrapper: {
-    backgroundColor: "#7CBCFF",
-    paddingBottom: 20,
-  },
-
   // Header styles
   header: {
-    backgroundColor: "transparent",
-    padding: 20,
-    paddingTop: 50,
-    paddingBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+    backgroundColor: '#68C2E8',
+    paddingTop: 45,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  headerTextContainer: {
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 56,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#E74C3C',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#68C2E8',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  avatarButton: {
+    marginRight: 14,
+  },
+  userAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  userAvatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  greetingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   greeting: {
-    color: "#fff",
-    fontSize: 16,
-    marginBottom: 4,
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 3,
   },
   userName: {
-    color: "#fff",
-    fontSize: 28,
-    fontWeight: "700",
-  },
-  headerIconsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  headerIcon: {
-    padding: 4,
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   // Stats outer container

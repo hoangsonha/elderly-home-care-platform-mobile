@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SimpleNavBar } from "@/components/navigation/SimpleNavBar";
+import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 import { mainService, type MyCareServiceData } from "@/services/main.service";
 
 // Mock data
@@ -187,6 +188,7 @@ const appointmentsDataMap: { [key: string]: any } = {
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams();
+  const bottomNavPadding = useBottomNavPadding();
   const appointmentId = (id as string) || "";
   
   const [appointmentData, setAppointmentData] = useState<MyCareServiceData | null>(null);
@@ -541,7 +543,11 @@ export default function AppointmentDetailScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomNavPadding }}
+      >
         {/* Status Badge */}
         <View style={styles.statusContainer}>
           <View
@@ -1528,7 +1534,6 @@ const styles = StyleSheet.create({
   },
   actionsSection: {
     padding: 20,
-    paddingBottom: 120,
   },
   cancelButton: {
     flexDirection: "row",

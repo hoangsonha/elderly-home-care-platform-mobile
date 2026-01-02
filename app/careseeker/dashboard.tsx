@@ -3,15 +3,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    Alert,
+    Animated,
+    Dimensions,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import { EmergencyAlert } from '@/components/alerts/EmergencyAlert';
@@ -27,6 +27,8 @@ import { CustomModal } from '@/components/ui/CustomModal';
 import { NotificationPanel } from '@/components/ui/NotificationPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
+import { mainService, type MyCareServiceData } from '@/services/main.service';
 import { ElderlyProfileApiResponse, UserService } from '@/services/user.service';
 
 const { width } = Dimensions.get('window');
@@ -44,6 +46,7 @@ interface ServiceModule {
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
   const { emergencyAlertVisible, hideEmergencyAlert } = useNotification();
+  const bottomNavPadding = useBottomNavPadding();
   const [elderlyProfiles, setElderlyProfiles] = useState<any[]>([]);
   const [loadingElderlyProfiles, setLoadingElderlyProfiles] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -57,6 +60,8 @@ export default function DashboardScreen() {
   const [selectedCaregiver, setSelectedCaregiver] = useState<any>(null);
   const [recommendedCaregivers, setRecommendedCaregivers] = useState<any[]>([]);
   const [loadingCaregivers, setLoadingCaregivers] = useState(true);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(true);
   
   // Map API response to component format
   const mapElderlyProfile = (apiProfile: ElderlyProfileApiResponse) => {
@@ -123,6 +128,80 @@ export default function DashboardScreen() {
     fetchCaregivers();
   }, []);
   
+  // Fetch today's appointments from API
+  const fetchTodayAppointments = useCallback(async () => {
+    try {
+      setLoadingAppointments(true);
+      
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${year}-${month}-${day}`;
+      
+      console.log('Fetching appointments for today:', todayStr);
+      const response = await mainService.getMyCareServices(todayStr);
+      
+      if (response.status === 'Success' && response.data) {
+        // Map API data to appointment format
+        const mappedAppointments = response.data.map((service: MyCareServiceData) => {
+          // Parse location if it's a JSON string
+          let locationObj = { address: '', latitude: 0, longitude: 0 };
+          try {
+            if (typeof service.location === 'string') {
+              locationObj = JSON.parse(service.location);
+            } else {
+              locationObj = service.location as any;
+            }
+          } catch (e) {
+            locationObj = {
+              address: service.elderlyProfile.location.address,
+              latitude: service.elderlyProfile.location.latitude,
+              longitude: service.elderlyProfile.location.longitude,
+            };
+          }
+
+          return {
+            id: service.careServiceId,
+            caregiverName: service.caregiverProfile.fullName,
+            caregiverAvatar: service.caregiverProfile.avatarUrl || service.caregiverProfile.fullName.charAt(0),
+            timeSlot: `${service.startTime.split(':').slice(0, 2).join(':')} - ${service.endTime.split(':').slice(0, 2).join(':')}`,
+            status: service.status, // Giữ nguyên format từ API (CAREGIVER_APPROVED, IN_PROGRESS, etc.)
+            address: locationObj.address,
+            elderlyName: service.elderlyProfile.fullName, // Tên người già
+            elderlyGender: service.elderlyProfile.gender, // Gender người già (MALE, FEMALE)
+            rating: 0, // Mặc định 0 nếu chưa có rating
+            isVerified: service.caregiverProfile.isVerified || false,
+            tasks: [], // TODO: Map tasks if available
+            caregiver_id: service.caregiverProfile.caregiverProfileId,
+            elderly_profile_id: service.elderlyProfile.elderlyProfileId,
+            package_type: service.servicePackage.packageName,
+            work_location: locationObj.address,
+            total_amount: service.totalPrice,
+            bookingCode: service.bookingCode,
+          };
+        });
+        
+        setAppointments(mappedAppointments);
+      } else {
+        setAppointments([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching today appointments:', error);
+      setAppointments([]);
+    } finally {
+      setLoadingAppointments(false);
+    }
+  }, []);
+
+  // Refresh appointments when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchTodayAppointments();
+    }, [fetchTodayAppointments])
+  );
+  
   // Request notification data - TODO: Fetch from API
   const requestCount = 0; // Set to 0 to hide mock notification
   const showRequestNotification = false; // Only show when there are real requests
@@ -135,62 +214,6 @@ export default function DashboardScreen() {
     location: '123 Đường ABC, Quận 1, TP.HCM',
     message: 'Người già có dấu hiệu khó thở, cần hỗ trợ y tế ngay lập tức!'
   };
-  
-  // Sample appointment data
-  const appointments = [  
-    {
-      id: '1',
-      caregiverName: 'Trần Văn Nam',
-      caregiverAvatar: 'N',
-      timeSlot: '08:00 - 12:00',
-      status: 'completed' as const,
-      address: '123 Đường ABC, Quận 1, TP.HCM',
-      rating: 4.8,
-      isVerified: true,
-      tasks: [
-        { id: '7', name: 'Nhắc nhở uống thuốc buổi sáng', completed: true, time: '09:00', status: 'completed' as const },
-        { id: '8', name: 'Tập thể dục nhẹ', completed: true, time: '08:00', status: 'completed' as const },
-        { id: '9', name: 'Chuẩn bị bữa trưa', completed: false, time: '12:00', status: 'failed' as const },
-        { id: '10', name: 'Dọn dẹp phòng', completed: false, time: '14:00', status: 'failed' as const },
-      ],
-    },
-    {
-      id: '2',
-      caregiverName: 'Nguyễn Thị Mai',
-      caregiverAvatar: 'M',
-      timeSlot: '14:00 - 18:00',
-      status: 'in-progress' as const,
-      address: '456 Đường XYZ, Quận 2, TP.HCM',
-      rating: 4.5,
-      isVerified: true,
-      tasks: [
-        { id: '1', name: 'Nhắc nhở uống thuốc buổi sáng', completed: true, time: '09:00', status: 'completed' as const },
-        { id: '2', name: 'Tập thể dục nhẹ', completed: true, time: '08:00', status: 'completed' as const },
-        { id: '3', name: 'Chuẩn bị bữa trưa', completed: false, time: '12:00', status: 'pending' as const },
-        { id: '4', name: 'Dọn dẹp phòng', completed: false, time: '14:00', status: 'pending' as const },
-        { id: '5', name: 'Trò chuyện và giải trí', completed: false, time: '15:00', status: 'pending' as const },
-        { id: '6', name: 'Mua sắm đồ dùng', completed: false, time: '16:00', status: 'pending' as const },
-      ],
-    },
-    {
-      id: '3',
-      caregiverName: 'Lê Thị Hoa',
-      caregiverAvatar: 'H',
-      timeSlot: '19:00 - 22:00',
-      status: 'upcoming' as const,
-      address: '789 Đường DEF, Quận 3, TP.HCM',
-      rating: 4.2,
-      isVerified: false,
-      tasks: [
-        { id: '11', name: 'Nhắc nhở uống thuốc buổi sáng', completed: false, time: '09:00' },
-        { id: '12', name: 'Tập thể dục nhẹ', completed: false, time: '08:00' },
-        { id: '13', name: 'Chuẩn bị bữa trưa', completed: false, time: '12:00' },
-        { id: '14', name: 'Dọn dẹp phòng', completed: false, time: '14:00' },
-        { id: '15', name: 'Trò chuyện và giải trí', completed: false, time: '15:00' },
-        { id: '16', name: 'Mua sắm đồ dùng', completed: false, time: '16:00' },
-      ],
-    },
-  ];
   
   // Handle booking press
   const handleBookPress = (caregiver: any) => {
@@ -304,7 +327,13 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.fullContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.fullContainer} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ 
+          paddingBottom: bottomNavPadding
+        }}
+      >
       {/* Header - bTaskee Style */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -322,6 +351,30 @@ export default function DashboardScreen() {
               <ThemedText style={styles.greeting}>Xin chào!</ThemedText>
               <ThemedText style={styles.userName}>{user?.name || user?.email?.split('@')[0] || 'Người dùng'}</ThemedText>
             </View>
+          </View>
+          
+          {/* Chat & Notification buttons */}
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => router.push('/careseeker/chat' as any)}
+            >
+              <Ionicons name="chatbubble-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => setShowNotificationModal(true)}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
+              {notifications.filter(n => !n.isRead).length > 0 && (
+                <View style={styles.badge}>
+                  <ThemedText style={styles.badgeText}>
+                    {notifications.filter(n => !n.isRead).length}
+                  </ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -386,22 +439,35 @@ export default function DashboardScreen() {
         </View>
 
         {/* Appointment Today - Compact */}
-        {appointments.length > 0 && (
-          <View style={styles.appointmentSection}>
-            <ThemedText style={styles.sectionTitle}>Lịch hẹn hôm nay</ThemedText>
-            <AppointmentScheduleToday appointments={appointments.slice(0, 2)} />
-            {appointments.length > 2 && (
-              <TouchableOpacity 
-                style={styles.viewMoreButton}
-                onPress={() => router.push('/careseeker/appointments')}
-              >
-                <ThemedText style={styles.viewMoreText}>
-                  Xem thêm {appointments.length - 2} lịch hẹn khác
-                </ThemedText>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
+        <View style={styles.appointmentSection}>
+          <ThemedText style={styles.sectionTitle}>Lịch hẹn hôm nay</ThemedText>
+          {loadingAppointments ? (
+            <View style={styles.loadingContainer}>
+              <ThemedText style={styles.loadingText}>Đang tải...</ThemedText>
+            </View>
+          ) : appointments.length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="calendar-outline" size={48} color="#BDC3C7" />
+              <ThemedText style={styles.emptyStateText}>
+                Bạn không có lịch hẹn trong ngày hôm nay
+              </ThemedText>
+            </View>
+          ) : (
+            <>
+              <AppointmentScheduleToday appointments={appointments.slice(0, 2)} />
+              {appointments.length > 2 && (
+                <TouchableOpacity 
+                  style={styles.viewMoreButton}
+                  onPress={() => router.push('/careseeker/appointments')}
+                >
+                  <ThemedText style={styles.viewMoreText}>
+                    Xem thêm {appointments.length - 2} lịch hẹn khác
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
 
       </View>
 
@@ -672,6 +738,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#E74C3C',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#68C2E8',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   avatarButton: {
     marginRight: 14,

@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ChatConversation {
@@ -27,6 +28,7 @@ interface ChatConversation {
 
 export default function ChatListScreen() {
   const { user } = useAuth();
+  const bottomNavPadding = useBottomNavPadding();
   
   // Mock data - in real app, this would come from API
   const [conversations, setConversations] = useState<ChatConversation[]>([
@@ -195,7 +197,11 @@ export default function ChatListScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomNavPadding }}
+      >
         {conversations.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="chatbubbles-outline" size={64} color="#ced4da" />
@@ -221,7 +227,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-    paddingBottom: 100, // Space for navigation bar
   },
   header: {
     backgroundColor: '#68C2E8',

@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 
 interface HiredCaregiver {
   id: string;
@@ -33,6 +34,7 @@ interface HiredCaregiver {
 }
 
 export default function HiredCaregiversScreen() {
+  const bottomNavPadding = useBottomNavPadding();
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
 
   // Mock data
@@ -476,7 +478,7 @@ export default function HiredCaregiversScreen() {
           data={filteredCaregivers}
           renderItem={renderCaregiverCard}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomNavPadding }]}
           showsVerticalScrollIndicator={false}
         />
       ) : (
@@ -623,7 +625,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 20,
-    paddingBottom: 120,
   },
   card: {
     backgroundColor: 'white',

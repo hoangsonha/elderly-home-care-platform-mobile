@@ -152,19 +152,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     gap: 12,
+    justifyContent: 'space-between',
   },
   button: {
-    width: '100%',
+    flex: 1,
     borderRadius: 12,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   buttonWithCancel: {
-    flex: 1,
+    // Remove this, use flex: 1 from button
   },
   buttonGradient: {
     paddingVertical: 15,
     paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   buttonText: {
     color: 'white',
@@ -180,6 +185,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'white',
   },
   cancelButtonText: {

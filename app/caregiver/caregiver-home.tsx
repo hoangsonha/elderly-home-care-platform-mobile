@@ -1,7 +1,10 @@
 "use client";
 
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
+    Image,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -10,6 +13,8 @@ import {
     View,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { useAuth } from "@/contexts/AuthContext";
+import { NotificationPanel } from "@/components/ui/NotificationPanel";
 
 const COLORS = [
   "#FF6B6B",
@@ -82,6 +87,28 @@ const PlaceholderScreen = ({ title }: { title: string }) => (
 
 export default function CaregiverHomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  
+  // Mock notifications - TODO: Fetch from API
+  const [notifications, setNotifications] = useState([
+    {
+      id: '1',
+      title: 'Yêu cầu mới',
+      message: 'Bạn có yêu cầu chăm sóc mới từ gia đình Nguyễn',
+      time: '5 phút trước',
+      type: 'info' as const,
+      isRead: false,
+    },
+    {
+      id: '2',
+      title: 'Lịch hẹn sắp tới',
+      message: 'Bạn có lịch hẹn vào lúc 14:00 hôm nay',
+      time: '1 giờ trước',
+      type: 'info' as const,
+      isRead: false,
+    },
+  ]);
 
   const handlePress = (feature: (typeof features)[number]) => {
     if (feature.route) {
@@ -91,8 +118,53 @@ export default function CaregiverHomeScreen() {
     }
   };
 
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F7F9FC", paddingBottom: 100 }}>
+      {/* Header - giống Careseeker */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.avatarButton}>
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.userAvatarImage} />
+              ) : (
+                <View style={styles.userAvatar}>
+                  <Ionicons name="person" size={20} color="#FFFFFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+            <View style={styles.greetingContainer}>
+              <Text style={styles.greeting}>Xin chào!</Text>
+              <Text style={styles.userName}>{user?.name || user?.email?.split('@')[0] || 'Caregiver'}</Text>
+            </View>
+          </View>
+          
+          {/* Chat & Notification buttons */}
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => router.push('/caregiver/chat-list')}
+            >
+              <Ionicons name="chatbubble-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => setShowNotificationModal(true)}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         <Text style={styles.title}>Caregiver App</Text>
 
@@ -117,11 +189,167 @@ export default function CaregiverHomeScreen() {
           ))}
         </View>
       </ScrollView>
+      
+      {/* Notification Dropdown */}
+      {showNotificationModal && (
+        <TouchableOpacity 
+          style={styles.notificationOverlay}
+          activeOpacity={1}
+          onPress={() => setShowNotificationModal(false)}
+        >
+          <View style={styles.notificationDropdown}>
+            <View style={styles.notificationArrow} />
+            <NotificationPanel 
+              notifications={notifications}
+              onNotificationPress={(notification) => {
+                console.log('Notification pressed:', notification);
+                setNotifications(prev => 
+                  prev.map(notif => 
+                    notif.id === notification.id 
+                      ? { ...notif, isRead: true }
+                      : notif
+                  )
+                );
+              }}
+              onMarkAsRead={(notificationId) => {
+                setNotifications(prev => 
+                  prev.map(notif => 
+                    notif.id === notificationId 
+                      ? { ...notif, isRead: true }
+                      : notif
+                  )
+                );
+              }}
+              onMarkAllAsRead={() => {
+                setNotifications(prev => 
+                  prev.map(notif => ({ ...notif, isRead: true }))
+                );
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  // Header styles - giống Careseeker
+  header: {
+    backgroundColor: '#68C2E8',
+    paddingTop: 45,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 56,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarButton: {
+    marginRight: 14,
+  },
+  userAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  userAvatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  greetingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  greeting: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 3,
+  },
+  userName: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#E74C3C',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#68C2E8',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  notificationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+  },
+  notificationDropdown: {
+    position: 'absolute',
+    top: 100,
+    right: 20,
+    width: '75%',
+    maxHeight: '80%',
+    zIndex: 1001,
+  },
+  notificationArrow: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'white',
+    zIndex: 1002,
+  },
+  
+  // Original styles
   title: { fontSize: 28, fontWeight: "700", marginBottom: 4, color: "#222" },
   grid: {
     flexDirection: "row",

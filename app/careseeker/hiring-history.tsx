@@ -13,6 +13,7 @@ import {
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 
 interface HiringHistory {
   id: string;
@@ -58,6 +59,7 @@ type FilterType = 'all' | 'this-month' | 'last-month' | 'this-year';
 type StatusFilter = 'all' | 'completed' | 'cancelled';
 
 export default function HiringHistoryScreen() {
+  const bottomNavPadding = useBottomNavPadding();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -235,7 +237,7 @@ export default function HiringHistoryScreen() {
         data={filteredHistory}
         renderItem={renderHiringHistoryItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[styles.listContainer, { paddingBottom: bottomNavPadding }]}
         showsVerticalScrollIndicator={false}
       />
 
@@ -370,7 +372,6 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 100, // Thêm margin bottom để tránh đụng navigation bar
   },
   historyCard: {
     backgroundColor: 'white',

@@ -301,6 +301,9 @@ export const UserService = {
     request: CreateElderlyProfileRequest,
     avatarFile?: { uri: string; type?: string; name?: string }
   ): Promise<CreateElderlyProfileResponse> => {
+    // Remove undefined properties from request object
+    const cleanedRequest = JSON.parse(JSON.stringify(request));
+
     try {
       // 1. Validate inputs
       const token = await AsyncStorage.getItem('token');
@@ -310,47 +313,58 @@ export const UserService = {
 
       // 2. Log thông tin request
       console.log('📋 Creating elderly profile...');
-      console.log('📋 Request data:', JSON.stringify(request, null, 2));
-      const jsonData = JSON.stringify(request);
-      console.log('✅ JSON data length:', jsonData.length, 'bytes');
+      console.log('📋 Request data:', JSON.stringify(cleanedRequest, null, 2));
 
-      // 3. Create FormData
+      // 3. Nếu KHÔNG có avatar, gọi endpoint JSON riêng
+      if (!avatarFile) {
+        console.log('ℹ️ No avatar file, calling JSON endpoint');
+        const response = await apiClient.post<CreateElderlyProfileResponse>(
+          '/api/v1/care-seekers/elderly-profiles/json',
+          cleanedRequest,
+          {
+            timeout: 60000,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        console.log('✅ Success! Elderly profile created (no avatar)');
+        return response.data;
+      }
+
+      // 4. Có avatar, gọi endpoint multipart/form-data
+      console.log('📷 Processing avatar file...');
       const formData = new FormData();
-
-      // 4. Append JSON data (QUAN TRỌNG: phải stringify)
+      const jsonData = JSON.stringify(cleanedRequest);
       formData.append('data', jsonData);
       console.log('✅ JSON data appended to FormData');
+      console.log('✅ JSON data length:', jsonData.length, 'bytes');
 
-      // 5. Append avatar file nếu có
-      if (avatarFile) {
-        console.log('📷 Processing avatar file...');
-        const fileExtension = avatarFile.uri.split('.').pop() || 'jpg';
-        const fileName = avatarFile.name || `avatar_${Date.now()}.${fileExtension}`;
-        const fileType = avatarFile.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+      // 5. Append avatar file
+      const fileExtension = avatarFile.uri.split('.').pop() || 'jpg';
+      const fileName = avatarFile.name || `avatar_${Date.now()}.${fileExtension}`;
+      const fileType = avatarFile.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
 
-        // Format cho React Native FormData
-        let fileUri = avatarFile.uri;
-        if (!fileUri.startsWith('file://') && 
-            !fileUri.startsWith('content://') && 
-            !fileUri.startsWith('http://') && 
-            !fileUri.startsWith('https://')) {
-          fileUri = `file://${fileUri}`;
-        }
-
-        formData.append('avatar', {
-          uri: fileUri,
-          type: fileType,
-          name: fileName,
-        } as any);
-        
-        console.log('✅ Avatar appended:', {
-          fileName,
-          fileType,
-          uri: fileUri.substring(0, 50) + '...',
-        });
-      } else {
-        console.log('ℹ️ No avatar file, sending JSON only');
+      // Format cho React Native FormData
+      let fileUri = avatarFile.uri;
+      if (!fileUri.startsWith('file://') && 
+          !fileUri.startsWith('content://') && 
+          !fileUri.startsWith('http://') && 
+          !fileUri.startsWith('https://')) {
+        fileUri = `file://${fileUri}`;
       }
+
+      formData.append('avatar', {
+        uri: fileUri,
+        type: fileType,
+        name: fileName,
+      } as any);
+      
+      console.log('✅ Avatar appended:', {
+        fileName,
+        fileType,
+        uri: fileUri.substring(0, 50) + '...',
+      });
 
       // 6. Log API URL và token info
       const apiUrl = `${BASE_URL}/api/v1/care-seekers/elderly-profiles`;
@@ -358,90 +372,56 @@ export const UserService = {
       console.log('🔑 Token exists:', !!token);
       console.log('🔑 Token length:', token.length);
 
-      // 7. Nếu KHÔNG có avatar, gửi JSON trực tiếp (không dùng FormData)
-      if (!avatarFile) {
-        console.log('📤 Sending JSON request (no avatar)...');
-        
-        // Remove undefined fields (Backend không accept undefined)
-        const cleanRequest = JSON.parse(JSON.stringify(request));
-        
-        try {
-          const response = await apiClient.post<CreateElderlyProfileResponse>(
-            '/api/v1/care-seekers/elderly-profiles',
-            cleanRequest, // Gửi clean request (không có undefined)
-            {
-              timeout: 60000,
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-          console.log('✅ Success! Status:', response.status);
-          console.log('✅ Response data:', response.data);
-          return response.data;
-        } catch (error: any) {
-          console.error('❌ JSON request failed:', error);
-          if (error.response?.data) {
-            return error.response.data;
-          }
-          throw error;
-        }
-      }
-
-      // 8. Có avatar - Gửi với FormData
+      // 7. Có avatar - Gửi với FormData
       console.log('📤 Sending FormData request (with avatar)...');
-      try {
-        const response = await apiClient.post<CreateElderlyProfileResponse>(
-          '/api/v1/care-seekers/elderly-profiles',
-          formData,
-          {
-            timeout: 120000, // 2 phút
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity,
-            onUploadProgress: (progressEvent) => {
-              if (progressEvent.total) {
-                const percentCompleted = Math.round(
-                  (progressEvent.loaded * 100) / progressEvent.total
-                );
-                console.log(`📊 Upload progress: ${percentCompleted}%`);
-              }
-            },
-          }
-        );
+      const response = await apiClient.post<CreateElderlyProfileResponse>(
+        '/api/v1/care-seekers/elderly-profiles',
+        formData,
+        {
+          timeout: 120000, // 2 phút
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              console.log(`📊 Upload progress: ${percentCompleted}%`);
+            }
+          },
+        }
+      );
 
-        console.log('✅ Success! Status:', response.status);
-        console.log('✅ Response data:', response.data);
-        return response.data;
-      } catch (axiosError: any) {
-        // Nếu axios fail với Network Error, thử XMLHttpRequest
-        if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-          console.log('⚠️ Axios failed with Network Error, trying XMLHttpRequest...');
-          return await createElderlyProfileWithXHR(request, avatarFile, token);
+      console.log('✅ Success! Elderly profile created with avatar');
+      return response.data;
+    } catch (axiosError: any) {
+      console.log('❌ Axios error creating elderly profile:', axiosError.code, axiosError.message);
+
+      // Nếu axios fail với Network Error, thử XMLHttpRequest (chỉ cho multipart)
+      if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
+        console.log('⚠️ Axios failed with Network Error');
+        
+        // XMLHttpRequest chỉ dùng cho multipart/form-data (có avatar)
+        if (avatarFile) {
+          console.log('⚠️ Trying XMLHttpRequest with avatar...');
+          const token = await AsyncStorage.getItem('token');
+          if (!token) {
+            throw new Error('Token is required');
+          }
+          return await createElderlyProfileWithXHR(cleanedRequest, avatarFile, token);
         }
-        // Nếu có response từ server, trả về response đó
-        if (axiosError.response?.data) {
-          console.log('⚠️ Server responded with error:', axiosError.response.status);
-          return axiosError.response.data;
-        }
-        // Re-throw để xử lý ở catch block bên ngoài
-        throw axiosError;
+        
+        // Không có avatar, không thể retry với XMLHttpRequest
+        throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
       }
-    } catch (error: any) {
-      console.log('❌ Error creating elderly profile:', error.code, error.message);
-      
-      if (error.code === 'ERR_NETWORK') {
-        throw new Error('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo backend đang chạy.');
-      } else if (error.code === 'ECONNABORTED') {
-        throw new Error('Request timeout. File có thể quá lớn, vui lòng thử lại với ảnh nhỏ hơn.');
-      } else if (error.response) {
-        console.log('❌ Server error response:', error.response.status, error.response.data);
-        const errorMessage = error.response.data?.message || 'Có lỗi xảy ra từ server';
-        throw new Error(errorMessage);
-      } else if (error.request) {
-        throw new Error('Server không phản hồi. Vui lòng kiểm tra backend có đang chạy không.');
-      } else {
-        throw new Error(error.message || 'Có lỗi không xác định');
+
+      // Nếu có response từ server, trả về response đó
+      if (axiosError.response?.data) {
+        console.log('❌ Server responded with error:', axiosError.response.status);
+        return axiosError.response.data;
       }
+
+      throw new Error(axiosError.message || 'Có lỗi xảy ra khi tạo hồ sơ');
     }
   },
 

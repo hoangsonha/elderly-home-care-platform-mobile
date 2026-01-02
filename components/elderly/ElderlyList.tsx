@@ -36,6 +36,7 @@ interface ElderlyListProps {
   showCaregiverCount?: boolean;
   onPersonPress?: (person: ElderlyPerson) => void;
   onAddPress?: () => void;
+  bottomPadding?: number;
 }
 
 export default function ElderlyList({ 
@@ -44,7 +45,8 @@ export default function ElderlyList({
   showStats = true, 
   showCaregiverCount = false,
   onPersonPress,
-  onAddPress 
+  onAddPress,
+  bottomPadding = 100
 }: ElderlyListProps) {
   const handlePersonPress = (person: ElderlyPerson) => {
     if (onPersonPress) {
@@ -243,7 +245,7 @@ export default function ElderlyList({
         keyExtractor={(item) => item.id || item.elderlyProfileId}
         numColumns={2}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[styles.listContainer, { paddingBottom: bottomPadding }]}
         ListEmptyComponent={renderEmptyState}
         columnWrapperStyle={styles.columnWrapper}
       />
@@ -306,7 +308,6 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 100,
   },
   columnWrapper: {
     justifyContent: 'flex-start',

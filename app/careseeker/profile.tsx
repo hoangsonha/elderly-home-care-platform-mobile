@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 
 interface MenuItem {
     id: string;
@@ -27,6 +28,7 @@ interface MenuItem {
 
 export default function ProfileScreen() {
     const { user, logout } = useAuth();
+    const bottomNavPadding = useBottomNavPadding();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const handleLogout = () => {
@@ -206,7 +208,7 @@ export default function ProfileScreen() {
             <ScrollView
                 style={styles.content}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomNavPadding }]}
             >
                 {menuSections.map((section, sectionIndex) => (
                     <View key={sectionIndex} style={styles.menuSection}>
@@ -384,7 +386,6 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 20,
-        paddingBottom: 120,
     },
     menuSection: {
         marginBottom: 24,

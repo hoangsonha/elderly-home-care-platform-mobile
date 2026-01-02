@@ -16,6 +16,7 @@ import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppointmentStatus, subscribeToStatusChanges } from '@/data/appointmentStore';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { mainService, type MyCareServiceData } from '@/services/main.service';
 import { Appointment } from '@/services/database.types';
 
@@ -23,6 +24,7 @@ type StatusTab = 'all' | 'upcoming' | 'completed' | 'cancelled';
 
 export default function AppointmentsScreen() {
   const { user } = useAuth();
+  const bottomNavPadding = useBottomNavPadding();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -384,7 +386,7 @@ export default function AppointmentsScreen() {
           keyExtractor={(item) => item.id}
           extraData={refreshKey}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: bottomNavPadding }]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="calendar-outline" size={64} color="#9CA3AF" />
@@ -496,7 +498,6 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 120,
   },
   appointmentCard: {
     backgroundColor: 'white',

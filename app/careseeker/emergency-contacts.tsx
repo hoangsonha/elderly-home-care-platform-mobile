@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { DynamicContactList } from '@/components/ui/DynamicContactList';
 import { useEmergencyContact } from '@/contexts/EmergencyContactContext';
 
@@ -22,6 +23,7 @@ interface Contact {
 
 export default function EmergencyContactsScreen() {
   const { tempContacts, setTempContacts } = useEmergencyContact();
+  const bottomNavPadding = useBottomNavPadding();
   const [contacts, setContacts] = useState<Contact[]>([]);
 
   // Load contacts from context on mount
@@ -59,7 +61,7 @@ export default function EmergencyContactsScreen() {
       <ScrollView 
         style={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomNavPadding }]}
       >
         <View style={styles.infoBox}>
           <Ionicons name="information-circle" size={20} color="#68C2E8" />
@@ -131,7 +133,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 100,
   },
   infoBox: {
     flexDirection: 'row',

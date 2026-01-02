@@ -356,38 +356,51 @@ export default function CaregiverHome() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header - giống Careseeker */}
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.logoContainer}>
+        <View style={styles.headerTop}>
+          <View style={styles.headerLeft}>
             <TouchableOpacity
               style={styles.avatarButton}
               onPress={handleProfilePress}
             >
               <View style={styles.userAvatar}>
-                <Ionicons name="person" size={24} color="white" />
+                <Ionicons name="person" size={20} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
-            <ThemedText style={styles.headerTitle}>
-              Xin chào, {user?.name || user?.email?.split("@")[0] || "Bạn"}!
-            </ThemedText>
+            <View style={styles.greetingContainer}>
+              <ThemedText style={styles.greeting}>Xin chào!</ThemedText>
+              <ThemedText style={styles.userName}>
+                {user?.name || user?.email?.split("@")[0] || "Caregiver"}
+              </ThemedText>
+            </View>
           </View>
-
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => setShowNotificationModal(true)}
-          >
-            <Ionicons name="notifications" size={24} color="white" />
-            {notifications.filter((notif) => !notif.isRead).length > 0 && (
-              <View style={styles.notificationBadge}>
-                <ThemedText style={styles.badgeText}>
-                  {notifications.filter((notif) => !notif.isRead).length > 99
-                    ? "99+"
-                    : notifications.filter((notif) => !notif.isRead).length}
-                </ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
+          
+          {/* Chat & Notification buttons */}
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => router.push('/caregiver/chat-list' as any)}
+            >
+              <Ionicons name="chatbubble-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => setShowNotificationModal(true)}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
+              {notifications.filter((notif) => !notif.isRead).length > 0 && (
+                <View style={styles.badge}>
+                  <ThemedText style={styles.badgeText}>
+                    {notifications.filter((notif) => !notif.isRead).length > 99
+                      ? "99+"
+                      : notifications.filter((notif) => !notif.isRead).length}
+                  </ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -732,12 +745,84 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8f9fa",
     paddingBottom: 100, // Space for navigation bar
   },
+  // Header - giống Careseeker
   header: {
-    backgroundColor: "#4ECDC4",
-    paddingTop: 50,
+    backgroundColor: '#68C2E8',
+    paddingTop: 45,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 56,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarButton: {
+    marginRight: 14,
+  },
+  userAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  greetingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  greeting: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 3,
+  },
+  userName: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#E74C3C',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#68C2E8',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  // Old header styles - removed
   headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -746,19 +831,6 @@ const styles = StyleSheet.create({
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  avatarButton: {
-    marginRight: 12,
-  },
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.3)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.5)",
   },
   headerTitle: {
     fontSize: 20,
@@ -782,13 +854,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "white",
     paddingHorizontal: 6,
-  },
-  badgeText: {
-    color: "white",
-    fontSize: 11,
-    fontWeight: "bold",
-    textAlign: "center",
-    lineHeight: 12,
   },
   content: {
     flex: 1,

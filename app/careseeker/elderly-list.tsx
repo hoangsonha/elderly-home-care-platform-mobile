@@ -13,6 +13,7 @@ import ElderlyList from '@/components/elderly/ElderlyList';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { UserService } from '@/services/user.service';
 
 interface ElderlyPerson {
@@ -31,6 +32,7 @@ interface ElderlyPerson {
 
 export default function ElderlyListScreen() {
   const { user } = useAuth();
+  const bottomNavPadding = useBottomNavPadding();
   const [profiles, setProfiles] = useState<ElderlyPerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -135,6 +137,7 @@ export default function ElderlyListScreen() {
         showCaregiverCount={false}
         onPersonPress={handlePersonPress}
         onAddPress={handleAddPerson}
+        bottomPadding={bottomNavPadding}
       />
 
       {/* Navigation Bar */}

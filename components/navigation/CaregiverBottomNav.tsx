@@ -2,6 +2,7 @@
 import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface CaregiverBottomNavProps {
   activeTab?: "home" | "jobs" | "schedule" | "income" | "profile";
@@ -9,9 +10,13 @@ interface CaregiverBottomNavProps {
 
 export default function CaregiverBottomNav({ activeTab }: CaregiverBottomNavProps) {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.bottomNav}>
+    <View style={[
+      styles.bottomNav,
+      { paddingBottom: Math.max(insets.bottom, 8) + 12 } // Tự động điều chỉnh theo safe area
+    ]}>
       <TouchableOpacity 
         style={[styles.navItem, activeTab === "home" && styles.navItemActive]}
         onPress={() => navigation.navigate("Trang chủ")}
@@ -93,7 +98,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#E3F2FD",
     paddingVertical: 8,
     paddingHorizontal: 4,
-    paddingBottom: 20,
+    // paddingBottom will be set dynamically based on safe area insets
     position: "absolute",
     bottom: 0,
     left: 0,

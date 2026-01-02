@@ -9,11 +9,13 @@ interface Appointment {
   caregiverName: string;
   caregiverAvatar: string;
   timeSlot: string;
-  status: 'completed' | 'upcoming' | 'in-progress';
+  status: string; // Support all API status values
   tasks: Task[];
-  address: string;
-  rating: number;
+  address?: string;
+  rating?: number;
   isVerified: boolean;
+  elderlyName?: string; // Tên người già
+  elderlyGender?: string; // Gender người già (MALE, FEMALE)
 }
 
 export interface Task {
@@ -32,26 +34,52 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
   const [expandedAppointment, setExpandedAppointment] = useState<string | null>(null);
 
   const getStatusText = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'Đã hoàn thành';
-      case 'upcoming':
-        return 'Đang tới';
-      case 'in-progress':
+    const upperStatus = status.toUpperCase().replace(/-/g, '_');
+    switch (upperStatus) {
+      case 'CAREGIVER_APPROVED':
+      case 'CAREGIVER-APPROVED':
+        return 'Sắp tới';
+      case 'IN_PROGRESS':
+      case 'IN-PROGRESS':
         return 'Đang thực hiện';
+      case 'COMPLETED':
+        return 'Đã hoàn thành';
+      case 'CANCELLED':
+        return 'Đã hủy';
+      case 'COMPLETED_WAITING_REVIEW':
+      case 'COMPLETED-WAITING-REVIEW':
+        return 'Chờ đánh giá';
+      case 'PENDING_CAREGIVER':
+      case 'PENDING-CAREGIVER':
+        return 'Chờ phản hồi';
+      case 'EXPIRED':
+        return 'Đã hết hạn';
       default:
-        return '';
+        return 'Không xác định';
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return '#10B981'; // Xanh lá cho đã hoàn thành
-      case 'in-progress':
-        return '#68C2E8'; // Ocean blue cho đang thực hiện
-      case 'upcoming':
-        return '#F59E0B'; // Vàng cho sắp tới
+    const upperStatus = status.toUpperCase().replace(/-/g, '_');
+    switch (upperStatus) {
+      case 'CAREGIVER_APPROVED':
+      case 'CAREGIVER-APPROVED':
+        return '#F59E0B'; // Vàng cam cho sắp tới
+      case 'IN_PROGRESS':
+      case 'IN-PROGRESS':
+        return '#10B981'; // Xanh lá cho đang thực hiện
+      case 'COMPLETED':
+        return '#6B7280'; // Xám cho đã hoàn thành
+      case 'CANCELLED':
+        return '#EF4444'; // Đỏ cho đã hủy
+      case 'COMPLETED_WAITING_REVIEW':
+      case 'COMPLETED-WAITING-REVIEW':
+        return '#8B5CF6'; // Tím cho chờ đánh giá
+      case 'PENDING_CAREGIVER':
+      case 'PENDING-CAREGIVER':
+        return '#F59E0B'; // Vàng cam cho chờ phản hồi
+      case 'EXPIRED':
+        return '#9CA3AF'; // Xám nhạt cho hết hạn
       default:
         return '#9CA3AF';
     }
@@ -85,15 +113,16 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
     });
   };
 
+  const getElderlyTitle = (gender?: string) => {
+    if (!gender) return '';
+    const upperGender = gender.toUpperCase();
+    if (upperGender === 'FEMALE') return 'bà';
+    if (upperGender === 'MALE') return 'ông';
+    return '';
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="calendar-outline" size={24} color="#2c3e50" />
-          <ThemedText style={styles.title}>Lịch hẹn hôm nay</ThemedText>
-        </View>
-      </View>
-
       <View style={styles.appointmentsList}>
         {appointments.map((appointment) => {
           const isExpanded = expandedAppointment === appointment.id;
@@ -122,35 +151,32 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
                             {appointment.caregiverName}
                           </ThemedText>
                           {appointment.isVerified && (
-                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" style={{ marginLeft: 6 }} />
                           )}
                         </View>
                         <ThemedText style={styles.timeSlot}>
                           {appointment.timeSlot}
                         </ThemedText>
-                        <View style={styles.ratingRow}>
-                          <Ionicons name="star" size={12} color="#F39C12" />
-                          <ThemedText style={styles.ratingText}>
-                            {appointment.rating.toFixed(1)}
+                        {/* Status badge */}
+                        <View style={[styles.statusBadgeInline, { backgroundColor: getStatusColor(appointment.status) }]}>
+                          <ThemedText style={styles.statusTextInline}>
+                            {getStatusText(appointment.status)}
                           </ThemedText>
                         </View>
                       </View>
                     </View>
-                    <View style={styles.addressRow}>
-                      <Ionicons name="location-outline" size={12} color="#7f8c8d" />
-                      <ThemedText style={styles.addressText}>
-                        {appointment.address}
-                      </ThemedText>
-                    </View>
+                    {/* Tên người già với label rõ ràng hơn */}
+                    {appointment.elderlyName && (
+                      <View style={styles.elderlyRow}>
+                        <Ionicons name="person-outline" size={12} color="#7f8c8d" />
+                        <ThemedText style={styles.elderlyText}>
+                          Chăm sóc {getElderlyTitle(appointment.elderlyGender)} {appointment.elderlyName}
+                        </ThemedText>
+                      </View>
+                    )}
                   </View>
                   
-                  <View style={styles.rightSection}>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(appointment.status) }]}>
-                      <ThemedText style={styles.statusText}>
-                        {getStatusText(appointment.status)}
-                      </ThemedText>
-                    </View>
-                  </View>
+                  {/* Xóa status badge ở bên phải vì đã chuyển xuống dưới */}
                 </View>
               </View>
 
@@ -237,38 +263,7 @@ export function AppointmentScheduleToday({ appointments }: AppointmentScheduleTo
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
-    paddingHorizontal: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginLeft: 8,
-  },
-  viewHistoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-  },
-  viewHistoryText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4ECDC4',
-    marginRight: 4,
+    paddingHorizontal: 0, // Xóa padding ngang
   },
   appointmentsList: {
     gap: 8,
@@ -307,14 +302,13 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 8,
-    width: '100%',
   },
   caregiverName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
-    marginRight: 6,
   },
   infoRow: {
     flexDirection: 'row',
@@ -343,23 +337,36 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     marginBottom: 4,
   },
-  addressRow: {
+  elderlyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 2,
   },
-  addressText: {
+  elderlyText: {
     fontSize: 12,
     color: '#7f8c8d',
     marginLeft: 4,
     flex: 1,
   },
+  statusBadgeInline: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  statusTextInline: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
+  },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0, // Prevent rating from shrinking
+    marginLeft: 8, // Add spacing from name
   },
   ratingText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#F39C12',
     fontWeight: '600',
     marginLeft: 4,

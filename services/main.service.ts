@@ -156,9 +156,9 @@ export const mainService = {
    */
   getActiveServicePackages: async (): Promise<ServicePackageApiResponse[]> => {
     try {
-      console.log('Fetching active service packages...');
+      // console.log('Fetching active service packages...');
       const response = await apiClient.get<ServicePackagesApiResponse>('/api/v1/public/service-package/active');
-      console.log(`Found ${response.data.data.length} active service packages`);
+      // console.log(`Found ${response.data.data.length} active service packages`);
       return response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch service packages: ${error.message}`);
@@ -167,12 +167,24 @@ export const mainService = {
 
   /**
    * Lấy danh sách care services của user hiện tại
+   * @param workDate - Optional: Lọc theo ngày làm việc (format: YYYY-MM-DD)
    */
-  getMyCareServices: async (): Promise<MyCareServicesApiResponse> => {
+  getMyCareServices: async (workDate?: string, status?: string): Promise<MyCareServicesApiResponse> => {
     try {
-      console.log('Fetching my care services...');
-      const response = await apiClient.get<MyCareServicesApiResponse>('/api/v1/care-services/my-care-services');
-      console.log('My care services fetched:', response.data);
+      // console.log('Fetching my care services...', workDate ? `for date: ${workDate}` : '', status ? `with status: ${status}` : '');
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (workDate) params.append('workDate', workDate);
+      if (status) params.append('status', status);
+      
+      const queryString = params.toString();
+      const url = queryString 
+        ? `/api/v1/care-services/my-care-services?${queryString}`
+        : '/api/v1/care-services/my-care-services';
+      
+      const response = await apiClient.get<MyCareServicesApiResponse>(url);
+      // console.log('My care services fetched:', response.data);
       return response.data;
     } catch (error: any) {
       // Return error response if available from API
@@ -193,9 +205,9 @@ export const mainService = {
    */
   createCareService: async (request: CreateCareServiceRequest): Promise<CareServiceApiResponse> => {
     try {
-      console.log('Creating care service...', request);
+      // console.log('Creating care service...', request);
       const response = await apiClient.post<CareServiceApiResponse>('/api/v1/care-services', request);
-      console.log('Care service created:', response.data);
+      // console.log('Care service created:', response.data);
       return response.data;
     } catch (error: any) {
       // Return error response if available from API
@@ -223,6 +235,31 @@ export const mainService = {
         requestBody.note = note;
       }
       const response = await apiClient.post<CareServiceApiResponse>('/api/v1/care-services/decline-care-service', requestBody);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: 'Không thể kết nối đến server. Vui lòng thử lại sau.',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Chấp nhận care service (Caregiver)
+   */
+  acceptCareService: async (careServiceId: string, note?: string): Promise<CareServiceApiResponse> => {
+    try {
+      const requestBody: { careServiceId: string; note?: string } = {
+        careServiceId: careServiceId,
+      };
+      if (note) {
+        requestBody.note = note;
+      }
+      const response = await apiClient.post<CareServiceApiResponse>('/api/v1/care-services/accept-care-service-from-caregiver', requestBody);
       return response.data;
     } catch (error: any) {
       if (error.response?.data) {

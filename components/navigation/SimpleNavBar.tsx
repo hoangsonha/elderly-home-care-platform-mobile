@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useNotification } from '@/contexts/NotificationContext';
@@ -9,6 +10,7 @@ import { useNotification } from '@/contexts/NotificationContext';
 export function SimpleNavBar() {
   const { activeTab, setActiveTab } = useNavigation();
   const { hideEmergencyAlert } = useNotification();
+  const insets = useSafeAreaInsets();
   
   const navItems = [
     {
@@ -48,7 +50,10 @@ export function SimpleNavBar() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.navBar}>
+      <View style={[
+        styles.navBar,
+        { paddingBottom: Math.max(insets.bottom, 8) + 12 } // Tự động điều chỉnh theo safe area
+      ]}>
         {navItems.map((item) => {
           const isActive = item.id === activeTab;
           
@@ -94,7 +99,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E0F2FE',
     paddingVertical: 8,
     paddingHorizontal: 4,
-    paddingBottom: 20,
+    // paddingBottom will be set dynamically based on safe area insets
     shadowColor: '#68C2E8',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,

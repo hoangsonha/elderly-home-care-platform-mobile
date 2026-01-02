@@ -24,6 +24,7 @@ import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverC
 import { SearchFilters, type FilterOption } from '@/components/caregiver/SearchFilters';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { useAuth } from '@/contexts/AuthContext';
 // TODO: Replace with API call
 // import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
@@ -104,6 +105,7 @@ const filterOptions: FilterOption[] = [
 ];
 
 export default function CaregiverSearchScreen() {
+  const bottomNavPadding = useBottomNavPadding();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [caregivers, setCaregivers] = useState<Caregiver[]>([]);
@@ -297,6 +299,7 @@ export default function CaregiverSearchScreen() {
         <ScrollView
           style={styles.resultsContainer}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: bottomNavPadding }}
         >
           <View style={styles.resultsHeader}>
             <ThemedText style={styles.resultsCount}>
@@ -382,7 +385,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-    paddingBottom: 100, // Space for navigation bar
   },
   header: {
     backgroundColor: '#68C2E8',
