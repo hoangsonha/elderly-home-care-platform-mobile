@@ -5,7 +5,6 @@ import {
   useSuccessNotification,
 } from "@/contexts/NotificationContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -136,7 +135,10 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.forgotPassword}>
+        <TouchableOpacity
+          style={styles.forgotPassword}
+          onPress={() => router.push("/auth/forgot-password")}
+        >
           <Text style={[styles.forgotPasswordText, { color: colors.tint }]}>
             Quên mật khẩu?
           </Text>

@@ -1,26 +1,26 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 
 // Base URL của API
-// Lưu ý: 
+// Lưu ý:
 // - Trên thiết bị thật/emulator: dùng IP của máy tính (ví dụ: 192.168.1.3)
 // - Trên Android emulator: có thể dùng 10.0.2.2 thay cho localhost
 // - Trên iOS simulator: dùng localhost hoặc IP của máy Mac
 // - Production: dùng domain/IP của server
 // export const BASE_URL = 'http://157.245.155.77:8080'; // Server remote
-export const BASE_URL = 'http://192.168.1.5:8080'; // IP máy tính local (thay đổi theo IP của bạn)192.168.2.77
+export const BASE_URL = "http://192.168.1.5:8080"; // IP máy tính local (thay đổi theo IP của bạn)192.168.2.77
 // export const BASE_URL = 'http://localhost:8080'; // Chỉ dùng khi test trên web
 
 // Danh sách các public API không cần token
 const PUBLIC_APIS = [
-  '/api/v1/public/service-package/active',
-  '/api/v1/public/service-package/',
-  '/api/v1/public/caregivers',
-  '/api/v1/public/qualification-types',
-  '/api/v1/accounts/login',
-  '/api/v1/accounts/register',
-  '/api/v1/accounts/register/verification',
-  '/api/v1/accounts/resend-code-verify',
+  "/api/v1/public/service-package/active",
+  "/api/v1/public/service-package/",
+  "/api/v1/public/caregivers",
+  "/api/v1/public/qualification-types",
+  "/api/v1/accounts/login",
+  "/api/v1/accounts/register",
+  "/api/v1/accounts/register/verification",
+  "/api/v1/accounts/resend-code-verify",
 ];
 
 /**
@@ -28,26 +28,28 @@ const PUBLIC_APIS = [
  */
 const isPublicAPI = (url: string): boolean => {
   // Loại bỏ baseURL nếu có
-  const cleanUrl = url.replace(BASE_URL, '');
-  
-  return PUBLIC_APIS.some(publicPath => {
+  const cleanUrl = url.replace(BASE_URL, "");
+
+  return PUBLIC_APIS.some((publicPath) => {
     // Kiểm tra exact match
     if (cleanUrl === publicPath) {
       return true;
     }
-    
+
     // Kiểm tra prefix match cho các path có trailing slash
     // Ví dụ: /api/v1/public/service-package/ sẽ match /api/v1/public/service-package/123
-    if (publicPath.endsWith('/') && cleanUrl.startsWith(publicPath)) {
+    if (publicPath.endsWith("/") && cleanUrl.startsWith(publicPath)) {
       return true;
     }
-    
+
     // Kiểm tra cho service-package/{id}
-    if (publicPath === '/api/v1/public/service-package/' && 
-        cleanUrl.startsWith('/api/v1/public/service-package/')) {
+    if (
+      publicPath === "/api/v1/public/service-package/" &&
+      cleanUrl.startsWith("/api/v1/public/service-package/")
+    ) {
       return true;
     }
-    
+
     return false;
   });
 };
@@ -59,7 +61,7 @@ const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   // Cấu hình cho file upload
   maxContentLength: Infinity,
@@ -71,7 +73,7 @@ const apiClient: AxiosInstance = axios.create({
  */
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    const url = config.url || '';
+    const url = config.url || "";
     const fullUrl = config.baseURL ? `${config.baseURL}${url}` : url;
 
     // Nếu là FormData, xóa Content-Type để axios tự động set multipart/form-data với boundary
@@ -79,14 +81,14 @@ apiClient.interceptors.request.use(
     // Nhưng tốt nhất là để axios tự set để đảm bảo boundary đúng
     if (config.data instanceof FormData) {
       // Xóa Content-Type để axios tự động set với boundary
-      delete config.headers['Content-Type'];
-      delete config.headers['content-type'];
+      delete config.headers["Content-Type"];
+      delete config.headers["content-type"];
     }
 
     // Nếu không phải public API, thêm token
     if (!isPublicAPI(fullUrl)) {
       try {
-        const token = await AsyncStorage.getItem('token');
+        const token = await AsyncStorage.getItem("token");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -97,9 +99,9 @@ apiClient.interceptors.request.use(
 
     // Log request (optional, có thể tắt trong production)
     if (__DEV__) {
-      console.log('API Request:', config.method?.toUpperCase(), fullUrl);
+      console.log("API Request:", config.method?.toUpperCase(), fullUrl);
       if (config.data && !(config.data instanceof FormData)) {
-        console.log('Request data:', config.data);
+        console.log("Request data:", config.data);
       }
     }
 
@@ -117,8 +119,8 @@ apiClient.interceptors.response.use(
   (response) => {
     // Log response (optional, có thể tắt trong production)
     if (__DEV__) {
-      console.log('API Response:', response.status, response.statusText);
-      console.log('Response data:', response.data);
+      console.log("API Response:", response.status, response.statusText);
+      console.log("Response data:", response.data);
     }
     return response;
   },
@@ -136,13 +138,16 @@ apiClient.interceptors.response.use(
 /**
  * Helper function để lưu token sau khi login
  */
-export const saveToken = async (token: string, refreshToken?: string): Promise<void> => {
+export const saveToken = async (
+  token: string,
+  refreshToken?: string
+): Promise<void> => {
   try {
-    await AsyncStorage.setItem('token', token);
+    await AsyncStorage.setItem("token", token);
     if (refreshToken) {
-      await AsyncStorage.setItem('refreshToken', refreshToken);
+      await AsyncStorage.setItem("refreshToken", refreshToken);
     }
-    console.log('Token saved to AsyncStorage');
+    console.log("Token saved to AsyncStorage");
   } catch (error) {
     throw error;
   }
@@ -153,9 +158,9 @@ export const saveToken = async (token: string, refreshToken?: string): Promise<v
  */
 export const removeToken = async (): Promise<void> => {
   try {
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem('refreshToken');
-    console.log('Token removed from AsyncStorage');
+    await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem("refreshToken");
+    console.log("Token removed from AsyncStorage");
   } catch (error) {
     // Silent error handling
   }
@@ -166,7 +171,7 @@ export const removeToken = async (): Promise<void> => {
  */
 export const getToken = async (): Promise<string | null> => {
   try {
-    return await AsyncStorage.getItem('token');
+    return await AsyncStorage.getItem("token");
   } catch (error) {
     return null;
   }
