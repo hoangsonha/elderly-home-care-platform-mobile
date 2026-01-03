@@ -1,4 +1,7 @@
-import { router } from "expo-router";
+import { useSuccessNotification } from "@/contexts/NotificationContext";
+import { AccountService } from "@/services/account.service";
+import { removeToken } from "@/services/apiClient";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   StyleSheet,
@@ -9,8 +12,34 @@ import {
 } from "react-native";
 
 export default function ResetPasswordScreen() {
+  const { email, otp } = useLocalSearchParams<{
+    email: string;
+    otp: string;
+  }>();
+
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { showSuccessTooltip } = useSuccessNotification();
+  const handleReset = async () => {
+    if (password !== confirm) return;
+
+    try {
+      setLoading(true);
+      await AccountService.forgotPasswordReset({
+        email,
+        code: otp,
+        newPassword: password,
+      });
+      showSuccessTooltip("Đổi mật khẩu thành công!");
+      await removeToken();
+      router.replace("/login");
+    } catch (e) {
+      console.log("Reset password error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -34,13 +63,17 @@ export default function ResetPasswordScreen() {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.replace("/auth/login")}
+        onPress={handleReset}
+        disabled={loading}
       >
-        <Text style={styles.buttonText}>Hoàn tất</Text>
+        <Text style={styles.buttonText}>
+          {loading ? "Đang xử lý..." : "Hoàn tất"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

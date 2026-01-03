@@ -1,3 +1,8 @@
+import {
+  useErrorNotification,
+  useSuccessNotification,
+} from "@/contexts/NotificationContext";
+import { AccountService } from "@/services/account.service";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -9,31 +14,42 @@ import {
 } from "react-native";
 
 export default function VerifyOtpScreen() {
-  const { email } = useLocalSearchParams();
+  const { email } = useLocalSearchParams<{ email: string }>();
   const [otp, setOtp] = useState("");
-  const [timeLeft, setTimeLeft] = useState(600); // 10 phút
-
+  const [timeLeft, setTimeLeft] = useState(600);
+  const [loading, setLoading] = useState(false);
+  const { showSuccessTooltip } = useSuccessNotification();
+  const { showErrorTooltip } = useErrorNotification();
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return t - 1;
-      });
+      setTimeLeft((t) => (t > 0 ? t - 1 : 0));
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (s: number) =>
-    `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const handleVerify = async () => {
+    try {
+      setLoading(true);
+      await AccountService.forgotPasswordVerifyCode({
+        email,
+        code: otp,
+      });
+      showSuccessTooltip("Xác minh thành công!");
+      router.push({
+        pathname: "/auth/reset-password",
+        params: { email, otp },
+      });
+    } catch (e) {
+      showErrorTooltip("Mã OTP không hợp lệ");
+      console.log("Verify OTP error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Xác minh OTP</Text>
-      <Text style={styles.subtitle}>Mã xác minh đã gửi đến {email}</Text>
 
       <TextInput
         style={styles.otpInput}
@@ -41,28 +57,21 @@ export default function VerifyOtpScreen() {
         maxLength={6}
         value={otp}
         onChangeText={setOtp}
-        placeholder="------"
       />
 
-      <Text style={styles.timer}>
-        Thời gian còn lại: {formatTime(timeLeft)}
-      </Text>
-
       <TouchableOpacity
-        style={[styles.button, timeLeft === 0 && { backgroundColor: "#ccc" }]}
-        disabled={timeLeft === 0}
-        onPress={() =>
-          router.push({
-            pathname: "/auth/reset-password",
-            params: { email, otp },
-          })
-        }
+        style={styles.button}
+        onPress={handleVerify}
+        disabled={loading || timeLeft === 0}
       >
-        <Text style={styles.buttonText}>Xác nhận</Text>
+        <Text style={styles.buttonText}>
+          {loading ? "Đang xác minh..." : "Xác nhận"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

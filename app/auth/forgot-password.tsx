@@ -1,3 +1,8 @@
+import {
+  useErrorNotification,
+  useSuccessNotification,
+} from "@/contexts/NotificationContext";
+import { AccountService } from "@/services/account.service";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -10,13 +15,31 @@ import {
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { showSuccessTooltip } = useSuccessNotification();
+  const { showErrorTooltip } = useErrorNotification();
+  const handleSendOtp = async () => {
+    if (!email) return;
+
+    try {
+      setLoading(true);
+      await AccountService.forgotPassword({ email });
+      showSuccessTooltip("Đã gửi OTP!");
+      router.push({
+        pathname: "/auth/verify-otp",
+        params: { email },
+      });
+    } catch (e) {
+      showErrorTooltip("Email không có trong hệ thống");
+      console.log("Forgot password error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Quên mật khẩu</Text>
-      <Text style={styles.subtitle}>
-        Nhập email đã đăng ký để nhận mã xác minh
-      </Text>
 
       <TextInput
         placeholder="Email"
@@ -29,18 +52,17 @@ export default function ForgotPasswordScreen() {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() =>
-          router.push({
-            pathname: "/auth/verify-otp",
-            params: { email },
-          })
-        }
+        onPress={handleSendOtp}
+        disabled={loading}
       >
-        <Text style={styles.buttonText}>Gửi mã OTP</Text>
+        <Text style={styles.buttonText}>
+          {loading ? "Đang gửi..." : "Gửi mã OTP"}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
