@@ -149,7 +149,8 @@ export default function CheckInVerificationScreen() {
         if (isCheckOut) {
           // Nếu là Check Out, lấy QR code và mở payment modal
           const qrCodeBase64 = response.data.qrCodeBase64;
-          const orderId = response.data.paymentId || response.data.orderCode?.toString();
+          // API /api/v1/payments/order/{orderId} cần orderCode, không phải paymentId
+          const orderId = response.data.orderCode?.toString() || response.data.paymentId;
           
           // Navigate back với QR code data
           if (params.fromScreen === 'appointment-detail') {
@@ -313,17 +314,6 @@ export default function CheckInVerificationScreen() {
             </View>
           )}
 
-          {!isCheckOut && (
-            <View style={styles.detailsCard}>
-              <View style={styles.detailRow}>
-                <Ionicons name="alarm" size={20} color="#EF4444" />
-                <Text style={styles.detailLabel}>Thời gian bắt đầu:</Text>
-                <Text style={styles.detailValue}>
-                  {checkInTime ? formatTime(checkInTime) : '--:--'}
-                </Text>
-              </View>
-            </View>
-          )}
 
           <TouchableOpacity 
             style={[styles.startButton, isLoading && styles.startButtonDisabled]} 

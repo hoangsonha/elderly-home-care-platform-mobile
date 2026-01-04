@@ -246,6 +246,8 @@ export function PaymentCode({
             </ThemedText>
           </TouchableOpacity>
         </View>
+        {/* Safe area padding for bottom navigation */}
+        <View style={styles.safeAreaBottom} />
       </View>
     </Modal>
   );
@@ -497,10 +499,15 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     padding: 20,
+    paddingBottom: 20,
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#e9ecef',
     gap: 12,
+  },
+  safeAreaBottom: {
+    height: 20, // Minimal space for bottom navigation
+    backgroundColor: 'white',
   },
   confirmButton: {
     backgroundColor: '#27AE60',
