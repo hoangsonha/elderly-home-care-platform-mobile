@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
+    Image,
     Modal,
     ScrollView,
     StyleSheet,
@@ -11,6 +12,7 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { mainService } from '@/services/main.service';
 
 interface PaymentCodeProps {
   visible: boolean;
@@ -20,6 +22,8 @@ interface PaymentCodeProps {
   amount: number;
   caregiverName: string;
   completedAt: Date;
+  qrCodeBase64?: string; // QR code base64 từ API endWork
+  orderId?: string; // Order ID để polling payment status
 }
 
 export function PaymentCode({
@@ -29,8 +33,12 @@ export function PaymentCode({
   bookingId,
   amount,
   caregiverName,
-  completedAt
+  completedAt,
+  qrCodeBase64,
+  orderId
 }: PaymentCodeProps) {
+  const [paymentStatus, setPaymentStatus] = useState<'PENDING' | 'PAID' | 'CANCELLED' | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
   
   // Bank account info
   const bankInfo = {
@@ -39,6 +47,63 @@ export function PaymentCode({
     accountName: 'NGUYEN VAN A',
     branch: 'Chi nhánh TP.HCM'
   };
+
+  // Polling payment status mỗi 1-2 giây
+  useEffect(() => {
+    if (!visible || !orderId || paymentStatus === 'PAID' || paymentStatus === 'CANCELLED') {
+      setIsPolling(false);
+      return;
+    }
+
+    setIsPolling(true);
+    let intervalId: NodeJS.Timeout;
+
+    const checkPayment = async () => {
+      try {
+        const response = await mainService.checkPaymentStatus(orderId);
+        if (response.status === 'Success' && response.data) {
+          const status = response.data.status || response.data.paymentStatus;
+          setPaymentStatus(status);
+
+          if (status === 'PAID') {
+            setIsPolling(false);
+            // Tự động gọi onComplete khi đã thanh toán
+            if (onComplete) {
+              setTimeout(() => {
+                onComplete();
+                onClose();
+              }, 1000);
+            }
+          } else if (status === 'CANCELLED') {
+            setIsPolling(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking payment status:', error);
+      }
+    };
+
+    // Gọi ngay lần đầu
+    checkPayment();
+
+    // Sau đó gọi mỗi 1.5 giây
+    intervalId = setInterval(checkPayment, 1500);
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      setIsPolling(false);
+    };
+  }, [visible, orderId, paymentStatus, onComplete, onClose]);
+
+  // Reset payment status khi modal đóng
+  useEffect(() => {
+    if (!visible) {
+      setPaymentStatus(null);
+      setIsPolling(false);
+    }
+  }, [visible]);
 
   const handleCopyToClipboard = async (text: string, label: string) => {
     try {
@@ -106,28 +171,12 @@ export function PaymentCode({
               Cảm ơn bạn đã hoàn thành xuất sắc. Vui lòng đưa mã thanh toán dưới đây cho khách hàng.
             </ThemedText>
 
-            {/* Booking Info */}
-            <View style={styles.infoCard}>
-              <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>Nhân viên:</ThemedText>
-                <ThemedText style={styles.infoValue}>{caregiverName}</ThemedText>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.infoRow}>
-                <ThemedText style={styles.infoLabel}>Hoàn thành lúc:</ThemedText>
-                <ThemedText style={styles.infoValue}>
-                  {completedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                  {' - '}
-                  {completedAt.toLocaleDateString('vi-VN')}
-                </ThemedText>
-              </View>
-            </View>
 
             {/* Amount Display */}
             <View style={styles.amountCard}>
               <ThemedText style={styles.amountLabel}>Số tiền thanh toán</ThemedText>
               <ThemedText style={styles.amountValue}>
-                {amount.toLocaleString('vi-VN')} VNĐ
+                {(amount || 0).toLocaleString('vi-VN')} VNĐ
               </ThemedText>
             </View>
 
@@ -139,45 +188,36 @@ export function PaymentCode({
               </ThemedText>
 
               <View style={styles.qrCodeContainer}>
-                <View style={styles.qrCodePlaceholder}>
-                  <Ionicons name="qr-code-outline" size={200} color="#68C2E8" />
-                </View>
+                {qrCodeBase64 ? (
+                  <Image
+                    source={{ uri: `data:image/png;base64,${qrCodeBase64}` }}
+                    style={styles.qrCodeImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.qrCodePlaceholder}>
+                    <Ionicons name="qr-code-outline" size={200} color="#68C2E8" />
+                  </View>
+                )}
+                {isPolling && paymentStatus === 'PENDING' && (
+                  <View style={styles.pollingIndicator}>
+                    <ThemedText style={styles.pollingText}>Đang kiểm tra thanh toán...</ThemedText>
+                  </View>
+                )}
+                {paymentStatus === 'PAID' && (
+                  <View style={styles.paidIndicator}>
+                    <Ionicons name="checkmark-circle" size={32} color="#27AE60" />
+                    <ThemedText style={styles.paidText}>Đã thanh toán</ThemedText>
+                  </View>
+                )}
+                {paymentStatus === 'CANCELLED' && (
+                  <View style={styles.cancelledIndicator}>
+                    <Ionicons name="close-circle" size={32} color="#EF4444" />
+                    <ThemedText style={styles.cancelledText}>Đã hủy</ThemedText>
+                  </View>
+                )}
               </View>
 
-              <View style={styles.qrInfo}>
-                <TouchableOpacity 
-                  style={styles.copyRow}
-                  onPress={() => handleCopyToClipboard(bookingId, 'Mã booking')}
-                >
-                  <View style={styles.copyContent}>
-                    <ThemedText style={styles.qrInfoLabel}>Mã booking:</ThemedText>
-                    <ThemedText style={styles.qrInfoValue}>{bookingId}</ThemedText>
-                  </View>
-                  <Ionicons name="copy-outline" size={20} color="#68C2E8" />
-                </TouchableOpacity>
-
-                <View style={styles.divider} />
-
-                <TouchableOpacity 
-                  style={styles.copyRow}
-                  onPress={() => handleCopyToClipboard(bankInfo.accountNumber, 'Số tài khoản')}
-                >
-                  <View style={styles.copyContent}>
-                    <ThemedText style={styles.qrInfoLabel}>Số TK:</ThemedText>
-                    <ThemedText style={styles.qrInfoValue}>{bankInfo.accountNumber}</ThemedText>
-                  </View>
-                  <Ionicons name="copy-outline" size={20} color="#68C2E8" />
-                </TouchableOpacity>
-
-                <View style={styles.divider} />
-
-                <View style={styles.copyRow}>
-                  <View style={styles.copyContent}>
-                    <ThemedText style={styles.qrInfoLabel}>Ngân hàng:</ThemedText>
-                    <ThemedText style={styles.qrInfoValue}>{bankInfo.bankName}</ThemedText>
-                  </View>
-                </View>
-              </View>
             </View>
 
             {/* Instructions */}
@@ -189,8 +229,7 @@ export function PaymentCode({
               <ThemedText style={styles.instructionText}>
                 1. Đưa mã QR này cho khách hàng{'\n'}
                 2. Khách hàng mở app ngân hàng và quét mã{'\n'}
-                3. Kiểm tra xác nhận thanh toán{'\n'}
-                4. Bấm "Xác nhận đã thanh toán" bên dưới
+                3. Hệ thống sẽ tự động kiểm tra trạng thái thanh toán
               </ThemedText>
             </View>
           </View>
@@ -198,16 +237,6 @@ export function PaymentCode({
 
         {/* Bottom Actions */}
         <View style={styles.bottomActions}>
-          <TouchableOpacity 
-            style={styles.confirmButton}
-            onPress={handleConfirmPayment}
-          >
-            <Ionicons name="checkmark-circle" size={24} color="white" />
-            <ThemedText style={styles.confirmButtonText}>
-              Xác nhận đã thanh toán
-            </ThemedText>
-          </TouchableOpacity>
-
           <TouchableOpacity 
             style={styles.cancelButton}
             onPress={onClose}
@@ -367,6 +396,57 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#e9ecef',
+  },
+  qrCodeImage: {
+    width: 250,
+    height: 250,
+    borderRadius: 16,
+  },
+  pollingIndicator: {
+    position: 'absolute',
+    bottom: -30,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  pollingText: {
+    fontSize: 12,
+    color: '#68C2E8',
+    fontStyle: 'italic',
+  },
+  paidIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(39, 174, 96, 0.9)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  paidText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  cancelledIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cancelledText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
   },
   qrInfo: {
     backgroundColor: '#f8f9fa',

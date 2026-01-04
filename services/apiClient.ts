@@ -8,7 +8,7 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 // - Trên iOS simulator: dùng localhost hoặc IP của máy Mac
 // - Production: dùng domain/IP của server
 // export const BASE_URL = 'http://157.245.155.77:8080'; // Server remote
-export const BASE_URL = 'http://192.168.1.5:8080'; // IP máy tính local (thay đổi theo IP của bạn)192.168.2.77
+export const BASE_URL = 'http://192.168.1.4:8080'; // IP máy tính local (thay đổi theo IP của bạn)
 // export const BASE_URL = 'http://localhost:8080'; // Chỉ dùng khi test trên web
 
 // Danh sách các public API không cần token
