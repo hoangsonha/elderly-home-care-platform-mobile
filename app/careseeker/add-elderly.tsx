@@ -20,7 +20,7 @@ import { ProfilePreview } from '@/components/elderly/ProfilePreview';
 import { ThemedText } from '@/components/themed-text';
 import { DynamicInputList } from '@/components/ui/DynamicInputList';
 import { DynamicMedicationList } from '@/components/ui/DynamicMedicationList';
-import { LocationPickerModal } from '@/components/ui/LocationPickerModal';
+// import { LocationPickerModal } from '@/components/ui/LocationPickerModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmergencyContact } from '@/contexts/EmergencyContactContext';
 import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
@@ -1733,8 +1733,8 @@ export default function AddElderlyScreen() {
         </View>
       </Modal>
 
-      {/* Location Picker Modal */}
-      <LocationPickerModal
+      {/* Location Picker Modal - TEMPORARILY DISABLED */}
+      {/* <LocationPickerModal
         visible={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onSelectLocation={(lat, lng, address) => {
@@ -1746,7 +1746,7 @@ export default function AddElderlyScreen() {
           setShowLocationPicker(false);
         }}
         initialLocation={profile.personalInfo.location}
-      />
+      /> */}
 
       {/* Error Modal */}
       <Modal

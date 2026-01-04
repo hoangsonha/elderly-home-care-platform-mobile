@@ -29,7 +29,9 @@ export const RoleSelector: React.FC<RoleSelectorProps> = ({
 
   return (
     <View style={styles.container}>
-      <ThemedText style={styles.label}>Vai trò *</ThemedText>
+      <ThemedText style={styles.label}>
+        Vai trò <ThemedText style={styles.required}>*</ThemedText>
+      </ThemedText>
       <View style={styles.roleContainer}>
         {roles.map((role) => {
           const isSelected = selectedRole === role.value;
@@ -52,7 +54,7 @@ export const RoleSelector: React.FC<RoleSelectorProps> = ({
                 <Ionicons
                   name={role.icon as any}
                   size={20}
-                  color={isSelected ? "#667eea" : "#6c757d"}
+                  color={isSelected ? "#68C2E8" : "#6c757d"}
                 />
               </View>
               <ThemedText
@@ -65,7 +67,7 @@ export const RoleSelector: React.FC<RoleSelectorProps> = ({
               </ThemedText>
               {isSelected && (
                 <View style={styles.checkmark}>
-                  <Ionicons name="checkmark-circle" size={18} color="#667eea" />
+                  <Ionicons name="checkmark-circle" size={18} color="#68C2E8" />
                 </View>
               )}
             </TouchableOpacity>
@@ -86,6 +88,9 @@ const styles = StyleSheet.create({
     color: "#2c3e50",
     marginBottom: 8,
   },
+  required: {
+    color: "#dc3545",
+  },
   roleContainer: {
     flexDirection: "row",
     gap: 10,
@@ -103,8 +108,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   roleCardSelected: {
-    borderColor: "#667eea",
-    backgroundColor: "#f0f4ff",
+    borderColor: "#68C2E8",
+    backgroundColor: "#E8F6FB",
   },
   iconContainer: {
     width: 32,
@@ -116,7 +121,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   iconContainerSelected: {
-    backgroundColor: "#e8edff",
+    backgroundColor: "#D4EFF8",
   },
   roleLabel: {
     fontSize: 13,
@@ -125,7 +130,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   roleLabelSelected: {
-    color: "#667eea",
+    color: "#68C2E8",
     fontWeight: "600",
   },
   checkmark: {

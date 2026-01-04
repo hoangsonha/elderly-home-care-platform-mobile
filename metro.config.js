@@ -22,6 +22,14 @@ config.resolver.alias = {
   '@': path.resolve(__dirname),
 };
 
+// Ignore CSS files for React Native (not supported)
+config.resolver.assetExts = config.resolver.assetExts || [];
+config.resolver.sourceExts = config.resolver.sourceExts || [];
+config.resolver.assetExts = config.resolver.assetExts.filter(ext => ext !== 'css');
+if (!config.resolver.sourceExts.includes('css')) {
+  config.resolver.blockList.push(/\.css$/);
+}
+
 module.exports = config;
 
 
