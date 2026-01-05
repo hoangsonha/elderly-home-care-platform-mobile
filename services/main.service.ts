@@ -162,6 +162,24 @@ export interface MyCareServicesApiResponse {
   data: MyCareServiceData[];
 }
 
+// Available Schedule API Types
+export interface BookedSlot {
+  date: string; // Format: "2025-12-01"
+  start_time: string; // Format: "09:00"
+  end_time: string; // Format: "12:00"
+}
+
+export interface AvailableScheduleData {
+  available_all_time: boolean;
+  booked_slots: BookedSlot[];
+}
+
+export interface AvailableScheduleApiResponse {
+  status: string;
+  message: string;
+  data: AvailableScheduleData;
+}
+
 export const mainService = {
   get: (url: string, config = {}) => apiClient.get(url, config),
   post: (url: string, data: any, config = {}) =>
@@ -671,11 +689,77 @@ export const mainService = {
 
   /**
    * Kiểm tra trạng thái thanh toán
+   * API: POST /api/v1/payments/order/{orderId}
+   * Request body: { paymentId: UUID, careServiceId: UUID }
    */
-  checkPaymentStatus: async (orderId: string): Promise<CareServiceApiResponse> => {
+  checkPaymentStatus: async (
+    orderId: string,
+    paymentId: string,
+    careServiceId: string
+  ): Promise<CareServiceApiResponse> => {
     try {
-      const response = await apiClient.get<CareServiceApiResponse>(
-        `/api/v1/payments/order/${orderId}`
+      if (!orderId) {
+        console.error('checkPaymentStatus: orderId is missing');
+        return {
+          status: 'Fail',
+          message: 'OrderId is required',
+          data: null,
+        };
+      }
+      
+      if (!paymentId) {
+        console.error('checkPaymentStatus: paymentId is missing');
+        return {
+          status: 'Fail',
+          message: 'PaymentId is required',
+          data: null,
+        };
+      }
+      
+      if (!careServiceId) {
+        console.error('checkPaymentStatus: careServiceId is missing');
+        return {
+          status: 'Fail',
+          message: 'CareServiceId is required',
+          data: null,
+        };
+      }
+      
+      const url = `/api/v1/payments/order/${orderId}`;
+      const requestBody = {
+        paymentId: paymentId,
+        careServiceId: careServiceId,
+      };
+      
+      console.log('checkPaymentStatus: Calling API with URL:', url);
+      console.log('checkPaymentStatus: orderId:', orderId);
+      console.log('checkPaymentStatus: requestBody:', requestBody);
+      
+      const response = await apiClient.post<CareServiceApiResponse>(url, requestBody);
+      console.log('checkPaymentStatus: Response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('checkPaymentStatus: Error:', error);
+      console.error('checkPaymentStatus: Error response:', error.response?.data);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Không thể kiểm tra trạng thái thanh toán',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Lấy lịch rảnh của caregiver
+   * @param caregiverProfileId - ID của caregiver profile
+   */
+  getCaregiverAvailableSchedule: async (caregiverProfileId: string): Promise<AvailableScheduleApiResponse> => {
+    try {
+      const response = await apiClient.get<AvailableScheduleApiResponse>(
+        `/api/v1/caregivers/${caregiverProfileId}/available-schedule`
       );
       return response.data;
     } catch (error: any) {
@@ -684,8 +768,11 @@ export const mainService = {
       }
       return {
         status: 'Fail',
-        message: error.message || 'Không thể kiểm tra trạng thái thanh toán',
-        data: null,
+        message: error.message || 'Không thể lấy lịch rảnh. Vui lòng thử lại sau.',
+        data: {
+          available_all_time: true,
+          booked_slots: [],
+        },
       };
     }
   },

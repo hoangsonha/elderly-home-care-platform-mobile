@@ -24,6 +24,8 @@ interface PaymentCodeProps {
   completedAt: Date;
   qrCodeBase64?: string; // QR code base64 từ API endWork
   orderId?: string; // Order ID để polling payment status
+  paymentId?: string; // Payment ID (UUID) để gửi trong request body
+  careServiceId?: string; // Care Service ID (UUID) để gửi trong request body
 }
 
 export function PaymentCode({
@@ -35,7 +37,9 @@ export function PaymentCode({
   caregiverName,
   completedAt,
   qrCodeBase64,
-  orderId
+  orderId,
+  paymentId,
+  careServiceId
 }: PaymentCodeProps) {
   const [paymentStatus, setPaymentStatus] = useState<'PENDING' | 'PAID' | 'CANCELLED' | null>(null);
   const [isPolling, setIsPolling] = useState(false);
@@ -49,53 +53,89 @@ export function PaymentCode({
   };
 
   // Polling payment status mỗi 1-2 giây
+  // API: POST api/v1/payments/order/{orderId}
+  // Request body: { paymentId: UUID, careServiceId: UUID }
+  // Logic: Nếu status = "PENDING" thì tiếp tục gọi, "PAID" hoặc "CANCELLED" thì dừng
   useEffect(() => {
-    if (!visible || !orderId || paymentStatus === 'PAID' || paymentStatus === 'CANCELLED') {
+    // Chỉ polling khi modal visible và có đủ orderId, paymentId, careServiceId
+    if (!visible || !orderId || !paymentId || !careServiceId) {
+      console.log('PaymentCode: Polling stopped - visible:', visible, 'orderId:', orderId, 'paymentId:', paymentId, 'careServiceId:', careServiceId);
       setIsPolling(false);
       return;
     }
 
+    console.log('PaymentCode: Starting polling with orderId:', orderId, 'paymentId:', paymentId, 'careServiceId:', careServiceId);
     setIsPolling(true);
     let intervalId: NodeJS.Timeout;
+    let isStopped = false; // Flag để dừng polling
 
     const checkPayment = async () => {
-      try {
-        const response = await mainService.checkPaymentStatus(orderId);
-        if (response.status === 'Success' && response.data) {
-          const status = response.data.status || response.data.paymentStatus;
-          setPaymentStatus(status);
+      // Kiểm tra nếu đã dừng thì không gọi nữa
+      if (isStopped) {
+        return;
+      }
 
-          if (status === 'PAID') {
-            setIsPolling(false);
-            // Tự động gọi onComplete khi đã thanh toán
-            if (onComplete) {
-              setTimeout(() => {
-                onComplete();
-                onClose();
-              }, 1000);
+      try {
+        console.log('PaymentCode: Calling checkPaymentStatus with orderId:', orderId, 'paymentId:', paymentId, 'careServiceId:', careServiceId);
+        const response = await mainService.checkPaymentStatus(orderId, paymentId, careServiceId);
+        console.log('PaymentCode: Response from checkPaymentStatus:', response);
+        if (response.status === 'Success' && response.data) {
+          // Lấy status từ response (có thể là status hoặc paymentStatus)
+          const status = response.data.status || response.data.paymentStatus;
+          
+          // Chỉ update nếu có status
+          if (status) {
+            setPaymentStatus(status);
+
+            if (status === 'PAID') {
+              // Đã thanh toán - dừng polling
+              isStopped = true;
+              setIsPolling(false);
+              if (intervalId) {
+                clearInterval(intervalId);
+              }
+              // Tự động gọi onComplete khi đã thanh toán
+              if (onComplete) {
+                setTimeout(() => {
+                  onComplete();
+                  onClose();
+                }, 1000);
+              }
+            } else if (status === 'CANCELLED') {
+              // Đã hủy - dừng polling
+              isStopped = true;
+              setIsPolling(false);
+              if (intervalId) {
+                clearInterval(intervalId);
+              }
             }
-          } else if (status === 'CANCELLED') {
-            setIsPolling(false);
+            // Nếu status = 'PENDING' thì tiếp tục polling (không làm gì, interval sẽ tiếp tục chạy)
           }
         }
       } catch (error) {
         console.error('Error checking payment status:', error);
+        // Lỗi không dừng polling, sẽ thử lại lần sau
       }
     };
 
     // Gọi ngay lần đầu
     checkPayment();
 
-    // Sau đó gọi mỗi 1.5 giây
-    intervalId = setInterval(checkPayment, 1500);
+    // Sau đó gọi mỗi 1.5 giây (trong khoảng 1-2 giây như yêu cầu)
+    intervalId = setInterval(() => {
+      if (!isStopped) {
+        checkPayment();
+      }
+    }, 1500);
 
     return () => {
+      isStopped = true;
       if (intervalId) {
         clearInterval(intervalId);
       }
       setIsPolling(false);
     };
-  }, [visible, orderId, paymentStatus, onComplete, onClose]);
+  }, [visible, orderId, paymentId, careServiceId, onComplete, onClose]);
 
   // Reset payment status khi modal đóng
   useEffect(() => {

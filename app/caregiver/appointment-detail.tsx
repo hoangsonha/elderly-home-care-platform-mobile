@@ -579,7 +579,7 @@ export default function AppointmentDetailScreen() {
   const params = route.params as { 
     appointmentId?: string; 
     fromScreen?: string;
-    qrCodeData?: { qrCodeBase64: string; orderId: string } | null;
+    qrCodeData?: { qrCodeBase64: string; orderId: string; paymentId: string; careServiceId: string } | null;
   } | undefined;
   const appointmentId = params?.appointmentId || "1";
   const fromScreen = params?.fromScreen;
@@ -588,6 +588,8 @@ export default function AppointmentDetailScreen() {
   // Nhận qrCodeData từ route params (khi quay lại từ check-out screen)
   useEffect(() => {
     if (params?.qrCodeData) {
+      console.log('AppointmentDetail: Received qrCodeData from params:', params.qrCodeData);
+      console.log('AppointmentDetail: orderId:', params.qrCodeData.orderId);
       setQrCodeData(params.qrCodeData);
       setShowPaymentCodeModal(true);
     }
@@ -726,10 +728,22 @@ export default function AppointmentDetailScreen() {
       ? `${appointmentData.startTime.substring(0, 5)} - ${appointmentData.endTime.substring(0, 5)}`
       : 'Không có';
     
-    return {
-      id: appointmentData.careServiceId,
-      bookingCode: appointmentData.bookingCode || '',
-      status: status || appointmentData.status,
+      // Map status từ API - luôn dùng appointmentData.status để đảm bảo chính xác
+      const statusMap: Record<string, string> = {
+        'PENDING_CAREGIVER': 'Mới',
+        'CAREGIVER_APPROVED': 'Chờ thực hiện',
+        'IN_PROGRESS': 'Đang thực hiện',
+        'COMPLETED': 'Hoàn thành',
+        'CANCELLED': 'Đã hủy',
+        'EXPIRED': 'Đã hết hạn',
+        'WAITING_PAYMENT': 'Chờ thanh toán',
+      };
+      const mappedStatus = statusMap[appointmentData.status] || appointmentData.status;
+      
+      return {
+        id: appointmentData.careServiceId,
+        bookingCode: appointmentData.bookingCode || '',
+        status: mappedStatus,
       date: appointmentData.workDate || 'Không có',
       timeSlot: timeSlot,
       duration: duration,
@@ -1070,41 +1084,58 @@ export default function AppointmentDetailScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "new":
+      case "Mới":
+      case "PENDING_CAREGIVER":
         return "#3B82F6"; // Blue
       case "pending":
-        return "#F59E0B"; // Orange
+      case "Chờ thực hiện":
+      case "CAREGIVER_APPROVED":
       case "confirmed":
         return "#10B981"; // Green
       case "in-progress":
+      case "Đang thực hiện":
+      case "IN_PROGRESS":
         return "#8B5CF6"; // Purple
       case "completed":
-        return "#6B7280"; // Gray
+      case "Hoàn thành":
+      case "COMPLETED":
+        return "#10B981"; // Green
       case "cancelled":
+      case "Đã hủy":
+      case "CANCELLED":
         return "#EF4444"; // Red
       case "rejected":
         return "#DC2626"; // Dark Red
+      case "WAITING_PAYMENT":
+      case "Chờ thanh toán":
+        return "#F59E0B"; // Orange
+      case "EXPIRED":
+      case "Đã hết hạn":
+        return "#6B7280"; // Gray
       default:
         return "#6B7280";
     }
   };
 
   const getStatusText = (status: string) => {
+    // Map status giống như trong booking.tsx
     switch (status) {
-      case "new":
-        return "Yêu cầu mới";
-      case "pending":
+      case "PENDING_CAREGIVER":
+        return "Mới";
+      case "CAREGIVER_APPROVED":
         return "Chờ thực hiện";
-      case "confirmed":
-        return "Đã xác nhận";
-      case "in-progress":
+      case "IN_PROGRESS":
         return "Đang thực hiện";
-      case "completed":
+      case "COMPLETED":
         return "Hoàn thành";
-      case "cancelled":
+      case "CANCELLED":
         return "Đã hủy";
-      case "rejected":
-        return "Đã từ chối";
+      case "EXPIRED":
+        return "Đã hết hạn";
+      case "WAITING_PAYMENT":
+        return "Chờ thanh toán";
       default:
+        // Nếu đã là tiếng Việt rồi (từ statusMap) thì return luôn
         return status;
     }
   };
@@ -1129,16 +1160,40 @@ export default function AppointmentDetailScreen() {
           text: "Chấp nhận",
           style: "default",
           onPress: async () => {
-            const newStatus = "confirmed";
-            setStatus(newStatus);
-            updateAppointmentStatus(appointmentId, newStatus);
-            // Status is saved via API call in handleAccept
-            showAlert(
-              "Thành công", 
-              "Đã chấp nhận lịch hẹn",
-              [{ text: 'OK', style: 'default' }],
-              { icon: 'check-circle', iconColor: '#10B981' }
-            );
+            try {
+              // Gọi API để chấp nhận lịch hẹn
+              const response = await mainService.acceptCareService(appointmentId);
+              
+              if (response.status === "Success") {
+                // Update global store
+                updateAppointmentStatus(appointmentId, "confirmed");
+                
+                // Refresh data từ API để lấy status mới nhất
+                await fetchAppointment();
+                
+                showAlert(
+                  "Thành công", 
+                  "Đã chấp nhận lịch hẹn",
+                  [{ text: 'OK', style: 'default' }],
+                  { icon: 'check-circle', iconColor: '#10B981' }
+                );
+              } else {
+                showAlert(
+                  "Lỗi", 
+                  response.message || "Không thể chấp nhận lịch hẹn",
+                  [{ text: 'OK', style: 'default' }],
+                  { icon: 'alert-circle', iconColor: '#EF4444' }
+                );
+              }
+            } catch (error: any) {
+              console.error('Error accepting appointment:', error);
+              showAlert(
+                "Lỗi", 
+                "Có lỗi xảy ra. Vui lòng thử lại.",
+                [{ text: 'OK', style: 'default' }],
+                { icon: 'alert-circle', iconColor: '#EF4444' }
+              );
+            }
           },
         },
       ],
@@ -1716,7 +1771,7 @@ export default function AppointmentDetailScreen() {
               ]}
             >
               <Text style={styles.statusText}>
-                {getStatusText(status)}
+                {displayData?.status || (appointmentData?.status ? getStatusText(appointmentData.status) : 'Không xác định')}
               </Text>
             </View>
             {hasComplained && (
@@ -2403,6 +2458,8 @@ export default function AppointmentDetailScreen() {
         completedAt={new Date()}
         qrCodeBase64={qrCodeData?.qrCodeBase64}
         orderId={qrCodeData?.orderId}
+        paymentId={qrCodeData?.paymentId}
+        careServiceId={qrCodeData?.careServiceId || appointmentId}
       />
     )}
 

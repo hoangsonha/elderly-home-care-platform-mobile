@@ -79,6 +79,43 @@ export default function BookingScreen() {
   // Get careServiceId from route params (for scrolling to specific item from notification)
   const targetCareServiceId = route.params?.careServiceId;
 
+  // Update activeTab when route params change (from notification)
+  useEffect(() => {
+    if (route.params?.initialTab) {
+      const newTab = route.params.initialTab as TabStatus;
+      if (newTab !== activeTab) {
+        console.log('Booking: Updating activeTab from params:', newTab);
+        setActiveTab(newTab);
+      }
+    }
+  }, [route.params?.initialTab]);
+
+  // If targetCareServiceId is provided but not found in current tab, switch to "Tất cả" tab to find it
+  useEffect(() => {
+    if (targetCareServiceId && bookings.length > 0 && activeTab !== "Tất cả") {
+      const found = bookings.find(item => item.careServiceId === targetCareServiceId);
+      if (!found) {
+        console.log('Booking: Item not found in current tab, switching to "Tất cả" tab. Current tab:', activeTab, 'careServiceId:', targetCareServiceId);
+        // Item không có trong tab hiện tại - có thể status đã thay đổi
+        // Tự động switch sang tab "Tất cả" để tìm item
+        setActiveTab("Tất cả");
+      }
+    }
+  }, [targetCareServiceId, bookings, activeTab]);
+
+  // If targetCareServiceId is provided but not found in current tab, try fetching all items
+  useEffect(() => {
+    if (targetCareServiceId && bookings.length > 0) {
+      const found = bookings.find(item => item.careServiceId === targetCareServiceId);
+      if (!found && activeTab !== "Tất cả") {
+        console.log('Booking: Item not found in current tab, but careServiceId provided. Current tab:', activeTab);
+        // Item không có trong tab hiện tại - có thể status đã thay đổi
+        // Có thể tự động switch sang tab "Tất cả" để tìm item
+        // Hoặc giữ nguyên và để user tự tìm
+      }
+    }
+  }, [targetCareServiceId, bookings, activeTab]);
+
   // Calculate time remaining until deadline
   const calculateTimeRemaining = useCallback((deadline: string | null): string | null => {
     if (!deadline) return null;
@@ -155,13 +192,27 @@ export default function BookingScreen() {
               (item) => item.careServiceId === targetCareServiceId
             );
             if (index !== -1) {
-              flatListRef.current?.scrollToIndex({
-                index,
-                animated: true,
-                viewPosition: 0.5, // Center the item
-              });
+              console.log('Booking: Scrolling to item at index:', index, 'careServiceId:', targetCareServiceId);
+              try {
+                flatListRef.current?.scrollToIndex({
+                  index,
+                  animated: true,
+                  viewPosition: 0.5, // Center the item
+                });
+              } catch (error) {
+                console.error('Booking: Error scrolling to index:', error);
+                // Fallback: scroll to offset
+                flatListRef.current?.scrollToOffset({
+                  offset: index * 200, // Approximate item height
+                  animated: true,
+                });
+              }
+            } else {
+              console.log('Booking: Item not found in current tab. careServiceId:', targetCareServiceId, 'activeTab:', activeTab, 'totalItems:', mappedBookings.length);
+              // Item không có trong tab hiện tại - có thể status đã thay đổi
+              // Có thể hiển thị thông báo hoặc tự động switch sang tab "Tất cả" để tìm
             }
-          }, 300); // Small delay to ensure FlatList is rendered
+          }, 500); // Tăng delay để đảm bảo FlatList đã render xong
         }
       } else {
         setBookings([]);

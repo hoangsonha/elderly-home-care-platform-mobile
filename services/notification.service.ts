@@ -111,8 +111,11 @@ export interface NotificationServiceResponse {
 function handleNotificationNavigation(data: any) {
   try {
     if (!data) {
+      console.log('NotificationService: No data provided');
       return;
     }
+
+    console.log('NotificationService: Raw notification data:', JSON.stringify(data, null, 2));
 
     // Extract notification type and IDs
     // Handle both string and object data formats
@@ -125,24 +128,29 @@ function handleNotificationNavigation(data: any) {
     if (typeof data === "string") {
       try {
         const parsed = JSON.parse(data);
-        notificationType = parsed.notificationType || parsed.type || "";
-        careServiceId = parsed.careServiceId || parsed.care_service_id || "";
-        relatedEntityId = parsed.relatedEntityId || "";
+        notificationType = parsed.notificationType || parsed.type || parsed.notification_type || "";
+        careServiceId = parsed.careServiceId || parsed.care_service_id || parsed.careService_id || "";
+        relatedEntityId = parsed.relatedEntityId || parsed.related_entity_id || "";
         appointmentId = parsed.appointmentId || parsed.appointment_id || careServiceId || relatedEntityId;
+        console.log('NotificationService: Parsed from string - type:', notificationType, 'careServiceId:', careServiceId);
       } catch (e) {
-        // Silent fail
+        console.error('NotificationService: Error parsing string data:', e);
       }
     } else if (typeof data === "object") {
-      // Backend format
-      notificationType = data.notificationType || data.type || "";
-      careServiceId = data.careServiceId || data.care_service_id || "";
-      relatedEntityId = data.relatedEntityId || "";
+      // Backend format - check multiple possible field names
+      notificationType = data.notificationType || data.type || data.notification_type || "";
+      careServiceId = data.careServiceId || data.care_service_id || data.careService_id || "";
+      relatedEntityId = data.relatedEntityId || data.related_entity_id || "";
       appointmentId = data.appointmentId || data.appointment_id || careServiceId || relatedEntityId;
+      console.log('NotificationService: Extracted from object - type:', notificationType, 'careServiceId:', careServiceId, 'appointmentId:', appointmentId);
     }
+
+    console.log('NotificationService: Final values - notificationType:', notificationType.toUpperCase(), 'careServiceId:', careServiceId);
 
     // Navigate based on notification type
     switch (notificationType.toUpperCase()) {
       case "NEW_CARE_SERVICE_REQUEST":
+        console.log('NotificationService: Navigating to Booking with tab "Mới" and careServiceId:', careServiceId);
         NavigationHelper.goToBooking("Mới", careServiceId);
         break;
 
@@ -201,9 +209,13 @@ function setupNotificationTapListener() {
     // Handle notification taps (when user taps on notification)
     // This works for both foreground and background/terminated states
     const notificationResponseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      console.log('NotificationService: Notification tapped, response:', JSON.stringify(response, null, 2));
       const data = response.notification.request.content.data;
       
+      console.log('NotificationService: Notification data:', JSON.stringify(data, null, 2));
+      
       if (!data || (typeof data === "object" && Object.keys(data).length === 0)) {
+        console.log('NotificationService: No data or empty data object');
         return;
       }
       
@@ -211,6 +223,7 @@ function setupNotificationTapListener() {
       // Use longer delay if app was in background/terminated
       const delay = response.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER ? 1000 : 800;
       
+      console.log('NotificationService: Will navigate after delay:', delay);
       setTimeout(() => {
         handleNotificationNavigation(data);
       }, delay);
