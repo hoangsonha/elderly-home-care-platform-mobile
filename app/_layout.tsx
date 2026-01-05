@@ -13,6 +13,8 @@ import { View, ActivityIndicator, Text, StyleSheet, LogBox } from "react-native"
 import "react-native-reanimated";
 import { useEffect } from "react";
 import { NotificationService } from "@/services/notification.service";
+// Import index.js to ensure background message handler is registered
+import "../index";
 
 // Ẩn tất cả các warning trên màn hình
 LogBox.ignoreAllLogs(true);

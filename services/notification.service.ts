@@ -2,7 +2,7 @@ import apiClient from "./apiClient";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
-import { getApps } from "@react-native-firebase/app";
+import { getApp } from "@react-native-firebase/app";
 import messaging from "@react-native-firebase/messaging";
 import { NavigationHelper } from "@/components/navigation/NavigationHelper";
 
@@ -46,8 +46,10 @@ async function getDeviceToken(): Promise<string | null> {
     }
 
     // Check if Firebase is initialized
-    const apps = getApps();
-    if (apps.length === 0) {
+    try {
+      getApp();
+    } catch (error) {
+      // Firebase not initialized
       return null;
     }
 
@@ -258,8 +260,11 @@ function setupNotificationTapListener() {
 // Setup Firebase messaging handlers
 function setupFirebaseMessagingHandlers() {
   try {
-    const apps = getApps();
-    if (apps.length === 0) {
+    // Check if Firebase is initialized
+    try {
+      getApp();
+    } catch (error) {
+      // Firebase not initialized
       return;
     }
 
@@ -302,6 +307,43 @@ export const NotificationService = {
     
     // Then setup Firebase handlers (if Firebase is available)
     setupFirebaseMessagingHandlers();
+    
+    // Ensure background message handler is set
+    try {
+      try {
+        getApp();
+        // Check if background handler is already set, if not, set it
+        // Note: setBackgroundMessageHandler can only be called once
+        if (!(global as any).__backgroundHandlerSet) {
+          messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+            const { notification, data } = remoteMessage;
+            
+            if (notification) {
+              // Display notification using expo-notifications
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: notification.title || "Thông báo",
+                  body: notification.body || "",
+                  data: data || {},
+                  sound: true,
+                  ...(Platform.OS === "android" && {
+                    channelId: "care_service_channel",
+                  }),
+                },
+                trigger: null, // Show immediately
+              });
+            }
+          });
+          (global as any).__backgroundHandlerSet = true;
+          console.log('NotificationService: Background message handler set');
+        }
+      } catch (error) {
+        // Firebase not initialized
+        console.warn('NotificationService: Firebase not initialized, background handler not set');
+      }
+    } catch (error) {
+      console.error('NotificationService: Error setting background handler:', error);
+    }
   },
 
   /**

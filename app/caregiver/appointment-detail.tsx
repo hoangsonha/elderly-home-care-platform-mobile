@@ -1,6 +1,7 @@
 import { CustomAlert } from "@/components/alerts/CustomAlert";
 import { PaymentCode } from "@/components/caregiver/PaymentCode";
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { NavigationHelper } from "@/components/navigation/NavigationHelper";
 import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { mainService, MyCareServiceData } from "@/services/main.service";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -1382,14 +1383,11 @@ export default function AppointmentDetailScreen() {
     const newStatus = "completed";
     setStatus(newStatus);
     updateAppointmentStatus(appointmentId, newStatus);
-    // TODO: Save to API
-    // if (appointment) {
-    //   try {
-    //     await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
-    //   } catch (error) {
-    //     console.error('Error updating appointment status:', error);
-    //   }
-    // }
+    
+    // Refresh appointment data ngay để đồng bộ với server
+    // Điều này đảm bảo user sẽ thấy status được update
+    await fetchAppointment();
+    
     showAlert(
       "Thành công", 
       "Công việc đã hoàn thành và thanh toán đã được xác nhận",
