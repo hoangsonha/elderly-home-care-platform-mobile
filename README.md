@@ -2,21 +2,56 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-## Get started
+## 🚀 Setup cho Developer mới
 
-1. Install dependencies
+### 1. Clone và cài đặt dependencies
 
-   ```bash
-   npm install
-   ```
+```bash
+git clone <repository-url>
+cd capstone-project
+npm install
+```
 
-2. Start the app
+### 2. Setup Firebase (Bắt buộc)
 
-   ```bash
-   npx expo start
-   ```
+**File `google-services.json` KHÔNG được commit lên Git** (đã ignore). Mỗi developer cần có file riêng.
 
-3. Choose 2 option to complete
+Xem hướng dẫn chi tiết trong [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
+
+**Tóm tắt:**
+- Lấy file `google-services.json` từ Firebase Console hoặc xin từ team lead
+- Đặt file vào **root project** (cùng cấp với `app.json`)
+- Package name phải là: `com.capstoneproject.app`
+
+### 3. Setup Android SDK
+
+Tạo file `android/local.properties` (file này cũng không được commit):
+
+```properties
+sdk.dir=C\:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
+```
+
+Thay `YOUR_USERNAME` bằng username Windows của bạn.
+
+### 4. Build và chạy app
+
+```bash
+# Build development build (lần đầu)
+npx expo run:android
+
+# Hoặc chạy Metro bundler (các lần sau)
+npx expo start --dev-client
+```
+
+## 📱 Development
+
+### Start the app
+
+```bash
+npx expo start
+```
+
+### Choose 2 option to complete
 
    a. Android Virtual Emulator
    

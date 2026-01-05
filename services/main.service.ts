@@ -363,7 +363,6 @@ export const mainService = {
       console.log('✅ Success! Start work completed');
       return response.data;
     } catch (axiosError: any) {
-      console.log('❌ Axios error starting work:', axiosError.code, axiosError.message);
 
       // Nếu axios fail với Network Error, thử XMLHttpRequest (fallback)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
@@ -490,7 +489,6 @@ export const mainService = {
     checkOutImage: { uri: string; type?: string; name?: string }
   ): Promise<CareServiceApiResponse> => {
     try {
-      console.log('📤 Ending work...');
       const formData = new FormData();
       
       // Append JSON request

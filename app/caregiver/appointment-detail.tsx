@@ -647,7 +647,6 @@ export default function AppointmentDetailScreen() {
           'WAITING_PAYMENT': 'Chờ thanh toán',
         };
         const mappedStatus = statusMap[appointment.status] || appointment.status;
-        console.log('API Status:', appointment.status, '-> Mapped to:', mappedStatus);
         setStatus(mappedStatus);
         
         // Calculate remaining minutes if status is Mới
@@ -1477,8 +1476,6 @@ export default function AppointmentDetailScreen() {
   // Render bottom action buttons dựa trên trạng thái
   const renderBottomActions = () => {
     // Debug: log status để kiểm tra
-    console.log('renderBottomActions - Current status:', status);
-    console.log('renderBottomActions - appointmentData.status:', appointmentData?.status);
     
     // Calculate bottom position: bottom nav (~80px) + safe area bottom
     const bottomNavHeight = 80;
@@ -1614,7 +1611,6 @@ export default function AppointmentDetailScreen() {
       
       default:
         // Fallback: Check appointmentData status directly
-        console.log('renderBottomActions - No match, checking appointmentData.status:', appointmentData?.status);
         if (appointmentData?.status === 'CAREGIVER_APPROVED') {
           return (
             <View style={bottomActionsStyle}>

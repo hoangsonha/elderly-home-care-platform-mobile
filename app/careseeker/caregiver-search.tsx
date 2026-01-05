@@ -189,7 +189,6 @@ export default function CaregiverSearchScreen() {
   };
 
   const handleGetAIRecommendations = (response: MatchResponse) => {
-    console.log('AI Recommendations received:', response);
     setAiRecommendations(response.recommendations);
     setShowAIResults(true);
     setShowAIModal(false);

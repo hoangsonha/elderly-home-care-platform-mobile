@@ -163,7 +163,6 @@ export default function CaregiverDashboardScreen() {
         setAppointments([]);
       }
     } catch (error: any) {
-      console.error('Error fetching today appointments:', error);
       setError(error);
       setAppointments([]);
     } finally {
@@ -183,7 +182,6 @@ export default function CaregiverDashboardScreen() {
         setNewRequestsCount(0);
       }
     } catch (error: any) {
-      console.error('Error fetching new requests:', error);
       setNewRequestsCount(0);
     } finally {
       setLoadingNewRequests(false);

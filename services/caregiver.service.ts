@@ -91,9 +91,7 @@ export class CaregiverService {
    */
   async getAllCaregivers(): Promise<CaregiverProfile[]> {
     try {
-      console.log('Fetching all caregivers...');
       const response = await apiClient.get<CaregiverApiResponse>('/api/match/caregivers');
-      console.log(`Found ${response.data.total} caregivers`);
       return response.data.caregivers;
     } catch (error: any) {
       throw new Error(`Failed to fetch caregivers: ${error.message}`);
@@ -164,9 +162,7 @@ export class CaregiverService {
    */
   async getPublicCaregivers(): Promise<PublicCaregiver[]> {
     try {
-      console.log('Fetching public caregivers...');
       const response = await apiClient.get<PublicCaregiverApiResponse>('/api/v1/public/caregivers');
-      console.log(`Found ${response.data.data.length} caregivers`);
       return response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch public caregivers: ${error.message}`);

@@ -32,7 +32,8 @@
           "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
         }
       },
-      "package": "com.anonymous.capstoneproject"
+      "package": "com.capstoneproject.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -52,6 +53,16 @@
           }
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff",
+          "sounds": []
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       "@rnmapbox/maps"
     ],
     "experiments": {

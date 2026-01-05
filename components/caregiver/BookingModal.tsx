@@ -470,12 +470,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         note: immediateData.note || undefined,
       };
 
-      console.log('Creating care service:', requestData);
-      
       // Call API
       const response = await mainService.createCareService(requestData);
-      
-      console.log('API Response:', response);
       
       if (response.status === 'Success') {
         setIsSubmitting(false);

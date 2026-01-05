@@ -5,7 +5,7 @@ import { mainService, type MyCareServiceData } from "@/services/main.service";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -72,6 +72,12 @@ export default function BookingScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  
+  // Ref for FlatList to scroll to specific item
+  const flatListRef = useRef<FlatList>(null);
+  
+  // Get careServiceId from route params (for scrolling to specific item from notification)
+  const targetCareServiceId = route.params?.careServiceId;
 
   // Calculate time remaining until deadline
   const calculateTimeRemaining = useCallback((deadline: string | null): string | null => {
@@ -141,6 +147,22 @@ export default function BookingScreen() {
           };
         });
         setBookings(mappedBookings);
+        
+        // Scroll to specific item if careServiceId is provided (from notification)
+        if (targetCareServiceId && !isRefreshing && flatListRef.current) {
+          setTimeout(() => {
+            const index = mappedBookings.findIndex(
+              (item) => item.careServiceId === targetCareServiceId
+            );
+            if (index !== -1) {
+              flatListRef.current?.scrollToIndex({
+                index,
+                animated: true,
+                viewPosition: 0.5, // Center the item
+              });
+            }
+          }, 300); // Small delay to ensure FlatList is rendered
+        }
       } else {
         setBookings([]);
       }
@@ -152,7 +174,7 @@ export default function BookingScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab, calculateTimeRemaining]);
+  }, [activeTab, calculateTimeRemaining, targetCareServiceId]);
 
   // Refresh when screen is focused or tab changes
   useFocusEffect(
@@ -547,12 +569,24 @@ export default function BookingScreen() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={bookings}
           keyExtractor={(item) => item.careServiceId}
           renderItem={renderBookingItem}
           contentContainerStyle={[styles.listContainer, { paddingBottom: bottomNavPadding }]}
           refreshing={refreshing}
           onRefresh={() => fetchBookings(true)}
+          onScrollToIndexFailed={(info) => {
+            // Handle scroll failure gracefully
+            console.warn("Failed to scroll to index:", info);
+            // Try scrolling to offset instead
+            setTimeout(() => {
+              flatListRef.current?.scrollToOffset({
+                offset: info.averageItemLength * info.index,
+                animated: true,
+              });
+            }, 100);
+          }}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="document-text-outline" size={64} color="#D1D5DB" />
