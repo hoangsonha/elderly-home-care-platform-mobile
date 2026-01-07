@@ -11,6 +11,10 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, Text, StyleSheet, LogBox } from "react-native";
 import "react-native-reanimated";
+import { useEffect } from "react";
+import { NotificationService } from "@/services/notification.service";
+// Import index.js to ensure background message handler is registered
+import "../index";
 
 // Ẩn tất cả các warning trên màn hình
 LogBox.ignoreAllLogs(true);
@@ -64,6 +68,22 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  // Initialize notification service when app starts
+  useEffect(() => {
+    const initNotifications = async () => {
+      try {
+        await NotificationService.initialize();
+      } catch (error) {
+        // Silent fail
+      }
+    };
+    
+    // Add small delay to ensure app is ready
+    setTimeout(() => {
+      initNotifications();
+    }, 500);
+  }, []);
 
   return (
     <AuthProvider>

@@ -1,18 +1,18 @@
-import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { CustomAlert } from "@/components/alerts/CustomAlert";
 import { PaymentCode } from "@/components/caregiver/PaymentCode";
-import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
-import { mainService, type MyCareServiceData } from "@/services/main.service";
+import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { NavigationHelper } from "@/components/navigation/NavigationHelper";
+import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
+import { mainService, MyCareServiceData } from "@/services/main.service";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useRoute } from "@react-navigation/native";
-import * as Linking from 'expo-linking';
-import { Platform } from 'react-native';
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
+  Linking,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,7 +20,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Parse Vietnamese date format "T5, 13 Thg 11 2025" to "YYYY-MM-DD"
 const parseVietnameseDate = (dateStr: string): string | null => {
@@ -575,87 +575,104 @@ export const appointmentsDataMap: { [key: string]: any } = {
 };
 
 export default function AppointmentDetailScreen() {
-  console.log('=== AppointmentDetailScreen COMPONENT MOUNTED ===');
-  
-  // Use React Navigation route params since we're using Drawer Navigator
+  const navigation = useNavigation<any>();
   const route = useRoute();
-  const routeParams = (route.params as { appointmentId?: string; fromScreen?: string }) || {};
-  const appointmentId = routeParams.appointmentId || '';
-  const fromScreen = routeParams.fromScreen;
+  const params = route.params as { 
+    appointmentId?: string; 
+    fromScreen?: string;
+    qrCodeData?: { qrCodeBase64: string; orderId: string; paymentId: string; careServiceId: string } | null;
+  } | undefined;
+  const appointmentId = params?.appointmentId || "1";
+  const fromScreen = params?.fromScreen;
+  const insets = useSafeAreaInsets();
   
-  const bottomNavPadding = useBottomNavPadding();
-  
-  console.log('Route params received:', JSON.stringify(routeParams));
-  console.log('AppointmentDetailScreen - appointmentId:', appointmentId);
-  
-  const [appointmentData, setAppointmentData] = useState<MyCareServiceData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState("");
-  const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
-
-  // Fetch appointment data from API
+  // Nhận qrCodeData từ route params (khi quay lại từ check-out screen)
   useEffect(() => {
-    console.log('AppointmentDetailScreen - appointmentId:', appointmentId);
-    const fetchAppointment = async () => {
-      if (!appointmentId) {
-        console.log('No appointmentId provided');
-        return;
-      }
+    if (params?.qrCodeData) {
+      console.log('AppointmentDetail: Received qrCodeData from params:', params.qrCodeData);
+      console.log('AppointmentDetail: orderId:', params.qrCodeData.orderId);
+      setQrCodeData(params.qrCodeData);
+      setShowPaymentCodeModal(true);
+    }
+  }, [params?.qrCodeData]);
+  
+  // State for API data
+  const [loading, setLoading] = useState(true);
+  const [appointmentData, setAppointmentData] = useState<MyCareServiceData | null>(null);
+  const [status, setStatus] = useState<string>('');
+  const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
+  
+  const [selectedTab, setSelectedTab] = useState<"tasks" | "notes">("tasks");
+  
+  // State for image viewer modal
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  
+  // Helper to calculate remaining minutes
+  const calculateRemainingMinutes = (deadline: string): number => {
+    const deadlineDate = new Date(deadline);
+    const now = new Date();
+    const diffMs = deadlineDate.getTime() - now.getTime();
+    return Math.max(0, Math.floor(diffMs / (1000 * 60)));
+  };
+  
+  // Function to fetch appointment data
+  const fetchAppointment = React.useCallback(async () => {
+    if (!appointmentId) {
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const response = await mainService.getCareServiceDetail(appointmentId);
       
-      try {
-        setLoading(true);
-        const response = await mainService.getMyCareServices();
+      if (response.status === 'Success' && response.data) {
+        const appointment = response.data as MyCareServiceData;
+        setAppointmentData(appointment);
         
-        if (response.status === 'Success' && response.data) {
-          const appointment = response.data.find((service: MyCareServiceData) => 
-            service.careServiceId === appointmentId
-          );
-          
-          if (appointment) {
-            setAppointmentData(appointment);
-            // Map status to Vietnamese
-            const statusMap: Record<string, string> = {
-              'PENDING_CAREGIVER': 'Mới',
-              'CAREGIVER_APPROVED': 'Chờ thực hiện',
-              'IN_PROGRESS': 'Đang thực hiện',
-              'COMPLETED': 'Hoàn thành',
-              'CANCELLED': 'Đã hủy',
-              'EXPIRED': 'Đã hết hạn',
-            };
-            setStatus(statusMap[appointment.status] || appointment.status);
-            // Calculate remaining minutes if status is Mới
-            if (appointment.status === "PENDING_CAREGIVER" && appointment.caregiverResponseDeadline) {
-              const minutes = calculateRemainingMinutes(appointment.caregiverResponseDeadline);
-              setRemainingMinutes(minutes);
-            }
-          } else {
-            Alert.alert('Lỗi', 'Không tìm thấy lịch hẹn');
-            router.back();
-          }
-        } else {
-          Alert.alert('Lỗi', response.message || 'Không thể tải thông tin lịch hẹn');
-          router.back();
+        // Debug: Log CI/CO data
+        console.log('=== Appointment Data ===');
+        console.log('workSchedule:', appointment.workSchedule);
+        console.log('checkInImageUrl:', appointment.workSchedule?.checkInImageUrl);
+        console.log('checkOutImageUrl:', appointment.workSchedule?.checkOutImageUrl);
+        console.log('startTime:', appointment.workSchedule?.startTime);
+        console.log('endTime:', appointment.workSchedule?.endTime);
+        
+        // Map status to Vietnamese
+        const statusMap: Record<string, string> = {
+          'PENDING_CAREGIVER': 'Mới',
+          'CAREGIVER_APPROVED': 'Chờ thực hiện',
+          'IN_PROGRESS': 'Đang thực hiện',
+          'COMPLETED': 'Hoàn thành',
+          'CANCELLED': 'Đã hủy',
+          'EXPIRED': 'Đã hết hạn',
+          'WAITING_PAYMENT': 'Chờ thanh toán',
+        };
+        const mappedStatus = statusMap[appointment.status] || appointment.status;
+        setStatus(mappedStatus);
+        
+        // Calculate remaining minutes if status is Mới
+        if (appointment.status === "PENDING_CAREGIVER" && appointment.caregiverResponseDeadline) {
+          const minutes = calculateRemainingMinutes(appointment.caregiverResponseDeadline);
+          setRemainingMinutes(minutes);
         }
-      } catch (error: any) {
-        Alert.alert('Lỗi', 'Không thể tải thông tin lịch hẹn');
-        router.back();
-      } finally {
-        setLoading(false);
+      } else {
+        Alert.alert('Lỗi', response.message || 'Không thể tải thông tin lịch hẹn');
       }
-    };
-
-    if (appointmentId) {
-      fetchAppointment();
-    } else {
-      console.log('No appointmentId, showing loading...');
+    } catch (error: any) {
+      console.error('Error fetching appointment:', error);
+      Alert.alert('Lỗi', 'Không thể tải thông tin lịch hẹn');
+    } finally {
+      setLoading(false);
     }
   }, [appointmentId]);
-
-  // Format time from "06:20:00" to "06:20"
-  const formatTime = (timeStr: string) => {
-    return timeStr.split(':').slice(0, 2).join(':');
-  };
-
+  
+  // Load appointment from API
+  useEffect(() => {
+    fetchAppointment();
+  }, [fetchAppointment]);
+  
   // Helper to parse tasks JSON from database
   const parseTasksFromDB = (tasksJson: string | null) => {
     if (!tasksJson) return [];
@@ -666,7 +683,8 @@ export default function AppointmentDetailScreen() {
       return [];
     }
   };
-
+  
+  // Create merged data object that uses database data when available, fallback to mock
   // Calculate price based on package type
   const calculatePrice = (packageType: string): number => {
     const pkgLower = packageType.toLowerCase();
@@ -680,108 +698,163 @@ export default function AppointmentDetailScreen() {
     return 0; // Default
   };
 
-  // Parse location if it's a JSON string - moved before early returns
-  const locationObj = useMemo(() => {
-    if (!appointmentData) return { address: '', latitude: 0, longitude: 0 };
-    
-    try {
-      if (typeof appointmentData.location === 'string') {
-        return JSON.parse(appointmentData.location);
-      } else {
-        return appointmentData.location as any;
-      }
-    } catch (e) {
-      return {
-        address: appointmentData.elderlyProfile.location.address,
-        latitude: appointmentData.elderlyProfile.location.latitude,
-        longitude: appointmentData.elderlyProfile.location.longitude,
-      };
-    }
-  }, [appointmentData]);
-
-  // Create displayData - moved before early returns to fix hooks order
   const displayData = useMemo(() => {
-    if (!appointmentData) return null;
-
-    // Calculate duration based on package type
-    const packageType = appointmentData.servicePackage.packageName || '';
-    let duration = appointmentData.servicePackage.durationHours ? `${appointmentData.servicePackage.durationHours} giờ` : 'Không có';
+    if (!appointmentData) {
+      // Fallback to mock data if API data not loaded yet
+      return appointmentsDataMap[appointmentId] || appointmentsDataMap["1"];
+    }
     
-    return {
-      id: appointmentData.careServiceId,
-      bookingCode: appointmentData.bookingCode,
-      status: appointmentData.status,
-      date: appointmentData.workDate,
-      timeSlot: `${formatTime(appointmentData.startTime)} - ${formatTime(appointmentData.endTime)}`,
+    const elderly = appointmentData.elderlyProfile;
+    const profileData = elderly?.profileData || {};
+    const medicalConditions = profileData.medical_conditions || {};
+    const independenceLevel = profileData.independence_level || {};
+    const location = elderly?.location || {};
+    
+    // Parse location if it's a string
+    let locationObj = location;
+    if (typeof location === 'string') {
+      try {
+        locationObj = JSON.parse(location);
+      } catch {
+        locationObj = { address: location, latitude: 0, longitude: 0 };
+      }
+    }
+    
+    // Calculate duration from servicePackage
+    const durationHours = appointmentData.servicePackage?.durationHours || 0;
+    const duration = durationHours > 0 ? `${durationHours} giờ` : 'Không có';
+    
+    // Format time slot
+    const timeSlot = appointmentData.startTime && appointmentData.endTime
+      ? `${appointmentData.startTime.substring(0, 5)} - ${appointmentData.endTime.substring(0, 5)}`
+      : 'Không có';
+    
+      // Map status từ API - luôn dùng appointmentData.status để đảm bảo chính xác
+      const statusMap: Record<string, string> = {
+        'PENDING_CAREGIVER': 'Mới',
+        'CAREGIVER_APPROVED': 'Chờ thực hiện',
+        'IN_PROGRESS': 'Đang thực hiện',
+        'COMPLETED': 'Hoàn thành',
+        'CANCELLED': 'Đã hủy',
+        'EXPIRED': 'Đã hết hạn',
+        'WAITING_PAYMENT': 'Chờ thanh toán',
+      };
+      const mappedStatus = statusMap[appointmentData.status] || appointmentData.status;
+      
+      return {
+        id: appointmentData.careServiceId,
+        bookingCode: appointmentData.bookingCode || '',
+        status: mappedStatus,
+      date: appointmentData.workDate || 'Không có',
+      timeSlot: timeSlot,
       duration: duration,
-      packageType: packageType,
-      price: appointmentData.servicePackage.price,
-      careSeeker: {
-        id: appointmentData.careSeekerProfile.careSeekerProfileId,
-        name: appointmentData.careSeekerProfile.fullName,
-        age: appointmentData.careSeekerProfile.age,
-        gender: appointmentData.careSeekerProfile.gender === 'MALE' ? 'Nam' : appointmentData.careSeekerProfile.gender === 'FEMALE' ? 'Nữ' : 'Không có',
-        avatar: appointmentData.careSeekerProfile.avatarUrl || '',
-        phone: appointmentData.careSeekerProfile.phoneNumber || 'Không có',
+      packageType: appointmentData.servicePackage?.packageName || 'Gói cơ bản',
+      price: appointmentData.totalPrice || 0,
+      // CI-CO information from workSchedule
+      checkIn: {
+        imageUrl: appointmentData.workSchedule?.checkInImageUrl || null,
+        time: appointmentData.workSchedule?.startTime || null,
+      },
+      checkOut: {
+        imageUrl: appointmentData.workSchedule?.checkOutImageUrl || null,
+        time: appointmentData.workSchedule?.endTime || null,
       },
       elderly: {
-        id: appointmentData.elderlyProfile.elderlyProfileId,
-        name: appointmentData.elderlyProfile.fullName,
-        age: appointmentData.elderlyProfile.age,
-        gender: appointmentData.elderlyProfile.gender === 'MALE' ? 'Nam' : appointmentData.elderlyProfile.gender === 'FEMALE' ? 'Nữ' : 'Không có',
-        avatar: appointmentData.elderlyProfile.avatarUrl || '',
-        address: locationObj.address,
-        phone: appointmentData.elderlyProfile.phoneNumber || 'Không có',
-        healthCondition: appointmentData.elderlyProfile.healthStatus || 'Không có',
+        id: elderly?.elderlyProfileId || '',
+        name: elderly?.fullName || 'Không có',
+        age: elderly?.age || 0,
+        gender: elderly?.gender === 'MALE' ? 'Nam' : elderly?.gender === 'FEMALE' ? 'Nữ' : 'Không có',
+        avatar: elderly?.avatarUrl || 'https://via.placeholder.com/100',
+        address: locationObj?.address || 'Chưa có địa chỉ',
+        location: locationObj, // Store location object for map button
+        phone: elderly?.phoneNumber || 'Không có',
+        bloodType: 'Không có', // Not in API response
+        healthCondition: elderly?.healthStatus || 'Không có',
+        underlyingDiseases: medicalConditions.underlying_diseases || [],
+        medications: medicalConditions.medications || [],
+        allergies: medicalConditions.allergies || [],
+        specialConditions: medicalConditions.special_conditions || [],
+        independenceLevel: {
+          eating: independenceLevel['ăn uống'] === 'Tự lập' ? 'independent' : independenceLevel['ăn uống'] === 'Cần hỗ trợ' ? 'assisted' : 'dependent',
+          bathing: independenceLevel['tắm rửa'] === 'Tự lập' ? 'independent' : independenceLevel['tắm rửa'] === 'Cần hỗ trợ' ? 'assisted' : 'dependent',
+          mobility: independenceLevel['di chuyển'] === 'Tự lập' ? 'independent' : independenceLevel['di chuyển'] === 'Cần hỗ trợ' ? 'assisted' : 'dependent',
+          toileting: independenceLevel['vệ sinh'] === 'Tự lập' ? 'independent' : independenceLevel['vệ sinh'] === 'Cần hỗ trợ' ? 'assisted' : 'dependent',
+          dressing: independenceLevel['mặc quần áo'] === 'Tự lập' ? 'independent' : independenceLevel['mặc quần áo'] === 'Cần hỗ trợ' ? 'assisted' : 'dependent',
+        },
+        livingEnvironment: {
+          houseType: 'Không có',
+          livingWith: [],
+          accessibility: [],
+        },
+        hobbies: profileData.hobbies || [],
+        favoriteActivities: profileData.favorite_activities || [],
+        foodPreferences: profileData.favorite_food || [],
+        emergencyContact: profileData.emergency_contacts?.[0] || {
+          name: 'Không có',
+          relationship: 'Không có',
+          phone: 'Không có',
+        },
       },
       tasks: {
-        fixed: appointmentData.servicePackage.serviceTasks || [],
+        fixed: appointmentData.workSchedule?.workTasks?.map(task => ({
+          id: task.workTaskId,
+          workTaskId: task.workTaskId,
+          title: task.name,
+          taskName: task.name,
+          description: task.description,
+          status: task.status,
+          completed: task.status === 'DONE',
+        })) || appointmentData.servicePackage?.serviceTasks?.map(task => ({
+          id: task.serviceTaskId,
+          taskId: task.serviceTaskId,
+          title: task.taskName,
+          taskName: task.taskName,
+          description: task.description,
+          status: 'PENDING',
+          completed: false,
+        })) || [],
         flexible: [],
         optional: [],
       },
       notes: [],
-      specialInstructions: appointmentData.note || 'Không có',
+      specialInstructions: elderly?.note || elderly?.healthNote || 'Không có',
       responseDeadline: appointmentData.caregiverResponseDeadline || undefined,
+      careSeeker: {
+        id: appointmentData.careSeekerProfile?.careSeekerProfileId || '',
+        name: appointmentData.careSeekerProfile?.fullName || 'Không có',
+        age: appointmentData.careSeekerProfile?.age || 0,
+        gender: appointmentData.careSeekerProfile?.gender === 'MALE' ? 'Nam' : appointmentData.careSeekerProfile?.gender === 'FEMALE' ? 'Nữ' : 'Không có',
+        avatar: appointmentData.careSeekerProfile?.avatarUrl || 'https://via.placeholder.com/100',
+        phone: appointmentData.careSeekerProfile?.phoneNumber || 'Không có',
+        location: appointmentData.careSeekerProfile?.location || {},
+      },
     };
-  }, [appointmentData, locationObj]);
+  }, [appointmentData, status, appointmentId]);
   
-  // Get services based on package type
-  const getServicesByPackage = (packageType: string) => {
-    const packageName = packageType.toLowerCase();
-    
-    if (packageName.includes("cơ bản") || packageName.includes("co ban")) {
-      return [
-        { id: "S1", title: "Tắm rửa", description: "Hỗ trợ tắm rửa và vệ sinh cá nhân", completed: false },
-        { id: "S2", title: "Hỗ trợ ăn uống", description: "Chuẩn bị và hỗ trợ bữa ăn", completed: false },
-        { id: "S3", title: "Massage cơ bản", description: "Massage nhẹ nhàng để thư giãn", completed: false },
-        { id: "S4", title: "Trò chuyện cùng người già", description: "Dành thời gian trò chuyện và giao tiếp", completed: false },
-      ];
-    } else if (packageName.includes("chuyên nghiệp") || packageName.includes("chuyen nghiep")) {
-      return [
-        { id: "S1", title: "Tập vật lí trị liệu", description: "Hướng dẫn và hỗ trợ các bài tập phục hồi chức năng", completed: false },
-        { id: "S2", title: "Massage phục hồi chức năng", description: "Massage chuyên sâu hỗ trợ phục hồi", completed: false },
-        { id: "S3", title: "Theo dõi tiến trình trị liệu", description: "Ghi chép và theo dõi tiến trình hồi phục", completed: false },
-      ];
-    } else if (packageName.includes("cao cấp") || packageName.includes("cao cap")) {
-      return [
-        { id: "S1", title: "Tắm rửa", description: "Hỗ trợ tắm rửa và vệ sinh cá nhân", completed: false },
-        { id: "S2", title: "Hỗ trợ ăn uống", description: "Chuẩn bị và hỗ trợ bữa ăn", completed: false },
-        { id: "S3", title: "Massage cơ bản", description: "Massage nhẹ nhàng để thư giãn", completed: false },
-        { id: "S4", title: "Trò chuyện cùng người già", description: "Dành thời gian trò chuyện và giao tiếp", completed: false },
-        { id: "S5", title: "Nấu ăn", description: "Chuẩn bị các bữa ăn dinh dưỡng theo yêu cầu", completed: false },
-        { id: "S6", title: "Dọn dẹp", description: "Vệ sinh và dọn dẹp không gian sống", completed: false },
-        { id: "S7", title: "Hỗ trợ y tế", description: "Theo dõi sức khỏe và hỗ trợ các vấn đề y tế", completed: false },
-      ];
+  const [services, setServices] = useState<any[]>([]);
+  
+  // Helper to map database status to Vietnamese display status
+  const mapDbStatusToVietnamese = (dbStatus: string) => {
+    switch (dbStatus) {
+      case 'pending': return 'Mới';
+      case 'confirmed': return 'Chờ thực hiện';
+      case 'in-progress': return 'Đang thực hiện';
+      case 'completed': return 'Hoàn thành';
+      case 'cancelled':
+      case 'rejected': return 'Đã hủy';
+      default: return 'Mới';
     }
-    // Default: Gói cơ bản
-    return [
-      { id: "S1", title: "Tắm rửa", description: "Hỗ trợ tắm rửa và vệ sinh cá nhân", completed: false },
-      { id: "S2", title: "Hỗ trợ ăn uống", description: "Chuẩn bị và hỗ trợ bữa ăn", completed: false },
-      { id: "S3", title: "Massage cơ bản", description: "Massage nhẹ nhàng để thư giãn", completed: false },
-      { id: "S4", title: "Trò chuyện cùng người già", description: "Dành thời gian trò chuyện và giao tiếp", completed: false },
-    ];
   };
-
+  
+  // Status is already set from API fetch above
+  
+  // Check if already reviewed
+  const initialHasReviewed = getAppointmentHasReviewed(appointmentId);
+  const [hasReviewed, setHasReviewed] = useState(initialHasReviewed);
+  
+  // Check if has complaint
+  const hasComplained = getAppointmentHasComplained(appointmentId);
+  
   // Notes state
   const [notes, setNotes] = useState<any[]>([]);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
@@ -789,6 +862,10 @@ export default function AppointmentDetailScreen() {
   
   // Payment code modal state
   const [showPaymentCodeModal, setShowPaymentCodeModal] = useState(false);
+  const [qrCodeData, setQrCodeData] = useState<{
+    qrCodeBase64: string;
+    orderId: string;
+  } | null>(null);
   
   // Alert state
   const [alertConfig, setAlertConfig] = useState<{
@@ -804,15 +881,6 @@ export default function AppointmentDetailScreen() {
     message: '',
     buttons: [],
   });
-
-  const [services, setServices] = useState<any[]>([]);
-  
-  // Review and complaint status
-  const [hasReviewed, setHasReviewed] = useState(false);
-  const [hasComplained, setHasComplained] = useState(false);
-  
-  // Tab state for tasks/notes
-  const [selectedTab, setSelectedTab] = useState<"tasks" | "notes">("tasks");
   
   // Helper to show custom alert
   const showAlert = (
@@ -831,104 +899,244 @@ export default function AppointmentDetailScreen() {
     });
   };
 
-  // Calculate remaining minutes until deadline
-  const calculateRemainingMinutes = (deadline: string): number | null => {
-    try {
-      const deadlineDate = new Date(deadline);
-      const now = new Date();
-      const diffMs = deadlineDate.getTime() - now.getTime();
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
-      return diffMinutes > 0 ? diffMinutes : 0;
-    } catch (error) {
-      return null;
-    }
-  };
-
-  // Check if deadline is expired
-  const isDeadlineExpired = displayData?.responseDeadline 
+  // Check if deadline is expired (simple check, no countdown)
+  const isDeadlineExpired = displayData.responseDeadline 
     ? new Date(displayData.responseDeadline).getTime() <= new Date().getTime()
     : false;
 
-  // Update remaining minutes every minute
-  useEffect(() => {
-    if (displayData?.responseDeadline && status === "Mới") {
-      const updateRemaining = () => {
-        const minutes = calculateRemainingMinutes(displayData.responseDeadline!);
-        setRemainingMinutes(minutes);
-      };
-      
-      updateRemaining();
-      const interval = setInterval(updateRemaining, 60000); // Update every minute
-      
-      return () => clearInterval(interval);
+  // Format deadline message with remaining minutes
+  const formatDeadlineDisplay = () => {
+    if (remainingMinutes === null || remainingMinutes === undefined) {
+      return "Đang tính toán thời gian...";
     }
-  }, [displayData?.responseDeadline, status]);
+    return `Bạn có ${remainingMinutes} phút để chấp nhận hay từ chối lịch hẹn này. Nếu quá thời gian hệ thống sẽ tự hủy lịch hẹn`;
+  };
 
-  // Note: Navigation header is handled by expo-router automatically
+  // Setup header back button based on fromScreen param
+  useEffect(() => {
+    const handleBack = () => {
+      if (fromScreen) {
+        // Navigate to specific screen based on fromScreen param
+        switch (fromScreen) {
+          case "dashboard":
+            (navigation.navigate as any)("Trang chủ");
+            break;
+          case "booking":
+            (navigation.navigate as any)("Yêu cầu dịch vụ");
+            break;
+          case "availability":
+            (navigation.navigate as any)("Quản lý lịch");
+            break;
+          default:
+            navigation.goBack();
+        }
+      } else {
+        // Fallback to goBack if no fromScreen param
+        navigation.goBack();
+      }
+    };
 
-  // Update services when displayData changes
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={handleBack}
+          style={{ marginLeft: 15 }}
+        >
+          <MaterialCommunityIcons
+            name="arrow-left"
+            size={28}
+            color="#fff"
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, fromScreen]);
+
+  // Update services when appointmentId or displayData changes - Lấy từ API, không dùng mock data
   useEffect(() => {
     if (!displayData) return;
     
-    if (displayData.tasks && displayData.tasks.fixed) {
-      setServices(displayData.tasks.fixed.map((task: any) => ({
-        id: task.taskId || task.id || Math.random().toString(),
-        title: task.taskName || task.title || '',
-        description: task.description || '',
-        completed: false,
-      })));
+    // Lấy services từ displayData.tasks.fixed (từ workSchedule.workTasks hoặc servicePackage.serviceTasks)
+    if (displayData.tasks && displayData.tasks.fixed && displayData.tasks.fixed.length > 0) {
+      setServices(displayData.tasks.fixed);
     } else {
-      setServices(getServicesByPackage(displayData.packageType));
+      // Fallback: nếu không có tasks từ API thì để mảng rỗng
+      setServices([]);
     }
+    
+    // Don't override status here - it's already set from API fetch
+    // Status đã được set từ API fetch ở useEffect đầu tiên, không cần override
     setNotes(displayData.notes || []);
-  }, [displayData]);
+  }, [appointmentId, displayData]);
 
-  const toggleServiceComplete = (serviceId: string) => {
-    setServices((prev) =>
-      prev.map((service) =>
-        service.id === serviceId ? { ...service, completed: !service.completed } : service
-      )
-    );
+  // Sync status and review status from global store when component mounts or refocuses
+  // LƯU Ý: Status luôn được lấy từ API (appointmentData), KHÔNG override từ global store
+  useFocusEffect(
+    React.useCallback(() => {
+      // Refetch data khi quay lại từ check-in hoặc check-out screen
+      if (fromScreen === 'check-in' || fromScreen === 'check-out') {
+        console.log('Refetching appointment data after check-in/check-out');
+        fetchAppointment();
+      }
+      
+      const syncData = () => {
+        // LUÔN ưu tiên status từ API (appointmentData) - đây là source of truth
+        if (appointmentData?.status) {
+          const statusMap: Record<string, string> = {
+            'PENDING_CAREGIVER': 'Mới',
+            'CAREGIVER_APPROVED': 'Chờ thực hiện',
+            'IN_PROGRESS': 'Đang thực hiện',
+            'COMPLETED': 'Hoàn thành',
+            'CANCELLED': 'Đã hủy',
+            'EXPIRED': 'Đã hết hạn',
+            'WAITING_PAYMENT': 'Chờ thanh toán',
+          };
+          const mappedStatus = statusMap[appointmentData.status] || appointmentData.status;
+          // Luôn update status từ API, không check điều kiện
+          setStatus(mappedStatus);
+        }
+        // KHÔNG sync từ global store vì có thể có status cũ/không chính xác
+        // Global store chỉ dùng cho các thao tác local, không phải source of truth
+        
+        const globalHasReviewed = getAppointmentHasReviewed(appointmentId);
+        setHasReviewed(globalHasReviewed);
+      };
+      
+      syncData();
+      
+      // Subscribe to status changes - nhưng chỉ để refresh data, không override status từ API
+      const unsubscribe = subscribeToStatusChanges(() => {
+        // Khi có thay đổi, refetch từ API để lấy status mới nhất
+        fetchAppointment();
+      });
+      
+      return () => {
+        unsubscribe();
+      };
+    }, [appointmentId, appointmentData?.status, fromScreen, fetchAppointment])
+  );
+
+  const toggleServiceComplete = async (serviceId: string) => {
+    // Tìm service để lấy workTaskId
+    const service = services.find(s => s.id === serviceId);
+    if (!service) {
+      console.error('Service not found:', serviceId);
+      return;
+    }
+
+    // Kiểm tra xem có workTaskId không (từ workSchedule.workTasks)
+    const workTaskId = service.workTaskId;
+    if (!workTaskId) {
+      console.error('workTaskId not found for service:', serviceId);
+      // Nếu không có workTaskId, chỉ update local state (fallback)
+      setServices((prev) =>
+        prev.map((s) =>
+          s.id === serviceId ? { ...s, completed: !s.completed } : s
+        )
+      );
+      return;
+    }
+
+    try {
+      // Gọi API toggle task
+      const response = await mainService.toggleWorkTask(workTaskId);
+      
+      if (response.status === 'Success' && response.data) {
+        // Update local state với status mới từ API
+        setServices((prev) =>
+          prev.map((s) => {
+            if (s.id === serviceId) {
+              const newStatus = response.data?.status || (s.completed ? 'IN_PROGRESS' : 'DONE');
+              return {
+                ...s,
+                completed: newStatus === 'DONE',
+                status: newStatus,
+              };
+            }
+            return s;
+          })
+        );
+
+        // Refresh appointment data để đồng bộ với server
+        const refreshResponse = await mainService.getCareServiceDetail(appointmentId);
+        if (refreshResponse.status === 'Success' && refreshResponse.data) {
+          setAppointmentData(refreshResponse.data as MyCareServiceData);
+        }
+      } else {
+        // Nếu API fail, hiển thị lỗi
+        showAlert(
+          "Lỗi",
+          response.message || "Không thể thay đổi trạng thái task. Vui lòng thử lại.",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'alert-circle', iconColor: '#EF4444' }
+        );
+      }
+    } catch (error: any) {
+      console.error('Error toggling task:', error);
+      showAlert(
+        "Lỗi",
+        error.message || "Không thể thay đổi trạng thái task. Vui lòng thử lại.",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'alert-circle', iconColor: '#EF4444' }
+      );
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "new":
+      case "Mới":
+      case "PENDING_CAREGIVER":
         return "#3B82F6"; // Blue
       case "pending":
-        return "#F59E0B"; // Orange
+      case "Chờ thực hiện":
+      case "CAREGIVER_APPROVED":
       case "confirmed":
         return "#10B981"; // Green
       case "in-progress":
+      case "Đang thực hiện":
+      case "IN_PROGRESS":
         return "#8B5CF6"; // Purple
       case "completed":
-        return "#6B7280"; // Gray
+      case "Hoàn thành":
+      case "COMPLETED":
+        return "#10B981"; // Green
       case "cancelled":
+      case "Đã hủy":
+      case "CANCELLED":
         return "#EF4444"; // Red
       case "rejected":
         return "#DC2626"; // Dark Red
+      case "WAITING_PAYMENT":
+      case "Chờ thanh toán":
+        return "#F59E0B"; // Orange
+      case "EXPIRED":
+      case "Đã hết hạn":
+        return "#6B7280"; // Gray
       default:
         return "#6B7280";
     }
   };
 
   const getStatusText = (status: string) => {
+    // Map status giống như trong booking.tsx
     switch (status) {
-      case "new":
-        return "Yêu cầu mới";
-      case "pending":
+      case "PENDING_CAREGIVER":
+        return "Mới";
+      case "CAREGIVER_APPROVED":
         return "Chờ thực hiện";
-      case "confirmed":
-        return "Đã xác nhận";
-      case "in-progress":
+      case "IN_PROGRESS":
         return "Đang thực hiện";
-      case "completed":
+      case "COMPLETED":
         return "Hoàn thành";
-      case "cancelled":
+      case "CANCELLED":
         return "Đã hủy";
-      case "rejected":
-        return "Đã từ chối";
+      case "EXPIRED":
+        return "Đã hết hạn";
+      case "WAITING_PAYMENT":
+        return "Chờ thanh toán";
       default:
+        // Nếu đã là tiếng Việt rồi (từ statusMap) thì return luôn
         return status;
     }
   };
@@ -953,24 +1161,40 @@ export default function AppointmentDetailScreen() {
           text: "Chấp nhận",
           style: "default",
           onPress: async () => {
-            const newStatus = "confirmed";
-            setStatus(newStatus);
-            // updateAppointmentStatus(appointmentId, newStatus); // TODO: Update via API
-            // Save to database
-            if (appointment) {
-              try {
-                // TODO: Replace with API call
-                // await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
-              } catch (error) {
-                console.error('Error updating appointment status:', error);
+            try {
+              // Gọi API để chấp nhận lịch hẹn
+              const response = await mainService.acceptCareService(appointmentId);
+              
+              if (response.status === "Success") {
+                // Update global store
+                updateAppointmentStatus(appointmentId, "confirmed");
+                
+                // Refresh data từ API để lấy status mới nhất
+                await fetchAppointment();
+                
+                showAlert(
+                  "Thành công", 
+                  "Đã chấp nhận lịch hẹn",
+                  [{ text: 'OK', style: 'default' }],
+                  { icon: 'check-circle', iconColor: '#10B981' }
+                );
+              } else {
+                showAlert(
+                  "Lỗi", 
+                  response.message || "Không thể chấp nhận lịch hẹn",
+                  [{ text: 'OK', style: 'default' }],
+                  { icon: 'alert-circle', iconColor: '#EF4444' }
+                );
               }
+            } catch (error: any) {
+              console.error('Error accepting appointment:', error);
+              showAlert(
+                "Lỗi", 
+                "Có lỗi xảy ra. Vui lòng thử lại.",
+                [{ text: 'OK', style: 'default' }],
+                { icon: 'alert-circle', iconColor: '#EF4444' }
+              );
             }
-            showAlert(
-              "Thành công", 
-              "Đã chấp nhận lịch hẹn",
-              [{ text: 'OK', style: 'default' }],
-              { icon: 'check-circle', iconColor: '#10B981' }
-            );
           },
         },
       ],
@@ -999,16 +1223,8 @@ export default function AppointmentDetailScreen() {
           onPress: async () => {
             const newStatus = "rejected";
             setStatus(newStatus);
-            // updateAppointmentStatus(appointmentId, newStatus); // TODO: Update via API
-            // Save to database
-            if (appointment) {
-              try {
-                // TODO: Replace with API call
-                // await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
-              } catch (error) {
-                console.error('Error updating appointment status:', error);
-              }
-            }
+            updateAppointmentStatus(appointmentId, newStatus);
+            // Status is saved via API call in handleReject
             showAlert(
               "Đã từ chối", 
               "Lịch hẹn đã bị từ chối",
@@ -1035,12 +1251,12 @@ export default function AppointmentDetailScreen() {
       if (id === targetAppointmentId) continue;
 
       const globalStatus = getAppointmentStatus(id);
-      const currentStatus = globalStatus || appointment.status;
+      const currentStatus = globalStatus || appointmentData?.status || displayData?.status;
 
       // If another appointment is in-progress
       if (currentStatus === "in-progress") {
-        const otherContact = appointment.elderly?.emergencyContact;
-        const otherAddress = appointment.elderly?.address;
+        const otherContact = displayData?.elderly?.emergencyContact;
+        const otherAddress = displayData?.elderly?.address;
 
         // Check if same contact (prefer phone number, fallback to name)
         const sameContact = targetContact?.phone && otherContact?.phone
@@ -1055,7 +1271,7 @@ export default function AppointmentDetailScreen() {
         if (!(sameContact && sameAddress)) {
           return {
             conflictingAppointmentId: id,
-            conflictingElderlyName: appointment.elderly?.name || "Không xác định",
+            conflictingElderlyName: displayData?.elderly?.name || "Không xác định",
             conflictingAddress: otherAddress || "Không xác định",
           };
         }
@@ -1066,23 +1282,6 @@ export default function AppointmentDetailScreen() {
   };
 
   const handleStart = async () => {
-    // Validate: Check if today is the appointment date
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    
-    // Parse Vietnamese date format to YYYY-MM-DD
-    const parsedDate = parseVietnameseDate(displayData.date);
-    
-    if (parsedDate !== todayStr) {
-      showAlert(
-        "Chưa đến ngày thực hiện",
-        `Lịch hẹn này được đặt vào ngày ${displayData.date}. Bạn chỉ có thể bắt đầu vào đúng ngày thực hiện.`,
-        [{ text: "OK", style: "default" }],
-        { icon: 'calendar-clock', iconColor: '#F59E0B' }
-      );
-      return;
-    }
-    
     // Validate: Check if there's another in-progress appointment
     const conflict = checkStartConflict(appointmentId);
     
@@ -1112,7 +1311,7 @@ export default function AppointmentDetailScreen() {
   const handleCancel = async () => {
     const newStatus = "cancelled";
     setStatus(newStatus);
-    // updateAppointmentStatus(appointmentId, newStatus); // TODO: Update via API
+    updateAppointmentStatus(appointmentId, newStatus);
     // TODO: Save to API
     // if (appointment) {
     //   try {
@@ -1137,31 +1336,58 @@ export default function AppointmentDetailScreen() {
       const missingServices = ["Còn thiếu các dịch vụ:"];
       incompleteServices.forEach(s => missingServices.push(`• ${s.title}`));
       
+      // Hiển thị cảnh báo nhưng vẫn cho phép tiếp tục
       showAlert(
         "Chưa hoàn thành dịch vụ",
-        `Vui lòng hoàn thành tất cả dịch vụ trước khi kết thúc ca!\n\n${missingServices.join("\n")}`,
-        [{ text: "OK", style: "default" }],
+        `Bạn vẫn chưa hoàn thành một số dịch vụ:\n\n${missingServices.join("\n")}\n\nBạn có muốn tiếp tục kết thúc ca không?`,
+        [
+          { text: "Hủy", style: "cancel" },
+          {
+            text: "Xác nhận",
+            style: "default",
+            onPress: () => {
+              // Navigate to check-out verification screen (giống như Check-in)
+              (navigation as any).navigate("Check-in Verification", {
+                appointmentId: appointmentId,
+                elderlyName: displayData.elderly.name,
+                address: displayData.elderly.address,
+                amount: displayData.price,
+                fromScreen: "appointment-detail",
+                mode: "checkout", // Thêm mode để phân biệt CI và CO
+                elderlyLat: displayData.elderly.location?.latitude,
+                elderlyLng: displayData.elderly.location?.longitude,
+              });
+            },
+          }
+        ],
         { icon: 'clipboard-list-outline', iconColor: '#F59E0B' }
       );
       return;
     }
     
-    // Show payment modal directly without confirmation
-    setShowPaymentCodeModal(true);
+    // Nếu tất cả tasks đã hoàn thành, navigate đến Check-out screen
+    (navigation as any).navigate("Check-in Verification", {
+      appointmentId: appointmentId,
+      elderlyName: displayData.elderly.name,
+      address: displayData.elderly.address,
+      amount: displayData.price,
+      fromScreen: "appointment-detail",
+      mode: "checkout", // Thêm mode để phân biệt CI và CO
+      elderlyLat: displayData.elderly.location?.latitude,
+      elderlyLng: displayData.elderly.location?.longitude,
+    });
   };
+
 
   const handlePaymentComplete = async () => {
     const newStatus = "completed";
     setStatus(newStatus);
-    // updateAppointmentStatus(appointmentId, newStatus); // TODO: Update via API
-    // TODO: Save to API
-    // if (appointment) {
-    //   try {
-    //     await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
-    //   } catch (error) {
-    //     console.error('Error updating appointment status:', error);
-    //   }
-    // }
+    updateAppointmentStatus(appointmentId, newStatus);
+    
+    // Refresh appointment data ngay để đồng bộ với server
+    // Điều này đảm bảo user sẽ thấy status được update
+    await fetchAppointment();
+    
     showAlert(
       "Thành công", 
       "Công việc đã hoàn thành và thanh toán đã được xác nhận",
@@ -1173,29 +1399,23 @@ export default function AppointmentDetailScreen() {
   const handleReview = () => {
     if (hasReviewed) {
       // Đã đánh giá rồi - Xem đánh giá
-      router.push({
-        pathname: "/caregiver/review",
-        params: {
-          appointmentId: appointmentId,
-          elderlyName: displayData.elderly?.name || "Người được chăm sóc",
-          fromScreen: "appointment-detail",
-          viewMode: "true",
-        },
+      (navigation.navigate as any)("View Review", {
+        appointmentId: appointmentId,
+        elderlyName: displayData.elderly?.name || "Người được chăm sóc",
+        fromScreen: "appointment-detail",
       });
     } else {
       // Chưa đánh giá - Đánh giá mới
-      router.push({
-        pathname: "/caregiver/review",
-        params: {
-          appointmentId: appointmentId,
-          elderlyName: displayData.elderly?.name || "Người được chăm sóc",
-          fromScreen: "appointment-detail",
-        },
+      (navigation.navigate as any)("Review", {
+        appointmentId: appointmentId,
+        elderlyName: displayData.elderly?.name || "Người được chăm sóc",
+        fromScreen: "appointment-detail",
       });
     }
   };
 
   const handleComplaint = () => {
+    const hasComplained = getAppointmentHasComplained(appointmentId);
     const params = {
       bookingId: appointmentId,
       elderlyName: displayData.elderly?.name || "Người được chăm sóc",
@@ -1207,19 +1427,13 @@ export default function AppointmentDetailScreen() {
     
     if (hasComplained) {
       // Đã khiếu nại rồi - Xem khiếu nại
-      router.push({
-        pathname: "/caregiver/complaint",
-        params: {
-          ...params,
-          viewMode: "true",
-        },
+      (navigation.navigate as any)("Complaint", {
+        ...params,
+        viewMode: true,
       });
     } else {
       // Chưa khiếu nại - Tạo khiếu nại mới
-      router.push({
-        pathname: "/caregiver/complaint",
-        params: params,
-      });
+      (navigation.navigate as any)("Complaint", params);
     }
   };
 
@@ -1236,16 +1450,13 @@ export default function AppointmentDetailScreen() {
     }
     
     // Navigate to chat screen with contact information
-    router.push({
-      pathname: "/caregiver/chat",
-      params: {
-        clientName: contactName,
-        clientAvatar: contactAvatar,
-        chatName: contactName,
-        chatAvatar: contactAvatar,
-        fromScreen: "appointment-detail",
-        appointmentId: appointmentId,
-      },
+    (navigation.navigate as any)("Tin nhắn", {
+      clientName: contactName,
+      clientAvatar: contactAvatar,
+      chatName: contactName, // Fallback for chat.tsx
+      chatAvatar: contactAvatar, // Fallback for chat.tsx
+      fromScreen: "appointment-detail",
+      appointmentId: appointmentId,
     });
   };
 
@@ -1317,12 +1528,44 @@ export default function AppointmentDetailScreen() {
 
   // Render bottom action buttons dựa trên trạng thái
   const renderBottomActions = () => {
-    const bottomPadding = bottomNavPadding; // Position just above navigation bar
+    // Debug: log status để kiểm tra
+    
+    // Calculate bottom position: bottom nav (~80px) + safe area bottom
+    const bottomNavHeight = 80;
+    const bottomPosition = bottomNavHeight + Math.max(insets.bottom, 8) + 10;
+    
+    const bottomActionsStyle = [
+      styles.bottomActions,
+      { bottom: bottomPosition }
+    ];
+    
+    // Nếu status rỗng hoặc không match, check trực tiếp từ appointmentData trước
+    if (!status && appointmentData?.status === 'CAREGIVER_APPROVED') {
+      return (
+        <View style={bottomActionsStyle}>
+          <TouchableOpacity 
+            style={styles.actionButtonDanger}
+            onPress={handleCancel}
+          >
+            <Ionicons name="close-circle" size={20} color="#fff" />
+            <Text style={styles.actionButtonDangerText}>Hủy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.actionButtonSuccess}
+            onPress={handleStart}
+          >
+            <Ionicons name="play-circle" size={20} color="#fff" />
+            <Text style={styles.actionButtonSuccessText}>Bắt đầu</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    
     switch (status) {
       case "Mới":
         // Yêu cầu mới: Từ chối / Chấp nhận
         return (
-          <View style={[styles.bottomActions, { bottom: bottomPadding }]}>
+          <View style={bottomActionsStyle}>
             <TouchableOpacity 
               style={[
                 styles.actionButtonDanger,
@@ -1351,7 +1594,7 @@ export default function AppointmentDetailScreen() {
       case "Chờ thực hiện":
         // Chờ thực hiện: Hủy / Bắt đầu (giống booking.tsx)
         return (
-          <View style={[styles.bottomActions, { bottom: bottomPadding }]}>
+          <View style={bottomActionsStyle}>
             <TouchableOpacity 
               style={styles.actionButtonDanger}
               onPress={handleCancel}
@@ -1372,7 +1615,7 @@ export default function AppointmentDetailScreen() {
       case "Đang thực hiện":
         // Đang thực hiện: Nhắn tin + Hoàn thành (giống booking.tsx)
         return (
-          <View style={[styles.bottomActions, { bottom: bottomPadding }]}>
+          <View style={bottomActionsStyle}>
             <TouchableOpacity 
               style={[styles.actionButtonSecondary, { flex: 1 }]}
               onPress={handleMessage}
@@ -1393,7 +1636,7 @@ export default function AppointmentDetailScreen() {
       case "Hoàn thành":
         // Hoàn thành: Khiếu nại / Đánh giá (giống booking.tsx)
         return (
-          <View style={[styles.bottomActions, { bottom: bottomPadding }]}>
+          <View style={bottomActionsStyle}>
             <TouchableOpacity 
               style={styles.actionButtonDanger}
               onPress={handleComplaint}
@@ -1420,6 +1663,27 @@ export default function AppointmentDetailScreen() {
         return null;
       
       default:
+        // Fallback: Check appointmentData status directly
+        if (appointmentData?.status === 'CAREGIVER_APPROVED') {
+          return (
+            <View style={bottomActionsStyle}>
+              <TouchableOpacity 
+                style={styles.actionButtonDanger}
+                onPress={handleCancel}
+              >
+                <Ionicons name="close-circle" size={20} color="#fff" />
+                <Text style={styles.actionButtonDangerText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButtonSuccess}
+                onPress={handleStart}
+              >
+                <Ionicons name="play-circle" size={20} color="#fff" />
+                <Text style={styles.actionButtonSuccessText}>Bắt đầu</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }
         return null;
     }
   };
@@ -1442,58 +1706,10 @@ export default function AppointmentDetailScreen() {
     }
   };
 
-  // Handle view map
-  const handleViewMap = () => {
-    if (!locationObj.latitude || !locationObj.longitude || locationObj.latitude === 0 || locationObj.longitude === 0) {
-      Alert.alert('Thông báo', 'Chưa có tọa độ địa điểm');
-      return;
-    }
-
-    const lat = locationObj.latitude;
-    const lng = locationObj.longitude;
-    
-    const url = Platform.select({
-      ios: `maps://maps.apple.com/?q=${lat},${lng}`,
-      android: `geo:${lat},${lng}?q=${lat},${lng}`,
-    });
-
-    const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-
-    Linking.openURL(url || webUrl).catch((err) => {
-      console.error('Error opening maps:', err);
-      Alert.alert('Lỗi', 'Không thể mở bản đồ');
-    });
-  };
-
-  // Early returns - moved after all hooks
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Đang tải...</Text>
-        </View>
-        <CaregiverBottomNav activeTab="jobs" />
-      </SafeAreaView>
-    );
-  }
-
-  if (!appointmentData || !displayData) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Không tìm thấy dữ liệu</Text>
-          <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20, padding: 10, backgroundColor: '#68C2E8', borderRadius: 8 }}>
-            <Text style={{ color: '#fff' }}>Quay lại</Text>
-          </TouchableOpacity>
-        </View>
-        <CaregiverBottomNav activeTab="jobs" />
-      </SafeAreaView>
-    );
-  }
-
   const renderService = (service: any) => {
-    // Chỉ cho phép tick service khi đang thực hiện
-    const canEditService = status === "Đang thực hiện";
+    // Chỉ cho phép tick service khi đang thực hiện VÀ task status không phải PENDING
+    const isPending = service.status === 'PENDING';
+    const canEditService = status === "Đang thực hiện" && !isPending;
     
     return (
       <TouchableOpacity
@@ -1509,7 +1725,7 @@ export default function AppointmentDetailScreen() {
               style={[
                 styles.checkbox,
                 service.completed && styles.checkboxCompleted,
-                !canEditService && styles.checkboxDisabled,
+                (!canEditService || isPending) && styles.checkboxDisabled,
               ]}
             >
               {service.completed && (
@@ -1521,12 +1737,12 @@ export default function AppointmentDetailScreen() {
                 style={[
                   styles.taskTitle,
                   service.completed && styles.taskTitleCompleted,
-                  !canEditService && styles.textDisabled,
+                  (!canEditService || isPending) && styles.textDisabled,
                 ]}
               >
                 {service.title}
               </Text>
-              <Text style={[styles.taskDescription, !canEditService && styles.textDisabled]}>
+              <Text style={[styles.taskDescription, (!canEditService || isPending) && styles.textDisabled]}>
                 {service.description}
               </Text>
             </View>
@@ -1536,22 +1752,11 @@ export default function AppointmentDetailScreen() {
     );
   };
 
-  if (!displayData) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Đang tải...</Text>
-        </View>
-        <CaregiverBottomNav activeTab="jobs" />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <ScrollView 
         style={styles.scrollView} 
-        contentContainerStyle={displayData.specialInstructions ? { paddingTop: 100, paddingBottom: bottomNavPadding + 100 } : { paddingTop: 20, paddingBottom: bottomNavPadding + 100 }}
+        contentContainerStyle={displayData.specialInstructions ? { paddingTop: 100, paddingBottom: 120 } : { paddingTop: 20, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Status Badge */}
@@ -1564,7 +1769,7 @@ export default function AppointmentDetailScreen() {
               ]}
             >
               <Text style={styles.statusText}>
-                {getStatusText(status)}
+                {displayData?.status || (appointmentData?.status ? getStatusText(appointmentData.status) : 'Không xác định')}
               </Text>
             </View>
             {hasComplained && (
@@ -1574,42 +1779,29 @@ export default function AppointmentDetailScreen() {
               </View>
             )}
           </View>
-          <Text style={styles.appointmentId}>Mã: {displayData.bookingCode}</Text>
+          <Text style={styles.appointmentId}>#{displayData.bookingCode || displayData.id}</Text>
         </View>
 
         {/* Deadline Display - Only for new appointments */}
-        {status === "Mới" && displayData.responseDeadline && remainingMinutes !== null && (
-          <View style={styles.section}>
-            <View style={[
-              styles.deadlineCard,
-              isDeadlineExpired && styles.deadlineCardExpired
+        {status === "Mới" && remainingMinutes !== null && (
+          <View style={[
+            styles.deadlineDisplay,
+            isDeadlineExpired && styles.deadlineDisplayExpired
+          ]}>
+            <MaterialCommunityIcons 
+              name={isDeadlineExpired ? "clock-alert" : "clock-outline"} 
+              size={18} 
+              color={isDeadlineExpired ? "#EF4444" : "#F59E0B"} 
+            />
+            <Text style={[
+              styles.deadlineDisplayText,
+              isDeadlineExpired && styles.deadlineDisplayTextExpired
             ]}>
-              <View style={styles.deadlineHeader}>
-                <Ionicons 
-                  name={isDeadlineExpired ? "time" : "time-outline"} 
-                  size={24} 
-                  color={isDeadlineExpired ? "#EF4444" : "#F59E0B"} 
-                />
-                <Text style={[
-                  styles.deadlineTitle,
-                  isDeadlineExpired && styles.deadlineTitleExpired
-                ]}>
-                  {isDeadlineExpired ? "Đã quá hạn phản hồi" : "Thời gian phản hồi"}
-                </Text>
-              </View>
-              {!isDeadlineExpired && remainingMinutes > 0 && (
-                <Text style={styles.deadlineMessage}>
-                  Bạn còn{" "}
-                  <Text style={styles.deadlineMinutes}>{remainingMinutes} phút</Text>{" "}
-                  để phản hồi yêu cầu này. Nếu không phản hồi trong thời gian này, yêu cầu sẽ tự động bị hủy.
-                </Text>
-              )}
-              {isDeadlineExpired && (
-                <Text style={styles.deadlineMessage}>
-                  Thời gian phản hồi đã hết. Yêu cầu này sẽ tự động bị hủy.
-                </Text>
-              )}
-            </View>
+              {isDeadlineExpired 
+                ? "Đã quá hạn phản hồi" 
+                : formatDeadlineDisplay()
+              }
+            </Text>
           </View>
         )}
 
@@ -1652,93 +1844,356 @@ export default function AppointmentDetailScreen() {
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Vị trí làm việc</Text>
-                {locationObj.latitude && locationObj.longitude && locationObj.latitude !== 0 && locationObj.longitude !== 0 ? (
+                <Text style={styles.infoLabel}>Địa chỉ</Text>
+                {displayData.elderly.address === 'Chưa có địa chỉ' ? (
                   <TouchableOpacity
+                    onPress={async () => {
+                      const location = displayData.elderly.location;
+                      if (!location?.latitude || !location?.longitude || location.latitude === 0 || location.longitude === 0) {
+                        Alert.alert("Thông báo", "Chưa có tọa độ địa điểm");
+                        return;
+                      }
+
+                      const lat = location.latitude;
+                      const lng = location.longitude;
+                      
+                      const url = Platform.select({
+                        ios: `maps://maps.apple.com/?q=${lat},${lng}`,
+                        android: `geo:${lat},${lng}?q=${lat},${lng}`,
+                      });
+
+                      const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+                      Linking.openURL(url || webUrl).catch((err) => {
+                        console.error("Error opening maps:", err);
+                        Alert.alert("Lỗi", "Không thể mở bản đồ");
+                      });
+                    }}
                     style={styles.mapButton}
-                    onPress={handleViewMap}
-                    activeOpacity={0.7}
                   >
                     <Text style={styles.mapButtonText}>Xem bản đồ</Text>
-                    <Ionicons name="map-outline" size={16} color="#68C2E8" />
                   </TouchableOpacity>
                 ) : (
-                  <Text style={styles.infoValue}>Chưa có địa điểm</Text>
+                  <Text style={styles.infoValue}>{displayData.elderly.address}</Text>
                 )}
               </View>
             </View>
-          </View>
-        </View>
-
-        {/* Care Seeker Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin người thuê</Text>
-          <View style={styles.card}>
-            <View style={styles.elderlyHeader}>
-              {displayData.careSeeker.avatar ? (
-                <Image
-                  source={{ uri: displayData.careSeeker.avatar }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, { backgroundColor: '#68C2E8', alignItems: 'center', justifyContent: 'center' }]}>
-                  <Text style={styles.avatarText}>
-                    {displayData.careSeeker.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.elderlyInfo}>
-                <Text style={styles.elderlyName}>{displayData.careSeeker.name}</Text>
-                <Text style={styles.elderlyAge}>{displayData.careSeeker.age} tuổi</Text>
-              </View>
-            </View>
+            
+            {/* Check In - Check Out Section */}
             <View style={styles.divider} />
-            <View style={styles.infoRow}>
-              <Ionicons name="call-outline" size={20} color="#6B7280" />
-              <Text style={styles.infoText}>
-                <Text style={styles.healthStatusLabel}>Số điện thoại: </Text>
-                <Text style={styles.healthStatusValue}>
-                  {displayData.careSeeker.phone}
-                </Text>
-              </Text>
+            <View style={styles.checkInOutSection}>
+              <Text style={styles.checkInOutTitle}>Check In - Check Out</Text>
+              
+              {/* CI and CO in horizontal layout */}
+              <View style={styles.checkInOutRow}>
+                {/* Check In */}
+                <View style={styles.checkInOutItem}>
+                  <View style={styles.checkInOutHeader}>
+                    <MaterialCommunityIcons name="login" size={18} color="#10B981" />
+                    <Text style={styles.checkInOutLabel}>Check In</Text>
+                  </View>
+                  {displayData.checkIn?.imageUrl ? (
+                    <View style={styles.checkInOutContent}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedImageUrl(displayData.checkIn.imageUrl);
+                          setShowImageModal(true);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Image 
+                          source={{ uri: displayData.checkIn.imageUrl }} 
+                          style={styles.checkInOutImage}
+                        />
+                      </TouchableOpacity>
+                      {displayData.checkIn?.time && (
+                        <Text style={styles.checkInOutTime}>
+                          {displayData.checkIn.time.substring(0, 5)}
+                        </Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={styles.checkInOutPlaceholder}>Chưa CI</Text>
+                  )}
+                </View>
+                
+                {/* Check Out */}
+                <View style={styles.checkInOutItem}>
+                  <View style={styles.checkInOutHeader}>
+                    <MaterialCommunityIcons name="logout" size={18} color="#EF4444" />
+                    <Text style={styles.checkInOutLabel}>Check Out</Text>
+                  </View>
+                  {displayData.checkOut?.imageUrl ? (
+                    <View style={styles.checkInOutContent}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedImageUrl(displayData.checkOut.imageUrl);
+                          setShowImageModal(true);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Image 
+                          source={{ uri: displayData.checkOut.imageUrl }} 
+                          style={styles.checkInOutImage}
+                        />
+                      </TouchableOpacity>
+                      {displayData.checkOut?.time && (
+                        <Text style={styles.checkInOutTime}>
+                          {displayData.checkOut.time.substring(0, 5)}
+                        </Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={styles.checkInOutPlaceholder}>Chưa CO</Text>
+                  )}
+                </View>
+              </View>
             </View>
           </View>
         </View>
 
         {/* Elderly Info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Người được chăm sóc</Text>
+          <Text style={styles.sectionTitle}>Thông tin người cao tuổi</Text>
           <View style={styles.card}>
             <View style={styles.elderlyHeader}>
-              {displayData.elderly.avatar ? (
-                <Image
-                  source={{ uri: displayData.elderly.avatar }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, { backgroundColor: '#68C2E8', alignItems: 'center', justifyContent: 'center' }]}>
-                  <Text style={styles.avatarText}>
-                    {displayData.elderly.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
+              <Image
+                source={{ uri: displayData.elderly.avatar }}
+                style={styles.avatar}
+              />
               <View style={styles.elderlyInfo}>
                 <Text style={styles.elderlyName}>{displayData.elderly.name}</Text>
-                <Text style={styles.elderlyAge}>{displayData.elderly.age} tuổi</Text>
+                <Text style={styles.elderlyMeta}>
+                  {displayData.elderly.age} tuổi • {displayData.elderly.gender}
+                </Text>
               </View>
             </View>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
-              <Ionicons name="medical-outline" size={20} color="#6B7280" />
-              <Text style={styles.infoText}>
-                <Text style={styles.healthStatusLabel}>Tình trạng sức khỏe: </Text>
-                <Text style={styles.healthStatusValue}>
-                  {displayData.elderly.healthCondition}
-                </Text>
+              <Ionicons name="location-outline" size={20} color="#6B7280" />
+              <Text style={styles.infoText}>{displayData.elderly.address}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Ionicons name="call-outline" size={20} color="#6B7280" />
+              <Text style={styles.infoText}>{displayData.elderly.phone}</Text>
+            </View>
+            
+            <View style={styles.divider} />
+            
+            {/* Blood Type */}
+            <View style={styles.infoRow}>
+              <Ionicons name="water" size={20} color="#6B7280" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Nhóm máu</Text>
+                <Text style={styles.infoValue}>{displayData.elderly.bloodType}</Text>
+              </View>
+            </View>
+            
+            {/* Health Conditions */}
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="medical-bag" size={20} color="#6B7280" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Bệnh nền</Text>
+                {displayData.elderly.underlyingDiseases.length > 0 ? (
+                  displayData.elderly.underlyingDiseases.map((disease: any, index: number) => (
+                    <View key={index} style={styles.diseaseTag}>
+                      <MaterialCommunityIcons name="circle-small" size={16} color="#EF4444" />
+                      <Text style={styles.diseaseText}>{disease}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>Không có</Text>
+                )}
+              </View>
+            </View>
+            
+            {/* Medications */}
+            <View style={styles.medicationSection}>
+              <Text style={styles.subsectionTitle}>Thuốc đang sử dụng:</Text>
+              {displayData.elderly.medications.length > 0 ? (
+                displayData.elderly.medications.map((med: any, index: number) => (
+                  <View key={index} style={styles.medicationItem}>
+                    <View style={styles.medicationDot} />
+                    <View style={styles.medicationDetails}>
+                      <Text style={styles.medicationName}>{med.name}</Text>
+                      <Text style={styles.medicationDosage}>
+                        {med.dosage} - {med.frequency}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.infoText}>Không có</Text>
+              )}
+            </View>
+            
+            {/* Allergies */}
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={20} color="#6B7280" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Dị ứng</Text>
+                <View style={styles.allergyContainer}>
+                  {displayData.elderly.allergies.length > 0 ? (
+                    displayData.elderly.allergies.map((allergy: any, index: number) => (
+                      <View key={index} style={styles.allergyTag}>
+                        <MaterialCommunityIcons name="alert" size={14} color="#EF4444" />
+                        <Text style={styles.allergyText}>{allergy}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.infoText}>Không có</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+            
+            {/* Independence Level */}
+            <View style={styles.independenceSection}>
+              <Text style={styles.subsectionTitle}>Mức độ tự lập:</Text>
+              <View style={styles.independenceGrid}>
+                <View style={styles.independenceItem}>
+                  <Ionicons name="restaurant" size={18} color="#6B7280" />
+                  <Text style={styles.independenceLabel}>Ăn uống</Text>
+                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.eating) }]}>
+                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.eating)}</Text>
+                  </View>
+                </View>
+                <View style={styles.independenceItem}>
+                  <Ionicons name="water" size={18} color="#6B7280" />
+                  <Text style={styles.independenceLabel}>Tắm rửa</Text>
+                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.bathing) }]}>
+                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.bathing)}</Text>
+                  </View>
+                </View>
+                <View style={styles.independenceItem}>
+                  <Ionicons name="walk" size={18} color="#6B7280" />
+                  <Text style={styles.independenceLabel}>Di chuyển</Text>
+                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.mobility) }]}>
+                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.mobility)}</Text>
+                  </View>
+                </View>
+                <View style={styles.independenceItem}>
+                  <Ionicons name="shirt" size={18} color="#6B7280" />
+                  <Text style={styles.independenceLabel}>Mặc đồ</Text>
+                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.dressing) }]}>
+                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.dressing)}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+            
+            {/* Living Environment */}
+            <View style={styles.livingEnvSection}>
+              <Text style={styles.subsectionTitle}>Môi trường sống:</Text>
+              <View style={styles.infoRow}>
+                <MaterialCommunityIcons name="home" size={18} color="#6B7280" />
+                <Text style={styles.infoText}>Căn hộ chung cư</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <MaterialCommunityIcons name="account-multiple" size={18} color="#6B7280" />
+                <Text style={styles.infoText}>Sống cùng: {displayData.elderly.livingEnvironment.livingWith.length > 0 ? displayData.elderly.livingEnvironment.livingWith.join(", ") : "Không có"}</Text>
+              </View>
+              <View style={styles.accessibilityTags}>
+                {displayData.elderly.livingEnvironment.accessibility.length > 0 ? (
+                  displayData.elderly.livingEnvironment.accessibility.map((item: any, index: number) => (
+                    <View key={index} style={styles.accessibilityTag}>
+                      <MaterialCommunityIcons name="check-circle" size={14} color="#10B981" />
+                      <Text style={styles.accessibilityText}>{item}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>Không có</Text>
+                )}
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+            
+            {/* Hobbies & Preferences */}
+            <View style={styles.preferencesSection}>
+              <Text style={styles.subsectionTitle}>Sở thích & Ưa thích:</Text>
+              <View style={styles.hobbyTags}>
+                {displayData.elderly.hobbies.length > 0 ? (
+                  displayData.elderly.hobbies.map((hobby: any, index: number) => (
+                    <View key={index} style={styles.hobbyTag}>
+                      <Ionicons name="star" size={14} color="#F59E0B" />
+                      <Text style={styles.hobbyText}>{hobby}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>Không có</Text>
+                )}
+              </View>
+              <Text style={styles.preferencesLabel}>Món ăn yêu thích:</Text>
+              <View style={styles.foodTags}>
+                {displayData.elderly.foodPreferences.length > 0 ? (
+                  displayData.elderly.foodPreferences.map((food: any, index: number) => (
+                    <View key={index} style={styles.foodTag}>
+                      <Ionicons name="restaurant" size={14} color="#10B981" />
+                      <Text style={styles.foodText}>{food}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.infoText}>Không có</Text>
+                )}
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
+            <View style={styles.emergencyContact}>
+              <Text style={styles.emergencyTitle}>
+                <Ionicons name="warning-outline" size={16} color="#EF4444" /> Liên hệ khẩn cấp
+              </Text>
+              <Text style={styles.emergencyName}>
+                {displayData.elderly.emergencyContact.name && displayData.elderly.emergencyContact.name !== 'Không có' && displayData.elderly.emergencyContact.relationship && displayData.elderly.emergencyContact.relationship !== 'Không có'
+                  ? `${displayData.elderly.emergencyContact.name} (${displayData.elderly.emergencyContact.relationship})`
+                  : displayData.elderly.emergencyContact.name || 'Không có'}
+              </Text>
+              <Text style={styles.emergencyPhone}>
+                {displayData.elderly.emergencyContact.phone || 'Không có'}
               </Text>
             </View>
           </View>
         </View>
+
+        {/* Care Seeker Info */}
+        {displayData.careSeeker && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Thông tin người thuê</Text>
+            <View style={styles.card}>
+              <View style={styles.elderlyHeader}>
+                <Image
+                  source={{ uri: displayData.careSeeker.avatar }}
+                  style={styles.avatar}
+                />
+                <View style={styles.elderlyInfo}>
+                  <Text style={styles.elderlyName}>{displayData.careSeeker.name}</Text>
+                  <Text style={styles.elderlyMeta}>
+                    {displayData.careSeeker.age} tuổi • {displayData.careSeeker.gender}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.infoRow}>
+                <Ionicons name="call-outline" size={20} color="#6B7280" />
+                <Text style={styles.infoText}>{displayData.careSeeker.phone}</Text>
+              </View>
+              {displayData.careSeeker.location?.address && (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.infoRow}>
+                    <Ionicons name="location-outline" size={20} color="#6B7280" />
+                    <Text style={styles.infoText}>{displayData.careSeeker.location.address}</Text>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Tabs */}
         <View style={styles.tabContainer}>
@@ -1850,16 +2305,13 @@ export default function AppointmentDetailScreen() {
                         contactAvatar = "👩";
                       }
                       
-                      router.push({
-                        pathname: "/caregiver/chat",
-                        params: {
-                          clientName: contactName,
-                          clientAvatar: contactAvatar,
-                          chatName: contactName,
-                          chatAvatar: contactAvatar,
-                          fromScreen: "appointment-detail",
-                          appointmentId: appointmentId,
-                        },
+                      (navigation.navigate as any)("Tin nhắn", {
+                        clientName: contactName,
+                        clientAvatar: contactAvatar,
+                        chatName: contactName,
+                        chatAvatar: contactAvatar,
+                        fromScreen: "appointment-detail",
+                        appointmentId: appointmentId,
                       });
                     }}
                   >
@@ -1915,7 +2367,7 @@ export default function AppointmentDetailScreen() {
           </View>
         )}
 
-        <View style={{ height: 180 }} />
+        <View style={{ height: 200 }} />
 
     </ScrollView>
 
@@ -1990,15 +2442,49 @@ export default function AppointmentDetailScreen() {
     </Modal>
 
     {/* Payment Code Modal */}
-    <PaymentCode
-      visible={showPaymentCodeModal}
-      onClose={() => setShowPaymentCodeModal(false)}
-      onComplete={handlePaymentComplete}
-      bookingId={displayData.id}
-      amount={250000} // You can calculate this based on package type
-      caregiverName="Người chăm sóc" // Or get from auth context
-      completedAt={new Date()}
-    />
+    {displayData && (
+      <PaymentCode
+        visible={showPaymentCodeModal}
+        onClose={() => {
+          setShowPaymentCodeModal(false);
+          setQrCodeData(null);
+        }}
+        onComplete={handlePaymentComplete}
+        bookingId={displayData.bookingCode || displayData.id}
+        amount={displayData.price || 0}
+        caregiverName="Người chăm sóc" // Or get from auth context
+        completedAt={new Date()}
+        qrCodeBase64={qrCodeData?.qrCodeBase64}
+        orderId={qrCodeData?.orderId}
+        paymentId={qrCodeData?.paymentId}
+        careServiceId={qrCodeData?.careServiceId || appointmentId}
+      />
+    )}
+
+    {/* Image Viewer Modal */}
+    <Modal
+      visible={showImageModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowImageModal(false)}
+    >
+      <View style={styles.imageModalOverlay}>
+        <TouchableOpacity
+          style={styles.imageModalCloseButton}
+          onPress={() => setShowImageModal(false)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="close-circle" size={32} color="#fff" />
+        </TouchableOpacity>
+        {selectedImageUrl && (
+          <Image
+            source={{ uri: selectedImageUrl }}
+            style={styles.imageModalImage}
+            resizeMode="contain"
+          />
+        )}
+      </View>
+    </Modal>
 
     {/* Custom Alert Modal */}
     <CustomAlert
@@ -2018,17 +2504,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F9FAFB",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#6B7280",
   },
   scrollView: {
     flex: 1,
@@ -2491,21 +2966,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bottomActions: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-    gap: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+  position: "absolute",
+  left: 0,
+  right: 0,
+  // bottom will be set dynamically in renderBottomActions based on safe area
+  flexDirection: "row",
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  backgroundColor: "#fff",
+  borderTopWidth: 1,
+  borderTopColor: "#E5E7EB",
+  shadowColor: "#000",
+  shadowOffset: {
+    width: 0,
+    height: -2,
+  },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 5, // For Android
+  gap: 12,
   },
   actionButtonSecondary: {
     flex: 1,
@@ -2854,38 +3333,113 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   deadlineCard: {
-    backgroundColor: "#FEF3C7",
-    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
     padding: 16,
-    borderWidth: 1,
-    borderColor: "#FCD34D",
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
+    gap: 12,
   },
   deadlineCardExpired: {
     backgroundColor: "#FEE2E2",
-    borderColor: "#FCA5A5",
+    borderLeftColor: "#EF4444",
   },
-  deadlineHeader: {
+  mapButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "#2DC2D7",
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  mapButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  checkInOutSection: {
+    marginTop: 8,
+  },
+  checkInOutTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  checkInOutRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  checkInOutItem: {
+    flex: 1,
+    marginBottom: 8,
+  },
+  checkInOutHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
-    gap: 8,
+  },
+  checkInOutLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginLeft: 6,
+  },
+  checkInOutContent: {
+    alignItems: "center",
+  },
+  checkInOutImage: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 8,
+    marginBottom: 6,
+    backgroundColor: "#F3F4F6",
+  },
+  checkInOutTime: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  checkInOutPlaceholder: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    paddingVertical: 8,
+    textAlign: "center",
+  },
+  imageModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imageModalCloseButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 1,
+  },
+  imageModalImage: {
+    width: "90%",
+    height: "80%",
+  },
+  deadlineContent: {
+    flex: 1,
   },
   deadlineTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
     color: "#92400E",
+    marginBottom: 4,
   },
   deadlineTitleExpired: {
     color: "#991B1B",
-  },
-  deadlineMessage: {
-    fontSize: 14,
-    color: "#78350F",
-    lineHeight: 20,
-  },
-  deadlineMinutes: {
-    fontWeight: "700",
-    color: "#B45309",
   },
   deadlineTime: {
     fontSize: 13,
@@ -2917,22 +3471,6 @@ const styles = StyleSheet.create({
   deadlineTextExpired: {
     color: "#991B1B",
   },
-  mapButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: "#E0F2FE",
-    borderRadius: 8,
-    alignSelf: "flex-start",
-    marginTop: 4,
-  },
-  mapButtonText: {
-    fontSize: 14,
-    color: "#68C2E8",
-    fontWeight: "600",
-  },
   actionButtonDisabled: {
     opacity: 0.5,
   },
@@ -2961,15 +3499,6 @@ const styles = StyleSheet.create({
   },
   deadlineDisplayTextExpired: {
     color: "#991B1B",
-  },
-  healthStatusLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  healthStatusValue: {
-    fontSize: 14,
-    color: "#12394A",
-    fontWeight: "600",
   },
 });
 

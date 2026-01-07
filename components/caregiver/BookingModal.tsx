@@ -18,7 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Task } from '@/components/ui/TaskSelector';
 import { SERVICE_PACKAGES, type ServicePackage } from '@/constants/servicePackages';
 import { useAuth } from '@/contexts/AuthContext';
-import { mainService, type ServicePackageApiResponse } from '@/services/main.service';
+import { mainService, type ServicePackageApiResponse, type AvailableScheduleApiResponse, type BookedSlot } from '@/services/main.service';
 import { UserService, type ElderlyProfileApiResponse } from '@/services/user.service';
 // TODO: Replace with API call
 // import * as AppointmentRepository from '@/services/appointment.repository';
@@ -74,6 +74,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   const [isLoadingElderly, setIsLoadingElderly] = useState(false);
   const [servicePackages, setServicePackages] = useState<ServicePackage[]>(SERVICE_PACKAGES);
   const [isLoadingPackages, setIsLoadingPackages] = useState(false);
+  const [availableSchedule, setAvailableSchedule] = useState<AvailableScheduleApiResponse | null>(null);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
 
   // Fetch elderly profiles from API when modal opens
   useEffect(() => {
@@ -152,6 +154,79 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       }
     }
   }, [currentStep, selectedProfiles, elderlyProfiles]);
+
+  // Fetch available schedule when moving to step 2
+  // TODO: Replace with real API call when backend is ready
+  useEffect(() => {
+    if (currentStep === 2 && caregiver.id) {
+      const fetchAvailableSchedule = async () => {
+        try {
+          setIsLoadingSchedule(true);
+          
+          // TODO: Uncomment when API is ready
+          // const response = await mainService.getCaregiverAvailableSchedule(caregiver.id);
+          // setAvailableSchedule(response);
+          
+          // Fake data for testing UI
+          // Simulate loading delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Test case 1: Available all time
+          // const fakeResponse: AvailableScheduleApiResponse = {
+          //   status: 'Success',
+          //   message: 'Lấy lịch rảnh thành công',
+          //   data: {
+          //     available_all_time: true,
+          //     booked_slots: [],
+          //   },
+          // };
+          
+          // Test case 2: Has some booked slots
+          const fakeResponse: AvailableScheduleApiResponse = {
+            status: 'Success',
+            message: 'Lấy lịch rảnh thành công',
+            data: {
+              available_all_time: false,
+              booked_slots: [
+                {
+                  date: '2025-12-01',
+                  start_time: '09:00',
+                  end_time: '12:00',
+                },
+                {
+                  date: '2025-12-02',
+                  start_time: '14:00',
+                  end_time: '17:00',
+                },
+                {
+                  date: '2025-12-05',
+                  start_time: '08:00',
+                  end_time: '11:30',
+                },
+              ],
+            },
+          };
+          
+          setAvailableSchedule(fakeResponse);
+        } catch (error) {
+          console.error('Failed to fetch available schedule:', error);
+          // Set default: available all time on error
+          setAvailableSchedule({
+            status: 'Success',
+            message: 'Lấy lịch rảnh thành công',
+            data: {
+              available_all_time: true,
+              booked_slots: [],
+            },
+          });
+        } finally {
+          setIsLoadingSchedule(false);
+        }
+      };
+
+      fetchAvailableSchedule();
+    }
+  }, [currentStep, caregiver.id]);
 
   // Fetch service packages from API when modal opens
   useEffect(() => {
@@ -240,6 +315,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     setCustomLocation('');
     setShowErrorModal(false);
     setErrorMessage('');
+    setAvailableSchedule(null);
+    setIsLoadingSchedule(false);
     onClose();
   };
 
@@ -470,12 +547,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         note: immediateData.note || undefined,
       };
 
-      console.log('Creating care service:', requestData);
-      
       // Call API
       const response = await mainService.createCareService(requestData);
-      
-      console.log('API Response:', response);
       
       if (response.status === 'Success') {
         setIsSubmitting(false);
@@ -644,6 +717,60 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                 </TouchableOpacity>
               </View>
 
+              {/* Available Schedule Display - Only show after date is selected */}
+              {immediateData.selectedDate && (
+                <View style={styles.inputGroup}>
+                  {isLoadingSchedule ? (
+                    <View style={styles.scheduleLoadingContainer}>
+                      <ThemedText style={styles.scheduleLoadingText}>Đang tải lịch rảnh...</ThemedText>
+                    </View>
+                  ) : availableSchedule && (() => {
+                    // Convert selectedDate to API format (YYYY-MM-DD) for comparison
+                    const selectedDateApiFormat = formatDateForAPI(immediateData.selectedDate);
+                    
+                    // Filter booked slots for the selected date
+                    const bookedSlotsForDate = availableSchedule.data.booked_slots.filter(
+                      (slot: BookedSlot) => slot.date === selectedDateApiFormat
+                    );
+                    
+                    // Check if available all time or no booked slots for this date
+                    const isDateAvailable = availableSchedule.data.available_all_time || bookedSlotsForDate.length === 0;
+                    
+                    return (
+                      <View style={styles.scheduleInfoContainer}>
+                        {isDateAvailable ? (
+                          <View style={styles.scheduleStatusAvailable}>
+                            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                            <ThemedText style={styles.scheduleStatusText}>
+                              Ngày này nhân viên rảnh toàn bộ thời gian
+                            </ThemedText>
+                          </View>
+                        ) : (
+                          <View style={styles.scheduleStatusBusy}>
+                            <Ionicons name="time-outline" size={20} color="#F59E0B" />
+                            <ThemedText style={styles.scheduleStatusText}>
+                              Ngày này nhân viên có các khung giờ đã bận:
+                            </ThemedText>
+                            {bookedSlotsForDate.length > 0 && (
+                              <View style={styles.bookedSlotsContainer}>
+                                {bookedSlotsForDate.map((slot: BookedSlot, index: number) => (
+                                  <View key={index} style={styles.bookedSlotItem}>
+                                    <Ionicons name="time" size={16} color="#F59E0B" />
+                                    <ThemedText style={styles.bookedSlotText}>
+                                      {slot.start_time} - {slot.end_time}
+                                    </ThemedText>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+
               {/* Time Selection */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelContainer}>
@@ -686,7 +813,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                 
                 {immediateData.startHour && immediateData.startMinute && (
                   <ThemedText style={styles.timeRangeText}>
-                    ⏰ Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
+                    Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
                   </ThemedText>
                 )}
               </View>
@@ -2697,6 +2824,62 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
+    color: '#6c757d',
+  },
+  // Schedule Display Styles
+  scheduleLoadingContainer: {
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  scheduleLoadingText: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  scheduleInfoContainer: {
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  scheduleStatusAvailable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scheduleStatusBusy: {
+    gap: 12,
+  },
+  scheduleStatusText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '500',
+    flex: 1,
+  },
+  bookedSlotsContainer: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+    gap: 8,
+  },
+  bookedSlotsTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#495057',
+    marginBottom: 4,
+  },
+  bookedSlotItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  bookedSlotText: {
+    fontSize: 13,
     color: '#6c757d',
   },
 });

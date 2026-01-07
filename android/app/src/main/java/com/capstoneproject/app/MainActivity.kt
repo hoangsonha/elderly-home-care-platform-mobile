@@ -1,4 +1,4 @@
-package com.anonymous.capstoneproject
+package com.capstoneproject.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

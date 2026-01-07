@@ -44,3 +44,9 @@ app-example
 
 # Android local properties (contains local SDK path)
 android/local.properties
+
+# Firebase config files (contains sensitive keys)
+android/app/google-services.json
+ios/GoogleService-Info.plist
+**/google-services.json
+**/GoogleService-Info.plist

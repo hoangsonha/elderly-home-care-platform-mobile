@@ -7,9 +7,9 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 // - Trên Android emulator: có thể dùng 10.0.2.2 thay cho localhost
 // - Trên iOS simulator: dùng localhost hoặc IP của máy Mac
 // - Production: dùng domain/IP của server
-export const BASE_URL = "http://157.245.155.77:8080"; // Server remote
-// export const BASE_URL = "http://192.168.1.5:8080"; // IP máy tính local (thay đổi theo IP của bạn)192.168.2.77
-// export const BASE_URL = 'http://localhost:8080'; // Chỉ dùng khi test trên web
+// export const BASE_URL = 'http://157.245.155.77:8080'; // Server remote
+export const BASE_URL = "http://192.168.1.4:8080"; // IP máy tính local (thay đổi theo IP của bạn)
+// export const BASE_URL = 'http://localhost:8080'; // Chỉ dùng khi test trên webr
 
 // Danh sách các public API không cần token
 const PUBLIC_APIS = [
@@ -92,16 +92,8 @@ apiClient.interceptors.request.use(
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-      } catch (error) {
+      } catch {
         // Silent error handling
-      }
-    }
-
-    // Log request (optional, có thể tắt trong production)
-    if (__DEV__) {
-      console.log("API Request:", config.method?.toUpperCase(), fullUrl);
-      if (config.data && !(config.data instanceof FormData)) {
-        console.log("Request data:", config.data);
       }
     }
 
@@ -117,11 +109,6 @@ apiClient.interceptors.request.use(
  */
 apiClient.interceptors.response.use(
   (response) => {
-    // Log response (optional, có thể tắt trong production)
-    if (__DEV__) {
-      console.log("API Response:", response.status, response.statusText);
-      console.log("Response data:", response.data);
-    }
     return response;
   },
   async (error) => {
@@ -147,9 +134,8 @@ export const saveToken = async (
     if (refreshToken) {
       await AsyncStorage.setItem("refreshToken", refreshToken);
     }
-    console.log("Token saved to AsyncStorage");
-  } catch (error) {
-    throw error;
+  } catch {
+    // Silent error handling
   }
 };
 
@@ -160,8 +146,7 @@ export const removeToken = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("refreshToken");
-    console.log("Token removed from AsyncStorage");
-  } catch (error) {
+  } catch {
     // Silent error handling
   }
 };
@@ -172,7 +157,7 @@ export const removeToken = async (): Promise<void> => {
 export const getToken = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem("token");
-  } catch (error) {
+  } catch {
     return null;
   }
 };
