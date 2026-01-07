@@ -48,7 +48,7 @@ export default function LoginScreen() {
 
       showSuccessTooltip("Đăng nhập thành công!");
 
-      // Điều hướng theo role
+      // Điều hướng theo role - delay để đảm bảo navigation sẵn sàng
       setTimeout(() => {
         if (user.role === "Caregiver" || user.role === "ROLE_CAREGIVER") {
           if (!user.hasCompletedProfile) {
@@ -58,7 +58,7 @@ export default function LoginScreen() {
                 email: user.email,
                 accountId: user.id,
               },
-            });
+            } as any);
           } else {
             router.replace("/caregiver");
           }
@@ -70,7 +70,7 @@ export default function LoginScreen() {
             router.replace("/careseeker/dashboard");
           }
         }
-      }, 600);
+      }, 100);
     } catch (error) {
       setIsLoading(false);
       console.log(error);

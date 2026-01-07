@@ -740,10 +740,10 @@ export default function AppointmentDetailScreen() {
         'WAITING_PAYMENT': 'Chờ thanh toán',
       };
       const mappedStatus = statusMap[appointmentData.status] || appointmentData.status;
-      
-      return {
-        id: appointmentData.careServiceId,
-        bookingCode: appointmentData.bookingCode || '',
+    
+    return {
+      id: appointmentData.careServiceId,
+      bookingCode: appointmentData.bookingCode || '',
         status: mappedStatus,
       date: appointmentData.workDate || 'Không có',
       timeSlot: timeSlot,
@@ -1172,12 +1172,12 @@ export default function AppointmentDetailScreen() {
                 // Refresh data từ API để lấy status mới nhất
                 await fetchAppointment();
                 
-                showAlert(
-                  "Thành công", 
-                  "Đã chấp nhận lịch hẹn",
-                  [{ text: 'OK', style: 'default' }],
-                  { icon: 'check-circle', iconColor: '#10B981' }
-                );
+            showAlert(
+              "Thành công", 
+              "Đã chấp nhận lịch hẹn",
+              [{ text: 'OK', style: 'default' }],
+              { icon: 'check-circle', iconColor: '#10B981' }
+            );
               } else {
                 showAlert(
                   "Lỗi", 

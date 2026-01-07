@@ -1,10 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,7 +13,6 @@ import {
   TouchableOpacity,
   View,
   FlatList,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -41,9 +36,7 @@ const healthStatusOptions = [
 
 interface QualificationType {
   qualificationTypeId: string;
-  typeName: string;
-  description?: string;
-  isActive?: boolean;
+  name: string;
 }
 
 interface Credential {
@@ -60,7 +53,6 @@ export default function CompleteProfileScreen() {
   const { user, updateProfile } = useAuth();
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
-  const navigation = useNavigation<any>();
 
   // Basic info
   const [fullName, setFullName] = useState('');
@@ -84,10 +76,6 @@ export default function CompleteProfileScreen() {
   // Schedule
   const [availableAllTime, setAvailableAllTime] = useState(true);
   const [bookedSlots, setBookedSlots] = useState<Array<{ date: string; start_time: string; end_time: string }>>([]);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [currentSlotIndex, setCurrentSlotIndex] = useState<number | null>(null);
-  const [currentSlotField, setCurrentSlotField] = useState<'date' | 'start_time' | 'end_time' | null>(null);
 
   // Preferences
   const [preferredHealthStatus, setPreferredHealthStatus] = useState<string | null>(null);
@@ -99,11 +87,6 @@ export default function CompleteProfileScreen() {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [showQualificationPicker, setShowQualificationPicker] = useState(false);
   const [currentCredentialIndex, setCurrentCredentialIndex] = useState<number | null>(null);
-  const [showCredentialDatePicker, setShowCredentialDatePicker] = useState(false);
-  const [showCredentialFilePickerModal, setShowCredentialFilePickerModal] = useState(false);
-  const [currentCredentialDateField, setCurrentCredentialDateField] = useState<'issue_date' | 'expiry_date' | null>(null);
-  const [credentialDatePickerValue, setCredentialDatePickerValue] = useState(new Date());
-  const [showCredentialFilePreview, setShowCredentialFilePreview] = useState<number | null>(null);
 
   // UI states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -193,88 +176,28 @@ export default function CompleteProfileScreen() {
     setCredentials(credentials.filter((_, i) => i !== index));
   };
 
-  const handleCredentialFilePicker = (index: number) => {
-    setCurrentCredentialIndex(index);
-    setShowCredentialFilePickerModal(true);
-  };
-
-  const handlePickCredentialImage = async () => {
-    if (currentCredentialIndex === null) return;
-    setShowCredentialFilePickerModal(false);
-    
+  const handleCredentialFilePicker = async (index: number) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Thông báo', 'Cần quyền truy cập thư viện ảnh');
       return;
     }
 
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.8,
-      });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: false,
+      quality: 0.8,
+    });
 
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        const fileSizeInMB = (asset.fileSize || 0) / (1024 * 1024);
-        
-        if (fileSizeInMB > 5) {
-          Alert.alert('File quá lớn', 'Vui lòng chọn file nhỏ hơn 5MB');
-          return;
-        }
-
-        const updatedCredentials = [...credentials];
-        updatedCredentials[currentCredentialIndex].file = {
-          uri: asset.uri,
-          type: asset.mimeType || 'image/jpeg',
-          name: asset.fileName || `credential_${Date.now()}.jpg`,
-        };
-        setCredentials(updatedCredentials);
-      }
-    } catch (error) {
-      console.error('Error selecting image:', error);
-      Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+    if (!result.canceled && result.assets[0]) {
+      const updatedCredentials = [...credentials];
+      updatedCredentials[index].file = {
+        uri: result.assets[0].uri,
+        type: result.assets[0].mimeType || 'application/octet-stream',
+        name: result.assets[0].fileName || `credential_${Date.now()}.${result.assets[0].uri.split('.').pop() || 'pdf'}`,
+      };
+      setCredentials(updatedCredentials);
     }
-  };
-
-  const handlePickCredentialFile = async () => {
-    if (currentCredentialIndex === null) return;
-    setShowCredentialFilePickerModal(false);
-    
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-        const fileSizeInMB = (asset.size || 0) / (1024 * 1024);
-        
-        if (fileSizeInMB > 5) {
-          Alert.alert('File quá lớn', 'Vui lòng chọn file nhỏ hơn 5MB');
-          return;
-        }
-
-        const updatedCredentials = [...credentials];
-        updatedCredentials[currentCredentialIndex].file = {
-          uri: asset.uri,
-          type: asset.mimeType || 'application/pdf',
-          name: asset.name || `credential_${Date.now()}.pdf`,
-        };
-        setCredentials(updatedCredentials);
-      }
-    } catch (error) {
-      console.error('Error selecting document:', error);
-      Alert.alert('Lỗi', 'Không thể chọn file. Vui lòng thử lại.');
-    }
-  };
-
-  const handleRemoveCredentialFile = (index: number) => {
-    const updatedCredentials = [...credentials];
-    updatedCredentials[index].file = undefined;
-    setCredentials(updatedCredentials);
   };
 
   const validateForm = (): boolean => {
@@ -427,30 +350,9 @@ export default function CompleteProfileScreen() {
 
         showSuccessTooltip('Hoàn thiện hồ sơ thành công!');
 
-        // Navigate to dashboard - try using React Navigation first, then fallback to router
+        // Navigate to dashboard
         setTimeout(() => {
-          try {
-            console.log('Navigating to Trang chủ...');
-            // Try React Navigation first (if inside Drawer Navigator)
-            if (navigation && navigation.navigate) {
-              navigation.navigate('Trang chủ');
-            } else {
-              // Fallback to expo-router
-              router.replace('/caregiver');
-            }
-          } catch (error) {
-            console.error('Navigation error:', error);
-            // Fallback: use expo-router
-            try {
-              router.replace('/caregiver');
-            } catch (routerError) {
-              console.error('Router error:', routerError);
-              // Last resort: try again after delay
-              setTimeout(() => {
-                router.replace('/caregiver');
-              }, 500);
-            }
-          }
+          router.replace('/caregiver');
         }, 1500);
       } else {
         // Show error modal
@@ -471,19 +373,12 @@ export default function CompleteProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <LinearGradient
-          colors={['#68C2E8', '#4ECDC4']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.headerGradient}
-        >
-          <View style={styles.header}>
-            <View style={styles.headerIconContainer}>
-              <Ionicons name="person-add" size={24} color="white" />
-            </View>
-            <ThemedText style={styles.headerTitle}>Hoàn thiện hồ sơ</ThemedText>
-          </View>
-        </LinearGradient>
+        <View style={styles.header}>
+          <ThemedText style={styles.headerTitle}>Hoàn thiện hồ sơ</ThemedText>
+          <ThemedText style={styles.headerSubtitle}>
+            Vui lòng điền đầy đủ thông tin để tiếp tục
+          </ThemedText>
+        </View>
 
         {/* Avatar Upload */}
         <View style={styles.section}>
@@ -573,7 +468,7 @@ export default function CompleteProfileScreen() {
             Năm sinh <ThemedText style={styles.required}>*</ThemedText>
           </ThemedText>
           <TouchableOpacity
-            style={styles.birthYearInput}
+            style={styles.input}
             onPress={() => setShowBirthYearPicker(true)}
           >
             <ThemedText style={birthYear ? styles.dateText : styles.placeholderText}>
@@ -631,7 +526,7 @@ export default function CompleteProfileScreen() {
           )}
 
           {/* Service Radius */}
-          <View style={[styles.inputGroup, styles.serviceRadiusGroup]}>
+          <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Bán kính phục vụ (km)</ThemedText>
             <TextInput
               style={styles.input}
@@ -689,83 +584,17 @@ export default function CompleteProfileScreen() {
 
           {!availableAllTime && (
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Các khung giờ đã bận</ThemedText>
+              <ThemedText style={styles.label}>Các khung giờ đã bận (tùy chọn)</ThemedText>
               <ThemedText style={styles.hintText}>
-                Chỉ có thể chọn từ hôm nay đến 7 ngày sau. Bạn có thể để trống nếu chưa có lịch bận.
+                Bạn có thể để trống nếu chưa có lịch bận. Có thể cập nhật sau.
               </ThemedText>
-              
-              {bookedSlots.map((slot, index) => (
-                <View key={index} style={styles.bookedSlotCard}>
-                  <View style={styles.bookedSlotHeader}>
-                    <ThemedText style={styles.bookedSlotTitle}>Khung giờ bận {index + 1}</ThemedText>
-                    <TouchableOpacity onPress={() => {
-                      const updated = bookedSlots.filter((_, i) => i !== index);
-                      setBookedSlots(updated);
-                    }}>
-                      <Ionicons name="close-circle" size={24} color="#dc3545" />
-                    </TouchableOpacity>
-                  </View>
-                  
-                  <TouchableOpacity
-                    style={styles.birthYearInput}
-                    onPress={() => {
-                      setCurrentSlotIndex(index);
-                      setCurrentSlotField('date');
-                      setShowDatePicker(true);
-                    }}
-                  >
-                    <ThemedText style={slot.date ? styles.dateText : styles.placeholderText}>
-                      {slot.date ? new Date(slot.date).toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' }) : 'Chọn ngày'}
-                    </ThemedText>
-                    <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={styles.birthYearInput}
-                    onPress={() => {
-                      setCurrentSlotIndex(index);
-                      setCurrentSlotField('start_time');
-                      setShowTimePicker(true);
-                    }}
-                  >
-                    <ThemedText style={slot.start_time ? styles.dateText : styles.placeholderText}>
-                      {slot.start_time || 'Giờ bắt đầu'}
-                    </ThemedText>
-                    <Ionicons name="time-outline" size={20} color="#68C2E8" />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={styles.birthYearInput}
-                    onPress={() => {
-                      setCurrentSlotIndex(index);
-                      setCurrentSlotField('end_time');
-                      setShowTimePicker(true);
-                    }}
-                  >
-                    <ThemedText style={slot.end_time ? styles.dateText : styles.placeholderText}>
-                      {slot.end_time || 'Giờ kết thúc'}
-                    </ThemedText>
-                    <Ionicons name="time-outline" size={20} color="#68C2E8" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              
-              <TouchableOpacity
-                style={styles.addSlotButton}
-                onPress={() => {
-                  setBookedSlots([...bookedSlots, { date: '', start_time: '', end_time: '' }]);
-                }}
-              >
-                <Ionicons name="add" size={20} color="#68C2E8" />
-                <ThemedText style={styles.addSlotButtonText}>Thêm khung giờ bận</ThemedText>
-              </TouchableOpacity>
             </View>
           )}
         </View>
 
         {/* Preferences */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Mong muốn</ThemedText>
+          <ThemedText style={styles.sectionTitle}>Sở thích</ThemedText>
           
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Tình trạng sức khỏe ưa thích</ThemedText>
@@ -782,7 +611,6 @@ export default function CompleteProfileScreen() {
                   <ThemedText
                     style={[
                       styles.genderText,
-                      styles.healthStatusText,
                       preferredHealthStatus === option.id && styles.genderTextSelected,
                     ]}
                   >
@@ -793,8 +621,8 @@ export default function CompleteProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.ageRow}>
-            <View style={styles.ageInputGroup}>
+          <View style={styles.inputRow}>
+            <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Tuổi tối thiểu</ThemedText>
               <TextInput
                 style={styles.input}
@@ -805,7 +633,7 @@ export default function CompleteProfileScreen() {
                 keyboardType="numeric"
               />
             </View>
-            <View style={styles.ageInputGroup}>
+            <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Tuổi tối đa</ThemedText>
               <TextInput
                 style={styles.input}
@@ -838,150 +666,97 @@ export default function CompleteProfileScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>
-                  Loại chứng chỉ <ThemedText style={styles.required}>*</ThemedText>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => {
+                  setCurrentCredentialIndex(index);
+                  setShowQualificationPicker(true);
+                }}
+              >
+                <ThemedText style={cred.qualification_type_id ? styles.pickerText : styles.pickerPlaceholder}>
+                  {cred.qualification_type_id
+                    ? qualificationTypes.find((t) => t.qualificationTypeId === cred.qualification_type_id)?.name || 'Chọn loại chứng chỉ'
+                    : 'Chọn loại chứng chỉ *'}
                 </ThemedText>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => {
-                    setCurrentCredentialIndex(index);
-                    setShowQualificationPicker(true);
-                  }}
-                >
-                  <ThemedText style={cred.qualification_type_id ? styles.pickerText : styles.pickerPlaceholder}>
-                    {cred.qualification_type_id
-                      ? qualificationTypes.find((t) => t.qualificationTypeId === cred.qualification_type_id)?.typeName || 'Chọn loại chứng chỉ'
-                      : 'Chọn loại chứng chỉ'}
-                  </ThemedText>
-                  <Ionicons name="chevron-down" size={20} color="#68C2E8" />
-                </TouchableOpacity>
+                <Ionicons name="chevron-down" size={20} color="#68C2E8" />
+              </TouchableOpacity>
+
+              <TextInput
+                style={styles.input}
+                value={cred.certificate_number}
+                onChangeText={(text) => {
+                  const updated = [...credentials];
+                  updated[index].certificate_number = text;
+                  setCredentials(updated);
+                }}
+                placeholder="Số chứng chỉ"
+                placeholderTextColor="#999"
+              />
+
+              <TextInput
+                style={styles.input}
+                value={cred.issuing_organization}
+                onChangeText={(text) => {
+                  const updated = [...credentials];
+                  updated[index].issuing_organization = text;
+                  setCredentials(updated);
+                }}
+                placeholder="Nơi cấp"
+                placeholderTextColor="#999"
+              />
+
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
+                  <TextInput
+                    style={styles.input}
+                    value={cred.issue_date}
+                    onChangeText={(text) => {
+                      const updated = [...credentials];
+                      updated[index].issue_date = text;
+                      setCredentials(updated);
+                    }}
+                    placeholder="Ngày cấp (YYYY-MM-DD)"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <TextInput
+                    style={styles.input}
+                    value={cred.expiry_date}
+                    onChangeText={(text) => {
+                      const updated = [...credentials];
+                      updated[index].expiry_date = text;
+                      setCredentials(updated);
+                    }}
+                    placeholder="Ngày hết hạn (YYYY-MM-DD)"
+                    placeholderTextColor="#999"
+                  />
+                </View>
               </View>
 
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>Số chứng chỉ</ThemedText>
-                <TextInput
-                  style={styles.input}
-                  value={cred.certificate_number}
-                  onChangeText={(text) => {
-                    const updated = [...credentials];
-                    updated[index].certificate_number = text;
-                    setCredentials(updated);
-                  }}
-                  placeholder="Số chứng chỉ"
-                  placeholderTextColor="#999"
-                />
-              </View>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={cred.notes}
+                onChangeText={(text) => {
+                  const updated = [...credentials];
+                  updated[index].notes = text;
+                  setCredentials(updated);
+                }}
+                placeholder="Ghi chú"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={2}
+              />
 
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>Nơi cấp</ThemedText>
-                <TextInput
-                  style={styles.input}
-                  value={cred.issuing_organization}
-                  onChangeText={(text) => {
-                    const updated = [...credentials];
-                    updated[index].issuing_organization = text;
-                    setCredentials(updated);
-                  }}
-                  placeholder="Nơi cấp"
-                  placeholderTextColor="#999"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>Ngày cấp</ThemedText>
-                <TouchableOpacity
-                  style={styles.birthYearInput}
-                  onPress={() => {
-                    setCurrentCredentialIndex(index);
-                    setCurrentCredentialDateField('issue_date');
-                    setCredentialDatePickerValue(cred.issue_date ? new Date(cred.issue_date) : new Date());
-                    setShowCredentialDatePicker(true);
-                  }}
-                >
-                  <ThemedText style={cred.issue_date ? styles.dateText : styles.placeholderText}>
-                    {cred.issue_date ? new Date(cred.issue_date).toLocaleDateString('vi-VN') : 'Chọn ngày cấp'}
-                  </ThemedText>
-                  <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>Ngày hết hạn</ThemedText>
-                <TouchableOpacity
-                  style={styles.birthYearInput}
-                  onPress={() => {
-                    setCurrentCredentialIndex(index);
-                    setCurrentCredentialDateField('expiry_date');
-                    setCredentialDatePickerValue(cred.expiry_date ? new Date(cred.expiry_date) : new Date());
-                    setShowCredentialDatePicker(true);
-                  }}
-                >
-                  <ThemedText style={cred.expiry_date ? styles.dateText : styles.placeholderText}>
-                    {cred.expiry_date ? new Date(cred.expiry_date).toLocaleDateString('vi-VN') : 'Chọn ngày hết hạn'}
-                  </ThemedText>
-                  <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>Ghi chú</ThemedText>
-                <TextInput
-                  style={[styles.input, styles.textArea, styles.textAreaTop]}
-                  value={cred.notes}
-                  onChangeText={(text) => {
-                    const updated = [...credentials];
-                    updated[index].notes = text;
-                    setCredentials(updated);
-                  }}
-                  placeholder="Ghi chú"
-                  placeholderTextColor="#999"
-                  multiline
-                  numberOfLines={2}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>
-                  File chứng chỉ <ThemedText style={styles.required}>*</ThemedText>
+              <TouchableOpacity
+                style={styles.fileButton}
+                onPress={() => handleCredentialFilePicker(index)}
+              >
+                <Ionicons name={cred.file ? "checkmark-circle" : "document"} size={20} color={cred.file ? "#27AE60" : "#68C2E8"} />
+                <ThemedText style={styles.fileButtonText}>
+                  {cred.file ? 'Đã chọn file' : 'Chọn file chứng chỉ *'}
                 </ThemedText>
-                {cred.file ? (
-                  <View style={styles.filePreviewContainer}>
-                    <TouchableOpacity
-                      style={styles.filePreviewButton}
-                      onPress={() => setShowCredentialFilePreview(index)}
-                    >
-                      <Ionicons name="document-text" size={24} color="#68C2E8" />
-                      <View style={styles.filePreviewInfo}>
-                        <ThemedText style={styles.filePreviewName} numberOfLines={1}>
-                          {cred.file.name}
-                        </ThemedText>
-                        <ThemedText style={styles.filePreviewType}>
-                          {cred.file.type?.includes('pdf') ? 'PDF' : 'Image'}
-                        </ThemedText>
-                      </View>
-                      <Ionicons name="eye-outline" size={20} color="#68C2E8" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.removeFileButton}
-                      onPress={() => handleRemoveCredentialFile(index)}
-                    >
-                      <Ionicons name="close-circle" size={24} color="#dc3545" />
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.fileButton}
-                    onPress={() => handleCredentialFilePicker(index)}
-                  >
-                    <Ionicons name="document" size={20} color="#68C2E8" />
-                    <ThemedText style={styles.fileButtonText}>
-                      Chọn file chứng chỉ
-                    </ThemedText>
-                  </TouchableOpacity>
-                )}
-              </View>
+              </TouchableOpacity>
             </View>
           ))}
         </View>
@@ -1054,54 +829,6 @@ export default function CompleteProfileScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Credential File Picker Modal */}
-      <Modal
-        visible={showCredentialFilePickerModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowCredentialFilePickerModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.imagePickerModalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowCredentialFilePickerModal(false)}
-        >
-          <View style={styles.imagePickerModalContent} onTouchEnd={(e) => e.stopPropagation()}>
-            <View style={styles.imagePickerModalHeader}>
-              <ThemedText style={styles.imagePickerModalTitle}>Chọn file chứng chỉ</ThemedText>
-              <TouchableOpacity onPress={() => setShowCredentialFilePickerModal(false)}>
-                <Ionicons name="close" size={24} color="#6c757d" />
-              </TouchableOpacity>
-            </View>
-            <ThemedText style={styles.imagePickerModalSubtitle}>
-              Chọn nguồn file cho chứng chỉ
-            </ThemedText>
-
-            <View style={styles.imagePickerOptionsContainer}>
-              <TouchableOpacity style={styles.imagePickerOption} onPress={handlePickCredentialImage}>
-                <View style={styles.imagePickerOptionIcon}>
-                  <Ionicons name="images" size={32} color="#68C2E8" />
-                </View>
-                <ThemedText style={styles.imagePickerOptionText}>Thư viện ảnh</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.imagePickerOption} onPress={handlePickCredentialFile}>
-                <View style={styles.imagePickerOptionIcon}>
-                  <Ionicons name="document-text" size={32} color="#68C2E8" />
-                </View>
-                <ThemedText style={styles.imagePickerOptionText}>Chọn file</ThemedText>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.imagePickerCancelButton}
-              onPress={() => setShowCredentialFilePickerModal(false)}
-            >
-              <ThemedText style={styles.imagePickerCancelButtonText}>Hủy</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
       {/* Location Picker Modal */}
       <LocationPickerModal
         visible={showLocationPicker}
@@ -1146,7 +873,7 @@ export default function CompleteProfileScreen() {
                       setCurrentCredentialIndex(null);
                     }}
                   >
-                    <ThemedText style={styles.modalOptionText}>{item.typeName}</ThemedText>
+                    <ThemedText style={styles.modalOptionText}>{item.name}</ThemedText>
                   </TouchableOpacity>
                 )}
               />
@@ -1222,221 +949,6 @@ export default function CompleteProfileScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* Date Picker Modal for Booked Slots */}
-      <Modal
-        visible={showDatePicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.birthYearPickerContainer}>
-            <View style={styles.birthYearPickerHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <ThemedText style={styles.birthYearPickerCancel}>Hủy</ThemedText>
-              </TouchableOpacity>
-              <ThemedText style={styles.birthYearPickerTitle}>Chọn ngày</ThemedText>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <ThemedText style={styles.birthYearPickerDone}>Xong</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={Array.from({ length: 8 }, (_, i) => {
-                const date = new Date();
-                date.setDate(date.getDate() + i);
-                return date.toISOString().split('T')[0];
-              })}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => {
-                const date = new Date(item);
-                const dateStr = date.toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' });
-                const isSelected = currentSlotIndex !== null && bookedSlots[currentSlotIndex]?.date === item;
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.birthYearItem,
-                      isSelected && styles.birthYearItemSelected
-                    ]}
-                    onPress={() => {
-                      if (currentSlotIndex !== null) {
-                        const updated = [...bookedSlots];
-                        updated[currentSlotIndex].date = item;
-                        setBookedSlots(updated);
-                        setShowDatePicker(false);
-                      }
-                    }}
-                  >
-                    <ThemedText style={[
-                      styles.birthYearItemText,
-                      isSelected && styles.birthYearItemTextSelected
-                    ]}>
-                      {dateStr}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Time Picker Modal for Booked Slots */}
-      <Modal
-        visible={showTimePicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowTimePicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.birthYearPickerContainer}>
-            <View style={styles.birthYearPickerHeader}>
-              <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                <ThemedText style={styles.birthYearPickerCancel}>Hủy</ThemedText>
-              </TouchableOpacity>
-              <ThemedText style={styles.birthYearPickerTitle}>
-                {currentSlotField === 'start_time' ? 'Chọn giờ bắt đầu' : 'Chọn giờ kết thúc'}
-              </ThemedText>
-              <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                <ThemedText style={styles.birthYearPickerDone}>Xong</ThemedText>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={Array.from({ length: 24 * 4 }, (_, i) => {
-                const hours = Math.floor(i / 4);
-                const minutes = (i % 4) * 15;
-                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-              })}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => {
-                const isSelected = currentSlotIndex !== null && 
-                  ((currentSlotField === 'start_time' && bookedSlots[currentSlotIndex]?.start_time === item) ||
-                   (currentSlotField === 'end_time' && bookedSlots[currentSlotIndex]?.end_time === item));
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.birthYearItem,
-                      isSelected && styles.birthYearItemSelected
-                    ]}
-                    onPress={() => {
-                      if (currentSlotIndex !== null && currentSlotField) {
-                        const updated = [...bookedSlots];
-                        updated[currentSlotIndex][currentSlotField] = item;
-                        setBookedSlots(updated);
-                        setShowTimePicker(false);
-                      }
-                    }}
-                  >
-                    <ThemedText style={[
-                      styles.birthYearItemText,
-                      isSelected && styles.birthYearItemTextSelected
-                    ]}>
-                      {item}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Date Picker Modal for Credentials */}
-      {showCredentialDatePicker && (
-        <Modal
-          visible={showCredentialDatePicker}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setShowCredentialDatePicker(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.datePickerModalContainer}>
-              <View style={styles.datePickerModalHeader}>
-                <TouchableOpacity onPress={() => setShowCredentialDatePicker(false)}>
-                  <ThemedText style={styles.birthYearPickerCancel}>Hủy</ThemedText>
-                </TouchableOpacity>
-                <ThemedText style={styles.birthYearPickerTitle}>
-                  {currentCredentialDateField === 'issue_date' ? 'Chọn ngày cấp' : 'Chọn ngày hết hạn'}
-                </ThemedText>
-                <TouchableOpacity onPress={() => {
-                  if (currentCredentialIndex !== null && currentCredentialDateField) {
-                    const updated = [...credentials];
-                    updated[currentCredentialIndex][currentCredentialDateField] = credentialDatePickerValue.toISOString().split('T')[0];
-                    setCredentials(updated);
-                  }
-                  setShowCredentialDatePicker(false);
-                }}>
-                  <ThemedText style={styles.birthYearPickerDone}>Xong</ThemedText>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={credentialDatePickerValue}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  if (selectedDate) {
-                    setCredentialDatePickerValue(selectedDate);
-                    if (Platform.OS === 'android') {
-                      if (currentCredentialIndex !== null && currentCredentialDateField) {
-                        const updated = [...credentials];
-                        updated[currentCredentialIndex][currentCredentialDateField] = selectedDate.toISOString().split('T')[0];
-                        setCredentials(updated);
-                      }
-                      setShowCredentialDatePicker(false);
-                    }
-                  }
-                }}
-                maximumDate={currentCredentialDateField === 'expiry_date' ? undefined : new Date()}
-                minimumDate={currentCredentialDateField === 'expiry_date' ? new Date() : undefined}
-              />
-            </View>
-          </View>
-        </Modal>
-      )}
-
-      {/* File Preview Modal */}
-      <Modal
-        visible={showCredentialFilePreview !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowCredentialFilePreview(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.filePreviewModalContainer}>
-            <View style={styles.filePreviewModalHeader}>
-              <ThemedText style={styles.filePreviewModalTitle}>
-                {showCredentialFilePreview !== null && credentials[showCredentialFilePreview]?.file?.name}
-              </ThemedText>
-              <TouchableOpacity onPress={() => setShowCredentialFilePreview(null)}>
-                <Ionicons name="close" size={24} color="#6c757d" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.filePreviewModalContent}>
-              {showCredentialFilePreview !== null && credentials[showCredentialFilePreview]?.file && (
-                <>
-                  {credentials[showCredentialFilePreview].file!.type?.includes('pdf') ? (
-                    <View style={styles.pdfPreviewContainer}>
-                      <Ionicons name="document-text" size={80} color="#68C2E8" />
-                      <ThemedText style={styles.pdfPreviewText}>
-                        {credentials[showCredentialFilePreview].file!.name}
-                      </ThemedText>
-                      <ThemedText style={styles.pdfPreviewSubtext}>
-                        File PDF - Không thể xem trước
-                      </ThemedText>
-                    </View>
-                  ) : (
-                    <Image
-                      source={{ uri: credentials[showCredentialFilePreview].file!.uri }}
-                      style={styles.filePreviewImage}
-                      resizeMode="contain"
-                    />
-                  )}
-                </>
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -1449,41 +961,19 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  headerGradient: {
-    marginBottom: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    overflow: 'hidden',
-  },
   header: {
-    padding: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
-    alignItems: 'center',
-  },
-  headerIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    padding: 20,
+    paddingTop: 10,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 6,
-    textAlign: 'center',
+    color: '#2C3E50',
+    marginBottom: 8,
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    lineHeight: 18,
+    fontSize: 14,
+    color: '#7F8C8D',
   },
   section: {
     paddingHorizontal: 20,
@@ -1520,18 +1010,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8EBED',
   },
-  birthYearInput: {
-    height: 50,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#E8EBED',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   inputGroup: {
     marginBottom: 16,
   },
@@ -1539,25 +1017,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  serviceRadiusGroup: {
-    marginTop: 32,
-  },
-  ageRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  ageInputGroup: {
-    flex: 1,
-    marginBottom: 16,
-  },
   textArea: {
     height: 100,
     paddingTop: 12,
     paddingBottom: 12,
-  },
-  textAreaTop: {
-    textAlignVertical: 'top',
   },
   dateText: {
     fontSize: 15,
@@ -1659,46 +1122,6 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
   },
   genderTextSelected: {
-    color: '#68C2E8',
-  },
-  healthStatusText: {
-    textAlign: 'center',
-  },
-  bookedSlotCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E8EBED',
-  },
-  bookedSlotHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  bookedSlotTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2C3E50',
-  },
-  addSlotButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#F0F8FF',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#68C2E8',
-    borderStyle: 'dashed',
-  },
-  addSlotButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
     color: '#68C2E8',
   },
   locationButton: {
@@ -1846,93 +1269,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#68C2E8',
   },
-  filePreviewContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  filePreviewButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F8FF',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#68C2E8',
-    gap: 12,
-  },
-  filePreviewInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  filePreviewName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2C3E50',
-  },
-  filePreviewType: {
-    fontSize: 12,
-    color: '#7F8C8D',
-  },
-  removeFileButton: {
-    padding: 4,
-  },
-  datePickerModalContainer: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 0 : 20,
-  },
-  filePreviewModalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  filePreviewModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8EBED',
-  },
-  filePreviewModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2C3E50',
-    flex: 1,
-    marginRight: 12,
-  },
-  filePreviewModalContent: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 300,
-  },
-  pdfPreviewContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  pdfPreviewText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2C3E50',
-    textAlign: 'center',
-  },
-  pdfPreviewSubtext: {
-    fontSize: 14,
-    color: '#7F8C8D',
-    textAlign: 'center',
-  },
-  filePreviewImage: {
-    width: '100%',
-    height: 400,
-    borderRadius: 12,
-  },
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1983,13 +1319,11 @@ const styles = StyleSheet.create({
   },
   imagePickerOptionsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    gap: 16,
     marginBottom: 20,
   },
   imagePickerOption: {
     flex: 1,
-    minWidth: '30%',
     alignItems: 'center',
     padding: 20,
     backgroundColor: '#F8F9FA',

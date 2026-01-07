@@ -776,4 +776,198 @@ export const mainService = {
       };
     }
   },
+
+  /**
+   * Lấy danh sách qualification types
+   */
+  getQualificationTypes: async (): Promise<any[]> => {
+    try {
+      const response = await apiClient.get('/api/v1/public/qualification-types');
+      return response.data.data || [];
+    } catch (error: any) {
+      console.error('Error fetching qualification types:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Tạo caregiver profile với multipart/form-data
+   * @param profileData - Dữ liệu profile (JSON)
+   * @param avatarFile - File avatar (optional)
+   * @param credentialFiles - Danh sách file chứng chỉ (optional)
+   */
+  createCaregiverProfile: async (
+    profileData: any,
+    avatarFile?: { uri: string; type?: string; name?: string },
+    credentialFiles?: Array<{ uri: string; type?: string; name?: string }>
+  ): Promise<CareServiceApiResponse> => {
+    try {
+      console.log('📤 Creating caregiver profile...');
+      console.log('📋 Profile data:', JSON.stringify(profileData, null, 2));
+      console.log('🖼️ Avatar file:', avatarFile ? { uri: avatarFile.uri.substring(0, 50) + '...', type: avatarFile.type, name: avatarFile.name } : 'none');
+      console.log('📄 Credential files:', credentialFiles?.length || 0);
+
+      const formData = new FormData();
+      
+      // Append JSON data
+      formData.append('data', JSON.stringify(profileData));
+      console.log('✅ Appended data field');
+
+      // Append avatar file if provided
+      if (avatarFile) {
+        const fileExtension = avatarFile.uri.split('.').pop() || 'jpg';
+        const fileName = avatarFile.name || `avatar_${Date.now()}.${fileExtension}`;
+        const fileType = avatarFile.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+        
+        // Format URI correctly for React Native
+        let fileUri = avatarFile.uri;
+        // Keep original URI format (file://, content://, etc.)
+        // Don't modify it as React Native FormData handles it correctly
+
+        console.log('📎 Appending avatar:', { uri: fileUri.substring(0, 50) + '...', type: fileType, name: fileName });
+        formData.append('avatar', {
+          uri: fileUri,
+          type: fileType,
+          name: fileName,
+        } as any);
+        console.log('✅ Appended avatar');
+      }
+
+      // Append credential files if provided
+      if (credentialFiles && credentialFiles.length > 0) {
+        credentialFiles.forEach((file, index) => {
+          const fileExtension = file.uri.split('.').pop() || 'pdf';
+          const fileName = file.name || `credential_${Date.now()}.${fileExtension}`;
+          const fileType = file.type || (fileExtension === 'pdf' ? 'application/pdf' : 'image/jpeg');
+          
+          // Format URI correctly for React Native
+          let fileUri = file.uri;
+          // Keep original URI format (file://, content://, etc.)
+          // Don't modify it as React Native FormData handles it correctly
+
+          console.log(`📎 Appending credential file ${index + 1}:`, { uri: fileUri.substring(0, 50) + '...', type: fileType, name: fileName });
+          formData.append('credentialFiles', {
+            uri: fileUri,
+            type: fileType,
+            name: fileName,
+          } as any);
+        });
+        console.log('✅ Appended credential files');
+      }
+
+      console.log('🚀 Sending request to /api/v1/caregivers/profile');
+      
+      // Try with axios first
+      try {
+        const response = await apiClient.post<CareServiceApiResponse>(
+          '/api/v1/caregivers/profile',
+          formData,
+          {
+            timeout: 120000,
+            // Override transformRequest để axios không convert FormData thành string
+            // React Native FormData cần được giữ nguyên để serialize đúng cách
+            transformRequest: (data, headers) => {
+              // Nếu là FormData, return trực tiếp (không transform)
+              if (data instanceof FormData) {
+                return data;
+              }
+              // Với data khác, dùng default transform
+              return data;
+            },
+            // Don't set Content-Type header - let axios set it automatically with boundary
+            // The interceptor in apiClient.ts already handles this
+          }
+        );
+
+        console.log('✅ Response received:', response.status);
+        return response.data;
+      } catch (axiosError: any) {
+        // Log chi tiết lỗi axios
+        console.error('❌ Axios Error Details:');
+        console.error('  - Code:', axiosError.code);
+        console.error('  - Message:', axiosError.message);
+        console.error('  - Name:', axiosError.name);
+        console.error('  - Stack:', axiosError.stack);
+        
+        if (axiosError.request) {
+          console.error('  - Request made:', true);
+          console.error('  - Request method:', axiosError.config?.method);
+          console.error('  - Request URL:', axiosError.config?.url);
+          console.error('  - Request baseURL:', axiosError.config?.baseURL);
+          console.error('  - Request headers:', JSON.stringify(axiosError.config?.headers, null, 2));
+          console.error('  - Request data type:', axiosError.config?.data?.constructor?.name);
+          console.error('  - Request data is FormData:', axiosError.config?.data instanceof FormData);
+        } else {
+          console.error('  - Request made: false (request was not sent)');
+        }
+        
+        if (axiosError.response) {
+          console.error('  - Response status:', axiosError.response.status);
+          console.error('  - Response data:', axiosError.response.data);
+          console.error('  - Response headers:', axiosError.response.headers);
+        } else {
+          console.error('  - Response: No response received');
+        }
+        
+        // Throw error để xử lý ở nơi gọi
+        throw axiosError;
+      }
+    } catch (error: any) {
+      console.error('❌ Error creating caregiver profile:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response ? {
+          status: error.response.status,
+          data: error.response.data,
+        } : 'No response',
+        request: error.request ? 'Request made but no response' : 'No request made',
+      });
+      
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      
+      // Network error - có thể do FormData hoặc network issue
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        console.error('🌐 Network Error - Possible causes:');
+        console.error('  1. FormData serialization issue');
+        console.error('  2. File URI format issue');
+        console.error('  3. Server not accessible');
+        console.error('  4. Request timeout');
+      }
+      
+      return {
+        status: 'Fail',
+        message: error.message || 'Không thể tạo hồ sơ. Vui lòng thử lại sau.',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Lấy thống kê cá nhân của caregiver
+   */
+  getCaregiverPersonalStatistics: async (): Promise<{
+    status: string;
+    message: string;
+    data: {
+      totalCareServicesThisMonth: number;
+      totalEarningsThisMonth: number;
+      overallRating: number;
+      taskCompletionRate: number;
+    } | null;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/statistics/caregiver/personal');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching caregiver statistics:', error);
+      return {
+        status: 'Fail',
+        message: error.response?.data?.message || error.message || 'Không thể lấy thống kê. Vui lòng thử lại sau.',
+        data: null,
+      };
+    }
+  },
 };

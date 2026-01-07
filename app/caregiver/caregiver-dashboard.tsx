@@ -8,6 +8,7 @@ import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 import { mainService, type MyCareServiceData } from "@/services/main.service";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -58,12 +59,25 @@ const mapStatusToDashboard = (status: string | undefined) => {
   }
 };
 
-const caregiverStats = {
-  totalJobs: 12,
-  monthlyIncome: 8.5,
-  rating: 4.9,
-  completionRate: 80,
-  satisfactionRate: 95,
+// Format earnings to display (VNĐ)
+const formatEarnings = (earnings: number): string => {
+  if (earnings >= 1000000) {
+    return `${(earnings / 1000000).toFixed(1)}M`;
+  } else if (earnings >= 1000) {
+    return `${(earnings / 1000).toFixed(0)}K`;
+  }
+  return earnings.toString();
+};
+
+// Format completion rate: show integer if whole number, otherwise show decimal
+const formatCompletionRate = (rate: number): string => {
+  if (rate === 0) return '0';
+  // Check if it's a whole number
+  if (rate % 1 === 0) {
+    return rate.toString();
+  }
+  // Otherwise, show with decimal
+  return rate.toFixed(1);
 };
 
 // Parse Vietnamese date format "T5, 13 Thg 11 2025" to "YYYY-MM-DD"
@@ -92,16 +106,23 @@ export default function CaregiverDashboardScreen() {
   const { user } = useAuth();
   const bottomNavPadding = useBottomNavPadding();
   
+  // All hooks must be called before any conditional returns
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const refresh = useCallback(async () => {
-    // Refresh will be called by fetchTodayAppointments
-  }, []);
   const [refreshKey, setRefreshKey] = useState(0);
   const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>({});
   const [newRequestsCount, setNewRequestsCount] = useState(0);
   const [loadingNewRequests, setLoadingNewRequests] = useState(true);
+  
+  // Statistics state
+  const [statistics, setStatistics] = useState<{
+    totalCareServicesThisMonth: number;
+    totalEarningsThisMonth: number;
+    overallRating: number;
+    taskCompletionRate: number;
+  } | null>(null);
+  const [loadingStatistics, setLoadingStatistics] = useState(true);
   
   // Mock notifications (unread count for badge)
   const [notifications] = useState([
@@ -109,6 +130,10 @@ export default function CaregiverDashboardScreen() {
     { id: '2', isRead: false },
     { id: '3', isRead: true },
   ]);
+
+  const refresh = useCallback(async () => {
+    // Refresh will be called by fetchTodayAppointments
+  }, []);
 
   // Fetch today's appointments from API
   const fetchTodayAppointments = useCallback(async () => {
@@ -188,12 +213,28 @@ export default function CaregiverDashboardScreen() {
     }
   }, []);
 
+  // Fetch statistics
+  const fetchStatistics = useCallback(async () => {
+    try {
+      setLoadingStatistics(true);
+      const response = await mainService.getCaregiverPersonalStatistics();
+      if (response.status === 'Success' && response.data) {
+        setStatistics(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+    } finally {
+      setLoadingStatistics(false);
+    }
+  }, []);
+
   // Fetch new requests when screen is focused
   useFocusEffect(
     useCallback(() => {
       fetchNewRequestsCount();
       fetchTodayAppointments();
-    }, [fetchNewRequestsCount, fetchTodayAppointments])
+      fetchStatistics();
+    }, [fetchNewRequestsCount, fetchTodayAppointments, fetchStatistics])
   );
 
   // Load elderly names for appointments
@@ -225,56 +266,24 @@ export default function CaregiverDashboardScreen() {
     return () => unsubscribe();
   }, []);
 
+  // Redirect to complete profile if not completed - check after all hooks
+  useEffect(() => {
+    if (user && (user.role === "Caregiver" || user.role === "ROLE_CAREGIVER") && !user.hasCompletedProfile) {
+      navigation.navigate("Hoàn thiện hồ sơ", {
+        email: user.email,
+        accountId: user.id,
+      });
+    }
+  }, [user?.hasCompletedProfile, navigation, user]);
+
+  // Don't render dashboard if profile not completed
+  if (user && (user.role === "Caregiver" || user.role === "ROLE_CAREGIVER") && !user.hasCompletedProfile) {
+    return null;
+  }
+
   // Today's appointments already filtered by API (workDate = today)
   // Just display all appointments from state
   const todayAppointments = appointments;
-
-  // Check profile status and navigate accordingly
-  // DISABLED: This was causing infinite re-renders
-  /*
-  useFocusEffect(
-    useCallback(() => {
-      if (user && user.role === "Caregiver") {
-        // console.log('Dashboard check - user.hasCompletedProfile:', user.hasCompletedProfile);
-        // Small delay to ensure navigation is ready
-        setTimeout(() => {
-          // Check if profile has been submitted (exists in profileStore)
-          const { getProfileStatus, hasProfile } = require("@/data/profileStore");
-          const hasProfileInStore = hasProfile(user.id);
-          const profileStatus = getProfileStatus(user.id);
-          
-          // Check status from API (user.status) or profileStore
-          const currentStatus = user.status || profileStatus.status;
-          
-          // console.log('Dashboard check - hasProfileInStore:', hasProfileInStore, 'currentStatus:', currentStatus);
-          
-          // If no profile submitted yet and user hasn't completed profile, navigate to complete profile
-          if (!hasProfileInStore && !user.hasCompletedProfile) {
-            // console.log('Dashboard redirecting to complete-profile');
-            navigation.navigate("Hoàn thiện hồ sơ", {
-              email: user.email,
-              fullName: user.name || "",
-            });
-            return;
-          }
-
-          // If profile is approved (from API or profileStore), stay on dashboard
-          if (currentStatus === "approved") {
-            // console.log('Profile approved, staying on dashboard');
-            return; // Stay on dashboard
-          }
-
-          // If profile is pending or rejected, navigate to status screen
-          if (currentStatus === "pending" || currentStatus === "rejected") {
-            // console.log('Profile pending/rejected, navigating to status screen');
-            navigation.navigate("Trạng thái hồ sơ");
-            return;
-          }
-        }, 100); // Reduced timeout for faster response
-      }
-    }, [user, navigation])
-  );
-  */
 
   if (loading) {
     return (
@@ -470,7 +479,11 @@ export default function CaregiverDashboardScreen() {
               <View style={styles.statIconContainer}>
                 <Text style={styles.statIcon}>📄</Text>
               </View>
-              <Text style={styles.statValue}>{caregiverStats.totalJobs}</Text>
+              {loadingStatistics ? (
+                <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.statValue}>{statistics?.totalCareServicesThisMonth || 0}</Text>
+              )}
               <Text style={styles.statLabel}>Lịch hẹn tháng này</Text>
             </View>
 
@@ -478,7 +491,13 @@ export default function CaregiverDashboardScreen() {
               <View style={styles.statIconContainer}>
                 <Text style={styles.statIcon}>💰</Text>
               </View>
-              <Text style={styles.statValue}>{caregiverStats.monthlyIncome}M</Text>
+              {loadingStatistics ? (
+                <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.statValue}>
+                  {statistics ? formatEarnings(statistics.totalEarningsThisMonth) : '0'}
+                </Text>
+              )}
               <Text style={styles.statLabel}>Thu nhập tháng</Text>
             </View>
           </View>
@@ -488,15 +507,27 @@ export default function CaregiverDashboardScreen() {
               <View style={styles.statIconContainer}>
                 <Text style={styles.statIcon}>⭐</Text>
               </View>
-              <Text style={styles.statValue}>{caregiverStats.rating}</Text>
+              {loadingStatistics ? (
+                <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.statValue}>
+                  {statistics?.overallRating ? statistics.overallRating.toFixed(1) : '0.0'}
+                </Text>
+              )}
               <Text style={styles.statLabel}>Đánh giá tổng</Text>
             </View>
 
             <View style={[styles.statCard, { backgroundColor: "#EDE7F6" }]}>
               <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}></Text>
+                <Text style={styles.statIcon}>✓</Text>
               </View>
-              <Text style={styles.statValue}>{caregiverStats.completionRate}%</Text>
+              {loadingStatistics ? (
+                <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.statValue}>
+                  {statistics?.taskCompletionRate !== undefined ? formatCompletionRate(statistics.taskCompletionRate) : '0'}%
+                </Text>
+              )}
               <Text style={styles.statLabel}>Tỷ lệ hoàn thành nhiệm vụ</Text>
             </View>
           </View>

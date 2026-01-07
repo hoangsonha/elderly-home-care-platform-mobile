@@ -6,9 +6,9 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 // - Trên thiết bị thật/emulator: dùng IP của máy tính (ví dụ: 192.168.1.3)
 // - Trên Android emulator: có thể dùng 10.0.2.2 thay cho localhost
 // - Trên iOS simulator: dùng localhost hoặc IP của máy Mac
-// - Production: dùng domain/IP của server
+// - Production: dùng domain/IP của serverr
 // export const BASE_URL = 'http://157.245.155.77:8080'; // Server remote
-export const BASE_URL = "http://192.168.1.4:8080"; // IP máy tính local (thay đổi theo IP của bạn)
+export const BASE_URL = "http://192.168.1.2:8080"; // IP máy tính local (thay đổi theo IP của bạn)
 // export const BASE_URL = 'http://localhost:8080'; // Chỉ dùng khi test trên webr
 
 // Danh sách các public API không cần token
@@ -77,12 +77,25 @@ apiClient.interceptors.request.use(
     const fullUrl = config.baseURL ? `${config.baseURL}${url}` : url;
 
     // Nếu là FormData, xóa Content-Type để axios tự động set multipart/form-data với boundary
-    // Theo hướng dẫn BE: Axios sẽ tự động thêm boundary khi set Content-Type: multipart/form-data
-    // Nhưng tốt nhất là để axios tự set để đảm bảo boundary đúng
+    // Và override transformRequest để không convert FormData thành string
+    // React Native FormData cần được giữ nguyên để serialize đúng cách
     if (config.data instanceof FormData) {
       // Xóa Content-Type để axios tự động set với boundary
       delete config.headers["Content-Type"];
       delete config.headers["content-type"];
+      
+      // Override transformRequest để giữ nguyên FormData
+      // Axios mặc định sẽ convert FormData thành string, nhưng React Native cần giữ nguyên object
+      if (!config.transformRequest) {
+        config.transformRequest = [(data) => {
+          // Nếu là FormData, return trực tiếp (không transform)
+          if (data instanceof FormData) {
+            return data;
+          }
+          // Với data khác, dùng default transform
+          return data;
+        }];
+      }
     }
 
     // Nếu không phải public API, thêm token

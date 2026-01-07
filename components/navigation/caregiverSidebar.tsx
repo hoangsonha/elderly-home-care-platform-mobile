@@ -93,11 +93,17 @@ const features = [
 ];
 
 export default function CaregiverSidebar() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  // Set initial route based on profile completion
+  const initialRouteName = user && (user.role === "Caregiver" || user.role === "ROLE_CAREGIVER") && !user.hasCompletedProfile
+    ? "Hoàn thiện hồ sơ"
+    : "Trang chủ";
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Drawer.Navigator
+        initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: true,
           headerStyle: { backgroundColor: "#70C1F1" },

@@ -73,6 +73,7 @@ export default function CaregiverHome() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+
   // Request notification data
   const requestCount = 3; // Sample data
   const showRequestNotification = true;
