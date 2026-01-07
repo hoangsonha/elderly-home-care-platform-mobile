@@ -46,12 +46,6 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
               <ThemedText style={styles.caregiverName} numberOfLines={1}>
                 {caregiver.name}
               </ThemedText>
-              {caregiver.isVerified && (
-                <View style={styles.verifiedLabel}>
-                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                  <ThemedText style={styles.verifiedText}>Đã xác thực</ThemedText>
-                </View>
-              )}
             </View>
             <View style={styles.ratingContainer}>
               <Ionicons name="star" size={14} color="#FFD700" />
@@ -64,10 +58,25 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
             </View>
           </View>
           
+          {/* Verification status badge - always on a new line */}
+          <View style={styles.verificationRow}>
+            {caregiver.isVerified ? (
+              <View style={styles.verifiedLabel}>
+                <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                <ThemedText style={styles.verifiedText}>Đã xác thực</ThemedText>
+              </View>
+            ) : (
+              <View style={styles.unverifiedLabel}>
+                <Ionicons name="alert-circle" size={14} color="#F59E0B" />
+                <ThemedText style={styles.unverifiedText}>Chưa xác thực</ThemedText>
+              </View>
+            )}
+          </View>
+          
           <View style={styles.experienceRow}>
             <Ionicons name="time" size={14} color="#666" />
             <ThemedText style={styles.experience}>
-              Kinh nghiệm: {caregiver.experience}
+              {caregiver.experience}
             </ThemedText>
           </View>
           
@@ -138,12 +147,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   nameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
     flex: 1,
     marginRight: 8,
+  },
+  verificationRow: {
+    marginTop: 4,
+    marginBottom: 4,
   },
   caregiverName: {
     fontSize: 16,
@@ -163,6 +172,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#065F46',
+  },
+  unverifiedLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    gap: 4,
+  },
+  unverifiedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#92400E',
   },
   ratingContainer: {
     flexDirection: 'row',

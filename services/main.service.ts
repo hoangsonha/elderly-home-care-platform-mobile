@@ -778,6 +778,43 @@ export const mainService = {
   },
 
   /**
+   * Lấy lịch rảnh của caregiver cho một ngày cụ thể
+   * @param date - Ngày cần kiểm tra (format: "yyyy-MM-dd")
+   * @param caregiverId - ID của caregiver
+   */
+  getFreeScheduleByDate: async (date: string, caregiverId: string): Promise<FreeScheduleByDateApiResponse> => {
+    try {
+      console.log('📤 Calling getFreeScheduleByDate with date:', date, 'caregiverId:', caregiverId);
+      const response = await apiClient.get<FreeScheduleByDateApiResponse>(
+        `/api/v1/caregiver-schedule/free-schedule/date`,
+        {
+          params: {
+            date: date,
+            caregiverId: caregiverId,
+          },
+        }
+      );
+      console.log('✅ getFreeScheduleByDate response:', JSON.stringify(response.data, null, 2));
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error fetching free schedule by date:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data || 'No response',
+      });
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Không thể lấy lịch rảnh. Vui lòng thử lại sau.',
+        data: null,
+      };
+    }
+  },
+
+  /**
    * Lấy danh sách qualification types
    */
   getQualificationTypes: async (): Promise<any[]> => {

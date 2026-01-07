@@ -58,6 +58,7 @@ export interface PublicCaregiverLocation {
 
 export interface PublicCaregiverProfileData {
   experience?: string;
+  years_experience?: number;
   specializations?: string[];
   certifications?: string[];
 }
@@ -73,6 +74,7 @@ export interface PublicCaregiver {
   age: number;
   gender: string;
   avatarUrl: string;
+  years_experience?: number;
   profileData?: PublicCaregiverProfileData;
 }
 
