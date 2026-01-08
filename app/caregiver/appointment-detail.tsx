@@ -867,6 +867,16 @@ export default function AppointmentDetailScreen() {
     orderId: string;
   } | null>(null);
   
+  // State for accept/reject modals
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  // State for cancel modal
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
+  
   // Alert state
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
@@ -910,6 +920,21 @@ export default function AppointmentDetailScreen() {
       return "Đang tính toán thời gian...";
     }
     return `Bạn có ${remainingMinutes} phút để chấp nhận hay từ chối lịch hẹn này. Nếu quá thời gian hệ thống sẽ tự hủy lịch hẹn`;
+  };
+
+  // Helper functions for formatting
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const days = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+    const dayOfWeek = days[date.getDay()];
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    return `${dayOfWeek}, ${day}/${month}/${year}`;
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
   };
 
   // Setup header back button based on fromScreen param
@@ -1142,7 +1167,7 @@ export default function AppointmentDetailScreen() {
   };
   
   // Xử lý các action buttons
-  const handleAccept = async () => {
+  const handleAccept = () => {
     if (isDeadlineExpired) {
       showAlert(
         "Đã quá hạn", 
@@ -1152,57 +1177,52 @@ export default function AppointmentDetailScreen() {
       );
       return;
     }
-    showAlert(
-      "Xác nhận", 
-      "Bạn có chắc chắn muốn chấp nhận lịch hẹn này?",
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Chấp nhận",
-          style: "default",
-          onPress: async () => {
-            try {
-              // Gọi API để chấp nhận lịch hẹn
-              const response = await mainService.acceptCareService(appointmentId);
-              
-              if (response.status === "Success") {
-                // Update global store
-                updateAppointmentStatus(appointmentId, "confirmed");
-                
-                // Refresh data từ API để lấy status mới nhất
-                await fetchAppointment();
-                
-            showAlert(
-              "Thành công", 
-              "Đã chấp nhận lịch hẹn",
-              [{ text: 'OK', style: 'default' }],
-              { icon: 'check-circle', iconColor: '#10B981' }
-            );
-              } else {
-                showAlert(
-                  "Lỗi", 
-                  response.message || "Không thể chấp nhận lịch hẹn",
-                  [{ text: 'OK', style: 'default' }],
-                  { icon: 'alert-circle', iconColor: '#EF4444' }
-                );
-              }
-            } catch (error: any) {
-              console.error('Error accepting appointment:', error);
-              showAlert(
-                "Lỗi", 
-                "Có lỗi xảy ra. Vui lòng thử lại.",
-                [{ text: 'OK', style: 'default' }],
-                { icon: 'alert-circle', iconColor: '#EF4444' }
-              );
-            }
-          },
-        },
-      ],
-      { icon: 'help-circle', iconColor: '#70C1F1' }
-    );
+    setShowAcceptModal(true);
   };
 
-  const handleReject = async () => {
+  const confirmAccept = async () => {
+    if (!appointmentData) return;
+
+    try {
+      setShowAcceptModal(false);
+      setIsProcessing(true);
+      const response = await mainService.acceptCareService(appointmentId);
+      
+      if (response.status === "Success") {
+        // Update global store
+        updateAppointmentStatus(appointmentId, "confirmed");
+        
+        // Refresh data từ API để lấy status mới nhất
+        await fetchAppointment();
+        
+        showAlert(
+          "Thành công", 
+          "Đã chấp nhận lịch hẹn",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'check-circle', iconColor: '#10B981' }
+        );
+      } else {
+        showAlert(
+          "Lỗi", 
+          response.message || "Không thể chấp nhận lịch hẹn",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'alert-circle', iconColor: '#EF4444' }
+        );
+      }
+    } catch (error: any) {
+      console.error('Error accepting appointment:', error);
+      showAlert(
+        "Lỗi", 
+        "Có lỗi xảy ra. Vui lòng thử lại.",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'alert-circle', iconColor: '#EF4444' }
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReject = () => {
     if (isDeadlineExpired) {
       showAlert(
         "Đã quá hạn", 
@@ -1212,30 +1232,50 @@ export default function AppointmentDetailScreen() {
       );
       return;
     }
-    showAlert(
-      "Từ chối", 
-      "Bạn có chắc chắn muốn từ chối lịch hẹn này?",
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Từ chối",
-          style: "destructive",
-          onPress: async () => {
-            const newStatus = "rejected";
-            setStatus(newStatus);
-            updateAppointmentStatus(appointmentId, newStatus);
-            // Status is saved via API call in handleReject
-            showAlert(
-              "Đã từ chối", 
-              "Lịch hẹn đã bị từ chối",
-              [{ text: 'OK', style: 'default' }],
-              { icon: 'close-circle', iconColor: '#EF4444' }
-            );
-          },
-        },
-      ],
-      { icon: 'help-circle', iconColor: '#EF4444' }
-    );
+    setRejectReason("");
+    setShowRejectModal(true);
+  };
+
+  const confirmReject = async () => {
+    if (!appointmentData) return;
+
+    try {
+      setShowRejectModal(false);
+      setIsProcessing(true);
+      const response = await mainService.declineCareService(appointmentId, rejectReason || undefined);
+      
+      if (response.status === "Success") {
+        // Update global store
+        updateAppointmentStatus(appointmentId, "rejected");
+        
+        // Refresh data từ API để lấy status mới nhất
+        await fetchAppointment();
+        
+        showAlert(
+          "Đã từ chối", 
+          "Lịch hẹn đã bị từ chối",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'close-circle', iconColor: '#EF4444' }
+        );
+      } else {
+        showAlert(
+          "Lỗi", 
+          response.message || "Không thể từ chối lịch hẹn",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'alert-circle', iconColor: '#EF4444' }
+        );
+      }
+    } catch (error: any) {
+      console.error('Error rejecting appointment:', error);
+      showAlert(
+        "Lỗi", 
+        "Có lỗi xảy ra. Vui lòng thử lại.",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'alert-circle', iconColor: '#EF4444' }
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Check if there's a conflict with other in-progress appointments
@@ -1308,24 +1348,46 @@ export default function AppointmentDetailScreen() {
     });
   };
 
-  const handleCancel = async () => {
-    const newStatus = "cancelled";
-    setStatus(newStatus);
-    updateAppointmentStatus(appointmentId, newStatus);
-    // TODO: Save to API
-    // if (appointment) {
-    //   try {
-    //     await apiClient.patch(`/api/v1/appointments/${appointmentId}/status`, { status: newStatus });
-    //   } catch (error) {
-    //     console.error('Error updating appointment status:', error);
-    //   }
-    // }
-    showAlert(
-      "Đã hủy", 
-      "Lịch hẹn đã được hủy",
-      [{ text: 'OK', style: 'default' }],
-      { icon: 'check-circle', iconColor: '#70C1F1' }
-    );
+  const handleCancel = () => {
+    setCancelReason("");
+    setShowCancelModal(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!appointmentData) return;
+
+    try {
+      setShowCancelModal(false);
+      setIsProcessing(true);
+      const response = await mainService.declineCareService(appointmentId, cancelReason || undefined);
+      
+      if (response.status === "Success") {
+        // Update global store
+        updateAppointmentStatus(appointmentId, "cancelled");
+        
+        // Refresh data từ API để lấy status mới nhất
+        await fetchAppointment();
+        
+        setShowCancelSuccessModal(true);
+      } else {
+        showAlert(
+          "Lỗi", 
+          response.message || "Không thể hủy lịch hẹn",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'alert-circle', iconColor: '#EF4444' }
+        );
+      }
+    } catch (error: any) {
+      console.error('Error cancelling appointment:', error);
+      showAlert(
+        "Lỗi", 
+        "Có lỗi xảy ra. Vui lòng thử lại.",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'alert-circle', iconColor: '#EF4444' }
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleComplete = async () => {
@@ -1710,11 +1772,19 @@ export default function AppointmentDetailScreen() {
     // Chỉ cho phép tick service khi đang thực hiện VÀ task status không phải PENDING
     const isPending = service.status === 'PENDING';
     const canEditService = status === "Đang thực hiện" && !isPending;
+    const isCompleted = service.completed || service.status === 'DONE';
+    const isNotCompleted = !isCompleted && (service.status === 'NOT_COMPLETED' || service.status === 'IN_PROGRESS');
+    const isCompletedStatus = status === "Hoàn thành" || status === "COMPLETED";
     
     return (
       <TouchableOpacity
         key={service.id}
-        style={[styles.taskCard, !canEditService && styles.taskCardDisabled]}
+        style={[
+          styles.taskCard,
+          !canEditService && styles.taskCardDisabled,
+          isCompletedStatus && isCompleted && styles.taskCardCompleted,
+          isCompletedStatus && isNotCompleted && styles.taskCardNotCompleted,
+        ]}
         onPress={() => canEditService && toggleServiceComplete(service.id)}
         disabled={!canEditService}
         activeOpacity={canEditService ? 0.7 : 1}
@@ -1724,25 +1794,38 @@ export default function AppointmentDetailScreen() {
             <View
               style={[
                 styles.checkbox,
-                service.completed && styles.checkboxCompleted,
-                (!canEditService || isPending) && styles.checkboxDisabled,
+                isCompleted && styles.checkboxCompleted,
+                (!canEditService || isPending) && !isCompleted && styles.checkboxDisabled,
+                isCompletedStatus && isNotCompleted && styles.checkboxNotCompleted,
               ]}
             >
-              {service.completed && (
+              {isCompleted && (
                 <Ionicons name="checkmark" size={16} color="#fff" />
+              )}
+              {isCompletedStatus && isNotCompleted && (
+                <Ionicons name="close" size={16} color="#fff" />
               )}
             </View>
             <View style={styles.taskInfo}>
               <Text
                 style={[
                   styles.taskTitle,
-                  service.completed && styles.taskTitleCompleted,
+                  isCompletedStatus && isCompleted && styles.taskTitleCompletedGreen,
+                  isCompletedStatus && isNotCompleted && styles.taskTitleNotCompletedRed,
+                  !isCompletedStatus && service.completed && styles.taskTitleCompleted,
                   (!canEditService || isPending) && styles.textDisabled,
                 ]}
               >
                 {service.title}
               </Text>
-              <Text style={[styles.taskDescription, (!canEditService || isPending) && styles.textDisabled]}>
+              <Text
+                style={[
+                  styles.taskDescription,
+                  isCompletedStatus && isCompleted && styles.taskDescriptionCompletedGreen,
+                  isCompletedStatus && isNotCompleted && styles.taskDescriptionNotCompletedRed,
+                  (!canEditService || isPending) && !isCompletedStatus && styles.textDisabled,
+                ]}
+              >
                 {service.description}
               </Text>
             </View>
@@ -2486,6 +2569,200 @@ export default function AppointmentDetailScreen() {
       </View>
     </Modal>
 
+    {/* Accept Confirmation Modal */}
+    <Modal
+      visible={showAcceptModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowAcceptModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.confirmModalContent}>
+          <View style={styles.confirmIconContainer}>
+            <View style={styles.confirmIconCircle}>
+              <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+            </View>
+          </View>
+          <Text style={styles.confirmModalTitle}>Xác nhận chấp nhận</Text>
+          <Text style={styles.confirmModalMessage}>
+            Bạn có chắc chắn muốn chấp nhận yêu cầu chăm sóc{" "}
+            <Text style={styles.confirmModalHighlight}>
+              {appointmentData?.elderlyProfile?.fullName || "người già"}
+            </Text>?
+          </Text>
+          <View style={styles.confirmModalInfo}>
+            <View style={styles.confirmInfoRow}>
+              <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+              <Text style={styles.confirmInfoText}>
+                {appointmentData?.workDate && formatDate(appointmentData.workDate)} • {appointmentData?.startTime} - {appointmentData?.endTime}
+              </Text>
+            </View>
+            <View style={styles.confirmInfoRow}>
+              <Ionicons name="cube-outline" size={16} color="#6B7280" />
+              <Text style={styles.confirmInfoText}>{appointmentData?.servicePackage?.packageName}</Text>
+            </View>
+            <View style={styles.confirmInfoRow}>
+              <Ionicons name="cash-outline" size={16} color="#6B7280" />
+              <Text style={styles.confirmInfoText}>
+                Bạn sẽ nhận: <Text style={styles.confirmEarningText}>
+                  {appointmentData?.caregiverEarnings && formatPrice(appointmentData.caregiverEarnings)}
+                </Text>
+              </Text>
+            </View>
+          </View>
+          <View style={styles.confirmModalButtons}>
+            <TouchableOpacity
+              style={styles.confirmCancelButton}
+              onPress={() => setShowAcceptModal(false)}
+            >
+              <Text style={styles.confirmCancelButtonText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.confirmAcceptButton}
+              onPress={confirmAccept}
+              disabled={isProcessing}
+            >
+              <Text style={styles.confirmAcceptButtonText}>
+                {isProcessing ? "Đang xử lý..." : "Chấp nhận"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+    {/* Reject Modal with Reason Input */}
+    <Modal
+      visible={showRejectModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowRejectModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.rejectModalContent}>
+          <View style={styles.rejectIconContainer}>
+            <View style={styles.rejectIconCircle}>
+              <Ionicons name="close-circle" size={48} color="#EF4444" />
+            </View>
+          </View>
+          <Text style={styles.rejectModalTitle}>Từ chối yêu cầu</Text>
+          <Text style={styles.rejectModalMessage}>
+            Vui lòng nhập lý do từ chối (không bắt buộc):
+          </Text>
+          <TextInput
+            style={styles.rejectReasonInput}
+            placeholder="Nhập lý do từ chối..."
+            value={rejectReason}
+            onChangeText={setRejectReason}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            placeholderTextColor="#9CA3AF"
+          />
+          <View style={styles.rejectModalButtons}>
+            <TouchableOpacity
+              style={styles.rejectCancelButton}
+              onPress={() => {
+                setShowRejectModal(false);
+                setRejectReason("");
+              }}
+            >
+              <Text style={styles.rejectCancelButtonText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.rejectConfirmButton}
+              onPress={confirmReject}
+              disabled={isProcessing}
+            >
+              <Text style={styles.rejectConfirmButtonText}>
+                {isProcessing ? "Đang xử lý..." : "Xác nhận"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+    {/* Cancel Modal with Reason Input */}
+    <Modal
+      visible={showCancelModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowCancelModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.rejectModalContent}>
+          <View style={styles.rejectIconContainer}>
+            <View style={styles.rejectIconCircle}>
+              <Ionicons name="close-circle" size={48} color="#EF4444" />
+            </View>
+          </View>
+          <Text style={styles.rejectModalTitle}>Hủy lịch hẹn</Text>
+          <Text style={styles.rejectModalMessage}>
+            Vui lòng nhập lý do hủy (không bắt buộc):
+          </Text>
+          <TextInput
+            style={styles.rejectReasonInput}
+            placeholder="Nhập lý do hủy..."
+            value={cancelReason}
+            onChangeText={setCancelReason}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            placeholderTextColor="#9CA3AF"
+          />
+          <View style={styles.rejectModalButtons}>
+            <TouchableOpacity
+              style={styles.rejectCancelButton}
+              onPress={() => {
+                setShowCancelModal(false);
+                setCancelReason("");
+              }}
+            >
+              <Text style={styles.rejectCancelButtonText}>Hủy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.rejectConfirmButton}
+              onPress={confirmCancel}
+              disabled={isProcessing}
+            >
+              <Text style={styles.rejectConfirmButtonText}>
+                {isProcessing ? "Đang xử lý..." : "Xác nhận"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+    {/* Cancel Success Modal */}
+    <Modal
+      visible={showCancelSuccessModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowCancelSuccessModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.rejectSuccessModalContent}>
+          <View style={styles.rejectSuccessIconContainer}>
+            <View style={styles.rejectSuccessIconCircle}>
+              <Ionicons name="checkmark-circle" size={64} color="#10B981" />
+            </View>
+          </View>
+          <Text style={styles.rejectSuccessModalTitle}>Đã hủy lịch hẹn</Text>
+          <Text style={styles.rejectSuccessModalMessage}>
+            Bạn đã hủy lịch hẹn thành công.
+          </Text>
+          <TouchableOpacity
+            style={styles.rejectSuccessModalButton}
+            onPress={() => setShowCancelSuccessModal(false)}
+          >
+            <Text style={styles.rejectSuccessModalButtonText}>Đóng</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+
     {/* Custom Alert Modal */}
     <CustomAlert
       visible={alertConfig.visible}
@@ -2833,6 +3110,16 @@ const styles = StyleSheet.create({
     opacity: 0.6,
     backgroundColor: "#F9FAFB",
   },
+  taskCardCompleted: {
+    backgroundColor: "#D1FAE5",
+    borderLeftWidth: 4,
+    borderLeftColor: "#10B981",
+  },
+  taskCardNotCompleted: {
+    backgroundColor: "#FEE2E2",
+    borderLeftWidth: 4,
+    borderLeftColor: "#EF4444",
+  },
   taskHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -2854,6 +3141,10 @@ const styles = StyleSheet.create({
   checkboxCompleted: {
     backgroundColor: "#10B981",
     borderColor: "#10B981",
+  },
+  checkboxNotCompleted: {
+    backgroundColor: "#EF4444",
+    borderColor: "#EF4444",
   },
   checkboxDisabled: {
     borderColor: "#E5E7EB",
@@ -2895,10 +3186,24 @@ const styles = StyleSheet.create({
     textDecorationLine: "line-through",
     color: "#9CA3AF",
   },
+  taskTitleCompletedGreen: {
+    color: "#059669",
+    fontWeight: "700",
+  },
+  taskTitleNotCompletedRed: {
+    color: "#DC2626",
+    fontWeight: "700",
+  },
   taskDescription: {
     fontSize: 13,
     color: "#6B7280",
     lineHeight: 18,
+  },
+  taskDescriptionCompletedGreen: {
+    color: "#047857",
+  },
+  taskDescriptionNotCompletedRed: {
+    color: "#B91C1C",
   },
   textDisabled: {
     color: "#9CA3AF",
@@ -3499,6 +3804,237 @@ const styles = StyleSheet.create({
   },
   deadlineDisplayTextExpired: {
     color: "#991B1B",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  confirmModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  confirmIconContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  confirmIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#D1FAE5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmModalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  confirmModalMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  confirmModalHighlight: {
+    fontWeight: "700",
+    color: "#10B981",
+  },
+  confirmModalInfo: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    gap: 12,
+  },
+  confirmInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  confirmInfoText: {
+    fontSize: 14,
+    color: "#4B5563",
+    flex: 1,
+  },
+  confirmEarningText: {
+    fontWeight: "700",
+    color: "#10B981",
+  },
+  confirmModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  confirmCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  confirmCancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  confirmAcceptButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+  },
+  confirmAcceptButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  // Reject modal styles
+  rejectModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  rejectIconContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  rejectIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rejectModalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  rejectModalMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  rejectReasonInput: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 14,
+    color: "#1F2937",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    minHeight: 100,
+    marginBottom: 24,
+  },
+  rejectModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  rejectCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  rejectCancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  rejectConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+  },
+  rejectConfirmButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  // Cancel success modal styles (reuse reject success styles)
+  rejectSuccessModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 32,
+    width: "100%",
+    maxWidth: 350,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  rejectSuccessIconContainer: {
+    marginBottom: 20,
+  },
+  rejectSuccessIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#D1FAE5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rejectSuccessModalTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  rejectSuccessModalMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  rejectSuccessModalButton: {
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+  },
+  rejectSuccessModalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });
 

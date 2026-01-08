@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -18,7 +19,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Task } from '@/components/ui/TaskSelector';
 import { SERVICE_PACKAGES, type ServicePackage } from '@/constants/servicePackages';
 import { useAuth } from '@/contexts/AuthContext';
-import { mainService, type AvailableScheduleApiResponse, type BookedSlot, type ServicePackageApiResponse } from '@/services/main.service';
+import { mainService, type AvailableScheduleApiResponse, type BookedSlot, type ServicePackageWithEligibility } from '@/services/main.service';
 import { UserService, type ElderlyProfileApiResponse } from '@/services/user.service';
 // TODO: Replace with API call
 // import * as AppointmentRepository from '@/services/appointment.repository';
@@ -231,19 +232,20 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
   // Fetch service packages from API when modal opens
   useEffect(() => {
-    if (visible) {
+    if (visible && caregiver?.id) {
       const fetchServicePackages = async () => {
         try {
           setIsLoadingPackages(true);
-          const apiPackages = await mainService.getActiveServicePackages();
+          const apiPackages = await mainService.getServicePackagesWithEligibility(caregiver.id);
           
           // Map API response to ServicePackage format
-          const mappedPackages: ServicePackage[] = apiPackages.map((pkg: ServicePackageApiResponse) => ({
+          const mappedPackages: ServicePackage[] = apiPackages.map((pkg: ServicePackageWithEligibility) => ({
             id: pkg.servicePackageId,
             name: pkg.packageName,
             duration: pkg.durationHours,
             price: pkg.price,
             services: pkg.serviceTasks.map(task => task.taskName),
+            isEligible: pkg.isEligible,
           }));
           
           setServicePackages(mappedPackages);
@@ -257,7 +259,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
       fetchServicePackages();
     }
-  }, [visible]);
+  }, [visible, caregiver?.id]);
 
   // Payment methods
   const paymentMethods = [
@@ -617,21 +619,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     }
   };
 
-  const handleAddNewProfile = (newProfile: Omit<ElderlyProfile, 'id'>) => {
-    // Generate new ID
-    const newId = `NEW_${Date.now()}`;
-    const profileWithId = {
-      ...newProfile,
-      id: newId,
-    };
-
-    // Add to profiles list
-    setElderlyProfiles(prev => [...prev, profileWithId]);
-
-    // Auto-select the new profile
-    setSelectedProfiles([newId]);
-
-    Alert.alert('Thành công', 'Đã thêm người già mới thành công!');
+  const handleAddNewProfile = () => {
+    // Navigate to add elderly page
+    router.push('/careseeker/add-elderly');
   };
 
   const renderStep1 = () => (
@@ -651,7 +641,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           onSelectionChange={setSelectedProfiles}
           showValidation={showValidation}
           hideTitle={true}
-          onAddNewProfile={handleAddNewProfile}
+          onNavigateToAddElderly={handleAddNewProfile}
         />
       )}
     </View>
@@ -844,6 +834,15 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
               <ThemedText style={styles.sectionTitle}>Chọn gói dịch vụ</ThemedText>
             </View>
             
+            {servicePackages.some(pkg => pkg.isEligible === false) && (
+              <View style={styles.eligibilityWarning}>
+                <Ionicons name="information-circle" size={16} color="#F39C12" />
+                <ThemedText style={styles.eligibilityWarningText}>
+                  Người chăm sóc chưa đủ điều kiện cho một số gói dịch vụ
+                </ThemedText>
+              </View>
+            )}
+            
             <View style={styles.sectionContent}>
               {isLoadingPackages ? (
                 <View style={styles.loadingContainer}>
@@ -859,14 +858,22 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                   scrollIndicatorInsets={{ right: 8, top: 4, bottom: 4 }}
                   fadingEdgeLength={Platform.OS === 'android' ? 20 : undefined}
                 >
-                  {servicePackages.map((pkg) => (
+                  {servicePackages.map((pkg) => {
+                    const isDisabled = pkg.isEligible === false;
+                    return (
                     <TouchableOpacity
                       key={pkg.id}
                       style={[
                         styles.packageCard,
-                        immediateData?.selectedPackage === pkg.id && styles.packageCardSelected
+                        immediateData?.selectedPackage === pkg.id && styles.packageCardSelected,
+                        isDisabled && styles.packageCardDisabled
                       ]}
-                      onPress={() => setImmediateData(prev => ({ ...prev, selectedPackage: pkg.id }))}
+                      onPress={() => {
+                        if (!isDisabled) {
+                          setImmediateData(prev => ({ ...prev, selectedPackage: pkg.id }));
+                        }
+                      }}
+                      disabled={isDisabled}
                     >
                       {immediateData?.selectedPackage === pkg.id && (
                         <View style={styles.packageCheckmark}>
@@ -874,29 +881,37 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                         </View>
                       )}
                       
-                      <ThemedText style={styles.packageName}>{pkg.name}</ThemedText>
+                      {pkg.isEligible === false && (
+                        <View style={styles.packageNotEligibleBadge}>
+                          <Ionicons name="alert-circle" size={16} color="#E74C3C" />
+                          <ThemedText style={styles.packageNotEligibleText}>Không thể chọn</ThemedText>
+                        </View>
+                      )}
+                      
+                      <ThemedText style={[styles.packageName, isDisabled && styles.packageNameDisabled]}>{pkg.name}</ThemedText>
                       
                       <View style={styles.packageDetails}>
                         <View style={styles.packageDetailItem}>
-                          <Ionicons name="time-outline" size={16} color="#6c757d" />
-                          <ThemedText style={styles.packageDetailText}>{pkg.duration}h</ThemedText>
+                          <Ionicons name="time-outline" size={16} color={isDisabled ? "#BDC3C7" : "#6c757d"} />
+                          <ThemedText style={[styles.packageDetailText, isDisabled && styles.packageTextDisabled]}>{pkg.duration}h</ThemedText>
                         </View>
-                        <ThemedText style={styles.packagePrice}>
+                        <ThemedText style={[styles.packagePrice, isDisabled && styles.packageTextDisabled]}>
                           {pkg.price.toLocaleString('vi-VN')} VNĐ
                         </ThemedText>
                       </View>
                       
                       <View style={styles.packageServices}>
-                        <ThemedText style={styles.packageServicesTitle}>Dịch vụ bao gồm:</ThemedText>
+                        <ThemedText style={[styles.packageServicesTitle, isDisabled && styles.packageTextDisabled]}>Dịch vụ bao gồm:</ThemedText>
                         {pkg.services.map((service, index) => (
                           <View key={index} style={styles.packageServiceItem}>
-                            <Ionicons name="checkmark" size={16} color="#68C2E8" />
-                            <ThemedText style={styles.packageServiceText}>{service}</ThemedText>
+                            <Ionicons name="checkmark" size={16} color={isDisabled ? "#BDC3C7" : "#68C2E8"} />
+                            <ThemedText style={[styles.packageServiceText, isDisabled && styles.packageTextDisabled]}>{service}</ThemedText>
                           </View>
                         ))}
                       </View>
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </ScrollView>
               )}
             </View>
@@ -2397,17 +2412,58 @@ const styles = StyleSheet.create({
     shadowColor: '#68C2E8',
     shadowOpacity: 0.15,
   },
+  packageCardDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#F8F9FA',
+    borderColor: '#DEE2E6',
+  },
   packageCheckmark: {
     position: 'absolute',
     top: 16,
     right: 16,
     zIndex: 1,
   },
+  eligibilityWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF4E6',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+    marginHorizontal: 20,
+  },
+  eligibilityWarningText: {
+    fontSize: 13,
+    color: '#856404',
+    flex: 1,
+    lineHeight: 18,
+  },
+  packageNotEligibleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  packageNotEligibleText: {
+    fontSize: 13,
+    color: '#E74C3C',
+    fontWeight: '600',
+  },
   packageName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#2c3e50',
     marginBottom: 12,
+  },
+  packageNameDisabled: {
+    color: '#95A5A6',
   },
   packageDetails: {
     flexDirection: 'row',
@@ -2432,6 +2488,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#68C2E8',
     fontWeight: 'bold',
+  },
+  packageTextDisabled: {
+    color: '#BDC3C7',
   },
   packageServices: {
     gap: 8,

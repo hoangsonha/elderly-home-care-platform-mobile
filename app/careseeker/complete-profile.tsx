@@ -25,6 +25,7 @@ import { UserService } from '@/services/user.service';
 const genderOptions = [
   { id: 'MALE', label: 'Nam' },
   { id: 'FEMALE', label: 'Nữ' },
+  { id: 'OTHER', label: 'Khác' },
 ];
 
 export default function CompleteProfileScreen() {
@@ -34,7 +35,7 @@ export default function CompleteProfileScreen() {
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [gender, setGender] = useState<'MALE' | 'FEMALE' | null>(null);
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | null>(null);
   const [birthYear, setBirthYear] = useState('');
   const [showBirthYearPicker, setShowBirthYearPicker] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -267,7 +268,7 @@ export default function CompleteProfileScreen() {
                   styles.genderCard,
                   gender === option.id && styles.genderCardSelected,
                 ]}
-                onPress={() => setGender(option.id as 'MALE' | 'FEMALE')}
+                onPress={() => setGender(option.id as 'MALE' | 'FEMALE' | 'OTHER')}
               >
                 <ThemedText
                   style={[

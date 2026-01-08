@@ -15,26 +15,26 @@ try {
   try {
     getApp();
     // Register background message handler
-    messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-      const { notification, data } = remoteMessage;
-      
-      if (notification) {
-        // Display notification using expo-notifications
-        // Use the care_service_channel for Android
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: notification.title || 'Thông báo',
-            body: notification.body || '',
-            data: data || {},
-            sound: true,
-            ...(Platform.OS === 'android' && {
-              channelId: 'care_service_channel',
-            }),
-          },
-          trigger: null, // Show immediately
-        });
-      }
+messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+  const { notification, data } = remoteMessage;
+  
+  if (notification) {
+    // Display notification using expo-notifications
+    // Use the care_service_channel for Android
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: notification.title || 'Thông báo',
+        body: notification.body || '',
+        data: data || {},
+        sound: true,
+        ...(Platform.OS === 'android' && {
+          channelId: 'care_service_channel',
+        }),
+      },
+      trigger: null, // Show immediately
     });
+  }
+});
     console.log('Background message handler registered successfully');
   } catch (error) {
     // Firebase not initialized yet, handler will be set when Firebase is ready

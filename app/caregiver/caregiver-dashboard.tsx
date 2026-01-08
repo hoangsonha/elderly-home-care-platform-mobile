@@ -269,10 +269,10 @@ export default function CaregiverDashboardScreen() {
   // Redirect to complete profile if not completed - check after all hooks
   useEffect(() => {
     if (user && (user.role === "Caregiver" || user.role === "ROLE_CAREGIVER") && !user.hasCompletedProfile) {
-      navigation.navigate("Hoàn thiện hồ sơ", {
-        email: user.email,
+            navigation.navigate("Hoàn thiện hồ sơ", {
+              email: user.email,
         accountId: user.id,
-      });
+            });
     }
   }, [user?.hasCompletedProfile, navigation, user]);
 

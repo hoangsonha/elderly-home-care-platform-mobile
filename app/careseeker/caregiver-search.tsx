@@ -140,15 +140,15 @@ export default function CaregiverSearchScreen() {
           const experienceText = yearsExperience !== undefined ? `${yearsExperience} năm` : 'Chưa có';
           
           return {
-            id: cg.caregiverProfileId,
-            name: cg.fullName,
-            avatar: cg.avatarUrl || 'https://via.placeholder.com/150',
-            rating: 0, // Tạm thời set 0
+          id: cg.caregiverProfileId,
+          name: cg.fullName,
+          avatar: cg.avatarUrl || 'https://via.placeholder.com/150',
+          rating: 0, // Tạm thời set 0
             experience: experienceText,
-            hourlyRate: 0, // Không hiển thị nữa nhưng vẫn cần trong interface
-            distance: '5km', // Fix cứng 5km
-            isVerified: cg.isVerified,
-            totalReviews: 0, // Tạm thời set 0
+          hourlyRate: 0, // Không hiển thị nữa nhưng vẫn cần trong interface
+          distance: '5km', // Fix cứng 5km
+          isVerified: cg.isVerified,
+          totalReviews: 0, // Tạm thời set 0
           };
         });
         

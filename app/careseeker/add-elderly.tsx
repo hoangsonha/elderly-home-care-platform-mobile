@@ -1565,7 +1565,7 @@ export default function AddElderlyScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
-          <ThemedText style={styles.headerTitle} numberOfLines={1}>Tạo hồ sơ</ThemedText>
+          <ThemedText style={styles.headerTitle} numberOfLines={1}>Tạo hồ sơ người già</ThemedText>
           <ThemedText style={styles.headerSubtitle}>Thông tin người già</ThemedText>
         </View>
 

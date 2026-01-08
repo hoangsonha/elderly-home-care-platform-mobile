@@ -15,6 +15,7 @@ import {
   Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -72,6 +73,9 @@ export default function BookingScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectSuccessModal, setShowRejectSuccessModal] = useState(false);
   
   // Ref for FlatList to scroll to specific item
   const flatListRef = useRef<FlatList>(null);
@@ -194,11 +198,11 @@ export default function BookingScreen() {
             if (index !== -1) {
               console.log('Booking: Scrolling to item at index:', index, 'careServiceId:', targetCareServiceId);
               try {
-                flatListRef.current?.scrollToIndex({
-                  index,
-                  animated: true,
-                  viewPosition: 0.5, // Center the item
-                });
+              flatListRef.current?.scrollToIndex({
+                index,
+                animated: true,
+                viewPosition: 0.5, // Center the item
+              });
               } catch (error) {
                 console.error('Booking: Error scrolling to index:', error);
                 // Fallback: scroll to offset
@@ -268,42 +272,39 @@ export default function BookingScreen() {
     }
   }, [selectedBooking, fetchBookings]);
 
-  // Handle decline booking
-  const handleDecline = useCallback(async (booking: BookingItem) => {
-    Alert.prompt(
-      "Từ chối yêu cầu",
-      "Vui lòng nhập lý do từ chối (không bắt buộc):",
-      [
-        { text: "Hủy", style: "cancel" },
-        {
-          text: "Từ chối",
-          style: "destructive",
-          onPress: async (note) => {
-            try {
-              setProcessingIds((prev) => new Set(prev).add(booking.careServiceId));
-              const response = await mainService.declineCareService(booking.careServiceId, note);
+  // Handle decline booking - show modal
+  const handleDecline = useCallback((booking: BookingItem) => {
+    setSelectedBooking(booking);
+    setRejectReason("");
+    setShowRejectModal(true);
+  }, []);
 
-              if (response.status === "Success") {
-                Alert.alert("Thành công", "Bạn đã từ chối yêu cầu.");
-                fetchBookings(); // Refresh list
-              } else {
-                Alert.alert("Lỗi", response.message || "Không thể từ chối yêu cầu");
-              }
-            } catch (error: any) {
-              Alert.alert("Lỗi", "Có lỗi xảy ra. Vui lòng thử lại.");
-            } finally {
-              setProcessingIds((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(booking.careServiceId);
-                return newSet;
-              });
-            }
-          },
-        },
-      ],
-      "plain-text"
-    );
-  }, [fetchBookings]);
+  // Confirm decline booking
+  const confirmDecline = useCallback(async () => {
+    if (!selectedBooking) return;
+
+    try {
+      setShowRejectModal(false);
+      setProcessingIds((prev) => new Set(prev).add(selectedBooking.careServiceId));
+      const response = await mainService.declineCareService(selectedBooking.careServiceId, rejectReason || undefined);
+
+      if (response.status === "Success") {
+        setShowRejectSuccessModal(true);
+        fetchBookings(); // Refresh list
+      } else {
+        setErrorMessage(response.message || "Không thể từ chối yêu cầu");
+        setShowErrorModal(true);
+      }
+    } catch (error: any) {
+      Alert.alert("Lỗi", "Có lỗi xảy ra. Vui lòng thử lại.");
+    } finally {
+      setProcessingIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(selectedBooking.careServiceId);
+        return newSet;
+      });
+    }
+  }, [selectedBooking, rejectReason, fetchBookings]);
 
   // Open map view in external app
   const handleShowMap = useCallback((location: { latitude: number; longitude: number; address: string }) => {
@@ -557,12 +558,15 @@ export default function BookingScreen() {
         {isNew && (
           <View style={styles.actionsContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.declineButton]}
+              style={[styles.button, styles.declineButton, isProcessing && styles.buttonDisabled]}
               onPress={(e) => {
                 e.stopPropagation();
-                handleDecline(item);
+                if (!isProcessing) {
+                  handleDecline(item);
+                }
               }}
               disabled={isProcessing}
+              activeOpacity={0.7}
             >
               {isProcessing ? (
                 <ActivityIndicator size="small" color="#EF4444" />
@@ -751,6 +755,86 @@ export default function BookingScreen() {
               onPress={() => setShowErrorModal(false)}
             >
               <Text style={styles.errorModalButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reject Modal with Reason Input */}
+      <Modal
+        visible={showRejectModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRejectModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.rejectModalContent}>
+            <View style={styles.rejectIconContainer}>
+              <View style={styles.rejectIconCircle}>
+                <Ionicons name="close-circle" size={48} color="#EF4444" />
+              </View>
+            </View>
+            <Text style={styles.rejectModalTitle}>Từ chối yêu cầu</Text>
+            <Text style={styles.rejectModalMessage}>
+              Vui lòng nhập lý do từ chối (không bắt buộc):
+            </Text>
+            <TextInput
+              style={styles.rejectReasonInput}
+              placeholder="Nhập lý do từ chối..."
+              value={rejectReason}
+              onChangeText={setRejectReason}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              placeholderTextColor="#9CA3AF"
+            />
+            <View style={styles.rejectModalButtons}>
+              <TouchableOpacity
+                style={styles.rejectCancelButton}
+                onPress={() => {
+                  setShowRejectModal(false);
+                  setRejectReason("");
+                }}
+              >
+                <Text style={styles.rejectCancelButtonText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.rejectConfirmButton}
+                onPress={confirmDecline}
+                disabled={processingIds.has(selectedBooking?.careServiceId || "")}
+              >
+                <Text style={styles.rejectConfirmButtonText}>
+                  {processingIds.has(selectedBooking?.careServiceId || "") ? "Đang xử lý..." : "Xác nhận"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reject Success Modal */}
+      <Modal
+        visible={showRejectSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRejectSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.rejectSuccessModalContent}>
+            <View style={styles.rejectSuccessIconContainer}>
+              <View style={styles.rejectSuccessIconCircle}>
+                <Ionicons name="checkmark-circle" size={64} color="#10B981" />
+              </View>
+            </View>
+            <Text style={styles.rejectSuccessModalTitle}>Đã từ chối yêu cầu</Text>
+            <Text style={styles.rejectSuccessModalMessage}>
+              Bạn đã từ chối yêu cầu chăm sóc thành công.
+            </Text>
+            <TouchableOpacity
+              style={styles.rejectSuccessModalButton}
+              onPress={() => setShowRejectSuccessModal(false)}
+            >
+              <Text style={styles.rejectSuccessModalButtonText}>Đóng</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1164,6 +1248,136 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   errorModalButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  // Reject modal styles
+  rejectModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  rejectIconContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  rejectIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rejectModalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  rejectModalMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  rejectReasonInput: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 14,
+    color: "#1F2937",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    minHeight: 100,
+    marginBottom: 24,
+  },
+  rejectModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  rejectCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  rejectCancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  rejectConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+  },
+  rejectConfirmButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  // Reject success modal styles
+  rejectSuccessModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 32,
+    width: "100%",
+    maxWidth: 350,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  rejectSuccessIconContainer: {
+    marginBottom: 20,
+  },
+  rejectSuccessIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#D1FAE5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rejectSuccessModalTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  rejectSuccessModalMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  rejectSuccessModalButton: {
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+  },
+  rejectSuccessModalButtonText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",

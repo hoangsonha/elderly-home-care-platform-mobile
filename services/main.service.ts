@@ -10,6 +10,11 @@ export interface ServiceTask {
   status: string;
 }
 
+export interface Qualification {
+  skills: string[];
+  certificate_groups: string[][] | null;
+}
+
 export interface ServicePackageApiResponse {
   servicePackageId: string;
   packageName: string;
@@ -18,16 +23,26 @@ export interface ServicePackageApiResponse {
   packageType: string;
   price: number;
   note: string;
-  qualification: string | null;
+  qualification: string | Qualification | null;
   status: string;
   serviceTasks: ServiceTask[];
   totalCareServices: number | null;
+}
+
+export interface ServicePackageWithEligibility extends ServicePackageApiResponse {
+  isEligible: boolean;
 }
 
 export interface ServicePackagesApiResponse {
   status: string;
   message: string;
   data: ServicePackageApiResponse[];
+}
+
+export interface ServicePackagesWithEligibilityApiResponse {
+  status: string;
+  message: string;
+  data: ServicePackageWithEligibility[];
 }
 
 // Care Service API Types
@@ -201,6 +216,25 @@ export const mainService = {
       return response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch service packages: ${error.message}`);
+    }
+  },
+
+  /**
+   * Kiểm tra eligibility và lấy danh sách service packages với thông tin isEligible
+   * @param caregiverId - ID của caregiver cần kiểm tra eligibility
+   */
+  getServicePackagesWithEligibility: async (caregiverId: string): Promise<ServicePackageWithEligibility[]> => {
+    try {
+      const response = await apiClient.get<ServicePackagesWithEligibilityApiResponse>('/api/v1/care-services/check-eligibility', {
+        params: { caregiverId },
+      });
+      if (response.data.status === 'Success' && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to fetch service packages with eligibility');
+    } catch (error: any) {
+      console.error('Error fetching service packages with eligibility:', error);
+      throw new Error(`Failed to fetch service packages with eligibility: ${error.message}`);
     }
   },
 
