@@ -1007,4 +1007,126 @@ export const mainService = {
       };
     }
   },
+
+  /**
+   * Lấy thông tin profile đầy đủ của caregiver hiện tại
+   */
+  getCaregiverProfile: async (): Promise<{
+    status: string;
+    message: string;
+    data: {
+      caregiverProfileId: string;
+      fullName: string;
+      phoneNumber: string;
+      location: string; // JSON string
+      bio: string;
+      isVerified: boolean;
+      status: string;
+      rejectionReason: string | null;
+      isNeededReviewCertificate: boolean;
+      acceptedAt: string | null;
+      declinedAt: string | null;
+      reviewedBy: string | null;
+      birthDate: string;
+      age: number;
+      gender: string;
+      profileData: string; // JSON string
+      accountId: string;
+      email: string;
+      avatarUrl: string;
+      enabled: boolean;
+      nonLocked: boolean;
+      totalCompletedBookings: number;
+      totalEarnings: number;
+      taskCompletionRate: number;
+      qualifications: Array<{
+        qualificationId: string;
+        qualificationTypeId: string;
+        qualificationTypeName: string;
+        certificateNumber: string;
+        issuingOrganization: string;
+        issueDate: string;
+        expiryDate: string | null;
+        certificateUrl: string;
+        isVerified: boolean;
+        status: string;
+        rejectionReason: string | null;
+        acceptedAt: string | null;
+        declinedAt: string | null;
+        reviewedBy: string | null;
+        notes: string | null;
+      }>;
+    } | null;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/caregivers/profile');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting caregiver profile:', error);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Failed to get caregiver profile',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Lấy thông tin profile đầy đủ của care seeker hiện tại
+   */
+  getCareSeekerProfile: async (): Promise<{
+    status: string;
+    message: string;
+    data: {
+      careSeekerProfileId: string;
+      fullName: string;
+      phoneNumber: string;
+      location: string; // JSON string
+      birthDate: string;
+      age: number;
+      gender: string;
+      profileData: string | object; // JSON string or parsed object
+      accountId: string;
+      email: string;
+      avatarUrl: string;
+      enabled: boolean;
+      nonLocked: boolean;
+      totalElderlyProfiles: number;
+      totalCompletedBookings: number;
+      elderlyProfiles: Array<{
+        elderlyProfileId: string;
+        fullName: string;
+        phoneNumber: string;
+        location: string;
+        birthDate: string;
+        age: number;
+        gender: string;
+        avatarUrl: string;
+        profileData: string | object;
+        careRequirement: string | object;
+        note: string | null;
+        healthStatus: string | null;
+        healthNote: string | null;
+        status: string;
+      }>;
+    } | null;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/care-seekers/profile');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting care seeker profile:', error);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Failed to get care seeker profile',
+        data: null,
+      };
+    }
+  },
 };
