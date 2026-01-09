@@ -18,6 +18,7 @@ import {
   View,
   FlatList,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -71,6 +72,16 @@ export default function CompleteProfileScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [bio, setBio] = useState('');
+  
+  // CCCD/CMND
+  const [idCardNumber, setIdCardNumber] = useState('');
+  const [idCardFrontUri, setIdCardFrontUri] = useState<string | null>(null);
+  const [idCardBackUri, setIdCardBackUri] = useState<string | null>(null);
+  const [showIdCardImagePickerModal, setShowIdCardImagePickerModal] = useState(false);
+  const [currentIdCardSide, setCurrentIdCardSide] = useState<'front' | 'back' | null>(null);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [imageViewerUri, setImageViewerUri] = useState<string | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
 
   // Location
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
@@ -173,6 +184,110 @@ export default function CompleteProfileScreen() {
 
   const handleRemoveAvatar = () => {
     setAvatarUri(null);
+  };
+
+  // ID Card image picker handlers
+  const handleIdCardImagePicker = (side: 'front' | 'back') => {
+    setCurrentIdCardSide(side);
+    setShowIdCardImagePickerModal(true);
+  };
+
+  const handlePickIdCardFromLibrary = async () => {
+    if (!currentIdCardSide) return;
+    setShowIdCardImagePickerModal(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Thông báo', 'Cần quyền truy cập thư viện ảnh');
+      setCurrentIdCardSide(null);
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      if (currentIdCardSide === 'front') {
+        setIdCardFrontUri(result.assets[0].uri);
+      } else {
+        setIdCardBackUri(result.assets[0].uri);
+      }
+    }
+    setCurrentIdCardSide(null);
+  };
+
+  const handleTakeIdCardPhoto = async () => {
+    if (!currentIdCardSide) return;
+    setShowIdCardImagePickerModal(false);
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Thông báo', 'Cần quyền truy cập camera');
+      setCurrentIdCardSide(null);
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      if (currentIdCardSide === 'front') {
+        setIdCardFrontUri(result.assets[0].uri);
+      } else {
+        setIdCardBackUri(result.assets[0].uri);
+      }
+    }
+    setCurrentIdCardSide(null);
+  };
+
+  const handleRemoveIdCardImage = (side: 'front' | 'back') => {
+    if (side === 'front') {
+      setIdCardFrontUri(null);
+    } else {
+      setIdCardBackUri(null);
+    }
+  };
+
+  const handleOpenImageViewer = (uri: string) => {
+    setImageViewerUri(uri);
+    setImageDimensions(null);
+    setShowImageViewer(true);
+    
+    // Get image dimensions
+    Image.getSize(
+      uri,
+      (width, height) => {
+        const screenWidth = Dimensions.get('window').width - 20;
+        const screenHeight = Dimensions.get('window').height - 100;
+        const imageAspectRatio = width / height;
+        const screenAspectRatio = screenWidth / screenHeight;
+        
+        let displayWidth = screenWidth;
+        let displayHeight = screenHeight;
+        
+        if (imageAspectRatio > screenAspectRatio) {
+          // Image is wider
+          displayHeight = screenWidth / imageAspectRatio;
+        } else {
+          // Image is taller
+          displayWidth = screenHeight * imageAspectRatio;
+        }
+        
+        setImageDimensions({ width: displayWidth, height: displayHeight });
+      },
+      (error) => {
+        console.error('Error getting image size:', error);
+        // Fallback to default size
+        setImageDimensions({
+          width: Dimensions.get('window').width - 20,
+          height: Dimensions.get('window').height - 100,
+        });
+      }
+    );
   };
 
   const handleAddCredential = () => {
@@ -298,6 +413,22 @@ export default function CompleteProfileScreen() {
       showErrorTooltip('Vui lòng chọn năm sinh');
       return false;
     }
+    if (!idCardNumber.trim()) {
+      showErrorTooltip('Vui lòng nhập số CCCD/CMND');
+      return false;
+    }
+    if (!/^\d{9,12}$/.test(idCardNumber)) {
+      showErrorTooltip('Số CCCD/CMND không hợp lệ (phải là 9-12 chữ số)');
+      return false;
+    }
+    if (!idCardFrontUri) {
+      showErrorTooltip('Vui lòng chụp/upload ảnh CCCD/CMND mặt trước');
+      return false;
+    }
+    if (!idCardBackUri) {
+      showErrorTooltip('Vui lòng chụp/upload ảnh CCCD/CMND mặt sau');
+      return false;
+    }
     const year = parseInt(birthYear);
     const currentYear = new Date().getFullYear();
     if (isNaN(year) || year < 1900 || year > currentYear) {
@@ -349,6 +480,7 @@ export default function CompleteProfileScreen() {
           longitude: location!.longitude,
         },
         phone: phone.trim(),
+        citizen_id: idCardNumber.trim(),
       };
 
       // Optional fields
@@ -408,11 +540,33 @@ export default function CompleteProfileScreen() {
           }
         : undefined;
 
+      const citizenIdFrontImage = idCardFrontUri
+        ? {
+            uri: idCardFrontUri,
+            type: 'image/jpeg',
+            name: `citizenIdFront_${Date.now()}.jpg`,
+          }
+        : undefined;
+
+      const citizenIdBackImage = idCardBackUri
+        ? {
+            uri: idCardBackUri,
+            type: 'image/jpeg',
+            name: `citizenIdBack_${Date.now()}.jpg`,
+          }
+        : undefined;
+
       const credentialFiles = credentials
         .filter((cred) => cred.file)
         .map((cred) => cred.file!);
 
-      const response = await mainService.createCaregiverProfile(requestData, avatarFile, credentialFiles);
+      const response = await mainService.createCaregiverProfile(
+        requestData, 
+        avatarFile, 
+        credentialFiles,
+        citizenIdFrontImage,
+        citizenIdBackImage
+      );
 
       setIsSubmitting(false);
 
@@ -581,6 +735,129 @@ export default function CompleteProfileScreen() {
             </ThemedText>
             <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
           </TouchableOpacity>
+        </View>
+
+        {/* CCCD/CMND */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>CCCD/CMND</ThemedText>
+          
+          {/* ID Card Number */}
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>
+              Số CCCD/CMND <ThemedText style={styles.required}>*</ThemedText>
+            </ThemedText>
+            <TextInput
+              style={styles.input}
+              value={idCardNumber}
+              onChangeText={setIdCardNumber}
+              placeholder="Nhập số CCCD/CMND"
+              placeholderTextColor="#999"
+              keyboardType="numeric"
+              maxLength={12}
+            />
+          </View>
+
+          {/* ID Card Front */}
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>
+              Ảnh CCCD/CMND mặt trước <ThemedText style={styles.required}>*</ThemedText>
+            </ThemedText>
+            <View style={styles.idCardContainer}>
+              {idCardFrontUri ? (
+                <View style={styles.idCardWrapper}>
+                  <TouchableOpacity 
+                    activeOpacity={0.9}
+                    style={styles.idCardImageTouchable}
+                    onPress={() => {
+                      if (idCardFrontUri) {
+                        handleOpenImageViewer(idCardFrontUri);
+                      }
+                    }}
+                  >
+                    <Image 
+                      source={{ uri: idCardFrontUri }} 
+                      style={styles.idCardImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.removeIdCardButton} 
+                    onPress={() => handleRemoveIdCardImage('front')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close-circle" size={30} color="#dc3545" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.changeIdCardButton} 
+                    onPress={() => handleIdCardImagePicker('front')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="camera" size={20} color="#68C2E8" />
+                    <ThemedText style={styles.changeIdCardText}>Chụp lại / Chọn ảnh khác</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.uploadIdCardButton} 
+                  onPress={() => handleIdCardImagePicker('front')}
+                >
+                  <Ionicons name="camera" size={40} color="#68C2E8" />
+                  <ThemedText style={styles.uploadIdCardText}>Chụp ảnh hoặc chọn từ thư viện</ThemedText>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* ID Card Back */}
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>
+              Ảnh CCCD/CMND mặt sau <ThemedText style={styles.required}>*</ThemedText>
+            </ThemedText>
+            <View style={styles.idCardContainer}>
+              {idCardBackUri ? (
+                <View style={styles.idCardWrapper}>
+                  <TouchableOpacity 
+                    activeOpacity={0.9}
+                    style={styles.idCardImageTouchable}
+                    onPress={() => {
+                      if (idCardBackUri) {
+                        handleOpenImageViewer(idCardBackUri);
+                      }
+                    }}
+                  >
+                    <Image 
+                      source={{ uri: idCardBackUri }} 
+                      style={styles.idCardImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.removeIdCardButton} 
+                    onPress={() => handleRemoveIdCardImage('back')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close-circle" size={30} color="#dc3545" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.changeIdCardButton} 
+                    onPress={() => handleIdCardImagePicker('back')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="camera" size={20} color="#68C2E8" />
+                    <ThemedText style={styles.changeIdCardText}>Chụp lại / Chọn ảnh khác</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.uploadIdCardButton} 
+                  onPress={() => handleIdCardImagePicker('back')}
+                >
+                  <Ionicons name="camera" size={40} color="#68C2E8" />
+                  <ThemedText style={styles.uploadIdCardText}>Chụp ảnh hoặc chọn từ thư viện</ThemedText>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
         </View>
 
         {/* Bio */}
@@ -1054,6 +1331,71 @@ export default function CompleteProfileScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* ID Card Image Picker Modal */}
+      <Modal
+        visible={showIdCardImagePickerModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowIdCardImagePickerModal(false);
+          setCurrentIdCardSide(null);
+        }}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setShowIdCardImagePickerModal(false);
+            setCurrentIdCardSide(null);
+          }}
+        >
+          <View style={styles.imagePickerModalContent}>
+            <View style={styles.idCardModalHeader}>
+              <ThemedText style={styles.imagePickerModalTitle}>
+                Chọn nguồn ảnh cho {currentIdCardSide === 'front' ? 'mặt trước' : 'mặt sau'} CCCD/CMND
+              </ThemedText>
+              <TouchableOpacity 
+                style={styles.idCardModalCloseButton}
+                onPress={() => {
+                  setShowIdCardImagePickerModal(false);
+                  setCurrentIdCardSide(null);
+                }}
+              >
+                <Ionicons name="close" size={24} color="#6c757d" />
+              </TouchableOpacity>
+            </View>
+            <ThemedText style={styles.idCardModalHint}>
+              Lưu ý: Vui lòng chụp ảnh thẳng, không chụp ngang
+            </ThemedText>
+
+            <View style={styles.imagePickerOptionsContainer}>
+              <TouchableOpacity style={styles.imagePickerOption} onPress={handleTakeIdCardPhoto}>
+                <View style={styles.imagePickerOptionIcon}>
+                  <Ionicons name="camera" size={32} color="#68C2E8" />
+                </View>
+                <ThemedText style={styles.imagePickerOptionText}>Chụp ảnh</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.imagePickerOption} onPress={handlePickIdCardFromLibrary}>
+                <View style={styles.imagePickerOptionIcon}>
+                  <Ionicons name="images" size={32} color="#68C2E8" />
+                </View>
+                <ThemedText style={styles.imagePickerOptionText}>Thư viện</ThemedText>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.imagePickerCancelButton}
+              onPress={() => {
+                setShowIdCardImagePickerModal(false);
+                setCurrentIdCardSide(null);
+              }}
+            >
+              <ThemedText style={styles.imagePickerCancelButtonText}>Hủy</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Credential File Picker Modal */}
       <Modal
         visible={showCredentialFilePickerModal}
@@ -1394,6 +1736,47 @@ export default function CompleteProfileScreen() {
         </Modal>
       )}
 
+      {/* Image Viewer Modal */}
+      <Modal
+        visible={showImageViewer}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageViewer(false)}
+      >
+        <View style={styles.imageViewerOverlay}>
+          <TouchableOpacity
+            style={styles.imageViewerCloseButton}
+            onPress={() => setShowImageViewer(false)}
+          >
+            <Ionicons name="close" size={28} color="white" />
+          </TouchableOpacity>
+          {imageViewerUri ? (
+            <View style={styles.imageViewerContainer}>
+              <ScrollView
+                style={styles.imageViewerScrollView}
+                contentContainerStyle={styles.imageViewerScrollContent}
+                showsVerticalScrollIndicator={true}
+                showsHorizontalScrollIndicator={true}
+                bounces={true}
+                centerContent={true}
+              >
+                <Image
+                  source={{ uri: imageViewerUri }}
+                  style={[
+                    styles.imageViewerImage,
+                    imageDimensions && {
+                      width: imageDimensions.width,
+                      height: imageDimensions.height,
+                    },
+                  ]}
+                  resizeMode="contain"
+                />
+              </ScrollView>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
+
       {/* File Preview Modal */}
       <Modal
         visible={showCredentialFilePreview !== null}
@@ -1629,6 +2012,76 @@ const styles = StyleSheet.create({
     borderColor: '#68C2E8',
   },
   changeAvatarText: {
+    fontSize: 12,
+    color: '#68C2E8',
+    fontWeight: '500',
+  },
+  // ID Card styles
+  idCardContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  idCardWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    width: '100%',
+  },
+  idCardImageTouchable: {
+    width: '100%',
+    marginBottom: 12,
+    zIndex: 1,
+  },
+  idCardImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: '#F0F8FF',
+  },
+  uploadIdCardButton: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: '#F0F8FF',
+    borderWidth: 2,
+    borderColor: '#68C2E8',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  uploadIdCardText: {
+    fontSize: 12,
+    color: '#68C2E8',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  removeIdCardButton: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    backgroundColor: 'white',
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    zIndex: 10,
+  },
+  changeIdCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: '#68C2E8',
+  },
+  changeIdCardText: {
     fontSize: 12,
     color: '#68C2E8',
     fontWeight: '500',
@@ -1971,6 +2424,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  idCardModalHeader: {
+    position: 'relative',
+    marginBottom: 8,
+    paddingRight: 32,
+  },
+  idCardModalCloseButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  idCardModalHint: {
+    fontSize: 13,
+    color: '#7F8C8D',
+    fontStyle: 'italic',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
   imagePickerModalTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -2061,6 +2532,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+  },
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+    padding: 10,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerContainer: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerScrollView: {
+    flex: 1,
+    width: '100%',
+  },
+  imageViewerScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+    minHeight: Dimensions.get('window').height - 100,
+  },
+  imageViewerImage: {
+    width: Dimensions.get('window').width - 20,
+    maxWidth: Dimensions.get('window').width - 20,
+    maxHeight: Dimensions.get('window').height - 100,
   },
   modalOverlay: {
     flex: 1,

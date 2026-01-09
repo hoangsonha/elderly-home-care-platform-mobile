@@ -99,12 +99,13 @@ export function NotificationPanel({
     }
   };
 
-  const renderNotification = (notification: Notification) => (
+  const renderNotification = (notification: Notification, index: number) => (
     <TouchableOpacity
       key={notification.id}
       style={[
         styles.notificationItem,
-        !notification.isRead && styles.unreadNotification
+        !notification.isRead && styles.unreadNotification,
+        index === notifications.length - 1 && styles.lastNotificationItem
       ]}
       onPress={() => onNotificationPress?.(notification)}
     >
@@ -143,7 +144,7 @@ export function NotificationPanel({
         showsVerticalScrollIndicator={true}
         nestedScrollEnabled={true}
       >
-        {notifications.map(renderNotification)}
+        {notifications.map((notification, index) => renderNotification(notification, index))}
       </ScrollView>
     </ThemedView>
   );
@@ -153,12 +154,17 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
     borderRadius: 12,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     maxHeight: 500,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
@@ -185,6 +191,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f8f9fa',
+  },
+  lastNotificationItem: {
+    borderBottomWidth: 0,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   unreadNotification: {
     backgroundColor: '#f8f9fa',

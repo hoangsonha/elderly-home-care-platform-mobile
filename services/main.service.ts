@@ -870,7 +870,9 @@ export const mainService = {
   createCaregiverProfile: async (
     profileData: any,
     avatarFile?: { uri: string; type?: string; name?: string },
-    credentialFiles?: Array<{ uri: string; type?: string; name?: string }>
+    credentialFiles?: Array<{ uri: string; type?: string; name?: string }>,
+    citizenIdFrontImage?: { uri: string; type?: string; name?: string },
+    citizenIdBackImage?: { uri: string; type?: string; name?: string }
   ): Promise<CareServiceApiResponse> => {
     try {
       console.log('📤 Creating caregiver profile...');
@@ -924,6 +926,40 @@ export const mainService = {
           } as any);
         });
         console.log('✅ Appended credential files');
+      }
+
+      // Append citizen ID front image if provided
+      if (citizenIdFrontImage) {
+        const fileExtension = citizenIdFrontImage.uri.split('.').pop() || 'jpg';
+        const fileName = citizenIdFrontImage.name || `citizenIdFront_${Date.now()}.${fileExtension}`;
+        const fileType = citizenIdFrontImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+        
+        let fileUri = citizenIdFrontImage.uri;
+        
+        console.log('📎 Appending citizen ID front image:', { uri: fileUri.substring(0, 50) + '...', type: fileType, name: fileName });
+        formData.append('citizenIdFrontImage', {
+          uri: fileUri,
+          type: fileType,
+          name: fileName,
+        } as any);
+        console.log('✅ Appended citizen ID front image');
+      }
+
+      // Append citizen ID back image if provided
+      if (citizenIdBackImage) {
+        const fileExtension = citizenIdBackImage.uri.split('.').pop() || 'jpg';
+        const fileName = citizenIdBackImage.name || `citizenIdBack_${Date.now()}.${fileExtension}`;
+        const fileType = citizenIdBackImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+        
+        let fileUri = citizenIdBackImage.uri;
+        
+        console.log('📎 Appending citizen ID back image:', { uri: fileUri.substring(0, 50) + '...', type: fileType, name: fileName });
+        formData.append('citizenIdBackImage', {
+          uri: fileUri,
+          type: fileType,
+          name: fileName,
+        } as any);
+        console.log('✅ Appended citizen ID back image');
       }
 
       console.log('🚀 Sending request to /api/v1/caregivers/profile');
@@ -1161,6 +1197,83 @@ export const mainService = {
         message: error.message || 'Failed to get care seeker profile',
         data: null,
       };
+    }
+  },
+
+  /**
+   * Notification API
+   */
+  
+  /**
+   * Lấy danh sách thông báo
+   */
+  getNotifications: async (params?: {
+    page?: number;
+    size?: number;
+    sort?: string;
+  }): Promise<{
+    content: Array<{
+      notificationId: string;
+      title: string;
+      body: string;
+      notificationType: string;
+      relatedEntityType: string;
+      relatedEntityId: string;
+      data: any;
+      imageUrl: string | null;
+      isRead: boolean;
+      readAt: string | null;
+      sentAt: string;
+      createdAt: string;
+    }>;
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    number: number;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/notifications', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting notifications:', error);
+      throw new Error(`Failed to get notifications: ${error.message}`);
+    }
+  },
+
+  /**
+   * Lấy số lượng thông báo chưa đọc
+   */
+  getUnreadNotificationCount: async (): Promise<number> => {
+    try {
+      const response = await apiClient.get('/api/v1/notifications/unread-count');
+      return response.data.count || 0;
+    } catch (error: any) {
+      console.error('Error getting unread notification count:', error);
+      return 0;
+    }
+  },
+
+  /**
+   * Đánh dấu một thông báo đã đọc
+   */
+  markNotificationAsRead: async (notificationId: string): Promise<void> => {
+    try {
+      await apiClient.put(`/api/v1/notifications/${notificationId}/read`);
+    } catch (error: any) {
+      console.error('Error marking notification as read:', error);
+      throw new Error(`Failed to mark notification as read: ${error.message}`);
+    }
+  },
+
+  /**
+   * Đánh dấu tất cả thông báo đã đọc
+   */
+  markAllNotificationsAsRead: async (): Promise<void> => {
+    try {
+      await apiClient.put('/api/v1/notifications/mark-all-as-read');
+    } catch (error: any) {
+      console.error('Error marking all notifications as read:', error);
+      throw new Error(`Failed to mark all notifications as read: ${error.message}`);
     }
   },
 };

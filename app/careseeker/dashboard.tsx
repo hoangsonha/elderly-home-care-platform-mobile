@@ -33,6 +33,57 @@ import { ElderlyProfileApiResponse, UserService } from '@/services/user.service'
 
 const { width } = Dimensions.get('window');
 
+// Helper function to format time
+const formatTimeAgo = (dateString: string): string => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return "Vừa xong";
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} phút trước`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} giờ trước`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays} ngày trước`;
+  }
+  
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks} tuần trước`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  return `${diffInMonths} tháng trước`;
+};
+
+// Helper function to map notification type to UI type
+const mapNotificationType = (type: string): 'info' | 'success' | 'warning' | 'error' | 'reminder' => {
+  if (type.includes('ACCEPT') || type.includes('APPROVED') || type.includes('SUCCESS')) {
+    return 'success';
+  }
+  if (type.includes('REJECT') || type.includes('DECLINE') || type.includes('ERROR')) {
+    return 'error';
+  }
+  if (type.includes('WARNING') || type.includes('REMINDER')) {
+    return 'warning';
+  }
+  if (type.includes('REMINDER')) {
+    return 'reminder';
+  }
+  return 'info';
+};
+
 interface ServiceModule {
   id: string;
   title: string;
@@ -221,49 +272,80 @@ export default function DashboardScreen() {
     setShowBookingModal(true);
   };
   
-  const [notifications, setNotifications] = useState([
-    {
-      id: '1',
-      title: 'Yêu cầu được chấp nhận',
-      message: 'Chị Nguyễn Thị Mai đã chấp nhận yêu cầu chăm sóc của bạn',
-      time: '5 phút trước',
-      type: 'success' as const,
-      isRead: false,
-    },
-    {
-      id: '2',
-      title: 'Lịch hẹn sắp tới',
-      message: 'Bạn có lịch hẹn với Trần Văn Nam vào lúc 14:00 hôm nay',
-      time: '1 giờ trước',
-      type: 'info' as const,
-      isRead: false,
-    },
-    {
-      id: '3',
-      title: 'Nhắc nhở',
-      message: 'Đừng quên đánh giá dịch vụ chăm sóc tuần vừa qua',
-      time: '2 giờ trước',
-      type: 'reminder' as const,
-      isRead: true,
-    },
-    {
-      id: '4',
-      title: 'Yêu cầu bị từ chối',
-      message: 'Anh Lê Văn Đức không thể nhận yêu cầu chăm sóc của bạn',
-      time: '1 ngày trước',
-      type: 'info' as const,
-      isRead: true,
-    },
-    {
-      id: '5',
-      title: 'Cập nhật hệ thống',
-      message: 'Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai',
-      time: '2 ngày trước',
-      type: 'info' as const,
-      isRead: true,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    title: string;
+    message: string;
+    time: string;
+    type: 'info' | 'success' | 'warning' | 'error' | 'reminder';
+    isRead: boolean;
+    notificationId?: string; // API notificationId
+  }>>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
+
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoadingNotifications(true);
+      const response = await mainService.getNotifications({
+        page: 0,
+        size: 20,
+        sort: 'createdAt,desc',
+      });
+      
+      // Sort: unread first, then by createdAt descending
+      const sortedContent = [...response.content].sort((a, b) => {
+        // Unread notifications first
+        if (!a.isRead && b.isRead) return -1;
+        if (a.isRead && !b.isRead) return 1;
+        // If both have same read status, sort by createdAt descending (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      const mappedNotifications = sortedContent.map((notif) => ({
+        id: notif.notificationId,
+        notificationId: notif.notificationId,
+        title: notif.title,
+        message: notif.body,
+        time: formatTimeAgo(notif.sentAt || notif.createdAt),
+        type: mapNotificationType(notif.notificationType),
+        isRead: notif.isRead,
+      }));
+      
+      setNotifications(mappedNotifications);
+    } catch (error: any) {
+      console.error('Error fetching notifications:', error);
+      // Keep existing notifications on error
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }, []);
+
+  // Fetch unread count
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const count = await mainService.getUnreadNotificationCount();
+      setUnreadCount(count);
+    } catch (error: any) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
+  // Fetch notifications on mount and when modal opens
+  useEffect(() => {
+    fetchNotifications();
+    fetchUnreadCount();
+  }, [fetchNotifications, fetchUnreadCount]);
+
+  // Refresh when modal opens
+  useEffect(() => {
+    if (showNotificationModal) {
+      fetchNotifications();
+      fetchUnreadCount();
+    }
+  }, [showNotificationModal, fetchNotifications, fetchUnreadCount]);
 
   const handleModulePress = (module: ServiceModule) => {
     if (module.id === 'app-info') {
@@ -367,10 +449,10 @@ export default function DashboardScreen() {
               onPress={() => setShowNotificationModal(true)}
             >
               <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
-              {notifications.filter(n => !n.isRead).length > 0 && (
+              {unreadCount > 0 && (
                 <View style={styles.badge}>
                   <ThemedText style={styles.badgeText}>
-                    {notifications.filter(n => !n.isRead).length}
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </ThemedText>
                 </View>
               )}
@@ -638,31 +720,55 @@ export default function DashboardScreen() {
             <View style={styles.notificationArrow} />
             <NotificationPanel 
               notifications={notifications}
-              onNotificationPress={(notification) => {
+              onNotificationPress={async (notification) => {
                 console.log('Notification pressed:', notification);
                 // Mark as read when pressed
-                setNotifications(prev => 
-                  prev.map(notif => 
-                    notif.id === notification.id 
-                      ? { ...notif, isRead: true }
-                      : notif
-                  )
-                );
+                if (notification.notificationId && !notification.isRead) {
+                  try {
+                    await mainService.markNotificationAsRead(notification.notificationId);
+                    setNotifications(prev => 
+                      prev.map(notif => 
+                        notif.id === notification.id 
+                          ? { ...notif, isRead: true }
+                          : notif
+                      )
+                    );
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                  } catch (error: any) {
+                    console.error('Error marking notification as read:', error);
+                  }
+                }
               }}
-              onMarkAsRead={(notificationId) => {
-                setNotifications(prev => 
-                  prev.map(notif => 
-                    notif.id === notificationId 
-                      ? { ...notif, isRead: true }
-                      : notif
-                  )
-                );
+              onMarkAsRead={async (notificationId) => {
+                // Find notification by id (could be notificationId or id)
+                const notification = notifications.find(n => n.id === notificationId || n.notificationId === notificationId);
+                if (notification?.notificationId && !notification.isRead) {
+                  try {
+                    await mainService.markNotificationAsRead(notification.notificationId);
+                    setNotifications(prev => 
+                      prev.map(notif => 
+                        (notif.id === notificationId || notif.notificationId === notificationId)
+                          ? { ...notif, isRead: true }
+                          : notif
+                      )
+                    );
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                  } catch (error: any) {
+                    console.error('Error marking notification as read:', error);
+                  }
+                }
               }}
-               onMarkAllAsRead={() => {
-                 setNotifications(prev => 
-                   prev.map(notif => ({ ...notif, isRead: true }))
-                 );
-               }}
+              onMarkAllAsRead={async () => {
+                try {
+                  await mainService.markAllNotificationsAsRead();
+                  setNotifications(prev => 
+                    prev.map(notif => ({ ...notif, isRead: true }))
+                  );
+                  setUnreadCount(0);
+                } catch (error: any) {
+                  console.error('Error marking all notifications as read:', error);
+                }
+              }}
             />
           </View>
         </TouchableOpacity>

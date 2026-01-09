@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Animated,
@@ -23,8 +23,60 @@ import { CustomModal } from "@/components/ui/CustomModal";
 import { NotificationPanel } from "@/components/ui/NotificationPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotification } from "@/contexts/NotificationContext";
+import { mainService } from "@/services/main.service";
 
 const { width } = Dimensions.get("window");
+
+// Helper function to format time
+const formatTimeAgo = (dateString: string): string => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return "Vừa xong";
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} phút trước`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} giờ trước`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays} ngày trước`;
+  }
+  
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks} tuần trước`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  return `${diffInMonths} tháng trước`;
+};
+
+// Helper function to map notification type to UI type
+const mapNotificationType = (type: string): 'info' | 'success' | 'warning' | 'error' | 'reminder' => {
+  if (type.includes('ACCEPT') || type.includes('APPROVED') || type.includes('SUCCESS')) {
+    return 'success';
+  }
+  if (type.includes('REJECT') || type.includes('DECLINE') || type.includes('ERROR')) {
+    return 'error';
+  }
+  if (type.includes('WARNING') || type.includes('REMINDER')) {
+    return 'warning';
+  }
+  if (type.includes('REMINDER')) {
+    return 'reminder';
+  }
+  return 'info';
+};
 
 interface ServiceModule {
   id: string;
@@ -253,49 +305,82 @@ export default function CaregiverHome() {
       relationship: "Ông nội",
     },
   ];
-  const [notifications, setNotifications] = useState([
-    {
-      id: "1",
-      title: "Yêu cầu mới",
-      message: "Bà Nguyễn Thị Lan đã gửi yêu cầu chăm sóc cho ngày mai",
-      time: "5 phút trước",
-      type: "info" as const,
-      isRead: false,
-    },
-    {
-      id: "2",
-      title: "Xác nhận lịch",
-      message: "Lịch chăm sóc với Trần Văn Nam đã được xác nhận",
-      time: "1 giờ trước",
-      type: "success" as const,
-      isRead: false,
-    },
-    {
-      id: "3",
-      title: "Nhắc nhở",
-      message: "Có 2 task chưa hoàn thành trong ngày hôm nay",
-      time: "2 giờ trước",
-      type: "warning" as const,
-      isRead: true,
-    },
-    {
-      id: "4",
-      title: "Thanh toán",
-      message: "Thanh toán tháng 12 đã được xử lý thành công",
-      time: "1 ngày trước",
-      type: "success" as const,
-      isRead: true,
-    },
-    {
-      id: "5",
-      title: "Cập nhật hệ thống",
-      message: "Hệ thống sẽ bảo trì từ 2:00 - 4:00 sáng ngày mai",
-      time: "2 ngày trước",
-      type: "info" as const,
-      isRead: true,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<{
+    id: string;
+    title: string;
+    message: string;
+    time: string;
+    type: 'info' | 'success' | 'warning' | 'error' | 'reminder';
+    isRead: boolean;
+    notificationId?: string; // API notificationId
+  }[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
+
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoadingNotifications(true);
+      const response = await mainService.getNotifications({
+        page: 0,
+        size: 20,
+        sort: 'createdAt,desc',
+      });
+      
+      // Sort: unread first, then by createdAt descending
+      const sortedContent = [...response.content].sort((a, b) => {
+        // Unread notifications first
+        if (!a.isRead && b.isRead) return -1;
+        if (a.isRead && !b.isRead) return 1;
+        // If both have same read status, sort by createdAt descending (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      const mappedNotifications = sortedContent.map((notif) => ({
+        id: notif.notificationId,
+        notificationId: notif.notificationId,
+        title: notif.title,
+        message: notif.body,
+        time: formatTimeAgo(notif.sentAt || notif.createdAt),
+        type: mapNotificationType(notif.notificationType),
+        isRead: notif.isRead,
+      }));
+      
+      setNotifications(mappedNotifications);
+    } catch (error: any) {
+      console.error('Error fetching notifications:', error);
+      // Keep existing notifications on error
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }, []);
+
+  // Fetch unread count
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const count = await mainService.getUnreadNotificationCount();
+      setUnreadCount(count);
+    } catch (error: any) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
+  // Fetch notifications on mount and when modal opens
+  useEffect(() => {
+    fetchNotifications();
+    fetchUnreadCount();
+  }, [fetchNotifications, fetchUnreadCount]);
+
+  // Refresh when modal opens
+  useEffect(() => {
+    console.log("🔔 showNotificationModal changed to:", showNotificationModal);
+    if (showNotificationModal) {
+      console.log("🔔 Fetching notifications and unread count...");
+      fetchNotifications();
+      fetchUnreadCount();
+    }
+  }, [showNotificationModal, fetchNotifications, fetchUnreadCount]);
 
   const handleModulePress = (module: ServiceModule) => {
     if (module.id === "app-info") {
@@ -388,15 +473,18 @@ export default function CaregiverHome() {
             
             <TouchableOpacity 
               style={styles.iconButton}
-              onPress={() => setShowNotificationModal(true)}
+              onPress={() => {
+                console.log("🔔 Notification icon pressed, unreadCount:", unreadCount);
+                console.log("🔔 Current showNotificationModal:", showNotificationModal);
+                setShowNotificationModal(true);
+                console.log("🔔 After setShowNotificationModal(true)");
+              }}
             >
               <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
-              {notifications.filter((notif) => !notif.isRead).length > 0 && (
+              {unreadCount > 0 && (
                 <View style={styles.badge}>
                   <ThemedText style={styles.badgeText}>
-                    {notifications.filter((notif) => !notif.isRead).length > 99
-                      ? "99+"
-                      : notifications.filter((notif) => !notif.isRead).length}
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </ThemedText>
                 </View>
               )}
@@ -674,45 +762,93 @@ export default function CaregiverHome() {
       </Modal>
 
       {/* Notification Dropdown */}
-      {showNotificationModal && (
+      <Modal
+        visible={showNotificationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          console.log("🔔 Modal onRequestClose called");
+          setShowNotificationModal(false);
+        }}
+      >
         <TouchableOpacity
           style={styles.notificationOverlay}
           activeOpacity={1}
-          onPress={() => setShowNotificationModal(false)}
+          onPress={() => {
+            console.log("🔔 Overlay pressed, closing modal");
+            setShowNotificationModal(false);
+          }}
         >
-          <View style={styles.notificationDropdown}>
+          <View 
+            style={styles.notificationDropdown}
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             <View style={styles.notificationArrow} />
             <NotificationPanel
               notifications={notifications}
-              onNotificationPress={(notification) => {
+              onNotificationPress={async (notification) => {
                 console.log("Notification pressed:", notification);
                 // Mark as read when pressed
-                setNotifications((prev) =>
-                  prev.map((notif) =>
-                    notif.id === notification.id
-                      ? { ...notif, isRead: true }
-                      : notif
-                  )
-                );
+                const notif = notification as any;
+                const notifId = notif.notificationId || notification.id;
+                if (notifId && !notification.isRead) {
+                  try {
+                    await mainService.markNotificationAsRead(notifId);
+                    setNotifications((prev) =>
+                      prev.map((notif) =>
+                        notif.id === notification.id
+                          ? { ...notif, isRead: true }
+                          : notif
+                      )
+                    );
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                  } catch (error: any) {
+                    console.error('Error marking notification as read:', error);
+                  }
+                }
               }}
-              onMarkAsRead={(notificationId) => {
-                setNotifications((prev) =>
-                  prev.map((notif) =>
-                    notif.id === notificationId
-                      ? { ...notif, isRead: true }
-                      : notif
-                  )
-                );
+              onMarkAsRead={async (notificationId) => {
+                // Find notification by id (could be notificationId or id)
+                const notification = notifications.find(n => {
+                  const notif = n as any;
+                  return n.id === notificationId || notif.notificationId === notificationId;
+                });
+                const notif = notification as any;
+                const notifId = notif?.notificationId || notification?.id;
+                if (notifId && notification && !notification.isRead) {
+                  try {
+                    await mainService.markNotificationAsRead(notifId);
+                    setNotifications((prev) =>
+                      prev.map((n) => {
+                        const nAny = n as any;
+                        if (n.id === notificationId || nAny.notificationId === notificationId) {
+                          return { ...n, isRead: true };
+                        }
+                        return n;
+                      })
+                    );
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                  } catch (error: any) {
+                    console.error('Error marking notification as read:', error);
+                  }
+                }
               }}
-              onMarkAllAsRead={() => {
-                setNotifications((prev) =>
-                  prev.map((notif) => ({ ...notif, isRead: true }))
-                );
+              onMarkAllAsRead={async () => {
+                try {
+                  await mainService.markAllNotificationsAsRead();
+                  setNotifications((prev) =>
+                    prev.map((notif) => ({ ...notif, isRead: true }))
+                  );
+                  setUnreadCount(0);
+                } catch (error: any) {
+                  console.error('Error marking all notifications as read:', error);
+                }
               }}
             />
           </View>
         </TouchableOpacity>
-      )}
+      </Modal>
 
       {/* Add Elderly Modal */}
       <AddElderlyModal
@@ -1210,20 +1346,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   notificationOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1000,
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 100,
+    paddingRight: 20,
   },
   notificationDropdown: {
-    position: "absolute",
-    top: 100,
-    right: 20,
     width: width * 0.75,
     maxHeight: "80%",
-    zIndex: 1001,
+    backgroundColor: "transparent",
   },
   notificationArrow: {
     position: "absolute",

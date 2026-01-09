@@ -1,4 +1,5 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { NotificationPanel } from "@/components/ui/NotificationPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
 // TODO: Replace with API calls
@@ -14,6 +15,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,6 +27,57 @@ const { width: screenWidth } = Dimensions.get("window");
 const CARD_PADDING = 16; // paddingHorizontal của statsOuterContainer
 const CARD_GAP = 12; // gap giữa các card
 const CARD_WIDTH = (screenWidth - CARD_PADDING * 2 - CARD_GAP) / 2;
+
+// Helper function to format time
+const formatTimeAgo = (dateString: string): string => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return "Vừa xong";
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} phút trước`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} giờ trước`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays} ngày trước`;
+  }
+  
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks} tuần trước`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  return `${diffInMonths} tháng trước`;
+};
+
+// Helper function to map notification type to UI type
+const mapNotificationType = (type: string): 'info' | 'success' | 'warning' | 'error' | 'reminder' => {
+  if (type.includes('ACCEPT') || type.includes('APPROVED') || type.includes('SUCCESS')) {
+    return 'success';
+  }
+  if (type.includes('REJECT') || type.includes('DECLINE') || type.includes('ERROR')) {
+    return 'error';
+  }
+  if (type.includes('WARNING') || type.includes('REMINDER')) {
+    return 'warning';
+  }
+  if (type.includes('REMINDER')) {
+    return 'reminder';
+  }
+  return 'info';
+};
 
 // Map appointment status to dashboard status display
 const mapStatusToDashboard = (status: string | undefined) => {
@@ -124,12 +177,76 @@ export default function CaregiverDashboardScreen() {
   } | null>(null);
   const [loadingStatistics, setLoadingStatistics] = useState(true);
   
-  // Mock notifications (unread count for badge)
-  const [notifications] = useState([
-    { id: '1', isRead: false },
-    { id: '2', isRead: false },
-    { id: '3', isRead: true },
-  ]);
+  // Notification state
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    title: string;
+    message: string;
+    time: string;
+    type: 'info' | 'success' | 'warning' | 'error' | 'reminder';
+    isRead: boolean;
+    notificationId?: string;
+  }>>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const response = await mainService.getNotifications({
+        page: 0,
+        size: 20,
+        sort: 'createdAt,desc',
+      });
+      
+      // Sort: unread first, then by createdAt descending
+      const sortedContent = [...response.content].sort((a, b) => {
+        // Unread notifications first
+        if (!a.isRead && b.isRead) return -1;
+        if (a.isRead && !b.isRead) return 1;
+        // If both have same read status, sort by createdAt descending (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      const mappedNotifications = sortedContent.map((notif) => ({
+        id: notif.notificationId,
+        notificationId: notif.notificationId,
+        title: notif.title,
+        message: notif.body,
+        time: formatTimeAgo(notif.sentAt || notif.createdAt),
+        type: mapNotificationType(notif.notificationType),
+        isRead: notif.isRead,
+      }));
+      
+      setNotifications(mappedNotifications);
+    } catch (error: any) {
+      console.error('Error fetching notifications:', error);
+    }
+  }, []);
+
+  // Fetch unread count
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const count = await mainService.getUnreadNotificationCount();
+      setUnreadCount(count);
+    } catch (error: any) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
+  // Fetch notifications on mount
+  useEffect(() => {
+    fetchNotifications();
+    fetchUnreadCount();
+  }, [fetchNotifications, fetchUnreadCount]);
+
+  // Refresh when modal opens
+  useEffect(() => {
+    if (showNotificationModal) {
+      fetchNotifications();
+      fetchUnreadCount();
+    }
+  }, [showNotificationModal, fetchNotifications, fetchUnreadCount]);
 
   const refresh = useCallback(async () => {
     // Refresh will be called by fetchTodayAppointments
@@ -350,13 +467,16 @@ export default function CaregiverDashboardScreen() {
               
               <TouchableOpacity 
                 style={styles.iconButton}
-                onPress={() => {/* Navigate to notifications */}}
+                onPress={() => {
+                  console.log("🔔 Notification icon pressed, unreadCount:", unreadCount);
+                  setShowNotificationModal(true);
+                }}
               >
                 <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
-                {notifications.filter(n => !n.isRead).length > 0 && (
+                {unreadCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>
-                      {notifications.filter(n => !n.isRead).length}
+                      {unreadCount > 99 ? "99+" : unreadCount}
                     </Text>
                   </View>
                 )}
@@ -537,6 +657,86 @@ export default function CaregiverDashboardScreen() {
 
       {/* Bottom Navigation */}
       <CaregiverBottomNav activeTab="home" />
+
+      {/* Notification Modal */}
+      <Modal
+        visible={showNotificationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowNotificationModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.notificationOverlay}
+          activeOpacity={1}
+          onPress={() => setShowNotificationModal(false)}
+        >
+          <View 
+            style={styles.notificationDropdown}
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
+            <View style={styles.notificationArrow} />
+            <NotificationPanel
+              notifications={notifications}
+              onNotificationPress={async (notification) => {
+                const notif = notification as any;
+                const notifId = notif.notificationId || notification.id;
+                if (notifId && !notification.isRead) {
+                  try {
+                    await mainService.markNotificationAsRead(notifId);
+                    setNotifications((prev) =>
+                      prev.map((notif) =>
+                        notif.id === notification.id
+                          ? { ...notif, isRead: true }
+                          : notif
+                      )
+                    );
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                  } catch (error: any) {
+                    console.error('Error marking notification as read:', error);
+                  }
+                }
+              }}
+              onMarkAsRead={async (notificationId) => {
+                const notification = notifications.find(n => {
+                  const nAny = n as any;
+                  return n.id === notificationId || nAny.notificationId === notificationId;
+                });
+                const notif = notification as any;
+                const notifId = notif?.notificationId || notification?.id;
+                if (notifId && notification && !notification.isRead) {
+                  try {
+                    await mainService.markNotificationAsRead(notifId);
+                    setNotifications((prev) =>
+                      prev.map((n) => {
+                        const nAny = n as any;
+                        if (n.id === notificationId || nAny.notificationId === notificationId) {
+                          return { ...n, isRead: true };
+                        }
+                        return n;
+                      })
+                    );
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                  } catch (error: any) {
+                    console.error('Error marking notification as read:', error);
+                  }
+                }
+              }}
+              onMarkAllAsRead={async () => {
+                try {
+                  await mainService.markAllNotificationsAsRead();
+                  setNotifications((prev) =>
+                    prev.map((notif) => ({ ...notif, isRead: true }))
+                  );
+                  setUnreadCount(0);
+                } catch (error: any) {
+                  console.error('Error marking all notifications as read:', error);
+                }
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -648,6 +848,33 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  notificationOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 100,
+    paddingRight: 20,
+  },
+  notificationDropdown: {
+    width: screenWidth * 0.75,
+    maxHeight: "80%",
+    backgroundColor: "transparent",
+  },
+  notificationArrow: {
+    position: "absolute",
+    top: -8,
+    right: 12,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "white",
+    zIndex: 1002,
   },
   avatarButton: {
     marginRight: 14,
