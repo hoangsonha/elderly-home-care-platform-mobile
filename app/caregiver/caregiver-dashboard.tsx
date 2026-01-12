@@ -112,12 +112,16 @@ const mapStatusToDashboard = (status: string | undefined) => {
   }
 };
 
-// Format earnings to display (VNĐ)
+// Format earnings to display (VNĐ) - format ngắn gọn nhưng không làm tròn số nguyên
 const formatEarnings = (earnings: number): string => {
   if (earnings >= 1000000) {
-    return `${(earnings / 1000000).toFixed(1)}M`;
+    const millions = earnings / 1000000;
+    // Chỉ hiển thị 1 chữ số thập phân, không làm tròn số nguyên
+    return `${millions.toFixed(1)}M`;
   } else if (earnings >= 1000) {
-    return `${(earnings / 1000).toFixed(0)}K`;
+    const thousands = earnings / 1000;
+    // Chỉ hiển thị 1 chữ số thập phân, không làm tròn số nguyên
+    return `${thousands.toFixed(1)}K`;
   }
   return earnings.toString();
 };
@@ -468,7 +472,6 @@ export default function CaregiverDashboardScreen() {
               <TouchableOpacity 
                 style={styles.iconButton}
                 onPress={() => {
-                  console.log("🔔 Notification icon pressed, unreadCount:", unreadCount);
                   setShowNotificationModal(true);
                 }}
               >

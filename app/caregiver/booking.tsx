@@ -3,9 +3,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 import { mainService, type MyCareServiceData } from "@/services/main.service";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
-import React, { useCallback, useState, useRef, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -188,6 +187,12 @@ export default function BookingScreen() {
           };
         });
         setBookings(mappedBookings);
+        
+        // Log booking statuses
+        console.log('Booking Statuses after fetch:');
+        mappedBookings.forEach((booking) => {
+          console.log(`  - careServiceId: ${booking.careServiceId}, status: ${booking.status}`);
+        });
         
         // Scroll to specific item if careServiceId is provided (from notification)
         if (targetCareServiceId && !isRefreshing && flatListRef.current) {

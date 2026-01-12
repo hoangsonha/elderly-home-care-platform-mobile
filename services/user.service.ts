@@ -379,7 +379,6 @@ export const UserService = {
 
       // Nếu có response từ server, trả về response đó
       if (axiosError.response?.data) {
-        console.log('❌ Server responded with error:', axiosError.response.status);
         return axiosError.response.data;
       }
 
@@ -469,7 +468,6 @@ export const UserService = {
 
       // Nếu có response từ server, trả về response đó
       if (axiosError.response?.data) {
-        console.log('❌ Server responded with error:', axiosError.response.status);
         return axiosError.response.data;
       }
 

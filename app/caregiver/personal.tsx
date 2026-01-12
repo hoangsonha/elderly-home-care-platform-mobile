@@ -223,9 +223,13 @@ export default function PersonalScreen() {
 
   const formatEarnings = (amount: number): string => {
     if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(1)}M`;
+      const millions = amount / 1000000;
+      // Chỉ hiển thị 1 chữ số thập phân, không làm tròn số nguyên
+      return `${millions.toFixed(1)}M`;
     } else if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(1)}K`;
+      const thousands = amount / 1000;
+      // Chỉ hiển thị 1 chữ số thập phân, không làm tròn số nguyên
+      return `${thousands.toFixed(1)}K`;
     }
     return amount.toString();
   };

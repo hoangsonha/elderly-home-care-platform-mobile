@@ -375,7 +375,6 @@ export const mainService = {
     checkInImage: { uri: string; type?: string; name?: string }
   ): Promise<CareServiceApiResponse> => {
     try {
-      console.log('📤 Starting work...');
       const formData = new FormData();
       
       // Append JSON request
@@ -412,13 +411,11 @@ export const mainService = {
         }
       );
 
-      console.log('✅ Success! Start work completed');
       return response.data;
     } catch (axiosError: any) {
 
       // Nếu axios fail với Network Error, thử XMLHttpRequest (fallback)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        console.log('⚠️ Axios failed with Network Error, trying XMLHttpRequest...');
         
         const token = await AsyncStorage.getItem('token');
         if (!token) {
@@ -460,7 +457,6 @@ export const mainService = {
               if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                   const result = JSON.parse(xhr.responseText);
-                  console.log('✅ XMLHttpRequest success!');
                   resolve(result);
                 } catch (error) {
                   resolve({
@@ -521,7 +517,6 @@ export const mainService = {
 
       // Nếu có response từ server, trả về response đó
       if (axiosError.response?.data) {
-        console.log('❌ Server responded with error:', axiosError.response.status);
         return axiosError.response.data;
       }
 
@@ -577,14 +572,11 @@ export const mainService = {
         }
       );
 
-      console.log('✅ Success! End work completed');
       return response.data;
     } catch (axiosError: any) {
-      console.log('❌ Axios error ending work:', axiosError.code, axiosError.message);
 
       // Nếu axios fail với Network Error, thử XMLHttpRequest (fallback)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        console.log('⚠️ Axios failed with Network Error, trying XMLHttpRequest...');
         
         const token = await AsyncStorage.getItem('token');
         if (!token) {
@@ -626,7 +618,6 @@ export const mainService = {
               if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                   const result = JSON.parse(xhr.responseText);
-                  console.log('✅ XMLHttpRequest success!');
                   resolve(result);
                 } catch (error) {
                   resolve({
@@ -687,7 +678,6 @@ export const mainService = {
 
       // Nếu có response từ server, trả về response đó
       if (axiosError.response?.data) {
-        console.log('❌ Server responded with error:', axiosError.response.status);
         return axiosError.response.data;
       }
 
@@ -818,7 +808,6 @@ export const mainService = {
    */
   getFreeScheduleByDate: async (date: string, caregiverId: string): Promise<FreeScheduleByDateApiResponse> => {
     try {
-      console.log('📤 Calling getFreeScheduleByDate with date:', date, 'caregiverId:', caregiverId);
       const response = await apiClient.get<FreeScheduleByDateApiResponse>(
         `/api/v1/caregiver-schedule/free-schedule/date`,
         {
@@ -828,7 +817,6 @@ export const mainService = {
           },
         }
       );
-      console.log('✅ getFreeScheduleByDate response:', JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error: any) {
       console.error('❌ Error fetching free schedule by date:', error);
@@ -875,16 +863,13 @@ export const mainService = {
     citizenIdBackImage?: { uri: string; type?: string; name?: string }
   ): Promise<CareServiceApiResponse> => {
     try {
-      console.log('📤 Creating caregiver profile...');
       console.log('📋 Profile data:', JSON.stringify(profileData, null, 2));
-      console.log('🖼️ Avatar file:', avatarFile ? { uri: avatarFile.uri.substring(0, 50) + '...', type: avatarFile.type, name: avatarFile.name } : 'none');
       console.log('📄 Credential files:', credentialFiles?.length || 0);
 
       const formData = new FormData();
       
       // Append JSON data
       formData.append('data', JSON.stringify(profileData));
-      console.log('✅ Appended data field');
 
       // Append avatar file if provided
       if (avatarFile) {
@@ -897,13 +882,11 @@ export const mainService = {
         // Keep original URI format (file://, content://, etc.)
         // Don't modify it as React Native FormData handles it correctly
 
-        console.log('📎 Appending avatar:', { uri: fileUri.substring(0, 50) + '...', type: fileType, name: fileName });
         formData.append('avatar', {
           uri: fileUri,
           type: fileType,
           name: fileName,
         } as any);
-        console.log('✅ Appended avatar');
       }
 
       // Append credential files if provided
@@ -918,14 +901,12 @@ export const mainService = {
           // Keep original URI format (file://, content://, etc.)
           // Don't modify it as React Native FormData handles it correctly
 
-          console.log(`📎 Appending credential file ${index + 1}:`, { uri: fileUri.substring(0, 50) + '...', type: fileType, name: fileName });
           formData.append('credentialFiles', {
             uri: fileUri,
             type: fileType,
             name: fileName,
           } as any);
         });
-        console.log('✅ Appended credential files');
       }
 
       // Append citizen ID front image if provided
@@ -936,13 +917,11 @@ export const mainService = {
         
         let fileUri = citizenIdFrontImage.uri;
         
-        console.log('📎 Appending citizen ID front image:', { uri: fileUri.substring(0, 50) + '...', type: fileType, name: fileName });
         formData.append('citizenIdFrontImage', {
           uri: fileUri,
           type: fileType,
           name: fileName,
         } as any);
-        console.log('✅ Appended citizen ID front image');
       }
 
       // Append citizen ID back image if provided
@@ -953,16 +932,13 @@ export const mainService = {
         
         let fileUri = citizenIdBackImage.uri;
         
-        console.log('📎 Appending citizen ID back image:', { uri: fileUri.substring(0, 50) + '...', type: fileType, name: fileName });
         formData.append('citizenIdBackImage', {
           uri: fileUri,
           type: fileType,
           name: fileName,
         } as any);
-        console.log('✅ Appended citizen ID back image');
       }
 
-      console.log('🚀 Sending request to /api/v1/caregivers/profile');
       
       // Try with axios first
       try {
@@ -986,7 +962,6 @@ export const mainService = {
           }
         );
 
-        console.log('✅ Response received:', response.status);
         return response.data;
       } catch (axiosError: any) {
         // Log chi tiết lỗi axios

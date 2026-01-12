@@ -147,7 +147,6 @@ export default function AvailabilityScreen() {
         setAvailabilityData([]);
       }
     } catch (err) {
-      console.log("❌ Load free schedule error:", err);
     }
   };
 

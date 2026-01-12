@@ -374,9 +374,7 @@ export default function CaregiverHome() {
 
   // Refresh when modal opens
   useEffect(() => {
-    console.log("🔔 showNotificationModal changed to:", showNotificationModal);
     if (showNotificationModal) {
-      console.log("🔔 Fetching notifications and unread count...");
       fetchNotifications();
       fetchUnreadCount();
     }
@@ -474,10 +472,7 @@ export default function CaregiverHome() {
             <TouchableOpacity 
               style={styles.iconButton}
               onPress={() => {
-                console.log("🔔 Notification icon pressed, unreadCount:", unreadCount);
-                console.log("🔔 Current showNotificationModal:", showNotificationModal);
                 setShowNotificationModal(true);
-                console.log("🔔 After setShowNotificationModal(true)");
               }}
             >
               <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
@@ -767,7 +762,6 @@ export default function CaregiverHome() {
         transparent={true}
         animationType="fade"
         onRequestClose={() => {
-          console.log("🔔 Modal onRequestClose called");
           setShowNotificationModal(false);
         }}
       >
@@ -775,7 +769,6 @@ export default function CaregiverHome() {
           style={styles.notificationOverlay}
           activeOpacity={1}
           onPress={() => {
-            console.log("🔔 Overlay pressed, closing modal");
             setShowNotificationModal(false);
           }}
         >

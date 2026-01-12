@@ -3,14 +3,14 @@ import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -165,41 +165,28 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   // Fetch schedule when selectedDate changes
   useEffect(() => {
     const selectedDate = immediateData?.selectedDate || '';
-    console.log('📅 useEffect triggered - selectedDate:', selectedDate);
-    console.log('📅 lastFetchedDate:', lastFetchedDate);
     
     if (!selectedDate) {
-      console.log('⚠️ No selected date, clearing schedule');
       setSelectedDateSchedule(null);
       setLastFetchedDate('');
       return;
     }
 
     if (selectedDate === lastFetchedDate) {
-      console.log('⚠️ Skipping fetch - date unchanged');
       return;
     }
 
     const fetchScheduleForDate = async () => {
       try {
-        console.log('🔄 Fetching schedule for date:', selectedDate);
         setIsLoadingSchedule(true);
         setLastFetchedDate(selectedDate);
         const dateApiFormat = formatDateForAPI(selectedDate);
-        console.log('📅 Formatted date for API:', dateApiFormat);
         
         const response = await mainService.getFreeScheduleByDate(dateApiFormat, caregiver.id);
-        console.log('✅ Schedule response:', JSON.stringify(response, null, 2));
-        
-        console.log('📊 Response status:', response?.status);
-        console.log('📊 Response data:', response?.data);
         
         if (response && response.status === 'Success' && response.data) {
-          console.log('✅ Schedule data:', JSON.stringify(response.data, null, 2));
           setSelectedDateSchedule(response.data);
         } else {
-          console.log('⚠️ Schedule response failed or no data:', response?.message || 'Unknown error');
-          console.log('⚠️ Setting default: available all day');
           // Default: available all day on error
           setSelectedDateSchedule({
             date: dateApiFormat,
@@ -1425,30 +1412,21 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                       immediateData?.selectedDate === dateStr && styles.pickerItemSelected
                     ]}
                     onPress={() => {
-                      console.log('📅 Date selected:', dateStr);
                       setImmediateData(prev => {
-                        console.log('📅 Previous immediateData:', prev);
                         const updated = { ...prev, selectedDate: dateStr };
-                        console.log('📅 Updated immediateData:', updated);
                         // Trigger fetch immediately after setting date
                         setTimeout(() => {
-                          console.log('📅 Triggering fetch after date selection');
                           const fetchScheduleForDate = async () => {
                             try {
-                              console.log('🔄 Fetching schedule for date:', dateStr);
                               setIsLoadingSchedule(true);
                               const dateApiFormat = formatDateForAPI(dateStr);
-                              console.log('📅 Formatted date for API:', dateApiFormat);
                               
                               const response = await mainService.getFreeScheduleByDate(dateApiFormat, caregiver.id);
-                              console.log('✅ Schedule response:', JSON.stringify(response, null, 2));
                               
                               if (response && response.status === 'Success' && response.data) {
-                                console.log('✅ Schedule data:', JSON.stringify(response.data, null, 2));
                                 setSelectedDateSchedule(response.data);
                                 setLastFetchedDate(dateStr);
                               } else {
-                                console.log('⚠️ Schedule response failed or no data:', response?.message || 'Unknown error');
                                 setSelectedDateSchedule({
                                   date: dateApiFormat,
                                   available_all_day: true,
