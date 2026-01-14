@@ -114,7 +114,7 @@ export default function ComplaintDetailScreen() {
       case 'low': return '#2ed573';
       case 'medium': return '#ffa502';
       case 'high': return '#ff4757';
-      case 'urgent': return '#e74c3c';
+      case 'urgent': return '#ff6b6b';
       default: return '#6c757d';
     }
   };
@@ -196,7 +196,7 @@ export default function ComplaintDetailScreen() {
           <View style={styles.peopleContainer}>
             <View style={styles.personCard}>
               <View style={styles.personHeader}>
-                <Ionicons name="person" size={20} color="#E74C3C" />
+                <Ionicons name="person" size={20} color="#68C2E8" />
                 <ThemedText style={styles.personTitle}>Người khiếu nại</ThemedText>
               </View>
               <ThemedText style={styles.personName}>{complaint.complainant.name}</ThemedText>
@@ -314,13 +314,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#E74C3C',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   backButton: {
     padding: 8,

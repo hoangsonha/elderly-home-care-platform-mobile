@@ -15,7 +15,7 @@ export default function SystemInfoScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#667eea" />
+          <Ionicons name="arrow-back" size={24} color="#68C2E8" />
         </TouchableOpacity>
         <ThemedText style={styles.title}>Giới thiệu hệ thống</ThemedText>
       </View>
@@ -24,7 +24,7 @@ export default function SystemInfoScreen() {
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.iconContainer}>
-            <Ionicons name="heart" size={60} color="#667eea" />
+            <Ionicons name="heart" size={60} color="#68C2E8" />
           </View>
           <ThemedText style={styles.heroTitle}>
             ELDER CARE CONNECT
@@ -41,19 +41,19 @@ export default function SystemInfoScreen() {
           </ThemedText>
           <View style={styles.featureList}>
             <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+              <Ionicons name="checkmark-circle" size={20} color="#68C2E8" />
               <ThemedText style={styles.featureText}>
                 Hệ thống gợi ý người chăm sóc thông minh
               </ThemedText>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+              <Ionicons name="checkmark-circle" size={20} color="#68C2E8" />
               <ThemedText style={styles.featureText}>
                 Phân tích nhu cầu chăm sóc cá nhân hóa
               </ThemedText>
             </View>
             <View style={styles.featureItem}>
-              <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+              <Ionicons name="checkmark-circle" size={20} color="#68C2E8" />
               <ThemedText style={styles.featureText}>
                 Theo dõi chất lượng dịch vụ tự động
               </ThemedText>
@@ -112,28 +112,28 @@ export default function SystemInfoScreen() {
           </ThemedText>
           <View style={styles.benefitGrid}>
             <View style={styles.benefitCard}>
-              <Ionicons name="shield-checkmark" size={30} color="#667eea" />
+              <Ionicons name="shield-checkmark" size={30} color="#68C2E8" />
               <ThemedText style={styles.benefitTitle}>An toàn</ThemedText>
               <ThemedText style={styles.benefitText}>
                 Xác thực nghiêm ngặt người chăm sóc
               </ThemedText>
             </View>
             <View style={styles.benefitCard}>
-              <Ionicons name="time" size={30} color="#667eea" />
+              <Ionicons name="time" size={30} color="#68C2E8" />
               <ThemedText style={styles.benefitTitle}>Tiện lợi</ThemedText>
               <ThemedText style={styles.benefitText}>
                 Đặt lịch và quản lý dễ dàng
               </ThemedText>
             </View>
             <View style={styles.benefitCard}>
-              <Ionicons name="analytics" size={30} color="#667eea" />
+              <Ionicons name="analytics" size={30} color="#68C2E8" />
               <ThemedText style={styles.benefitTitle}>Thông minh</ThemedText>
               <ThemedText style={styles.benefitText}>
                 AI gợi ý tối ưu nhất
               </ThemedText>
             </View>
             <View style={styles.benefitCard}>
-              <Ionicons name="people" size={30} color="#667eea" />
+              <Ionicons name="people" size={30} color="#68C2E8" />
               <ThemedText style={styles.benefitTitle}>Đáng tin</ThemedText>
               <ThemedText style={styles.benefitText}>
                 Hàng nghìn gia đình tin tưởng
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#667eea',
+    backgroundColor: '#68C2E8',
     alignItems: 'center',
     justifyContent: 'center',
   },

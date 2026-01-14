@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { LocationPickerModal } from '@/components/ui/LocationPickerModal';
+// import { LocationPickerModal } from '@/components/ui/LocationPickerModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
 import { UserService } from '@/services/user.service';
@@ -400,8 +400,8 @@ export default function CompleteProfileScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Location Picker Modal */}
-      <LocationPickerModal
+      {/* Location Picker Modal - TEMPORARILY DISABLED */}
+      {/* <LocationPickerModal
         visible={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onSelectLocation={(lat, lng, address) => {
@@ -409,7 +409,7 @@ export default function CompleteProfileScreen() {
           setShowLocationPicker(false);
         }}
         initialLocation={location}
-      />
+      /> */}
 
       {/* Error Modal */}
       <Modal

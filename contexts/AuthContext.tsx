@@ -35,13 +35,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string
   ): Promise<User | null> => {
+    console.log('🚀 AuthContext.login - Start');
+    console.log('📧 Email:', email);
+    console.log('🔐 Password length:', password.length);
     try {
       const res = await AccountService.login({ email, password });
+      console.log('📦 AccountService response:', JSON.stringify(res));
 
-      if (!res || !res.token) return null;
+      if (!res || !res.token) {
+        console.warn('⚠️ No token in response');
+        return null;
+      }
 
       // Lưu token vào AsyncStorage
+      console.log('💾 Saving token to AsyncStorage...');
       await saveToken(res.token, res.refreshToken);
+      console.log('✅ Token saved successfully');
 
       const userData: User = {
         id: res.accountId || res.id,
@@ -56,7 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         status: res.status,
       };
 
+      console.log('👤 User data created:', JSON.stringify(userData));
       setUser(userData);
+      console.log('✅ AuthContext.login - Success');
 
       // Register device token for push notifications after login
       try {
@@ -69,8 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       return userData;
-    } catch (error) {
-      console.error("Login error:", error);
+    } catch (error: any) {
+      console.error('❌ AuthContext.login - Error:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
       return null;
     }
   };

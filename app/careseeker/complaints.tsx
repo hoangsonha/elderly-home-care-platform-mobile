@@ -499,7 +499,7 @@ export default function ComplaintsScreen() {
       case 'low': return '#2ed573';
       case 'medium': return '#ffa502';
       case 'high': return '#ff4757';
-      case 'urgent': return '#e74c3c';
+      case 'urgent': return '#ff6b6b';
       default: return '#6c757d';
     }
   };
@@ -678,13 +678,23 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Space for navigation bar
   },
   header: {
-    backgroundColor: '#E74C3C',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   backButton: {
     padding: 8,
@@ -733,8 +743,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mainTabActive: {
-    backgroundColor: '#E74C3C',
-    borderColor: '#E74C3C',
+    backgroundColor: '#68C2E8',
+    borderColor: '#68C2E8',
   },
   mainTabText: {
     fontSize: 14,

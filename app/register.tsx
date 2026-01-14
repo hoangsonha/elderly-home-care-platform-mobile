@@ -232,305 +232,429 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#667eea" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <ThemedText style={styles.title}>Đăng ký tài khoản</ThemedText>
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.form}>
-          {/* ================== FORM ĐĂNG KÝ ================== */}
-          {!isOtpStage && (
-            <>
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>Email *</ThemedText>
-                <TextInput
-                  style={styles.input}
-                  value={formData.email}
-                  onChangeText={(t) => setFormData({ ...formData, email: t })}
-                  placeholder="Nhập email"
-                  placeholderTextColor="#999"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>Mật khẩu *</ThemedText>
-                <TextInput
-                  style={[
-                    styles.input,
-                    passwordError ? styles.inputError : null,
-                  ]}
-                  value={formData.password}
-                  onChangeText={(t) => {
-                    setFormData({ ...formData, password: t });
-                    if (passwordError) setPasswordError("");
-                  }}
-                  placeholder="Nhập mật khẩu"
-                  placeholderTextColor="#999"
-                  secureTextEntry
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label}>
-                  Xác nhận mật khẩu *
-                </ThemedText>
-                <TextInput
-                  style={[
-                    styles.input,
-                    passwordError ? styles.inputError : null,
-                  ]}
-                  value={formData.confirmPassword}
-                  onChangeText={(t) => {
-                    setFormData({ ...formData, confirmPassword: t });
-                    if (passwordError) setPasswordError("");
-                  }}
-                  placeholder="Nhập lại mật khẩu"
-                  placeholderTextColor="#999"
-                  secureTextEntry
-                />
-                {passwordError && (
-                  <ThemedText style={styles.errorText}>
-                    {passwordError}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          <View style={styles.form}>
+            {/* ================== FORM ĐĂNG KÝ ================== */}
+            {!isOtpStage && (
+              <>
+                {/* Email Input */}
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.label}>
+                    Email <ThemedText style={styles.required}>*</ThemedText>
                   </ThemedText>
-                )}
-              </View>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="mail-outline" size={20} color="#68C2E8" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      value={formData.email}
+                      onChangeText={(t) => setFormData({ ...formData, email: t })}
+                      placeholder="Nhập email của bạn"
+                      placeholderTextColor="#adb5bd"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
 
-              <RoleSelector
-                selectedRole={selectedRole}
-                onSelectRole={setSelectedRole}
-              />
-
-              <TouchableOpacity
-                style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-                onPress={handleRegister}
-                disabled={isLoading}
-              >
-                <ThemedText style={styles.submitButtonText}>
-                  {isLoading ? "Đang xử lý..." : "Đăng ký"}
-                </ThemedText>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {/* ================== FORM XÁC MINH OTP ================== */}
-          {isOtpStage && (
-            <>
-              <View style={styles.otpHeader}>
-                <ThemedText style={styles.otpTitle}>
-                  Nhập mã xác minh
-                </ThemedText>
-                <ThemedText style={styles.otpDescription}>
-                  Chúng tôi đã gửi mã xác minh 6 chữ số đến email{" "}
-                  <ThemedText style={styles.emailHighlight}>
-                    {formData.email}
+                {/* Password Input */}
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.label}>
+                    Mật khẩu <ThemedText style={styles.required}>*</ThemedText>
                   </ThemedText>
-                </ThemedText>
-                <ThemedText style={styles.otpWarning}>
-                  Mã chỉ có hiệu lực trong 5 phút
-                </ThemedText>
-              </View>
+                  <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
+                    <Ionicons name="lock-closed-outline" size={20} color="#68C2E8" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      value={formData.password}
+                      onChangeText={(t) => {
+                        setFormData({ ...formData, password: t });
+                        if (passwordError) setPasswordError("");
+                      }}
+                      placeholder="Nhập mật khẩu"
+                      placeholderTextColor="#adb5bd"
+                      secureTextEntry
+                    />
+                  </View>
+                </View>
 
-              <OTPInput
-                key={otpKey}
-                length={6}
-                onComplete={handleVerify}
-                onCodeChange={setOtp}
-              />
+                {/* Confirm Password Input */}
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.label}>
+                    Xác nhận mật khẩu <ThemedText style={styles.required}>*</ThemedText>
+                  </ThemedText>
+                  <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
+                    <Ionicons name="lock-closed-outline" size={20} color="#68C2E8" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      value={formData.confirmPassword}
+                      onChangeText={(t) => {
+                        setFormData({ ...formData, confirmPassword: t });
+                        if (passwordError) setPasswordError("");
+                      }}
+                      placeholder="Nhập lại mật khẩu"
+                      placeholderTextColor="#adb5bd"
+                      secureTextEntry
+                    />
+                  </View>
+                  {passwordError && (
+                    <View style={styles.errorContainer}>
+                      <Ionicons name="alert-circle" size={14} color="#dc3545" />
+                      <ThemedText style={styles.errorText}>
+                        {passwordError}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
 
-              <View style={styles.actionButtonsRow}>
+                <RoleSelector
+                  selectedRole={selectedRole}
+                  onSelectRole={setSelectedRole}
+                />
+
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.clearButton]}
-                  onPress={() => {
-                    setOtp("");
-                    setOtpKey((prev) => prev + 1); // Reset OTP input
-                  }}
+                  style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+                  onPress={handleRegister}
+                  disabled={isLoading}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name="refresh" size={18} color="#667eea" />
-                  <ThemedText style={styles.actionButtonText}>Xóa</ThemedText>
+                  {isLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <Ionicons name="hourglass-outline" size={20} color="#fff" />
+                      <ThemedText style={styles.submitButtonText}>
+                        Đang xử lý...
+                      </ThemedText>
+                    </View>
+                  ) : (
+                    <ThemedText style={styles.submitButtonText}>Đăng ký</ThemedText>
+                  )}
                 </TouchableOpacity>
+              </>
+            )}
 
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    styles.resendButton,
-                    isResendingCode && styles.actionButtonDisabled,
-                  ]}
-                  onPress={handleResendCode}
-                  disabled={isResendingCode}
-                >
-                  <Ionicons
-                    name="mail"
-                    size={18}
-                    color={isResendingCode ? "#999" : "#667eea"}
-                  />
-                  <ThemedText
-                    style={[
-                      styles.actionButtonText,
-                      isResendingCode && styles.actionButtonTextDisabled,
-                    ]}
+            {/* ================== FORM XÁC MINH OTP ================== */}
+            {isOtpStage && (
+              <>
+                <View style={styles.otpHeader}>
+                  <View style={styles.otpIconContainer}>
+                    <Ionicons name="mail-open-outline" size={48} color="#68C2E8" />
+                  </View>
+                  <ThemedText style={styles.otpTitle}>
+                    Nhập mã xác minh
+                  </ThemedText>
+                  <ThemedText style={styles.otpDescription}>
+                    Chúng tôi đã gửi mã xác minh 6 chữ số đến email{" "}
+                    <ThemedText style={styles.emailHighlight}>
+                      {formData.email}
+                    </ThemedText>
+                  </ThemedText>
+                  <View style={styles.warningBox}>
+                    <Ionicons name="time-outline" size={16} color="#ff9800" />
+                    <ThemedText style={styles.otpWarning}>
+                      Mã chỉ có hiệu lực trong 5 phút
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <OTPInput
+                  key={otpKey}
+                  length={6}
+                  onComplete={handleVerify}
+                  onCodeChange={setOtp}
+                />
+
+                <View style={styles.actionButtonsRow}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.clearButton]}
+                    onPress={() => {
+                      setOtp("");
+                      setOtpKey((prev) => prev + 1);
+                    }}
+                    activeOpacity={0.7}
                   >
-                    {isResendingCode ? "Đang gửi..." : "Gửi lại mã"}
+                    <Ionicons name="refresh-outline" size={20} color="#6c757d" />
+                    <ThemedText style={styles.clearButtonText}>Xóa</ThemedText>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      styles.resendButton,
+                      isResendingCode && styles.actionButtonDisabled,
+                    ]}
+                    onPress={handleResendCode}
+                    disabled={isResendingCode}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color={isResendingCode ? "#adb5bd" : "#68C2E8"}
+                    />
+                    <ThemedText
+                      style={[
+                        styles.resendButtonText,
+                        isResendingCode && styles.actionButtonTextDisabled,
+                      ]}
+                    >
+                      {isResendingCode ? "Đang gửi..." : "Gửi lại mã"}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.backToFormButton}
+                  onPress={() => setIsOtpStage(false)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="arrow-back-outline" size={18} color="#6c757d" />
+                  <ThemedText style={styles.backToFormButtonText}>
+                    Quay lại
                   </ThemedText>
                 </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.backToFormButton}
-                onPress={() => setIsOtpStage(false)}
-              >
-                <ThemedText style={styles.backToFormButtonText}>
-                  Quay lại
-                </ThemedText>
-              </TouchableOpacity>
-            </>
-          )}
+              </>
+            )}
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e9ecef",
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
   },
-  backButton: { marginRight: 15 },
-  title: { fontSize: 20, fontWeight: "bold", color: "#2c3e50" },
-  content: { padding: 20 },
+  header: {
+    backgroundColor: '#68C2E8',
+    paddingTop: 50,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+  },
+  backButton: { 
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  title: { 
+    fontSize: 26, 
+    fontWeight: "bold", 
+    color: "#fff",
+  },
+  scrollView: { 
+    flex: 1,
+  },
+  content: { 
+    padding: 20,
+    paddingTop: 24,
+  },
   form: {
     backgroundColor: "white",
-    borderRadius: 12,
-    padding: 20,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  inputGroup: { marginBottom: 20 },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2c3e50",
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#dee2e6",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#fff",
-  },
-  inputError: { borderColor: "#dc3545", backgroundColor: "#fff5f5" },
-  errorText: { fontSize: 12, color: "#dc3545", marginTop: 4 },
-  submitButton: {
-    backgroundColor: "#667eea",
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 10,
+  inputGroup: { 
     marginBottom: 20,
   },
-  submitButtonDisabled: {
-    backgroundColor: "#ccc",
-    opacity: 0.6,
+  label: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#2c3e50",
+    marginBottom: 10,
   },
-  submitButtonText: { color: "white", fontSize: 18, fontWeight: "bold" },
+  required: {
+    color: "#dc3545",
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: "#e1e8ed",
+    borderRadius: 12,
+    backgroundColor: "#f8f9fa",
+    paddingHorizontal: 14,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#2c3e50",
+  },
+  inputError: { 
+    borderColor: "#dc3545", 
+    backgroundColor: "#fff5f5",
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+  },
+  errorText: { 
+    fontSize: 13, 
+    color: "#dc3545",
+    flex: 1,
+  },
+  submitButton: {
+    backgroundColor: '#68C2E8',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 16,
+    shadowColor: "#68C2E8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#adb5bd',
+    opacity: 0.6,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  submitButtonText: { 
+    color: "white", 
+    fontSize: 17, 
+    fontWeight: "bold",
+    letterSpacing: 0.5,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  
+  // OTP Styles
   otpHeader: {
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 32,
+  },
+  otpIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#E8F6FB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   otpTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     color: "#2c3e50",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   otpDescription: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#6c757d",
     textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 8,
+    lineHeight: 22,
+    marginBottom: 12,
+    paddingHorizontal: 10,
   },
-  otpWarning: {
-    fontSize: 12,
-    color: "#ff9800",
-    textAlign: "center",
-    fontWeight: "500",
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fff9e6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     marginTop: 4,
   },
-  emailHighlight: {
+  otpWarning: {
+    fontSize: 13,
+    color: "#ff9800",
     fontWeight: "600",
-    color: "#667eea",
+  },
+  emailHighlight: {
+    fontWeight: "700",
+    color: "#68C2E8",
   },
   actionButtonsRow: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 20,
-    marginBottom: 10,
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 12,
   },
   actionButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#667eea",
-    backgroundColor: "#fff",
   },
   clearButton: {
     borderColor: "#dee2e6",
     backgroundColor: "#f8f9fa",
   },
+  clearButtonText: {
+    color: "#6c757d",
+    fontSize: 15,
+    fontWeight: "600",
+  },
   resendButton: {
-    borderColor: "#667eea",
-    backgroundColor: "#f0f4ff",
+    borderColor: "#68C2E8",
+    backgroundColor: '#E8F6FB',
+  },
+  resendButtonText: {
+    color: "#68C2E8",
+    fontSize: 15,
+    fontWeight: "600",
   },
   actionButtonDisabled: {
     borderColor: "#dee2e6",
     backgroundColor: "#f8f9fa",
-    opacity: 0.6,
-  },
-  actionButtonText: {
-    color: "#667eea",
-    fontSize: 14,
-    fontWeight: "600",
+    opacity: 0.5,
   },
   actionButtonTextDisabled: {
-    color: "#999",
+    color: "#adb5bd",
   },
   backToFormButton: {
-    marginTop: 10,
+    marginTop: 12,
     paddingVertical: 14,
-    paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1.5,
     borderColor: "#dee2e6",
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#fff",
+    flexDirection: 'row',
+    gap: 6,
   },
   backToFormButtonText: {
     color: "#6c757d",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
   },
 });

@@ -80,7 +80,7 @@ export default function ElderlyDetailScreen() {
   // Helper functions
   const getHealthStatusColor = (status: ElderlyProfile['healthStatus']) => {
     switch (status) {
-      case 'good': return '#28a745';
+      case 'good': return '#68C2E8';
       case 'fair': return '#ffc107';
       case 'poor': return '#dc3545';
       default: return '#6c757d';
@@ -151,7 +151,7 @@ export default function ElderlyDetailScreen() {
         <ThemedText style={styles.sectionTitle}>Người liên hệ khẩn cấp</ThemedText>
         <View style={styles.contactCard}>
           <View style={styles.contactIcon}>
-            <Ionicons name="person" size={20} color="#4ECDC4" />
+            <Ionicons name="person" size={20} color="#68C2E8" />
           </View>
           <View style={styles.contactInfo}>
             <ThemedText style={styles.contactName}>Nguyễn Văn Minh</ThemedText>
@@ -162,7 +162,7 @@ export default function ElderlyDetailScreen() {
         
         <View style={styles.contactCard}>
           <View style={styles.contactIcon}>
-            <Ionicons name="person" size={20} color="#4ECDC4" />
+            <Ionicons name="person" size={20} color="#68C2E8" />
           </View>
           <View style={styles.contactInfo}>
             <ThemedText style={styles.contactName}>Nguyễn Thị Hoa</ThemedText>
@@ -294,13 +294,23 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Space for navigation bar
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   backButton: {
     padding: 8,
@@ -400,7 +410,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   activeTab: {
-    borderBottomColor: '#4ECDC4',
+    borderBottomColor: '#68C2E8',
   },
   tabText: {
     fontSize: 14,
@@ -408,7 +418,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeTabText: {
-    color: '#4ECDC4',
+    color: '#68C2E8',
     fontWeight: 'bold',
   },
   tabContent: {
@@ -486,7 +496,7 @@ const styles = StyleSheet.create({
   },
   contactPhone: {
     fontSize: 14,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     fontWeight: '500',
   },
 });
