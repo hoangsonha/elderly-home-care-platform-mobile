@@ -208,6 +208,12 @@ function handleNotificationNavigation(data: any) {
 // Setup notification tap listener (works independently of Firebase)
 function setupNotificationTapListener() {
   try {
+    // Check if listener is already set up to avoid duplicates
+    if ((global as any).__notificationResponseSubscription) {
+      console.log('NotificationService: Notification tap listener already set up, skipping');
+      return;
+    }
+    
     // Handle notification taps (when user taps on notification)
     // This works for both foreground and background/terminated states
     const notificationResponseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -231,13 +237,17 @@ function setupNotificationTapListener() {
       }, delay);
     });
     
-    // Store subscription to prevent cleanup issues
+    // Store subscription to prevent cleanup issues and duplicate registrations
     (global as any).__notificationResponseSubscription = notificationResponseSubscription;
 
     // Handle notifications received while app is in foreground
-    Notifications.addNotificationReceivedListener(() => {
-      // Silent
-    });
+    // Check if foreground listener is already set up to avoid duplicates
+    if (!(global as any).__notificationReceivedListener) {
+      const foregroundListener = Notifications.addNotificationReceivedListener(() => {
+        // Silent
+      });
+      (global as any).__notificationReceivedListener = foregroundListener;
+    }
 
     // Handle initial notification (when app opens from terminated state)
     Notifications.getLastNotificationResponseAsync().then((response) => {
@@ -268,13 +278,40 @@ function setupFirebaseMessagingHandlers() {
       return;
     }
 
+    // Check if onMessage handler is already set up to avoid duplicates
+    if ((global as any).__onMessageHandlerSet) {
+      console.log('NotificationService: onMessage handler already set up, skipping');
+      return;
+    }
+
     // Handle foreground messages (when app is open)
+    // Track recent notifications to prevent duplicates
+    const recentNotifications = new Set<string>();
+    
     messaging().onMessage(async (remoteMessage) => {
       const { notification, data } = remoteMessage;
       
       if (notification) {
+        // Create a unique key for this notification to prevent duplicates
+        // Use messageId if available, otherwise use title + body + timestamp
+        const messageId = remoteMessage.messageId || `${notification.title}_${notification.body}_${Date.now()}`;
+        const notificationKey = `${messageId}_${notification.title}_${notification.body}`;
+        
+        // Check if we've already processed this notification recently (within last 2 seconds)
+        if (recentNotifications.has(notificationKey)) {
+          console.log('NotificationService: Duplicate notification detected, skipping:', notificationKey);
+          return;
+        }
+        
+        // Add to recent notifications set
+        recentNotifications.add(notificationKey);
+        
+        // Remove from set after 2 seconds to allow same notification again if needed
+        setTimeout(() => {
+          recentNotifications.delete(notificationKey);
+        }, 2000);
+        
         // Display notification using expo-notifications
-        // Use the care_service_channel for Android
         await Notifications.scheduleNotificationAsync({
           content: {
             title: notification.title || "Thông báo",
@@ -287,8 +324,14 @@ function setupFirebaseMessagingHandlers() {
           },
           trigger: null, // Show immediately
         });
+        
+        console.log('NotificationService: Foreground notification scheduled:', notification.title);
       }
     });
+    
+    // Mark as set to prevent duplicate registrations
+    (global as any).__onMessageHandlerSet = true;
+    console.log('NotificationService: onMessage handler set');
   } catch (error) {
     // Silent fail
   }

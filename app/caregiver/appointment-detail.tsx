@@ -604,6 +604,10 @@ export default function AppointmentDetailScreen() {
   
   const [selectedTab, setSelectedTab] = useState<"tasks" | "notes">("tasks");
   
+  // Ref to track last fetch time to avoid duplicate fetches
+  const lastFetchRef = React.useRef<number>(0);
+  const isFetchingRef = React.useRef<boolean>(false);
+  
   // State for image viewer modal
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
@@ -617,13 +621,22 @@ export default function AppointmentDetailScreen() {
   };
   
   // Function to fetch appointment data
-  const fetchAppointment = React.useCallback(async () => {
+  const fetchAppointment = React.useCallback(async (force = false) => {
     if (!appointmentId) {
       setLoading(false);
       return;
     }
     
+    // Prevent duplicate fetches within 1 second
+    const now = Date.now();
+    if (!force && (isFetchingRef.current || (now - lastFetchRef.current < 1000))) {
+      console.log('AppointmentDetail: Skipping duplicate fetch');
+      return;
+    }
+    
     try {
+      isFetchingRef.current = true;
+      lastFetchRef.current = now;
       setLoading(true);
       const response = await mainService.getCareServiceDetail(appointmentId);
       
@@ -665,6 +678,7 @@ export default function AppointmentDetailScreen() {
       Alert.alert('Lỗi', 'Không thể tải thông tin lịch hẹn');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [appointmentId]);
   
@@ -998,10 +1012,11 @@ export default function AppointmentDetailScreen() {
   // LƯU Ý: Status luôn được lấy từ API (appointmentData), KHÔNG override từ global store
   useFocusEffect(
     React.useCallback(() => {
-      // Refetch data khi quay lại từ check-in hoặc check-out screen
-      if (fromScreen === 'check-in' || fromScreen === 'check-out') {
-        console.log('Refetching appointment data after check-in/check-out');
-        fetchAppointment();
+      // Chỉ refetch khi navigate từ booking (sau khi accept/decline) hoặc check-in/check-out
+      // Tránh refetch không cần thiết để tránh duplicate notifications
+      if (fromScreen === 'booking' || fromScreen === 'check-in' || fromScreen === 'check-out') {
+        console.log('AppointmentDetail: Refetching after navigation from:', fromScreen);
+        fetchAppointment(true); // Force fetch
       }
       
       const syncData = () => {
