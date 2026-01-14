@@ -307,7 +307,7 @@ export default function CaregiverSearchScreen() {
             </ThemedText>
             {!isLoading && (
               <TouchableOpacity style={styles.sortButton}>
-                <Ionicons name="swap-vertical" size={16} color="#667eea" />
+                <Ionicons name="swap-vertical" size={16} color="#68C2E8" />
                 <ThemedText style={styles.sortButtonText}>Sắp xếp</ThemedText>
               </TouchableOpacity>
             )}
@@ -384,19 +384,29 @@ export default function CaregiverSearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F7F9FC',
   },
   header: {
     backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    elevation: 8,
+    shadowColor: '#68C2E8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   placeholder: {
     width: 40,
@@ -406,9 +416,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     color: 'white',
+    letterSpacing: 0.5,
   },
   headerSubtitle: {
     fontSize: 14,
@@ -428,10 +439,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: '#68C2E8',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
   },
   closeFloatingButton: {
     position: 'absolute',
@@ -448,24 +459,30 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    paddingVertical: 20,
+    backgroundColor: '#68C2E8',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 8,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: '#2c3e50',
+    fontSize: 15,
+    color: '#2C3E50',
+    fontWeight: '500',
   },
   resultsContainer: {
     flex: 1,
@@ -475,23 +492,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
+    paddingVertical: 20,
+    backgroundColor: 'transparent',
   },
   resultsCount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#2C3E50',
+    letterSpacing: 0.2,
   },
   sortButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    backgroundColor: '#E8F4FC',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#68C2E8',
   },
   sortButtonText: {
     fontSize: 14,
-    color: '#667eea',
-    fontWeight: '500',
+    color: '#68C2E8',
+    fontWeight: '700',
   },
   caregiversList: {
     padding: 20,

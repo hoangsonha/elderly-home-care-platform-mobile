@@ -453,13 +453,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#E74C3C',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   backButton: {
     padding: 8,
@@ -481,7 +491,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E9ECEF',
   },
   submitButton: {
-    backgroundColor: '#E74C3C',
+    backgroundColor: '#68C2E8',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -513,7 +523,7 @@ const styles = StyleSheet.create({
   requiredMark: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#E74C3C',
+    color: '#68C2E8',
     marginLeft: 4,
   },
   selectButton: {

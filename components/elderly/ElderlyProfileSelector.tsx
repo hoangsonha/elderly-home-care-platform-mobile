@@ -173,7 +173,7 @@ export function ElderlyProfileSelector({
 
   const getHealthStatusColor = (status: string) => {
     switch (status) {
-      case 'good': return '#28a745';
+      case 'good': return '#68C2E8';
       case 'fair': return '#ffc107';
       case 'poor': return '#dc3545';
       default: return '#6c757d';
@@ -225,7 +225,7 @@ export function ElderlyProfileSelector({
           
           <View style={styles.selectionIndicator}>
             {isSelected ? (
-              <Ionicons name="checkmark-circle" size={20} color="#4ECDC4" />
+              <Ionicons name="checkmark-circle" size={20} color="#68C2E8" />
             ) : (
               <View style={styles.unselectedCircle} />
             )}

@@ -20,30 +20,39 @@ import {
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { login, user } = useAuth();
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
 
   const handleLogin = async () => {
+    console.log('🎯 LoginScreen.handleLogin - Start');
     if (!email || !password) {
+      console.warn('⚠️ Email or password is empty');
       showErrorTooltip("Vui lòng nhập đầy đủ email và mật khẩu");
       return;
     }
 
+    console.log('📝 Email:', email);
+    console.log('🔒 Password provided:', password ? 'Yes' : 'No');
     setIsLoading(true);
 
     try {
       // Gọi login trong AuthContext
+      console.log('📞 Calling AuthContext.login...');
       const user = await login(email, password);
 
       setIsLoading(false);
+      console.log('👤 Login result:', user ? 'User received' : 'Null');
 
       if (!user) {
+        console.error('❌ Login failed: No user returned');
         showErrorTooltip("Email hoặc mật khẩu không đúng");
         return;
       }
 
+      console.log('✅ Login successful!');
       showSuccessTooltip("Đăng nhập thành công!");
 
       // Điều hướng theo role
@@ -69,9 +78,11 @@ export default function LoginScreen() {
           }
         }
       }, 600);
-    } catch (error) {
+    } catch (error: any) {
       setIsLoading(false);
-      console.log(error);
+      console.error('❌ LoginScreen error:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error response:', error.response?.data);
       showErrorTooltip("Đăng nhập thất bại");
     }
   };
@@ -125,8 +136,18 @@ export default function LoginScreen() {
                   placeholderTextColor="#adb5bd"
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry
+                  secureTextEntry={!showPassword}
                 />
+                <TouchableOpacity 
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}
+                >
+                  <Ionicons 
+                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                    size={22} 
+                    color="#68C2E8" 
+                  />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -245,6 +266,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: "#2c3e50",
+  },
+  eyeIcon: {
+    padding: 4,
   },
   loginButton: {
     backgroundColor: '#68C2E8',

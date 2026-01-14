@@ -180,7 +180,7 @@ export default function FamilyListScreen() {
 
       <View style={styles.cardStats}>
         <View style={styles.statItem}>
-          <Ionicons name="people" size={16} color="#4ECDC4" />
+          <Ionicons name="people" size={16} color="#68C2E8" />
           <ThemedText style={styles.statText}>
             {family.memberCount} thành viên
           </ThemedText>
@@ -239,7 +239,7 @@ export default function FamilyListScreen() {
           <>
             <View style={styles.statsContainer}>
               <View style={styles.statCard}>
-                <Ionicons name="home" size={24} color="#4ECDC4" />
+                <Ionicons name="home" size={24} color="#68C2E8" />
                 <ThemedText style={styles.statNumber}>{families.length}</ThemedText>
                 <ThemedText style={styles.statLabel}>Gia đình</ThemedText>
               </View>
@@ -307,7 +307,7 @@ export default function FamilyListScreen() {
               <View style={styles.sectionHeader}>
                 <ThemedText style={styles.inputLabel}>Thành viên</ThemedText>
                 <TouchableOpacity style={styles.addButton} onPress={handleAddMember}>
-                  <Ionicons name="add" size={20} color="#4ECDC4" />
+                  <Ionicons name="add" size={20} color="#68C2E8" />
                   <ThemedText style={styles.addButtonText}>Thêm</ThemedText>
                 </TouchableOpacity>
               </View>
@@ -315,7 +315,7 @@ export default function FamilyListScreen() {
               {/* Creator (Admin) */}
               <View style={styles.memberItem}>
                 <View style={styles.memberInfo}>
-                  <Ionicons name="person" size={20} color="#4ECDC4" />
+                  <Ionicons name="person" size={20} color="#68C2E8" />
                   <View style={styles.memberDetails}>
                     <ThemedText style={styles.memberName}>
                       {user?.name || user?.email || 'Bạn'}
@@ -369,13 +369,23 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Space for navigation bar
   },
   header: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   backButton: {
     padding: 8,
@@ -430,7 +440,7 @@ const styles = StyleSheet.create({
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -577,7 +587,7 @@ const styles = StyleSheet.create({
   saveButton: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#4ECDC4',
+    color: '#68C2E8',
   },
   modalContent: {
     flex: 1,
@@ -620,7 +630,7 @@ const styles = StyleSheet.create({
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -670,7 +680,7 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 14,
-    color: '#4ECDC4',
+    color: '#68C2E8',
     fontWeight: '500',
   },
   memberEmailInput: {
@@ -695,8 +705,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   roleOptionSelected: {
-    backgroundColor: '#4ECDC4',
-    borderColor: '#4ECDC4',
+    backgroundColor: '#68C2E8',
+    borderColor: '#68C2E8',
   },
   roleOptionText: {
     fontSize: 12,
@@ -745,7 +755,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   elderlyItemSelected: {
-    borderColor: '#4ECDC4',
+    borderColor: '#68C2E8',
     backgroundColor: '#f0fdfa',
   },
   elderlyInfo: {

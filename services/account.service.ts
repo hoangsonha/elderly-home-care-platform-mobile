@@ -24,8 +24,19 @@ export const AccountService = {
     return response.data;
   },
   login: async (payload: any) => {
-    const response = await apiClient.post(`/api/v1/accounts/login`, payload);
-    return response.data;
+    console.log('🔑 AccountService.login - Start');
+    console.log('📤 Login payload:', JSON.stringify(payload));
+    try {
+      const response = await apiClient.post(`/api/v1/accounts/login`, payload);
+      console.log('✅ Login response status:', response.status);
+      console.log('📥 Login response data:', JSON.stringify(response.data));
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Login error:', error.message);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      throw error;
+    }
   },
   forgotPassword: async (payload: { email: string }) => {
     const response = await apiClient.post(
