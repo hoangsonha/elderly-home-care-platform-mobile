@@ -585,11 +585,7 @@ export default function AddElderlyScreen() {
 
       // Log avatar info
       if (avatarFile) {
-        console.log('📷 Avatar URI:', avatarFile.uri);
-        console.log('📷 Avatar type:', avatarFile.type);
-        console.log('📷 Avatar name:', avatarFile.name);
       } else {
-        console.log('ℹ️ No avatar selected, sending JSON only');
       }
 
       // TEMPORARY TEST: Comment out avatar to test JSON-only request
@@ -1565,7 +1561,7 @@ export default function AddElderlyScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerContent}>
-          <ThemedText style={styles.headerTitle} numberOfLines={1}>Tạo hồ sơ</ThemedText>
+          <ThemedText style={styles.headerTitle} numberOfLines={1}>Tạo hồ sơ người già</ThemedText>
           <ThemedText style={styles.headerSubtitle}>Thông tin người già</ThemedText>
         </View>
 

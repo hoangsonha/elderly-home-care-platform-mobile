@@ -10,7 +10,6 @@ export class MatchService {
    */
   async matchCaregivers(request: MobileMatchRequest): Promise<MatchResponse> {
     try {
-      console.log('Matching caregivers with request:', request);
       
       const response = await apiClient.post('/api/match-mobile', request);
       

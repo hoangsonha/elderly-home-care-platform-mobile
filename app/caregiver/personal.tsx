@@ -1,9 +1,10 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { useAuth } from "@/contexts/AuthContext";
+import { mainService } from "@/services/main.service";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   Alert,
   ScrollView,
@@ -11,6 +12,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 
 // Types
@@ -98,19 +101,181 @@ const profileSections: MenuSection[] = [
   },
 ];
 
+interface CaregiverProfileData {
+  caregiverProfileId: string;
+  fullName: string;
+  phoneNumber: string;
+  location: string;
+  bio: string;
+  isVerified: boolean;
+  status: string;
+  rejectionReason: string | null;
+  isNeededReviewCertificate: boolean;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  reviewedBy: string | null;
+  birthDate: string;
+  age: number;
+  gender: string;
+  profileData: string | object; // JSON string or parsed object
+  accountId: string;
+  email: string;
+  avatarUrl: string;
+  enabled: boolean;
+  nonLocked: boolean;
+  totalCompletedBookings: number;
+  totalEarnings: number;
+  taskCompletionRate: number;
+  qualifications: Array<{
+    qualificationId: string;
+    qualificationTypeId: string;
+    qualificationTypeName: string;
+    certificateNumber: string;
+    issuingOrganization: string;
+    issueDate: string;
+    expiryDate: string | null;
+    certificateUrl: string;
+    isVerified: boolean;
+    status: string;
+    rejectionReason: string | null;
+    acceptedAt: string | null;
+    declinedAt: string | null;
+    reviewedBy: string | null;
+    notes: string | null;
+  }>;
+}
+
+interface ParsedProfileData {
+  years_experience?: number;
+  free_schedule?: any;
+  max_hours_per_week?: number;
+  preferences?: any;
+  ratings_reviews?: {
+    overall_rating?: number;
+    total_reviews?: number;
+    rating_breakdown?: any;
+  };
+}
+
 export default function PersonalScreen() {
   const navigation = useNavigation<any>();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const [profile, setProfile] = useState<CaregiverProfileData | null>(null);
+  const [parsedProfileData, setParsedProfileData] = useState<ParsedProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProfile = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await mainService.getCaregiverProfile();
+      
+      if (response.status === 'Success' && response.data) {
+        setProfile(response.data);
+        
+        // Parse profileData từ JSON string
+        try {
+          let parsed: ParsedProfileData = {};
+          
+          if (response.data.profileData) {
+            // Kiểm tra xem profileData đã là object chưa
+            if (typeof response.data.profileData === 'string') {
+              // Nếu là string, thử parse
+              const trimmed = response.data.profileData.trim();
+              if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
+                parsed = JSON.parse(trimmed);
+              }
+            } else if (typeof response.data.profileData === 'object') {
+              // Nếu đã là object rồi, dùng trực tiếp
+              parsed = response.data.profileData;
+            }
+          }
+          
+          setParsedProfileData(parsed);
+        } catch (parseError) {
+          console.error('Error parsing profileData:', parseError);
+          console.error('profileData value:', response.data.profileData);
+          console.error('profileData type:', typeof response.data.profileData);
+          // Nếu parse lỗi, thử dùng trực tiếp nếu là object
+          if (typeof response.data.profileData === 'object' && response.data.profileData !== null) {
+            setParsedProfileData(response.data.profileData);
+          } else {
+            setParsedProfileData({});
+          }
+        }
+      } else {
+        setError(response.message || 'Không thể tải thông tin profile');
+      }
+    } catch (err: any) {
+      console.error('Error fetching profile:', err);
+      setError(err.message || 'Có lỗi xảy ra khi tải thông tin');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [fetchProfile])
+  );
+
+  const formatEarnings = (amount: number): string => {
+    if (amount >= 1000000) {
+      const millions = amount / 1000000;
+      // Chỉ hiển thị 1 chữ số thập phân, không làm tròn số nguyên
+      return `${millions.toFixed(1)}M`;
+    } else if (amount >= 1000) {
+      const thousands = amount / 1000;
+      // Chỉ hiển thị 1 chữ số thập phân, không làm tròn số nguyên
+      return `${thousands.toFixed(1)}K`;
+    }
+    return amount.toString();
+  };
+
+  const formatCompletionRate = (rate: number): string => {
+    if (rate % 1 === 0) {
+      return rate.toFixed(0);
+    }
+    return rate.toFixed(1);
+  };
+
+  const renderStars = (rating: number) => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const stars = [];
+    
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<Text key={i} style={styles.star}>⭐</Text>);
+    }
+    
+    if (hasHalfStar && fullStars < 5) {
+      stars.push(<Text key="half" style={styles.star}>⭐</Text>);
+    }
+    
+    const emptyStars = 5 - stars.length;
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(<Text key={`empty-${i}`} style={[styles.star, styles.starEmpty]}>☆</Text>);
+    }
+    
+    return stars;
+  };
 
   const handleMenuPress = (itemId: string) => {
     console.log("Menu item pressed:", itemId);
     
     switch (itemId) {
       case "personal-info":
-        navigation.navigate("Hồ sơ của bạn");
+        navigation.navigate("Hồ sơ của bạn", { 
+          profile: profile,
+          parsedProfileData: parsedProfileData 
+        });
         break;
       case "certificates":
-        navigation.navigate("Chứng chỉ và kỹ năng");
+        navigation.navigate("Chứng chỉ và kỹ năng", { 
+          qualifications: profile?.qualifications || [] 
+        });
         break;
       case "training":
         navigation.navigate("Đào tạo");
@@ -143,6 +308,33 @@ export default function PersonalScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text style={styles.loadingText}>Đang tải thông tin...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchProfile}>
+          <Text style={styles.retryButtonText}>Thử lại</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const overallRating = parsedProfileData?.ratings_reviews?.overall_rating || 0;
+  const totalReviews = parsedProfileData?.ratings_reviews?.total_reviews || 0;
+  const isVerified = profile?.isVerified || false;
+  const totalCompletedBookings = profile?.totalCompletedBookings || 0;
+  const totalEarnings = profile?.totalEarnings || 0;
+  const taskCompletionRate = profile?.taskCompletionRate || 0;
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -153,51 +345,62 @@ export default function PersonalScreen() {
         {/* Profile Header Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <MaterialCommunityIcons 
-                name="account" 
-                size={48} 
-                color="#90A4AE" 
+            {profile?.avatarUrl ? (
+              <Image 
+                source={{ uri: profile.avatarUrl }} 
+                style={styles.avatarImage}
               />
-            </View>
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedIcon}>✓</Text>
-            </View>
+            ) : (
+              <View style={styles.avatar}>
+                <MaterialCommunityIcons 
+                  name="account" 
+                  size={48} 
+                  color="#90A4AE" 
+                />
+              </View>
+            )}
+            {isVerified && (
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedIcon}>✓</Text>
+              </View>
+            )}
           </View>
 
-          <Text style={styles.profileName}>Trần Văn Nam</Text>
+          <Text style={styles.profileName}>{profile?.fullName || user?.name || 'Người dùng'}</Text>
           <Text style={styles.profileRole}>Người chăm sóc</Text>
 
           {/* Rating */}
           <View style={styles.ratingContainer}>
-            <Text style={styles.star}>⭐</Text>
-            <Text style={styles.star}>⭐</Text>
-            <Text style={styles.star}>⭐</Text>
-            <Text style={styles.star}>⭐</Text>
-            <Text style={styles.star}>⭐</Text>
-            <Text style={styles.ratingScore}>4.9</Text>
-            <Text style={styles.ratingCount}>(128 đánh giá)</Text>
+            {renderStars(overallRating)}
+            <Text style={styles.ratingScore}>{overallRating.toFixed(1)}</Text>
+            <Text style={styles.ratingCount}>({totalReviews} đánh giá)</Text>
           </View>
 
           {/* Verified Badge */}
-          <View style={styles.verifiedTag}>
-            <Text style={styles.verifiedText}>✓ Đã xác minh</Text>
-          </View>
+          {isVerified ? (
+            <View style={styles.verifiedTag}>
+              <Text style={styles.verifiedText}>✓ Đã xác minh</Text>
+            </View>
+          ) : (
+            <View style={styles.unverifiedTag}>
+              <Text style={styles.unverifiedText}>Chưa xác minh</Text>
+            </View>
+          )}
 
           {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>12</Text>
+              <Text style={styles.statValue}>{totalCompletedBookings}</Text>
               <Text style={styles.statLabel}>Lịch hẹn</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>8.5M</Text>
+              <Text style={styles.statValue}>{formatEarnings(totalEarnings)}</Text>
               <Text style={styles.statLabel}>Thu nhập</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>95%</Text>
+              <Text style={styles.statValue}>{formatCompletionRate(taskCompletionRate)}%</Text>
               <Text style={styles.statLabel}>Hoàn thành</Text>
             </View>
           </View>
@@ -297,6 +500,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
   verifiedBadge: {
     position: "absolute",
     bottom: 0,
@@ -337,6 +545,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginHorizontal: 2,
   },
+  starEmpty: {
+    opacity: 0.3,
+  },
   ratingScore: {
     fontSize: 16,
     fontWeight: "700",
@@ -360,6 +571,18 @@ const styles = StyleSheet.create({
   verifiedText: {
     fontSize: 13,
     color: "#059669",
+    fontWeight: "600",
+  },
+  unverifiedTag: {
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  unverifiedText: {
+    fontSize: 13,
+    color: "#D97706",
     fontWeight: "600",
   },
 
@@ -462,5 +685,36 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: "#D1D5DB",
     fontWeight: "300",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  errorContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#EF4444",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#2196F3",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

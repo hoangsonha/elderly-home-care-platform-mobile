@@ -134,17 +134,23 @@ export default function CaregiverSearchScreen() {
         const publicCaregivers = await caregiverService.getPublicCaregivers();
         
         // Map API response to Caregiver interface
-        const mappedCaregivers: Caregiver[] = publicCaregivers.map((cg: PublicCaregiver) => ({
+        const mappedCaregivers: Caregiver[] = publicCaregivers.map((cg: PublicCaregiver) => {
+          // Get years_experience from cg.years_experience or cg.profileData?.years_experience
+          const yearsExperience = cg.years_experience || cg.profileData?.years_experience;
+          const experienceText = yearsExperience !== undefined ? `${yearsExperience} năm` : 'Chưa có';
+          
+          return {
           id: cg.caregiverProfileId,
           name: cg.fullName,
           avatar: cg.avatarUrl || 'https://via.placeholder.com/150',
           rating: 0, // Tạm thời set 0
-          experience: cg.profileData?.experience || 'Chưa có',
+            experience: experienceText,
           hourlyRate: 0, // Không hiển thị nữa nhưng vẫn cần trong interface
           distance: '5km', // Fix cứng 5km
           isVerified: cg.isVerified,
           totalReviews: 0, // Tạm thời set 0
-        }));
+          };
+        });
         
         setCaregivers(mappedCaregivers);
       } catch (error) {
@@ -189,7 +195,6 @@ export default function CaregiverSearchScreen() {
   };
 
   const handleGetAIRecommendations = (response: MatchResponse) => {
-    console.log('AI Recommendations received:', response);
     setAiRecommendations(response.recommendations);
     setShowAIResults(true);
     setShowAIModal(false);

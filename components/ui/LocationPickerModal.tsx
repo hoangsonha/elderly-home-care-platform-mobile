@@ -46,7 +46,6 @@ export function LocationPickerModal({
         // Try to set access token
         if (MAPBOX_ACCESS_TOKEN) {
           await setAccessToken(MAPBOX_ACCESS_TOKEN);
-          console.log('✅ Mapbox token set');
           setHasMapSupport(true);
         } else {
           console.warn('⚠️ Mapbox access token not found');

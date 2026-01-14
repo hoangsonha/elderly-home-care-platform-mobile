@@ -124,7 +124,6 @@ const createCareSeekerProfileWithXHR = async (
 ): Promise<CreateCareSeekerProfileResponse> => {
   return new Promise((resolve, reject) => {
     try {
-      console.log('📤 Trying XMLHttpRequest for care seeker profile...');
       const formData = new FormData();
       
       // Append JSON data
@@ -155,7 +154,6 @@ const createCareSeekerProfileWithXHR = async (
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const result = JSON.parse(xhr.responseText);
-            console.log('✅ XMLHttpRequest success for care seeker profile!');
             resolve(result);
           } catch (error) {
             reject(new Error('Failed to parse response'));
@@ -200,7 +198,6 @@ const createElderlyProfileWithXHR = async (
 ): Promise<CreateElderlyProfileResponse> => {
   return new Promise((resolve, reject) => {
     try {
-      console.log('📤 Trying XMLHttpRequest...');
       const formData = new FormData();
       
       // Append JSON data
@@ -233,7 +230,6 @@ const createElderlyProfileWithXHR = async (
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const result = JSON.parse(xhr.responseText);
-            console.log('✅ XMLHttpRequest success!');
             resolve(result);
           } catch (error) {
             reject(new Error('Failed to parse response'));
@@ -261,8 +257,6 @@ const createElderlyProfileWithXHR = async (
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       // KHÔNG set Content-Type, XMLHttpRequest sẽ tự động set với boundary
       
-      console.log('📤 Sending XMLHttpRequest to:', `${BASE_URL}/api/v1/care-seekers/elderly-profiles`);
-      console.log('📤 FormData has avatar:', !!avatarFile);
       
       xhr.send(formData);
     } catch (error: any) {
@@ -283,9 +277,7 @@ export const UserService = {
    */
   getElderlyProfiles: async (): Promise<ElderlyProfileApiResponse[]> => {
     try {
-      console.log('Fetching elderly profiles...');
       const response = await apiClient.get<ElderlyProfilesApiResponse>('/api/v1/care-seekers/elderly-profiles');
-      console.log(`Found ${response.data.data.length} elderly profiles`);
       return response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch elderly profiles: ${error.message}`);
@@ -311,13 +303,8 @@ export const UserService = {
         throw new Error('Token is required');
       }
 
-      // 2. Log thông tin request
-      console.log('📋 Creating elderly profile...');
-      console.log('📋 Request data:', JSON.stringify(cleanedRequest, null, 2));
-
-      // 3. Nếu KHÔNG có avatar, gọi endpoint JSON riêng
+      // 2. Nếu KHÔNG có avatar, gọi endpoint JSON riêng
       if (!avatarFile) {
-        console.log('ℹ️ No avatar file, calling JSON endpoint');
         const response = await apiClient.post<CreateElderlyProfileResponse>(
           '/api/v1/care-seekers/elderly-profiles/json',
           cleanedRequest,
@@ -328,17 +315,13 @@ export const UserService = {
             },
           }
         );
-        console.log('✅ Success! Elderly profile created (no avatar)');
         return response.data;
       }
 
       // 4. Có avatar, gọi endpoint multipart/form-data
-      console.log('📷 Processing avatar file...');
       const formData = new FormData();
       const jsonData = JSON.stringify(cleanedRequest);
       formData.append('data', jsonData);
-      console.log('✅ JSON data appended to FormData');
-      console.log('✅ JSON data length:', jsonData.length, 'bytes');
 
       // 5. Append avatar file
       const fileExtension = avatarFile.uri.split('.').pop() || 'jpg';
@@ -360,20 +343,6 @@ export const UserService = {
         name: fileName,
       } as any);
       
-      console.log('✅ Avatar appended:', {
-        fileName,
-        fileType,
-        uri: fileUri.substring(0, 50) + '...',
-      });
-
-      // 6. Log API URL và token info
-      const apiUrl = `${BASE_URL}/api/v1/care-seekers/elderly-profiles`;
-      console.log('📤 API URL:', apiUrl);
-      console.log('🔑 Token exists:', !!token);
-      console.log('🔑 Token length:', token.length);
-
-      // 7. Có avatar - Gửi với FormData
-      console.log('📤 Sending FormData request (with avatar)...');
       const response = await apiClient.post<CreateElderlyProfileResponse>(
         '/api/v1/care-seekers/elderly-profiles',
         formData,
@@ -386,24 +355,17 @@ export const UserService = {
               const percentCompleted = Math.round(
                 (progressEvent.loaded * 100) / progressEvent.total
               );
-              console.log(`📊 Upload progress: ${percentCompleted}%`);
             }
           },
         }
       );
 
-      console.log('✅ Success! Elderly profile created with avatar');
       return response.data;
     } catch (axiosError: any) {
-      console.log('❌ Axios error creating elderly profile:', axiosError.code, axiosError.message);
-
       // Nếu axios fail với Network Error, thử XMLHttpRequest (chỉ cho multipart)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        console.log('⚠️ Axios failed with Network Error');
-        
         // XMLHttpRequest chỉ dùng cho multipart/form-data (có avatar)
         if (avatarFile) {
-          console.log('⚠️ Trying XMLHttpRequest with avatar...');
           const token = await AsyncStorage.getItem('token');
           if (!token) {
             throw new Error('Token is required');
@@ -417,7 +379,6 @@ export const UserService = {
 
       // Nếu có response từ server, trả về response đó
       if (axiosError.response?.data) {
-        console.log('❌ Server responded with error:', axiosError.response.status);
         return axiosError.response.data;
       }
 
@@ -438,12 +399,8 @@ export const UserService = {
     const cleanedRequest = JSON.parse(JSON.stringify(request));
 
     try {
-      console.log('📋 Creating care seeker profile...');
-      console.log('📋 Request data:', JSON.stringify(cleanedRequest, null, 2));
-
       // Nếu KHÔNG có avatar, gọi endpoint JSON riêng
       if (!avatarFile) {
-        console.log('ℹ️ No avatar file, calling JSON endpoint');
         const response = await apiClient.post<CreateCareSeekerProfileResponse>(
           '/api/v1/care-seekers/profile/json',
           cleanedRequest,
@@ -454,12 +411,10 @@ export const UserService = {
             },
           }
         );
-        console.log('✅ Success! Care seeker profile created (no avatar)');
         return response.data;
       }
 
       // Có avatar, gọi endpoint multipart/form-data
-      console.log('📷 Processing avatar file...');
       const formData = new FormData();
       formData.append('data', JSON.stringify(cleanedRequest));
 
@@ -483,8 +438,6 @@ export const UserService = {
         name: fileName,
       } as any);
 
-      console.log('✅ Avatar appended:', { fileName, fileType, uri: fileUri.substring(0, 50) + '...' });
-      console.log('📤 Sending multipart/form-data request...');
 
       const response = await apiClient.post<CreateCareSeekerProfileResponse>(
         '/api/v1/care-seekers/profile',
@@ -496,18 +449,12 @@ export const UserService = {
         }
       );
 
-      console.log('✅ Success! Care seeker profile created with avatar');
       return response.data;
     } catch (axiosError: any) {
-      console.log('❌ Axios error creating care seeker profile:', axiosError.code, axiosError.message);
-
       // Nếu axios fail với Network Error, thử XMLHttpRequest (chỉ cho multipart)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        console.log('⚠️ Axios failed with Network Error');
-        
         // XMLHttpRequest chỉ dùng cho multipart/form-data (có avatar)
         if (avatarFile) {
-          console.log('⚠️ Trying XMLHttpRequest with avatar...');
           const token = await AsyncStorage.getItem('token');
           if (!token) {
             throw new Error('Token is required');
@@ -521,7 +468,6 @@ export const UserService = {
 
       // Nếu có response từ server, trả về response đó
       if (axiosError.response?.data) {
-        console.log('❌ Server responded with error:', axiosError.response.status);
         return axiosError.response.data;
       }
 

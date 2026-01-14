@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    Alert,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,7 +19,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Task } from '@/components/ui/TaskSelector';
 import { SERVICE_PACKAGES, type ServicePackage } from '@/constants/servicePackages';
 import { useAuth } from '@/contexts/AuthContext';
-import { mainService, type ServicePackageApiResponse } from '@/services/main.service';
+import { mainService, type AvailableScheduleApiResponse, type BookedSlot, type ServicePackageWithEligibility } from '@/services/main.service';
 import { UserService, type ElderlyProfileApiResponse } from '@/services/user.service';
 // TODO: Replace with API call
 // import * as AppointmentRepository from '@/services/appointment.repository';
@@ -74,6 +75,14 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   const [isLoadingElderly, setIsLoadingElderly] = useState(false);
   const [servicePackages, setServicePackages] = useState<ServicePackage[]>(SERVICE_PACKAGES);
   const [isLoadingPackages, setIsLoadingPackages] = useState(false);
+  const [availableSchedule, setAvailableSchedule] = useState<AvailableScheduleApiResponse | null>(null);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+  const [selectedDateSchedule, setSelectedDateSchedule] = useState<{
+    date: string;
+    available_all_day: boolean;
+    booked_slots: BookedSlot[];
+  } | null>(null);
+  const [lastFetchedDate, setLastFetchedDate] = useState<string>('');
 
   // Fetch elderly profiles from API when modal opens
   useEffect(() => {
@@ -153,21 +162,77 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     }
   }, [currentStep, selectedProfiles, elderlyProfiles]);
 
+  // Fetch schedule when selectedDate changes
+  useEffect(() => {
+    const selectedDate = immediateData?.selectedDate || '';
+    
+    if (!selectedDate) {
+      setSelectedDateSchedule(null);
+      setLastFetchedDate('');
+      return;
+    }
+
+    if (selectedDate === lastFetchedDate) {
+      return;
+    }
+
+    const fetchScheduleForDate = async () => {
+      try {
+        setIsLoadingSchedule(true);
+        setLastFetchedDate(selectedDate);
+        const dateApiFormat = formatDateForAPI(selectedDate);
+        
+        const response = await mainService.getFreeScheduleByDate(dateApiFormat, caregiver.id);
+        
+        if (response && response.status === 'Success' && response.data) {
+          setSelectedDateSchedule(response.data);
+        } else {
+          // Default: available all day on error
+          setSelectedDateSchedule({
+            date: dateApiFormat,
+            available_all_day: true,
+            booked_slots: [],
+          });
+        }
+      } catch (error: any) {
+        console.error('❌ Failed to fetch schedule for date:', error);
+        console.error('❌ Error type:', error?.constructor?.name);
+        console.error('❌ Error message:', error?.message);
+        console.error('❌ Error stack:', error?.stack);
+        // Default: available all day on error
+        const dateApiFormat = formatDateForAPI(selectedDate);
+        setSelectedDateSchedule({
+          date: dateApiFormat,
+          available_all_day: true,
+          booked_slots: [],
+        });
+      } finally {
+        console.log('🏁 Setting isLoadingSchedule to false');
+        setIsLoadingSchedule(false);
+        console.log('🏁 Finished fetching schedule');
+      }
+    };
+
+    fetchScheduleForDate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [immediateData?.selectedDate]);
+
   // Fetch service packages from API when modal opens
   useEffect(() => {
-    if (visible) {
+    if (visible && caregiver?.id) {
       const fetchServicePackages = async () => {
         try {
           setIsLoadingPackages(true);
-          const apiPackages = await mainService.getActiveServicePackages();
+          const apiPackages = await mainService.getServicePackagesWithEligibility(caregiver.id);
           
           // Map API response to ServicePackage format
-          const mappedPackages: ServicePackage[] = apiPackages.map((pkg: ServicePackageApiResponse) => ({
+          const mappedPackages: ServicePackage[] = apiPackages.map((pkg: ServicePackageWithEligibility) => ({
             id: pkg.servicePackageId,
             name: pkg.packageName,
             duration: pkg.durationHours,
             price: pkg.price,
             services: pkg.serviceTasks.map(task => task.taskName),
+            isEligible: pkg.isEligible,
           }));
           
           setServicePackages(mappedPackages);
@@ -181,7 +246,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
       fetchServicePackages();
     }
-  }, [visible]);
+  }, [visible, caregiver?.id]);
 
   // Payment methods
   const paymentMethods = [
@@ -240,6 +305,10 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     setCustomLocation('');
     setShowErrorModal(false);
     setErrorMessage('');
+    setAvailableSchedule(null);
+    setIsLoadingSchedule(false);
+    setSelectedDateSchedule(null);
+    setLastFetchedDate('');
     onClose();
   };
 
@@ -299,55 +368,78 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   };
 
   const handleNext = () => {
-    console.log('=== handleNext called ===');
-    console.log('Current Step:', currentStep);
-    
     if (currentStep === 1) {
-      console.log('Step 1 validation');
-      console.log('Selected Profiles:', selectedProfiles);
-      
       if (!selectedProfiles || selectedProfiles.length === 0) {
-        console.log('Validation failed: No profiles selected');
         setShowValidation(true);
         return;
       }
       
-      console.log('Step 1 validation passed, moving to step 2');
       setShowValidation(false);
       setCurrentStep(2);
       
     } else if (currentStep === 2) {
-      console.log('Step 2 validation');
-      console.log('Selected Package:', immediateData.selectedPackage);
-      console.log('Work Location:', immediateData.workLocation);
-      console.log('Selected Date:', immediateData.selectedDate);
-      console.log('Start Time:', immediateData.startHour, immediateData.startMinute);
-      
-      if (!immediateData.selectedDate) {
-        console.log('Validation failed: No date selected');
+      if (!immediateData?.selectedDate) {
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn ngày làm việc');
         return;
       }
       
-      if (!immediateData.startHour || !immediateData.startMinute) {
-        console.log('Validation failed: No time selected');
+      if (!immediateData?.startHour || !immediateData?.startMinute) {
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn giờ bắt đầu');
         return;
       }
       
-      if (!immediateData.selectedPackage) {
-        console.log('Validation failed: No package selected');
+      if (!immediateData?.selectedPackage) {
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn gói dịch vụ');
         return;
       }
       
-      console.log('Step 2 validation passed, moving to step 3');
       setCurrentStep(3);
       
     } else if (currentStep === 3) {
-      console.log('Step 3 validation passed, moving to step 4');
       setCurrentStep(4);
     }
+  };
+
+  // Helper function to check if a time conflicts with booked slots
+  const isTimeInBookedSlot = (hour: string, minute: string): boolean => {
+    if (!selectedDateSchedule || selectedDateSchedule.available_all_day || !selectedDateSchedule.booked_slots) {
+      return false;
+    }
+
+    const selectedTime = `${hour}:${minute}`;
+    
+    // Check if selected time falls within any booked slot
+    return selectedDateSchedule.booked_slots.some((slot: BookedSlot) => {
+      const slotStart = slot.start_time; // Format: "09:00"
+      const slotEnd = slot.end_time; // Format: "12:00"
+      
+      // Compare time strings (HH:mm format)
+      return selectedTime >= slotStart && selectedTime < slotEnd;
+    });
+  };
+
+  // Helper function to check if an hour has any booked slots (for hour picker)
+  const isHourInBookedSlot = (hour: string): boolean => {
+    if (!selectedDateSchedule || selectedDateSchedule.available_all_day || !selectedDateSchedule.booked_slots) {
+      return false;
+    }
+
+    // Check if any booked slot overlaps with this hour
+    return selectedDateSchedule.booked_slots.some((slot: BookedSlot) => {
+      const slotStartHour = parseInt(slot.start_time.split(':')[0]);
+      const slotEndHour = parseInt(slot.end_time.split(':')[0]);
+      const selectedHour = parseInt(hour);
+      
+      // Check if selected hour is within the booked slot range
+      // If slot is 09:00-12:00, hours 09, 10, 11 are disabled
+      if (slotStartHour === slotEndHour) {
+        // Same hour slot (e.g., 09:00-09:30)
+        return selectedHour === slotStartHour;
+      } else {
+        // Multi-hour slot (e.g., 09:00-12:00)
+        return selectedHour >= slotStartHour && selectedHour < slotEndHour;
+      }
+    });
   };
 
   // Helper function to format date from "T2, 29 Thg 12 2025" to "2025-12-29"
@@ -392,10 +484,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   };
 
   const handleSubmit = async () => {
-    console.log('=== handleSubmit called ===');
-    console.log('Selected Package:', immediateData.selectedPackage);
-    console.log('Work Location:', immediateData.workLocation);
-    console.log('Selected Profiles:', selectedProfiles);
     
     if (!user?.id) {
       Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
@@ -407,22 +495,22 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       return;
     }
 
-    if (!immediateData.selectedPackage) {
+    if (!immediateData?.selectedPackage) {
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn gói dịch vụ');
       return;
     }
 
-    if (!immediateData.selectedDate) {
+    if (!immediateData?.selectedDate) {
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn ngày làm việc');
       return;
     }
 
-    if (!immediateData.startHour || !immediateData.startMinute) {
+    if (!immediateData?.startHour || !immediateData?.startMinute) {
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn giờ bắt đầu');
       return;
     }
 
-    if (!immediateData.workLocation) {
+    if (!immediateData?.workLocation) {
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn địa điểm làm việc');
       return;
     }
@@ -438,17 +526,17 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
       // Get location from elderly profile
       const location = selectedProfile.location || {
-        address: immediateData.workLocation,
+        address: immediateData?.workLocation || '',
         latitude: 0.1, // Default fallback
         longitude: 0.1, // Default fallback
       };
 
       // Format date for API
-      const workDate = formatDateForAPI(immediateData.selectedDate);
+      const workDate = formatDateForAPI(immediateData?.selectedDate || '');
 
       // Parse hour and minute to numbers
-      const startHour = parseInt(immediateData.startHour, 10);
-      const startMinute = parseInt(immediateData.startMinute, 10);
+      const startHour = parseInt(immediateData?.startHour || '0', 10);
+      const startMinute = parseInt(immediateData?.startMinute || '0', 10);
 
       if (isNaN(startHour) || isNaN(startMinute)) {
         throw new Error('Giờ bắt đầu không hợp lệ');
@@ -466,16 +554,12 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         workDate: workDate,
         startHour: startHour,
         startMinute: startMinute,
-        servicePackageId: immediateData.selectedPackage,
-        note: immediateData.note || undefined,
+        servicePackageId: immediateData?.selectedPackage || '',
+        note: immediateData?.note || undefined,
       };
 
-      console.log('Creating care service:', requestData);
-      
       // Call API
       const response = await mainService.createCareService(requestData);
-      
-      console.log('API Response:', response);
       
       if (response.status === 'Success') {
         setIsSubmitting(false);
@@ -504,7 +588,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   };
 
   const handleSuccessClose = () => {
-    console.log('Success modal closed');
     setShowSuccessModal(false);
     handleClose();
   };
@@ -523,21 +606,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     }
   };
 
-  const handleAddNewProfile = (newProfile: Omit<ElderlyProfile, 'id'>) => {
-    // Generate new ID
-    const newId = `NEW_${Date.now()}`;
-    const profileWithId = {
-      ...newProfile,
-      id: newId,
-    };
-
-    // Add to profiles list
-    setElderlyProfiles(prev => [...prev, profileWithId]);
-
-    // Auto-select the new profile
-    setSelectedProfiles([newId]);
-
-    Alert.alert('Thành công', 'Đã thêm người già mới thành công!');
+  const handleAddNewProfile = () => {
+    // Navigate to add elderly page
+    router.push('/careseeker/add-elderly');
   };
 
   const renderStep1 = () => (
@@ -557,7 +628,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           onSelectionChange={setSelectedProfiles}
           showValidation={showValidation}
           hideTitle={true}
-          onAddNewProfile={handleAddNewProfile}
+          onNavigateToAddElderly={handleAddNewProfile}
         />
       )}
     </View>
@@ -595,9 +666,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                       <Ionicons name="location" size={20} color="white" />
                       <View style={styles.locationTextContainer}>
                         <ThemedText style={styles.locationTitle}>
-                          {immediateData.workLocation ? 'Địa chỉ từ hồ sơ người già' : 'Chưa có địa chỉ'}
+                          {immediateData?.workLocation ? 'Địa chỉ từ hồ sơ người già' : 'Chưa có địa chỉ'}
                         </ThemedText>
-                        {immediateData.workLocation && (
+                        {immediateData?.workLocation && (
                           <ThemedText style={styles.locationAddress}>
                             {immediateData.workLocation}
                           </ThemedText>
@@ -634,15 +705,66 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                   style={styles.pickerButton}
                   onPress={() => setShowDatePicker(true)}
                 >
-                  <ThemedText style={[
+                  <ThemedText                   style={[
                     styles.pickerButtonText,
-                    !immediateData.selectedDate && styles.placeholderText
+                    !immediateData?.selectedDate && styles.placeholderText
                   ]}>
-                    {immediateData.selectedDate || 'Chọn ngày làm việc'}
+                    {immediateData?.selectedDate || 'Chọn ngày làm việc'}
                   </ThemedText>
                   <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
                 </TouchableOpacity>
               </View>
+
+              {/* Available Schedule Display - Only show after date is selected */}
+              {immediateData?.selectedDate && (
+                <View style={styles.inputGroup}>
+                  {isLoadingSchedule ? (
+                    <View style={styles.scheduleLoadingContainer}>
+                      <ThemedText style={styles.scheduleLoadingText}>Đang tải lịch rảnh...</ThemedText>
+                    </View>
+                  ) : selectedDateSchedule ? (
+                    <View style={styles.scheduleInfoContainer}>
+                      {selectedDateSchedule.available_all_day ? (
+                        <View style={styles.scheduleStatusAvailable}>
+                          <View style={styles.scheduleStatusRow}>
+                            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                            <ThemedText style={styles.scheduleStatusText}>
+                              Bạn có thể book bất cứ giờ nào trong ngày này
+                            </ThemedText>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={styles.scheduleStatusBusy}>
+                          <View style={styles.scheduleStatusRow}>
+                            <Ionicons name="time-outline" size={20} color="#F59E0B" />
+                            <ThemedText style={styles.scheduleStatusText}>
+                              Các khung giờ người chăm sóc đã bận trong ngày:
+                            </ThemedText>
+                          </View>
+                          {selectedDateSchedule.booked_slots && selectedDateSchedule.booked_slots.length > 0 && (
+                            <View style={styles.bookedSlotsContainer}>
+                              {selectedDateSchedule.booked_slots.map((slot: BookedSlot, index: number) => (
+                                <View key={index} style={styles.bookedSlotItem}>
+                                  <Ionicons name="time" size={16} color="#F59E0B" />
+                                  <ThemedText style={styles.bookedSlotText}>
+                                    {slot.start_time} - {slot.end_time}
+                                  </ThemedText>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View style={styles.scheduleInfoContainer}>
+                      <ThemedText style={styles.scheduleStatusText}>
+                        Đang tải thông tin lịch rảnh...
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+              )}
 
               {/* Time Selection */}
               <View style={styles.inputGroup}>
@@ -660,9 +782,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                   >
                     <ThemedText style={[
                       styles.pickerButtonText,
-                      !immediateData.startHour && styles.placeholderText
+                      !immediateData?.startHour && styles.placeholderText
                     ]}>
-                      {immediateData.startHour || 'Giờ'}
+                      {immediateData?.startHour || 'Giờ'}
                     </ThemedText>
                   </TouchableOpacity>
                   
@@ -677,16 +799,16 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                   >
                     <ThemedText style={[
                       styles.pickerButtonText,
-                      !immediateData.startMinute && styles.placeholderText
+                      !immediateData?.startMinute && styles.placeholderText
                     ]}>
-                      {immediateData.startMinute || 'Phút'}
+                      {immediateData?.startMinute || 'Phút'}
                     </ThemedText>
                   </TouchableOpacity>
                 </View>
                 
-                {immediateData.startHour && immediateData.startMinute && (
+                {immediateData?.startHour && immediateData?.startMinute && (
                   <ThemedText style={styles.timeRangeText}>
-                    ⏰ Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
+                    Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
                   </ThemedText>
                 )}
               </View>
@@ -698,6 +820,15 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             <View style={styles.sectionHeader}>
               <ThemedText style={styles.sectionTitle}>Chọn gói dịch vụ</ThemedText>
             </View>
+            
+            {servicePackages.some(pkg => pkg.isEligible === false) && (
+              <View style={styles.eligibilityWarning}>
+                <Ionicons name="information-circle" size={16} color="#F39C12" />
+                <ThemedText style={styles.eligibilityWarningText}>
+                  Người chăm sóc chưa đủ điều kiện cho một số gói dịch vụ
+                </ThemedText>
+              </View>
+            )}
             
             <View style={styles.sectionContent}>
               {isLoadingPackages ? (
@@ -714,44 +845,60 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                   scrollIndicatorInsets={{ right: 8, top: 4, bottom: 4 }}
                   fadingEdgeLength={Platform.OS === 'android' ? 20 : undefined}
                 >
-                  {servicePackages.map((pkg) => (
+                  {servicePackages.map((pkg) => {
+                    const isDisabled = pkg.isEligible === false;
+                    return (
                     <TouchableOpacity
                       key={pkg.id}
                       style={[
                         styles.packageCard,
-                        immediateData.selectedPackage === pkg.id && styles.packageCardSelected
+                        immediateData?.selectedPackage === pkg.id && styles.packageCardSelected,
+                        isDisabled && styles.packageCardDisabled
                       ]}
-                      onPress={() => setImmediateData(prev => ({ ...prev, selectedPackage: pkg.id }))}
+                      onPress={() => {
+                        if (!isDisabled) {
+                          setImmediateData(prev => ({ ...prev, selectedPackage: pkg.id }));
+                        }
+                      }}
+                      disabled={isDisabled}
                     >
-                      {immediateData.selectedPackage === pkg.id && (
+                      {immediateData?.selectedPackage === pkg.id && (
                         <View style={styles.packageCheckmark}>
                           <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
                         </View>
                       )}
                       
-                      <ThemedText style={styles.packageName}>{pkg.name}</ThemedText>
+                      {pkg.isEligible === false && (
+                        <View style={styles.packageNotEligibleBadge}>
+                          <Ionicons name="alert-circle" size={16} color="#E74C3C" />
+                          <ThemedText style={styles.packageNotEligibleText}>Không thể chọn</ThemedText>
+                        </View>
+                      )}
+                      
+                      <ThemedText style={[styles.packageName, isDisabled && styles.packageNameDisabled]}>{pkg.name}</ThemedText>
                       
                       <View style={styles.packageDetails}>
                         <View style={styles.packageDetailItem}>
-                          <Ionicons name="time-outline" size={16} color="#6c757d" />
-                          <ThemedText style={styles.packageDetailText}>{pkg.duration}h</ThemedText>
+                          <Ionicons name="time-outline" size={16} color={isDisabled ? "#BDC3C7" : "#6c757d"} />
+                          <ThemedText style={[styles.packageDetailText, isDisabled && styles.packageTextDisabled]}>{pkg.duration}h</ThemedText>
                         </View>
-                        <ThemedText style={styles.packagePrice}>
+                        <ThemedText style={[styles.packagePrice, isDisabled && styles.packageTextDisabled]}>
                           {pkg.price.toLocaleString('vi-VN')} VNĐ
                         </ThemedText>
                       </View>
                       
                       <View style={styles.packageServices}>
-                        <ThemedText style={styles.packageServicesTitle}>Dịch vụ bao gồm:</ThemedText>
+                        <ThemedText style={[styles.packageServicesTitle, isDisabled && styles.packageTextDisabled]}>Dịch vụ bao gồm:</ThemedText>
                         {pkg.services.map((service, index) => (
                           <View key={index} style={styles.packageServiceItem}>
-                            <Ionicons name="checkmark" size={16} color="#68C2E8" />
-                            <ThemedText style={styles.packageServiceText}>{service}</ThemedText>
+                            <Ionicons name="checkmark" size={16} color={isDisabled ? "#BDC3C7" : "#68C2E8"} />
+                            <ThemedText style={[styles.packageServiceText, isDisabled && styles.packageTextDisabled]}>{service}</ThemedText>
                           </View>
                         ))}
                       </View>
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </ScrollView>
               )}
             </View>
@@ -799,8 +946,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   };
 
   const renderStep3 = () => {
-    console.log('=== Rendering Step 3 (Review) ===');
-    console.log('immediateData:', immediateData);
     return (
       <View style={styles.stepContent}>
         <ThemedText style={styles.stepTitle}>Xem trước thông tin</ThemedText>
@@ -826,7 +971,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             <ThemedText style={styles.reviewLabel}>Giờ bắt đầu:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.startHour && immediateData?.startMinute 
-                ? `${immediateData.startHour}:${immediateData.startMinute}` 
+                ? `${immediateData?.startHour}:${immediateData?.startMinute}` 
                 : 'Chưa chọn'}
             </ThemedText>
           </View>
@@ -836,7 +981,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             <ThemedText style={styles.reviewLabel}>Gói dịch vụ:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.selectedPackage ? 
-                servicePackages.find(p => p.id === immediateData.selectedPackage)?.name : 'Chưa chọn'}
+                servicePackages.find(p => p.id === immediateData?.selectedPackage)?.name : 'Chưa chọn'}
             </ThemedText>
           </View>
 
@@ -845,7 +990,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             <ThemedText style={styles.reviewLabel}>Tổng chi phí:</ThemedText>
             <ThemedText style={styles.reviewValue}>
               {immediateData?.selectedPackage ? 
-                `${servicePackages.find(p => p.id === immediateData.selectedPackage)?.price.toLocaleString('vi-VN')} VNĐ` : 'Chưa tính'}
+                `${servicePackages.find(p => p.id === immediateData?.selectedPackage)?.price.toLocaleString('vi-VN')} VNĐ` : 'Chưa tính'}
             </ThemedText>
           </View>
 
@@ -853,7 +998,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           {immediateData?.note && (
             <View style={styles.reviewItem}>
               <ThemedText style={styles.reviewLabel}>Ghi chú:</ThemedText>
-              <ThemedText style={styles.reviewValue}>{immediateData.note}</ThemedText>
+              <ThemedText style={styles.reviewValue}>{immediateData?.note}</ThemedText>
             </View>
           )}
         </View>
@@ -989,21 +1134,14 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   */
 
   const renderCurrentStep = () => {
-    console.log('=== renderCurrentStep ===');
-    console.log('Current step:', currentStep);
-    
     switch (currentStep) {
       case 1: 
-        console.log('Rendering Step 1');
         return renderStep1();
       case 2: 
-        console.log('Rendering Step 2');
         return renderStep2();
       case 3: 
-        console.log('Rendering Step 3');
         return renderStep3();
       default: 
-        console.log('Default: Rendering Step 1');
         return renderStep1();
     }
   };
@@ -1058,16 +1196,11 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           <TouchableOpacity 
             style={styles.nextButton} 
             onPress={() => {
-              console.log('=== Button clicked ===');
-              console.log('Current Step:', currentStep);
-              console.log('Is Submitting:', isSubmitting);
-              
               if (currentStep === 1) {
                 handleNext();
               } else if (currentStep === 2) {
                 handleNext();
               } else if (currentStep === 3) {
-                console.log('Calling handleSubmit');
                 handleSubmit();
               }
             }}
@@ -1111,7 +1244,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                           key={profile.id}
                           style={[
                             styles.locationOption,
-                            immediateData.workLocation === formatLocationDisplay(profile.address, profile.location?.latitude, profile.location?.longitude) && styles.locationOptionSelected
+                            immediateData?.workLocation === formatLocationDisplay(profile.address, profile.location?.latitude, profile.location?.longitude) && styles.locationOptionSelected
                           ]}
                         >
                           <TouchableOpacity
@@ -1137,7 +1270,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                                 </ThemedText>
                               </View>
                             </View>
-                            {immediateData.workLocation === formatLocationDisplay(profile.address, profile.location?.latitude, profile.location?.longitude) && (
+                            {immediateData?.workLocation === formatLocationDisplay(profile.address, profile.location?.latitude, profile.location?.longitude) && (
                               <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
                             )}
                           </TouchableOpacity>
@@ -1260,7 +1393,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                     const dates = [];
                     const today = new Date();
                     
-                    for (let i = 0; i < 30; i++) {
+                    // Only show 7 days (1 week) from today
+                    for (let i = 0; i < 7; i++) {
                       const date = new Date(today);
                       date.setDate(today.getDate() + i);
                       
@@ -1272,20 +1406,58 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                       dates.push(
                         <TouchableOpacity
                           key={i}
-                          style={[
-                            styles.pickerItem,
-                            styles.datePickerItem,
-                            immediateData.selectedDate === dateStr && styles.pickerItemSelected
-                          ]}
-                          onPress={() => {
-                            setImmediateData(prev => ({ ...prev, selectedDate: dateStr }));
-                            setShowDatePicker(false);
-                          }}
-                        >
-                          <ThemedText style={[
-                            styles.pickerText,
-                            immediateData.selectedDate === dateStr && styles.pickerTextSelected
-                          ]}>
+                    style={[
+                      styles.pickerItem,
+                      styles.datePickerItem,
+                      immediateData?.selectedDate === dateStr && styles.pickerItemSelected
+                    ]}
+                    onPress={() => {
+                      setImmediateData(prev => {
+                        const updated = { ...prev, selectedDate: dateStr };
+                        // Trigger fetch immediately after setting date
+                        setTimeout(() => {
+                          const fetchScheduleForDate = async () => {
+                            try {
+                              setIsLoadingSchedule(true);
+                              const dateApiFormat = formatDateForAPI(dateStr);
+                              
+                              const response = await mainService.getFreeScheduleByDate(dateApiFormat, caregiver.id);
+                              
+                              if (response && response.status === 'Success' && response.data) {
+                                setSelectedDateSchedule(response.data);
+                                setLastFetchedDate(dateStr);
+                              } else {
+                                setSelectedDateSchedule({
+                                  date: dateApiFormat,
+                                  available_all_day: true,
+                                  booked_slots: [],
+                                });
+                                setLastFetchedDate(dateStr);
+                              }
+                            } catch (error: any) {
+                              console.error('❌ Failed to fetch schedule for date:', error);
+                              const dateApiFormat = formatDateForAPI(dateStr);
+                              setSelectedDateSchedule({
+                                date: dateApiFormat,
+                                available_all_day: true,
+                                booked_slots: [],
+                              });
+                              setLastFetchedDate(dateStr);
+                            } finally {
+                              setIsLoadingSchedule(false);
+                            }
+                          };
+                          fetchScheduleForDate();
+                        }, 100);
+                        return updated;
+                      });
+                      setShowDatePicker(false);
+                    }}
+                  >
+                    <ThemedText style={[
+                      styles.pickerText,
+                      immediateData?.selectedDate === dateStr && styles.pickerTextSelected
+                    ]}>
                             {dateStr}
                           </ThemedText>
                         </TouchableOpacity>
@@ -1322,21 +1494,29 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                   {timePickerType === 'hour' 
                     ? Array.from({ length: 24 }, (_, i) => {
                         const hour = i.toString().padStart(2, '0');
+                        // Check if this hour has any booked slots
+                        const isDisabled = isHourInBookedSlot(hour);
+                        
                         return (
                           <TouchableOpacity
                             key={hour}
                             style={[
                               styles.pickerItem,
-                              immediateData.startHour === hour && styles.pickerItemSelected
+                              immediateData?.startHour === hour && styles.pickerItemSelected,
+                              isDisabled && styles.pickerItemDisabled
                             ]}
                             onPress={() => {
-                              setImmediateData(prev => ({ ...prev, startHour: hour }));
-                              setShowTimePicker(false);
+                              if (!isDisabled) {
+                                setImmediateData(prev => ({ ...prev, startHour: hour }));
+                                setShowTimePicker(false);
+                              }
                             }}
+                            disabled={isDisabled}
                           >
                             <ThemedText style={[
                               styles.pickerText,
-                              immediateData.startHour === hour && styles.pickerTextSelected
+                              immediateData?.startHour === hour && styles.pickerTextSelected,
+                              isDisabled && styles.pickerTextDisabled
                             ]}>
                               {hour}
                             </ThemedText>
@@ -1345,21 +1525,31 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                       })
                     : Array.from({ length: 60 }, (_, i) => {
                         const minute = i.toString().padStart(2, '0');
+                        // Check if this minute (with selected hour) is in a booked slot
+                        const isDisabled = immediateData?.startHour 
+                          ? isTimeInBookedSlot(immediateData?.startHour, minute)
+                          : false;
+                        
                         return (
                           <TouchableOpacity
                             key={minute}
                             style={[
                               styles.pickerItem,
-                              immediateData.startMinute === minute && styles.pickerItemSelected
+                              immediateData?.startMinute === minute && styles.pickerItemSelected,
+                              isDisabled && styles.pickerItemDisabled
                             ]}
                             onPress={() => {
-                              setImmediateData(prev => ({ ...prev, startMinute: minute }));
-                              setShowTimePicker(false);
+                              if (!isDisabled) {
+                                setImmediateData(prev => ({ ...prev, startMinute: minute }));
+                                setShowTimePicker(false);
+                              }
                             }}
+                            disabled={isDisabled}
                           >
                             <ThemedText style={[
                               styles.pickerText,
-                              immediateData.startMinute === minute && styles.pickerTextSelected
+                              immediateData?.startMinute === minute && styles.pickerTextSelected,
+                              isDisabled && styles.pickerTextDisabled
                             ]}>
                               {minute}
                             </ThemedText>
@@ -2051,6 +2241,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
+  pickerItemDisabled: {
+    backgroundColor: '#f8f9fa',
+    opacity: 0.5,
+  },
+  pickerTextDisabled: {
+    color: '#adb5bd',
+    textDecorationLine: 'line-through',
+  },
   // Summary Styles
   summaryContainer: {
     backgroundColor: '#f8f9fa',
@@ -2201,17 +2399,58 @@ const styles = StyleSheet.create({
     shadowColor: '#68C2E8',
     shadowOpacity: 0.15,
   },
+  packageCardDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#F8F9FA',
+    borderColor: '#DEE2E6',
+  },
   packageCheckmark: {
     position: 'absolute',
     top: 16,
     right: 16,
     zIndex: 1,
   },
+  eligibilityWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF4E6',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+    marginHorizontal: 20,
+  },
+  eligibilityWarningText: {
+    fontSize: 13,
+    color: '#856404',
+    flex: 1,
+    lineHeight: 18,
+  },
+  packageNotEligibleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  packageNotEligibleText: {
+    fontSize: 13,
+    color: '#E74C3C',
+    fontWeight: '600',
+  },
   packageName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#2c3e50',
     marginBottom: 12,
+  },
+  packageNameDisabled: {
+    color: '#95A5A6',
   },
   packageDetails: {
     flexDirection: 'row',
@@ -2236,6 +2475,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#68C2E8',
     fontWeight: 'bold',
+  },
+  packageTextDisabled: {
+    color: '#BDC3C7',
   },
   packageServices: {
     gap: 8,
@@ -2706,6 +2948,65 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
+    color: '#6c757d',
+  },
+  // Schedule Display Styles
+  scheduleLoadingContainer: {
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  scheduleLoadingText: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  scheduleInfoContainer: {
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  scheduleStatusAvailable: {
+    gap: 8,
+  },
+  scheduleStatusBusy: {
+    gap: 12,
+  },
+  scheduleStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scheduleStatusText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '500',
+    flex: 1,
+  },
+  bookedSlotsContainer: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+    gap: 8,
+  },
+  bookedSlotsTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#495057',
+    marginBottom: 4,
+  },
+  bookedSlotItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  bookedSlotText: {
+    fontSize: 13,
     color: '#6c757d',
   },
 });

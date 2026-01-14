@@ -10,6 +10,11 @@ export interface ServiceTask {
   status: string;
 }
 
+export interface Qualification {
+  skills: string[];
+  certificate_groups: string[][] | null;
+}
+
 export interface ServicePackageApiResponse {
   servicePackageId: string;
   packageName: string;
@@ -18,16 +23,26 @@ export interface ServicePackageApiResponse {
   packageType: string;
   price: number;
   note: string;
-  qualification: string | null;
+  qualification: string | Qualification | null;
   status: string;
   serviceTasks: ServiceTask[];
   totalCareServices: number | null;
+}
+
+export interface ServicePackageWithEligibility extends ServicePackageApiResponse {
+  isEligible: boolean;
 }
 
 export interface ServicePackagesApiResponse {
   status: string;
   message: string;
   data: ServicePackageApiResponse[];
+}
+
+export interface ServicePackagesWithEligibilityApiResponse {
+  status: string;
+  message: string;
+  data: ServicePackageWithEligibility[];
 }
 
 // Care Service API Types
@@ -162,6 +177,24 @@ export interface MyCareServicesApiResponse {
   data: MyCareServiceData[];
 }
 
+// Available Schedule API Types
+export interface BookedSlot {
+  date: string; // Format: "2025-12-01"
+  start_time: string; // Format: "09:00"
+  end_time: string; // Format: "12:00"
+}
+
+export interface AvailableScheduleData {
+  available_all_time: boolean;
+  booked_slots: BookedSlot[];
+}
+
+export interface AvailableScheduleApiResponse {
+  status: string;
+  message: string;
+  data: AvailableScheduleData;
+}
+
 export const mainService = {
   get: (url: string, config = {}) => apiClient.get(url, config),
   post: (url: string, data: any, config = {}) =>
@@ -183,6 +216,25 @@ export const mainService = {
       return response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch service packages: ${error.message}`);
+    }
+  },
+
+  /**
+   * Kiểm tra eligibility và lấy danh sách service packages với thông tin isEligible
+   * @param caregiverId - ID của caregiver cần kiểm tra eligibility
+   */
+  getServicePackagesWithEligibility: async (caregiverId: string): Promise<ServicePackageWithEligibility[]> => {
+    try {
+      const response = await apiClient.get<ServicePackagesWithEligibilityApiResponse>('/api/v1/care-services/check-eligibility', {
+        params: { caregiverId },
+      });
+      if (response.data.status === 'Success' && response.data.data) {
+        return response.data.data;
+      }
+      throw new Error(response.data.message || 'Failed to fetch service packages with eligibility');
+    } catch (error: any) {
+      console.error('Error fetching service packages with eligibility:', error);
+      throw new Error(`Failed to fetch service packages with eligibility: ${error.message}`);
     }
   },
 
@@ -323,7 +375,6 @@ export const mainService = {
     checkInImage: { uri: string; type?: string; name?: string }
   ): Promise<CareServiceApiResponse> => {
     try {
-      console.log('📤 Starting work...');
       const formData = new FormData();
       
       // Append JSON request
@@ -360,14 +411,11 @@ export const mainService = {
         }
       );
 
-      console.log('✅ Success! Start work completed');
       return response.data;
     } catch (axiosError: any) {
-      console.log('❌ Axios error starting work:', axiosError.code, axiosError.message);
 
       // Nếu axios fail với Network Error, thử XMLHttpRequest (fallback)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        console.log('⚠️ Axios failed with Network Error, trying XMLHttpRequest...');
         
         const token = await AsyncStorage.getItem('token');
         if (!token) {
@@ -409,7 +457,6 @@ export const mainService = {
               if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                   const result = JSON.parse(xhr.responseText);
-                  console.log('✅ XMLHttpRequest success!');
                   resolve(result);
                 } catch (error) {
                   resolve({
@@ -470,7 +517,6 @@ export const mainService = {
 
       // Nếu có response từ server, trả về response đó
       if (axiosError.response?.data) {
-        console.log('❌ Server responded with error:', axiosError.response.status);
         return axiosError.response.data;
       }
 
@@ -490,7 +536,6 @@ export const mainService = {
     checkOutImage: { uri: string; type?: string; name?: string }
   ): Promise<CareServiceApiResponse> => {
     try {
-      console.log('📤 Ending work...');
       const formData = new FormData();
       
       // Append JSON request
@@ -527,14 +572,11 @@ export const mainService = {
         }
       );
 
-      console.log('✅ Success! End work completed');
       return response.data;
     } catch (axiosError: any) {
-      console.log('❌ Axios error ending work:', axiosError.code, axiosError.message);
 
       // Nếu axios fail với Network Error, thử XMLHttpRequest (fallback)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        console.log('⚠️ Axios failed with Network Error, trying XMLHttpRequest...');
         
         const token = await AsyncStorage.getItem('token');
         if (!token) {
@@ -576,7 +618,6 @@ export const mainService = {
               if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                   const result = JSON.parse(xhr.responseText);
-                  console.log('✅ XMLHttpRequest success!');
                   resolve(result);
                 } catch (error) {
                   resolve({
@@ -637,7 +678,6 @@ export const mainService = {
 
       // Nếu có response từ server, trả về response đó
       if (axiosError.response?.data) {
-        console.log('❌ Server responded with error:', axiosError.response.status);
         return axiosError.response.data;
       }
 
@@ -673,14 +713,58 @@ export const mainService = {
 
   /**
    * Kiểm tra trạng thái thanh toán
+   * API: POST /api/v1/payments/order/{orderId}
+   * Request body: { paymentId: UUID, careServiceId: UUID }
    */
-  checkPaymentStatus: async (orderId: string): Promise<CareServiceApiResponse> => {
+  checkPaymentStatus: async (
+    orderId: string,
+    paymentId: string,
+    careServiceId: string
+  ): Promise<CareServiceApiResponse> => {
     try {
-      const response = await apiClient.get<CareServiceApiResponse>(
-        `/api/v1/payments/order/${orderId}`
-      );
+      if (!orderId) {
+        console.error('checkPaymentStatus: orderId is missing');
+        return {
+          status: 'Fail',
+          message: 'OrderId is required',
+          data: null,
+        };
+      }
+      
+      if (!paymentId) {
+        console.error('checkPaymentStatus: paymentId is missing');
+        return {
+          status: 'Fail',
+          message: 'PaymentId is required',
+          data: null,
+        };
+      }
+      
+      if (!careServiceId) {
+        console.error('checkPaymentStatus: careServiceId is missing');
+        return {
+          status: 'Fail',
+          message: 'CareServiceId is required',
+          data: null,
+        };
+      }
+      
+      const url = `/api/v1/payments/order/${orderId}`;
+      const requestBody = {
+        paymentId: paymentId,
+        careServiceId: careServiceId,
+      };
+      
+      console.log('checkPaymentStatus: Calling API with URL:', url);
+      console.log('checkPaymentStatus: orderId:', orderId);
+      console.log('checkPaymentStatus: requestBody:', requestBody);
+      
+      const response = await apiClient.post<CareServiceApiResponse>(url, requestBody);
+      console.log('checkPaymentStatus: Response:', response.data);
       return response.data;
     } catch (error: any) {
+      console.error('checkPaymentStatus: Error:', error);
+      console.error('checkPaymentStatus: Error response:', error.response?.data);
       if (error.response?.data) {
         return error.response.data;
       }
@@ -689,6 +773,482 @@ export const mainService = {
         message: error.message || 'Không thể kiểm tra trạng thái thanh toán',
         data: null,
       };
+    }
+  },
+
+  /**
+   * Lấy lịch rảnh của caregiver
+   * @param caregiverProfileId - ID của caregiver profile
+   */
+  getCaregiverAvailableSchedule: async (caregiverProfileId: string): Promise<AvailableScheduleApiResponse> => {
+    try {
+      const response = await apiClient.get<AvailableScheduleApiResponse>(
+        `/api/v1/caregivers/${caregiverProfileId}/available-schedule`
+      );
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Không thể lấy lịch rảnh. Vui lòng thử lại sau.',
+        data: {
+          available_all_time: true,
+          booked_slots: [],
+        },
+      };
+    }
+  },
+
+  /**
+   * Lấy lịch rảnh của caregiver cho một ngày cụ thể
+   * @param date - Ngày cần kiểm tra (format: "yyyy-MM-dd")
+   * @param caregiverId - ID của caregiver
+   */
+  getFreeScheduleByDate: async (date: string, caregiverId: string): Promise<FreeScheduleByDateApiResponse> => {
+    try {
+      const response = await apiClient.get<FreeScheduleByDateApiResponse>(
+        `/api/v1/caregiver-schedule/free-schedule/date`,
+        {
+          params: {
+            date: date,
+            caregiverId: caregiverId,
+          },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error fetching free schedule by date:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data || 'No response',
+      });
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Không thể lấy lịch rảnh. Vui lòng thử lại sau.',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Lấy danh sách qualification types
+   */
+  getQualificationTypes: async (): Promise<any[]> => {
+    try {
+      const response = await apiClient.get('/api/v1/public/qualification-types');
+      return response.data.data || [];
+    } catch (error: any) {
+      console.error('Error fetching qualification types:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Tạo caregiver profile với multipart/form-data
+   * @param profileData - Dữ liệu profile (JSON)
+   * @param avatarFile - File avatar (optional)
+   * @param credentialFiles - Danh sách file chứng chỉ (optional)
+   */
+  createCaregiverProfile: async (
+    profileData: any,
+    avatarFile?: { uri: string; type?: string; name?: string },
+    credentialFiles?: Array<{ uri: string; type?: string; name?: string }>,
+    citizenIdFrontImage?: { uri: string; type?: string; name?: string },
+    citizenIdBackImage?: { uri: string; type?: string; name?: string }
+  ): Promise<CareServiceApiResponse> => {
+    try {
+      console.log('📋 Profile data:', JSON.stringify(profileData, null, 2));
+      console.log('📄 Credential files:', credentialFiles?.length || 0);
+
+      const formData = new FormData();
+      
+      // Append JSON data
+      formData.append('data', JSON.stringify(profileData));
+
+      // Append avatar file if provided
+      if (avatarFile) {
+        const fileExtension = avatarFile.uri.split('.').pop() || 'jpg';
+        const fileName = avatarFile.name || `avatar_${Date.now()}.${fileExtension}`;
+        const fileType = avatarFile.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+        
+        // Format URI correctly for React Native
+        let fileUri = avatarFile.uri;
+        // Keep original URI format (file://, content://, etc.)
+        // Don't modify it as React Native FormData handles it correctly
+
+        formData.append('avatar', {
+          uri: fileUri,
+          type: fileType,
+          name: fileName,
+        } as any);
+      }
+
+      // Append credential files if provided
+      if (credentialFiles && credentialFiles.length > 0) {
+        credentialFiles.forEach((file, index) => {
+          const fileExtension = file.uri.split('.').pop() || 'pdf';
+          const fileName = file.name || `credential_${Date.now()}.${fileExtension}`;
+          const fileType = file.type || (fileExtension === 'pdf' ? 'application/pdf' : 'image/jpeg');
+          
+          // Format URI correctly for React Native
+          let fileUri = file.uri;
+          // Keep original URI format (file://, content://, etc.)
+          // Don't modify it as React Native FormData handles it correctly
+
+          formData.append('credentialFiles', {
+            uri: fileUri,
+            type: fileType,
+            name: fileName,
+          } as any);
+        });
+      }
+
+      // Append citizen ID front image if provided
+      if (citizenIdFrontImage) {
+        const fileExtension = citizenIdFrontImage.uri.split('.').pop() || 'jpg';
+        const fileName = citizenIdFrontImage.name || `citizenIdFront_${Date.now()}.${fileExtension}`;
+        const fileType = citizenIdFrontImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+        
+        let fileUri = citizenIdFrontImage.uri;
+        
+        formData.append('citizenIdFrontImage', {
+          uri: fileUri,
+          type: fileType,
+          name: fileName,
+        } as any);
+      }
+
+      // Append citizen ID back image if provided
+      if (citizenIdBackImage) {
+        const fileExtension = citizenIdBackImage.uri.split('.').pop() || 'jpg';
+        const fileName = citizenIdBackImage.name || `citizenIdBack_${Date.now()}.${fileExtension}`;
+        const fileType = citizenIdBackImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+        
+        let fileUri = citizenIdBackImage.uri;
+        
+        formData.append('citizenIdBackImage', {
+          uri: fileUri,
+          type: fileType,
+          name: fileName,
+        } as any);
+      }
+
+      
+      // Try with axios first
+      try {
+        const response = await apiClient.post<CareServiceApiResponse>(
+          '/api/v1/caregivers/profile',
+          formData,
+          {
+            timeout: 120000,
+            // Override transformRequest để axios không convert FormData thành string
+            // React Native FormData cần được giữ nguyên để serialize đúng cách
+            transformRequest: (data, headers) => {
+              // Nếu là FormData, return trực tiếp (không transform)
+              if (data instanceof FormData) {
+                return data;
+              }
+              // Với data khác, dùng default transform
+              return data;
+            },
+            // Don't set Content-Type header - let axios set it automatically with boundary
+            // The interceptor in apiClient.ts already handles this
+          }
+        );
+
+        return response.data;
+      } catch (axiosError: any) {
+        // Log chi tiết lỗi axios
+        console.error('❌ Axios Error Details:');
+        console.error('  - Code:', axiosError.code);
+        console.error('  - Message:', axiosError.message);
+        console.error('  - Name:', axiosError.name);
+        console.error('  - Stack:', axiosError.stack);
+        
+        if (axiosError.request) {
+          console.error('  - Request made:', true);
+          console.error('  - Request method:', axiosError.config?.method);
+          console.error('  - Request URL:', axiosError.config?.url);
+          console.error('  - Request baseURL:', axiosError.config?.baseURL);
+          console.error('  - Request headers:', JSON.stringify(axiosError.config?.headers, null, 2));
+          console.error('  - Request data type:', axiosError.config?.data?.constructor?.name);
+          console.error('  - Request data is FormData:', axiosError.config?.data instanceof FormData);
+        } else {
+          console.error('  - Request made: false (request was not sent)');
+        }
+        
+        if (axiosError.response) {
+          console.error('  - Response status:', axiosError.response.status);
+          console.error('  - Response data:', axiosError.response.data);
+          console.error('  - Response headers:', axiosError.response.headers);
+        } else {
+          console.error('  - Response: No response received');
+        }
+        
+        // Throw error để xử lý ở nơi gọi
+        throw axiosError;
+      }
+    } catch (error: any) {
+      console.error('❌ Error creating caregiver profile:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response ? {
+          status: error.response.status,
+          data: error.response.data,
+        } : 'No response',
+        request: error.request ? 'Request made but no response' : 'No request made',
+      });
+      
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      
+      // Network error - có thể do FormData hoặc network issue
+      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        console.error('🌐 Network Error - Possible causes:');
+        console.error('  1. FormData serialization issue');
+        console.error('  2. File URI format issue');
+        console.error('  3. Server not accessible');
+        console.error('  4. Request timeout');
+      }
+      
+      return {
+        status: 'Fail',
+        message: error.message || 'Không thể tạo hồ sơ. Vui lòng thử lại sau.',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Lấy thống kê cá nhân của caregiver
+   */
+  getCaregiverPersonalStatistics: async (): Promise<{
+    status: string;
+    message: string;
+    data: {
+      totalCareServicesThisMonth: number;
+      totalEarningsThisMonth: number;
+      overallRating: number;
+      taskCompletionRate: number;
+    } | null;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/statistics/caregiver/personal');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching caregiver statistics:', error);
+      return {
+        status: 'Fail',
+        message: error.response?.data?.message || error.message || 'Không thể lấy thống kê. Vui lòng thử lại sau.',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Lấy thông tin profile đầy đủ của caregiver hiện tại
+   */
+  getCaregiverProfile: async (): Promise<{
+    status: string;
+    message: string;
+    data: {
+      caregiverProfileId: string;
+      fullName: string;
+      phoneNumber: string;
+      location: string; // JSON string
+      bio: string;
+      isVerified: boolean;
+      status: string;
+      rejectionReason: string | null;
+      isNeededReviewCertificate: boolean;
+      acceptedAt: string | null;
+      declinedAt: string | null;
+      reviewedBy: string | null;
+      birthDate: string;
+      age: number;
+      gender: string;
+      profileData: string; // JSON string
+      accountId: string;
+      email: string;
+      avatarUrl: string;
+      enabled: boolean;
+      nonLocked: boolean;
+      totalCompletedBookings: number;
+      totalEarnings: number;
+      taskCompletionRate: number;
+      qualifications: Array<{
+        qualificationId: string;
+        qualificationTypeId: string;
+        qualificationTypeName: string;
+        certificateNumber: string;
+        issuingOrganization: string;
+        issueDate: string;
+        expiryDate: string | null;
+        certificateUrl: string;
+        isVerified: boolean;
+        status: string;
+        rejectionReason: string | null;
+        acceptedAt: string | null;
+        declinedAt: string | null;
+        reviewedBy: string | null;
+        notes: string | null;
+      }>;
+    } | null;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/caregivers/profile');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting caregiver profile:', error);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Failed to get caregiver profile',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Lấy thông tin profile đầy đủ của care seeker hiện tại
+   */
+  getCareSeekerProfile: async (): Promise<{
+    status: string;
+    message: string;
+    data: {
+      careSeekerProfileId: string;
+      fullName: string;
+      phoneNumber: string;
+      location: string; // JSON string
+      birthDate: string;
+      age: number;
+      gender: string;
+      profileData: string | object; // JSON string or parsed object
+      accountId: string;
+      email: string;
+      avatarUrl: string;
+      enabled: boolean;
+      nonLocked: boolean;
+      totalElderlyProfiles: number;
+      totalCompletedBookings: number;
+      elderlyProfiles: Array<{
+        elderlyProfileId: string;
+        fullName: string;
+        phoneNumber: string;
+        location: string;
+        birthDate: string;
+        age: number;
+        gender: string;
+        avatarUrl: string;
+        profileData: string | object;
+        careRequirement: string | object;
+        note: string | null;
+        healthStatus: string | null;
+        healthNote: string | null;
+        status: string;
+      }>;
+    } | null;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/care-seekers/profile');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting care seeker profile:', error);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Failed to get care seeker profile',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Notification API
+   */
+  
+  /**
+   * Lấy danh sách thông báo
+   */
+  getNotifications: async (params?: {
+    page?: number;
+    size?: number;
+    sort?: string;
+  }): Promise<{
+    content: Array<{
+      notificationId: string;
+      title: string;
+      body: string;
+      notificationType: string;
+      relatedEntityType: string;
+      relatedEntityId: string;
+      data: any;
+      imageUrl: string | null;
+      isRead: boolean;
+      readAt: string | null;
+      sentAt: string;
+      createdAt: string;
+    }>;
+    totalElements: number;
+    totalPages: number;
+    size: number;
+    number: number;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/notifications', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting notifications:', error);
+      throw new Error(`Failed to get notifications: ${error.message}`);
+    }
+  },
+
+  /**
+   * Lấy số lượng thông báo chưa đọc
+   */
+  getUnreadNotificationCount: async (): Promise<number> => {
+    try {
+      const response = await apiClient.get('/api/v1/notifications/unread-count');
+      return response.data.count || 0;
+    } catch (error: any) {
+      console.error('Error getting unread notification count:', error);
+      return 0;
+    }
+  },
+
+  /**
+   * Đánh dấu một thông báo đã đọc
+   */
+  markNotificationAsRead: async (notificationId: string): Promise<void> => {
+    try {
+      await apiClient.put(`/api/v1/notifications/${notificationId}/read`);
+    } catch (error: any) {
+      console.error('Error marking notification as read:', error);
+      throw new Error(`Failed to mark notification as read: ${error.message}`);
+    }
+  },
+
+  /**
+   * Đánh dấu tất cả thông báo đã đọc
+   */
+  markAllNotificationsAsRead: async (): Promise<void> => {
+    try {
+      await apiClient.put('/api/v1/notifications/mark-all-as-read');
+    } catch (error: any) {
+      console.error('Error marking all notifications as read:', error);
+      throw new Error(`Failed to mark all notifications as read: ${error.message}`);
     }
   },
 };

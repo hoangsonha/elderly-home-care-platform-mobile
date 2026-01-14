@@ -4,7 +4,7 @@ import { mainService } from "@/services/main.service";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     ActivityIndicator,
     Image,
@@ -40,6 +40,16 @@ export default function CheckInVerificationScreen() {
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(false); // Loading state
 
+  // Reset photo when mode changes or component mounts
+  useEffect(() => {
+    // Reset photo and step when entering check-out mode
+    if (isCheckOut) {
+      setPhotoUri(null);
+      setCheckInTime(null);
+      setCurrentStep(1);
+    }
+  }, [isCheckOut]);
+
   // Alert state
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
@@ -71,6 +81,13 @@ export default function CheckInVerificationScreen() {
     });
   };
 
+  // Delete photo
+  const handleDeletePhoto = () => {
+    setPhotoUri(null);
+    setCheckInTime(null);
+    setCurrentStep(1);
+  };
+
   // Step 1: Take photo
   const handleTakePhoto = async () => {
     try {
@@ -87,13 +104,16 @@ export default function CheckInVerificationScreen() {
       }
 
       // Launch camera - không crop, lấy full frame cho CI-CO
+      // Đảm bảo mở camera thật sự, không tự động lấy ảnh
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false, // Không cho phép crop
         quality: 0.8,
+        base64: false, // Không tự động encode base64
       });
 
-      if (!result.canceled && result.assets[0]) {
+      // Chỉ set ảnh nếu user thực sự chụp (không cancel)
+      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].uri) {
         setPhotoUri(result.assets[0].uri);
         setCheckInTime(new Date());
         setCurrentStep(2);
@@ -103,6 +123,44 @@ export default function CheckInVerificationScreen() {
       showAlert(
         "Lỗi",
         "Không thể chụp ảnh. Vui lòng thử lại.",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'alert-circle', iconColor: '#EF4444' }
+      );
+    }
+  };
+
+  // Option: Chọn ảnh từ thư viện (nếu cần)
+  const handlePickImage = async () => {
+    try {
+      // Request media library permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showAlert(
+          "Quyền truy cập bị từ chối",
+          "Vui lòng cấp quyền truy cập thư viện ảnh.",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'alert-circle', iconColor: '#EF4444' }
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.8,
+        base64: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        setPhotoUri(result.assets[0].uri);
+        setCheckInTime(new Date());
+        setCurrentStep(2);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      showAlert(
+        "Lỗi",
+        "Không thể chọn ảnh. Vui lòng thử lại.",
         [{ text: 'OK', style: 'default' }],
         { icon: 'alert-circle', iconColor: '#EF4444' }
       );
@@ -148,19 +206,38 @@ export default function CheckInVerificationScreen() {
       if (response.status === 'Success' && response.data) {
         if (isCheckOut) {
           // Nếu là Check Out, lấy QR code và mở payment modal
+          // Response từ API endWork có các field:
+          // { careServiceId (UUID), status, checkOutImageUrl, qrCodeBase64, checkoutUrl, 
+          //   orderCode (Long), amount, description, productName, paymentId (UUID), message }
           const qrCodeBase64 = response.data.qrCodeBase64;
-          // API /api/v1/payments/order/{orderId} cần orderCode, không phải paymentId
-          const orderId = response.data.orderCode?.toString() || response.data.paymentId;
+          // orderId lấy từ orderCode (Long) - convert sang string để dùng trong API POST /order/{orderId}
+          const orderId = response.data.orderCode?.toString();
+          // paymentId lấy trực tiếp từ response.data.paymentId (UUID) - dùng trong request body
+          const paymentId = response.data.paymentId;
+          // careServiceId lấy trực tiếp từ response.data.careServiceId (UUID) - dùng trong request body
+          const careServiceId = response.data.careServiceId;
+          
+          console.log('Check-out: Response data:', response.data);
+          console.log('Check-out: Extracted orderId:', orderId);
+          console.log('Check-out: Extracted paymentId:', paymentId);
+          console.log('Check-out: careServiceId:', careServiceId);
+          console.log('Check-out: qrCodeBase64 exists:', !!qrCodeBase64);
           
           // Navigate back với QR code data
           if (params.fromScreen === 'appointment-detail') {
+            const qrCodeData = qrCodeBase64 && orderId && paymentId && careServiceId ? {
+              qrCodeBase64: qrCodeBase64,
+              orderId: orderId,
+              paymentId: paymentId,
+              careServiceId: careServiceId,
+            } : null;
+            
+            console.log('Check-out: Navigating with qrCodeData:', qrCodeData);
+            
             (navigation as any).navigate('Appointment Detail', {
               appointmentId: params.appointmentId,
               fromScreen: 'check-out',
-              qrCodeData: qrCodeBase64 && orderId ? {
-                qrCodeBase64: qrCodeBase64,
-                orderId: orderId,
-              } : null,
+              qrCodeData: qrCodeData,
             });
           } else {
             (navigation as any).navigate('Yêu cầu dịch vụ');
@@ -242,17 +319,39 @@ export default function CheckInVerificationScreen() {
               : 'Chụp ảnh tại địa điểm để xác nhận bạn đã đến'}
           </Text>
 
-          <TouchableOpacity style={styles.photoCard} onPress={handleTakePhoto}>
+          <TouchableOpacity style={styles.photoCard} onPress={!photoUri ? handleTakePhoto : undefined} activeOpacity={!photoUri ? 0.7 : 1}>
             {photoUri ? (
-              <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+              <View style={styles.photoPreviewContainer}>
+                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                <TouchableOpacity 
+                  style={styles.deletePhotoButton}
+                  onPress={handleDeletePhoto}
+                >
+                  <Ionicons name="trash-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
             ) : (
               <>
                 <MaterialCommunityIcons name="camera" size={64} color="#9CA3AF" />
                 <Text style={styles.photoCardTitle}>Chụp ảnh tại địa điểm</Text>
-                <Text style={styles.photoCardSubtitle}>Tạp để mở camera</Text>
+                <Text style={styles.photoCardSubtitle}>Tap để mở camera</Text>
               </>
             )}
           </TouchableOpacity>
+
+          {/* Option to retake photo if already taken */}
+          {photoUri && (
+            <View style={styles.photoActionsContainer}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={handleTakePhoto}>
+                <Ionicons name="camera-outline" size={20} color="#6B7280" />
+                <Text style={[styles.secondaryButtonText, { marginLeft: 8 }]}>Chụp lại ảnh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.secondaryButton, styles.deleteButton]} onPress={handleDeletePhoto}>
+                <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                <Text style={[styles.secondaryButtonText, styles.deleteButtonText, { marginLeft: 8 }]}>Xóa ảnh</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View style={styles.noteCard}>
             <MaterialCommunityIcons name="lightbulb-on" size={20} color="#F59E0B" />
@@ -314,6 +413,20 @@ export default function CheckInVerificationScreen() {
             </View>
           )}
 
+          {/* Photo actions in confirmation step */}
+          {photoUri && (
+            <TouchableOpacity 
+              style={styles.retakePhotoButton} 
+              onPress={() => {
+                setPhotoUri(null);
+                setCheckInTime(null);
+                setCurrentStep(1);
+              }}
+            >
+              <Ionicons name="camera-outline" size={24} color="#6B7280" />
+              <Text style={styles.retakePhotoButtonText}>Chụp lại ảnh</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity 
             style={[styles.startButton, isLoading && styles.startButtonDisabled]} 
@@ -554,10 +667,40 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 8,
   },
-  photoPreview: {
+  photoPreviewContainer: {
     width: '100%',
     height: 300,
     borderRadius: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  deletePhotoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoActionsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  deleteButton: {
+    borderColor: '#FEE2E2',
+    backgroundColor: '#FEF2F2',
+  },
+  deleteButtonText: {
+    color: '#EF4444',
   },
   confirmationCard: {
     backgroundColor: '#F0FDF4',
@@ -653,6 +796,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  retakePhotoButton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  retakePhotoButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   loadingOverlay: {
     position: 'absolute',

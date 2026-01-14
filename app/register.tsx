@@ -193,6 +193,16 @@ export default function RegisterScreen() {
       // Set user vào context
       setUserDirect(userData);
 
+      // Register device token for push notifications after verification
+      try {
+        const { NotificationService } = await import("@/services/notification.service");
+        await NotificationService.initialize();
+        await NotificationService.registerToken(response.token);
+      } catch (notificationError) {
+        // Log error but don't block registration
+        console.error("Failed to register notification token:", notificationError);
+      }
+
       showSuccessTooltip("Xác minh thành công!");
 
       // Điều hướng theo role

@@ -199,6 +199,9 @@ export default function AppointmentDetailScreen() {
   const [notes, setNotes] = useState<any[]>([]);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
+  const [selectedTab, setSelectedTab] = useState<"tasks" | "notes">("tasks");
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
@@ -658,6 +661,77 @@ export default function AppointmentDetailScreen() {
                 )}
               </View>
             </View>
+            
+            {/* Check In - Check Out Section */}
+            <View style={styles.divider} />
+            <View style={styles.checkInOutSection}>
+              <Text style={styles.checkInOutTitle}>Check In - Check Out</Text>
+              
+              {/* CI and CO in horizontal layout */}
+              <View style={styles.checkInOutRow}>
+                {/* Check In */}
+                <View style={styles.checkInOutItem}>
+                  <View style={styles.checkInOutHeader}>
+                    <MaterialCommunityIcons name="login" size={18} color="#10B981" />
+                    <Text style={styles.checkInOutLabel}>Check In</Text>
+                  </View>
+                  {appointmentData.workSchedule?.checkInImageUrl ? (
+                    <View style={styles.checkInOutContent}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedImageUrl(appointmentData.workSchedule?.checkInImageUrl || null);
+                          setShowImageModal(true);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Image 
+                          source={{ uri: appointmentData.workSchedule.checkInImageUrl }} 
+                          style={styles.checkInOutImage}
+                        />
+                      </TouchableOpacity>
+                      {appointmentData.workSchedule?.startTime && (
+                        <Text style={styles.checkInOutTime}>
+                          {appointmentData.workSchedule.startTime.substring(0, 5)}
+                        </Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={styles.checkInOutPlaceholder}>Chưa CI</Text>
+                  )}
+                </View>
+                
+                {/* Check Out */}
+                <View style={styles.checkInOutItem}>
+                  <View style={styles.checkInOutHeader}>
+                    <MaterialCommunityIcons name="logout" size={18} color="#EF4444" />
+                    <Text style={styles.checkInOutLabel}>Check Out</Text>
+                  </View>
+                  {appointmentData.workSchedule?.checkOutImageUrl ? (
+                    <View style={styles.checkInOutContent}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedImageUrl(appointmentData.workSchedule?.checkOutImageUrl || null);
+                          setShowImageModal(true);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Image 
+                          source={{ uri: appointmentData.workSchedule.checkOutImageUrl }} 
+                          style={styles.checkInOutImage}
+                        />
+                      </TouchableOpacity>
+                      {appointmentData.workSchedule?.endTime && (
+                        <Text style={styles.checkInOutTime}>
+                          {appointmentData.workSchedule.endTime.substring(0, 5)}
+                        </Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={styles.checkInOutPlaceholder}>Chưa CO</Text>
+                  )}
+                </View>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -750,27 +824,154 @@ export default function AppointmentDetailScreen() {
           </View>
         </View>
 
-        {/* Services */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Dịch vụ</Text>
-          <View style={styles.card}>
-            {appointmentData.servicePackage.serviceTasks.map((task, index: number) => (
-              <View key={index} style={styles.serviceItem}>
-                <Ionicons name="checkmark-circle" size={20} color="#68C2E8" />
-                <Text style={styles.serviceText}>{task.taskName}</Text>
-              </View>
-            ))}
-          </View>
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, selectedTab === "tasks" && styles.tabActive]}
+            onPress={() => setSelectedTab("tasks")}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                selectedTab === "tasks" && styles.tabTextActive,
+              ]}
+            >
+              Nhiệm vụ
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, selectedTab === "notes" && styles.tabActive]}
+            onPress={() => setSelectedTab("notes")}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                selectedTab === "notes" && styles.tabTextActive,
+              ]}
+            >
+              Ghi chú
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Notes */}
-        {appointmentData.note && (
+        {/* Tasks Tab */}
+        {selectedTab === "tasks" && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ghi chú</Text>
-            <View style={[styles.card, styles.instructionsCard]}>
-              <Ionicons name="information-circle" size={20} color="#F59E0B" />
-              <Text style={styles.instructionsText}>{appointmentData.note}</Text>
+            <View style={styles.taskSection}>
+              <View style={styles.taskSectionHeader}>
+                <MaterialCommunityIcons name="package-variant" size={20} color="#10B981" />
+                <Text style={styles.taskSectionTitle}>Dịch vụ {appointmentData.servicePackage.packageName}</Text>
+                <View style={styles.taskBadge}>
+                  <Text style={styles.taskBadgeText}>
+                    {appointmentData.workSchedule?.workTasks?.filter((t: any) => t.status === 'DONE').length || 0}/{appointmentData.workSchedule?.workTasks?.length || appointmentData.servicePackage.serviceTasks.length}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.taskSectionDesc}>
+                Các dịch vụ cần thực hiện trong ca làm việc
+              </Text>
+              {(appointmentData.workSchedule?.workTasks || appointmentData.servicePackage.serviceTasks).map((task: any, index: number) => {
+                const isCompleted = task.status === 'DONE' || (task.completed === true);
+                const isNotCompleted = task.status === 'NOT_COMPLETED';
+                const isCompletedStatus = status === "COMPLETED" || status === "Hoàn thành";
+                
+                return (
+                  <View
+                    key={task.workTaskId || task.serviceTaskId || index}
+                    style={[
+                      styles.taskCard,
+                      isCompletedStatus && isCompleted && styles.taskCardCompletedGreen,
+                      isCompletedStatus && isNotCompleted && styles.taskCardNotCompletedRed,
+                    ]}
+                  >
+                    <View style={styles.taskHeader}>
+                      <View style={styles.taskLeft}>
+                        <View
+                          style={[
+                            styles.checkbox,
+                            isCompleted && (isCompletedStatus ? styles.checkboxCompletedGreen : styles.checkboxCompleted),
+                            isCompletedStatus && isNotCompleted && styles.checkboxNotCompletedRed,
+                          ]}
+                        >
+                          {isCompleted && (
+                            <Ionicons name="checkmark" size={16} color="#fff" />
+                          )}
+                          {isCompletedStatus && isNotCompleted && (
+                            <Ionicons name="close" size={16} color="#fff" />
+                          )}
+                        </View>
+                        <View style={styles.taskInfo}>
+                          <Text
+                            style={[
+                              styles.taskTitle,
+                              isCompletedStatus && isCompleted && styles.taskTitleCompletedGreen,
+                              isCompletedStatus && isNotCompleted && styles.taskTitleNotCompletedRed,
+                            ]}
+                          >
+                            {task.name || task.taskName}
+                          </Text>
+                          {task.description && (
+                            <Text
+                              style={[
+                                styles.taskDescription,
+                                isCompletedStatus && isCompleted && styles.taskDescriptionCompletedGreen,
+                                isCompletedStatus && isNotCompleted && styles.taskDescriptionNotCompletedRed,
+                              ]}
+                            >
+                              {task.description}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
+          </View>
+        )}
+
+        {/* Notes Tab */}
+        {selectedTab === "notes" && (
+          <View style={styles.section}>
+            {appointmentData.note && (
+              <View style={styles.noteCard}>
+                <View style={styles.noteHeader}>
+                  <View style={styles.noteAuthor}>
+                    <Ionicons name="information-circle" size={16} color="#6B7280" />
+                    <Text style={styles.noteAuthorText}>Ghi chú ban đầu</Text>
+                  </View>
+                </View>
+                <Text style={styles.noteContent}>{appointmentData.note}</Text>
+              </View>
+            )}
+            {appointmentData.status === 'IN_PROGRESS' && appointmentData.work_note && (
+              <View style={styles.noteCard}>
+                <View style={styles.noteHeader}>
+                  <View style={styles.noteAuthor}>
+                    <Ionicons name="medical" size={16} color="#6B7280" />
+                    <Text style={styles.noteAuthorText}>Ghi chú trong thời gian làm việc</Text>
+                  </View>
+                </View>
+                <Text style={styles.noteContent}>{appointmentData.work_note}</Text>
+              </View>
+            )}
+            {notes.map((note: any) => (
+              <View key={note.id} style={styles.noteCard}>
+                <View style={styles.noteHeader}>
+                  <View style={styles.noteAuthor}>
+                    <Ionicons
+                      name={note.type === "health" ? "medical" : "person-circle"}
+                      size={16}
+                      color="#6B7280"
+                    />
+                    <Text style={styles.noteAuthorText}>{note.author}</Text>
+                  </View>
+                  <Text style={styles.noteTime}>{note.time}</Text>
+                </View>
+                <Text style={styles.noteContent}>{note.content}</Text>
+              </View>
+            ))}
           </View>
         )}
 
@@ -801,16 +1002,6 @@ export default function AppointmentDetailScreen() {
             </View>
           </View>
         </View>
-
-        {/* Work Notes - Only show for IN_PROGRESS status */}
-        {appointmentData.status === 'IN_PROGRESS' && appointmentData.work_note && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ghi chú trong thời gian làm việc</Text>
-            <View style={styles.card}>
-              <Text style={styles.noteContent}>{appointmentData.work_note}</Text>
-            </View>
-          </View>
-        )}
 
         {/* Actions */}
         {(status === "PENDING_CAREGIVER" || status === "CAREGIVER_APPROVED") && (
@@ -843,6 +1034,30 @@ export default function AppointmentDetailScreen() {
           <View style={{ height: 120 }} />
         )}
       </ScrollView>
+
+      {/* Image Modal for Check In/Out */}
+      <Modal
+        visible={showImageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <View style={styles.imageModalOverlay}>
+          <TouchableOpacity
+            style={styles.imageModalCloseButton}
+            onPress={() => setShowImageModal(false)}
+          >
+            <Ionicons name="close" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+          {selectedImageUrl && (
+            <Image
+              source={{ uri: selectedImageUrl }}
+              style={styles.imageModalImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
 
       {/* Add Note Modal */}
       <Modal
@@ -1816,6 +2031,245 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: "500",
+  },
+  // Check In/Out styles
+  checkInOutSection: {
+    marginTop: 8,
+  },
+  checkInOutTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 12,
+  },
+  checkInOutRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  checkInOutItem: {
+    flex: 1,
+    marginBottom: 8,
+  },
+  checkInOutHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  checkInOutLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginLeft: 6,
+  },
+  checkInOutContent: {
+    alignItems: "center",
+  },
+  checkInOutImage: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 8,
+    marginBottom: 6,
+    backgroundColor: "#F3F4F6",
+  },
+  checkInOutTime: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  checkInOutPlaceholder: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    paddingVertical: 8,
+    textAlign: "center",
+  },
+  // Tab styles
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 8,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 6,
+  },
+  tabActive: {
+    backgroundColor: "#10B981",
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  tabTextActive: {
+    color: "#fff",
+  },
+  // Task styles
+  taskSection: {
+    marginBottom: 24,
+  },
+  taskSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  taskSectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginLeft: 8,
+    flex: 1,
+  },
+  taskBadge: {
+    backgroundColor: "#E5E7EB",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  taskBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4B5563",
+  },
+  taskSectionDesc: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 12,
+    marginLeft: 28,
+  },
+  taskCard: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  taskCardCompletedGreen: {
+    backgroundColor: "#D1FAE5",
+    borderLeftWidth: 4,
+    borderLeftColor: "#10B981",
+  },
+  taskCardNotCompletedRed: {
+    backgroundColor: "#FEE2E2",
+    borderLeftWidth: 4,
+    borderLeftColor: "#EF4444",
+  },
+  taskHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  taskLeft: {
+    flexDirection: "row",
+    flex: 1,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  checkboxCompleted: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
+  },
+  checkboxCompletedGreen: {
+    backgroundColor: "#10B981",
+    borderColor: "#10B981",
+  },
+  checkboxNotCompletedRed: {
+    backgroundColor: "#EF4444",
+    borderColor: "#EF4444",
+  },
+  taskInfo: {
+    flex: 1,
+  },
+  taskTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  taskTitleCompletedGreen: {
+    color: "#059669",
+    fontWeight: "700",
+  },
+  taskTitleNotCompletedRed: {
+    color: "#DC2626",
+    fontWeight: "700",
+  },
+  taskDescription: {
+    fontSize: 13,
+    color: "#6B7280",
+    lineHeight: 18,
+  },
+  taskDescriptionCompletedGreen: {
+    color: "#047857",
+  },
+  taskDescriptionNotCompletedRed: {
+    color: "#B91C1C",
+  },
+  // Note styles
+  noteCard: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  noteHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  noteAuthor: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  noteAuthorText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4B5563",
+    marginLeft: 6,
+  },
+  noteTime: {
+    fontSize: 12,
+    color: "#9CA3AF",
+  },
+  // Image Modal styles
+  imageModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imageModalCloseButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 1,
+  },
+  imageModalImage: {
+    width: "90%",
+    height: "80%",
   },
   commentHeader: {
     flexDirection: "row",

@@ -6,6 +6,7 @@ buildscript {
     mavenCentral()
   }
   dependencies {
+        classpath 'com.google.gms:google-services:4.4.1'
     classpath('com.android.tools.build:gradle')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
@@ -17,17 +18,6 @@ allprojects {
     google()
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
-    // Mapbox Maven repository
-    maven {
-      url 'https://api.mapbox.com/downloads/v2/releases/maven'
-      authentication {
-        basic(BasicAuthentication)
-      }
-      credentials {
-        username = 'mapbox'
-        password = project.findProperty('MAPBOX_DOWNLOADS_TOKEN') ?: System.getenv('MAPBOX_DOWNLOADS_TOKEN') ?: ''
-      }
-    }
   }
 }
 

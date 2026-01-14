@@ -347,26 +347,11 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
         },
         budget_per_hour: parseInt(userInfo.budgetPerHour)
       };
-      // Log request body để debug
-      console.log('=== REQUEST BODY KHI BẤM "GỢI Ý TỪ AI" ===');
-      console.log(JSON.stringify(requestBody, null, 2));
-      console.log('==========================================');
       // Gọi API thông qua service
       setIsLoading(true);
       try {
         const response = await matchService.matchCaregivers(requestBody);
         
-        // Log chi tiết với score_breakdown
-        console.log('API Response với Score Breakdown:');
-        console.log(JSON.stringify({
-          total_matches: response.total_matches,
-          recommendations: response.recommendations.map(rec => ({
-            name: rec.name,
-            match_score: rec.match_score,
-            match_percentage: rec.match_percentage,
-            score_breakdown: rec.score_breakdown
-          }))
-        }, null, 2));
         
         onGetRecommendations(response);
       } catch (error: any) {

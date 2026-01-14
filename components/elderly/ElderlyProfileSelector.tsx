@@ -30,6 +30,7 @@ interface ElderlyProfileSelectorProps {
   showValidation?: boolean;
   hideTitle?: boolean; // Option to hide the title when used in a modal/form with its own title
   onAddNewProfile?: (profile: Omit<ElderlyProfile, 'id'>) => void; // Callback to add new elderly profile
+  onNavigateToAddElderly?: () => void; // Callback to navigate to add elderly page
 }
 
 export function ElderlyProfileSelector({
@@ -39,6 +40,7 @@ export function ElderlyProfileSelector({
   showValidation = false,
   hideTitle = false,
   onAddNewProfile,
+  onNavigateToAddElderly,
 }: ElderlyProfileSelectorProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProfile, setNewProfile] = useState({
@@ -286,10 +288,16 @@ export function ElderlyProfileSelector({
         ))}
 
         {/* Add New Profile Button */}
-        {onAddNewProfile && (
+        {(onAddNewProfile || onNavigateToAddElderly) && (
           <TouchableOpacity
             style={styles.addNewButton}
-            onPress={() => setShowAddModal(true)}
+            onPress={() => {
+              if (onNavigateToAddElderly) {
+                onNavigateToAddElderly();
+              } else if (onAddNewProfile) {
+                setShowAddModal(true);
+              }
+            }}
           >
             <Ionicons name="add-circle-outline" size={24} color="#68C2E8" />
             <ThemedText style={styles.addNewButtonText}>

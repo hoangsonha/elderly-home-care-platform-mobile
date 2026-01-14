@@ -61,6 +61,32 @@ export class NavigationHelper {
   static canGoBack(): boolean {
     return router.canGoBack();
   }
+
+  /**
+   * Navigate đến appointment detail (caregiver)
+   */
+  static goToAppointmentDetail(appointmentId: string, fromScreen?: string) {
+    router.push({
+      pathname: "/caregiver/appointment-detail",
+      params: {
+        appointmentId,
+        fromScreen: fromScreen || "notification",
+      },
+    } as any);
+  }
+
+  /**
+   * Navigate đến booking screen (caregiver)
+   */
+  static goToBooking(initialTab?: string, careServiceId?: string) {
+    router.push({
+      pathname: "/caregiver/booking",
+      params: {
+        initialTab: initialTab || "Tất cả",
+        careServiceId: careServiceId || undefined,
+      },
+    } as any);
+  }
 }
 
 /**

@@ -48,7 +48,9 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({ profile }) => {
           </View>
           <View style={styles.compactItem}>
             <Ionicons name="calendar" size={14} color="#68C2E8" />
-            <ThemedText style={styles.compactValue}>{profile.personalInfo.age} tuổi</ThemedText>
+            <ThemedText style={styles.compactValue}>
+              {profile.personalInfo.birthYear ? profile.personalInfo.birthYear : profile.personalInfo.age ? `${profile.personalInfo.age} tuổi` : 'Chưa có'}
+            </ThemedText>
           </View>
           <View style={styles.compactItem}>
             <Ionicons name="male-female" size={14} color="#68C2E8" />

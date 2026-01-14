@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     Alert,
     Image,
@@ -8,13 +8,16 @@ import {
     StyleSheet,
     TouchableOpacity,
     View,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
+import { mainService } from '@/services/main.service';
 
 interface MenuItem {
     id: string;
@@ -26,10 +29,57 @@ interface MenuItem {
     color?: string;
 }
 
+interface CareSeekerProfileData {
+    careSeekerProfileId: string;
+    fullName: string;
+    phoneNumber: string;
+    location: string;
+    birthDate: string;
+    age: number;
+    gender: string;
+    profileData: string | object;
+    accountId: string;
+    email: string;
+    avatarUrl: string;
+    enabled: boolean;
+    nonLocked: boolean;
+    totalElderlyProfiles: number;
+    totalCompletedBookings: number;
+    elderlyProfiles: Array<any>;
+}
+
 export default function ProfileScreen() {
     const { user, logout } = useAuth();
     const bottomNavPadding = useBottomNavPadding();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [profile, setProfile] = useState<CareSeekerProfileData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchProfile = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await mainService.getCareSeekerProfile();
+            
+            if (response.status === 'Success' && response.data) {
+                setProfile(response.data);
+            } else {
+                setError(response.message || 'Không thể tải thông tin profile');
+            }
+        } catch (err: any) {
+            console.error('Error fetching profile:', err);
+            setError(err.message || 'Có lỗi xảy ra khi tải thông tin');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchProfile();
+        }, [fetchProfile])
+    );
 
     const handleLogout = () => {
         Alert.alert(
@@ -59,15 +109,8 @@ export default function ProfileScreen() {
                     title: 'Hồ sơ người già',
                     icon: 'people',
                     route: '/careseeker/elderly-list',
-                    badge: 3,
+                    badge: profile?.totalElderlyProfiles || 0,
                     color: '#68C2E8',
-                },
-                {
-                    id: 'family',
-                    title: 'Quản lý gia đình',
-                    icon: 'home',
-                    route: '/careseeker/family-list',
-                    color: '#8B5CF6',
                 },
                 {
                     id: 'hired',
@@ -152,21 +195,50 @@ export default function ProfileScreen() {
         }
     };
 
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#68C2E8" />
+                    <ThemedText style={styles.loadingText}>Đang tải thông tin...</ThemedText>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (error) {
+        return (
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={styles.errorContainer}>
+                    <ThemedText style={styles.errorText}>{error}</ThemedText>
+                    <TouchableOpacity style={styles.retryButton} onPress={fetchProfile}>
+                        <ThemedText style={styles.retryButtonText}>Thử lại</ThemedText>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    const displayName = profile?.fullName || user?.name || 'Người dùng';
+    const displayAvatar = profile?.avatarUrl || user?.avatar;
+    const totalElderlyProfiles = profile?.totalElderlyProfiles || 0;
+    const totalCompletedBookings = profile?.totalCompletedBookings || 0;
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header with Profile Info */}
             <View style={styles.header}>
                 <View style={styles.profileSection}>
                     <View style={styles.avatarContainer}>
-                        {user?.avatar ? (
+                        {displayAvatar ? (
                             <Image
-                                source={{ uri: user.avatar }}
+                                source={{ uri: displayAvatar }}
                                 style={styles.avatar}
                             />
                         ) : (
                             <View style={styles.avatarPlaceholder}>
                                 <ThemedText style={styles.avatarText}>
-                                    {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                                    {displayName.charAt(0).toUpperCase()}
                                 </ThemedText>
                             </View>
                         )}
@@ -177,10 +249,10 @@ export default function ProfileScreen() {
 
                     <View style={styles.userInfo}>
                         <ThemedText style={styles.userName}>
-                            {user?.name || 'Người dùng'}
+                            {displayName}
                         </ThemedText>
                         <View style={styles.roleBadge}>
-                            <ThemedText style={styles.roleText}>Care Seeker</ThemedText>
+                            <ThemedText style={styles.roleText}>Người thuê</ThemedText>
                         </View>
                     </View>
                 </View>
@@ -188,17 +260,12 @@ export default function ProfileScreen() {
                 {/* Stats */}
                 <View style={styles.statsContainer}>
                     <View style={styles.statItem}>
-                        <ThemedText style={styles.statValue}>3</ThemedText>
+                        <ThemedText style={styles.statValue}>{totalElderlyProfiles}</ThemedText>
                         <ThemedText style={styles.statLabel}>Người già</ThemedText>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <ThemedText style={styles.statValue}>2</ThemedText>
-                        <ThemedText style={styles.statLabel}>Đang thuê</ThemedText>
-                    </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statItem}>
-                        <ThemedText style={styles.statValue}>15</ThemedText>
+                        <ThemedText style={styles.statValue}>{totalCompletedBookings}</ThemedText>
                         <ThemedText style={styles.statLabel}>Lịch hẹn</ThemedText>
                     </View>
                 </View>
@@ -467,6 +534,39 @@ const styles = StyleSheet.create({
     copyrightText: {
         fontSize: 12,
         color: '#9CA3AF',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: '#6B7280',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    errorText: {
+        fontSize: 14,
+        color: '#EF4444',
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    retryButton: {
+        backgroundColor: '#68C2E8',
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
 

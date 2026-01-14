@@ -4,6 +4,7 @@ export interface ServicePackage {
   duration: number; // in hours
   price: number; // in VND
   services: string[];
+  isEligible?: boolean; // true if caregiver can work with this package
 }
 
 export const SERVICE_PACKAGES: ServicePackage[] = [

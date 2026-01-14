@@ -78,12 +78,25 @@ apiClient.interceptors.request.use(
     const fullUrl = config.baseURL ? `${config.baseURL}${url}` : url;
 
     // Nếu là FormData, xóa Content-Type để axios tự động set multipart/form-data với boundary
-    // Theo hướng dẫn BE: Axios sẽ tự động thêm boundary khi set Content-Type: multipart/form-data
-    // Nhưng tốt nhất là để axios tự set để đảm bảo boundary đúng
+    // Và override transformRequest để không convert FormData thành string
+    // React Native FormData cần được giữ nguyên để serialize đúng cách
     if (config.data instanceof FormData) {
       // Xóa Content-Type để axios tự động set với boundary
       delete config.headers["Content-Type"];
       delete config.headers["content-type"];
+      
+      // Override transformRequest để giữ nguyên FormData
+      // Axios mặc định sẽ convert FormData thành string, nhưng React Native cần giữ nguyên object
+      if (!config.transformRequest) {
+        config.transformRequest = [(data) => {
+          // Nếu là FormData, return trực tiếp (không transform)
+          if (data instanceof FormData) {
+            return data;
+          }
+          // Với data khác, dùng default transform
+          return data;
+        }];
+      }
     }
 
     // Nếu không phải public API, thêm token
@@ -93,16 +106,8 @@ apiClient.interceptors.request.use(
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-      } catch (error) {
+      } catch {
         // Silent error handling
-      }
-    }
-
-    // Log request (optional, có thể tắt trong production)
-    if (__DEV__) {
-      console.log("API Request:", config.method?.toUpperCase(), fullUrl);
-      if (config.data && !(config.data instanceof FormData)) {
-        console.log("Request data:", config.data);
       }
     }
 
@@ -118,11 +123,6 @@ apiClient.interceptors.request.use(
  */
 apiClient.interceptors.response.use(
   (response) => {
-    // Log response (optional, có thể tắt trong production)
-    if (__DEV__) {
-      console.log("API Response:", response.status, response.statusText);
-      console.log("Response data:", response.data);
-    }
     return response;
   },
   async (error) => {
@@ -148,9 +148,8 @@ export const saveToken = async (
     if (refreshToken) {
       await AsyncStorage.setItem("refreshToken", refreshToken);
     }
-    console.log("Token saved to AsyncStorage");
-  } catch (error) {
-    throw error;
+  } catch {
+    // Silent error handling
   }
 };
 
@@ -161,8 +160,7 @@ export const removeToken = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("refreshToken");
-    console.log("Token removed from AsyncStorage");
-  } catch (error) {
+  } catch {
     // Silent error handling
   }
 };
@@ -173,7 +171,7 @@ export const removeToken = async (): Promise<void> => {
 export const getToken = async (): Promise<string | null> => {
   try {
     return await AsyncStorage.getItem("token");
-  } catch (error) {
+  } catch {
     return null;
   }
 };

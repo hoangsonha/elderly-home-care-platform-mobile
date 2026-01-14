@@ -1,6 +1,7 @@
 import { NavigationHelper } from "@/components/navigation/NavigationHelper";
 import { AccountService } from "@/services/account.service";
 import { saveToken, removeToken } from "@/services/apiClient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, ReactNode, useContext, useState } from "react";
 
 interface User {
@@ -67,6 +68,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('👤 User data created:', JSON.stringify(userData));
       setUser(userData);
       console.log('✅ AuthContext.login - Success');
+
+      // Register device token for push notifications after login
+      try {
+        const { NotificationService } = await import("@/services/notification.service");
+        await NotificationService.initialize();
+        await NotificationService.registerToken(res.token);
+      } catch (notificationError) {
+        // Log error but don't block login
+        console.error("Failed to register notification token:", notificationError);
+      }
+
       return userData;
     } catch (error: any) {
       console.error('❌ AuthContext.login - Error:', error);
@@ -79,6 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // LOGOUT
   const logout = async () => {
+    // Delete device token before logout
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (token) {
+        const { NotificationService } = await import("@/services/notification.service");
+        await NotificationService.deleteToken(token);
+      }
+    } catch (notificationError) {
+      // Log error but don't block logout
+      console.error("Failed to delete notification token:", notificationError);
+    }
+
     // Xóa token khỏi AsyncStorage
     await removeToken();
     setUser(null);

@@ -1,4 +1,4 @@
-package com.anonymous.capstoneproject
+package com.capstoneproject.app
 
 import android.app.Application
 import android.content.res.Configuration

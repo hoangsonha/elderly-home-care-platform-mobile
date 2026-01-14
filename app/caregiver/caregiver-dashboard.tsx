@@ -1,4 +1,5 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
+import { NotificationPanel } from "@/components/ui/NotificationPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
 // TODO: Replace with API calls
@@ -8,11 +9,13 @@ import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 import { mainService, type MyCareServiceData } from "@/services/main.service";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +27,57 @@ const { width: screenWidth } = Dimensions.get("window");
 const CARD_PADDING = 16; // paddingHorizontal của statsOuterContainer
 const CARD_GAP = 12; // gap giữa các card
 const CARD_WIDTH = (screenWidth - CARD_PADDING * 2 - CARD_GAP) / 2;
+
+// Helper function to format time
+const formatTimeAgo = (dateString: string): string => {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return "Vừa xong";
+  }
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} phút trước`;
+  }
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} giờ trước`;
+  }
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays} ngày trước`;
+  }
+  
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks} tuần trước`;
+  }
+  
+  const diffInMonths = Math.floor(diffInDays / 30);
+  return `${diffInMonths} tháng trước`;
+};
+
+// Helper function to map notification type to UI type
+const mapNotificationType = (type: string): 'info' | 'success' | 'warning' | 'error' | 'reminder' => {
+  if (type.includes('ACCEPT') || type.includes('APPROVED') || type.includes('SUCCESS')) {
+    return 'success';
+  }
+  if (type.includes('REJECT') || type.includes('DECLINE') || type.includes('ERROR')) {
+    return 'error';
+  }
+  if (type.includes('WARNING') || type.includes('REMINDER')) {
+    return 'warning';
+  }
+  if (type.includes('REMINDER')) {
+    return 'reminder';
+  }
+  return 'info';
+};
 
 // Map appointment status to dashboard status display
 const mapStatusToDashboard = (status: string | undefined) => {
@@ -58,12 +112,29 @@ const mapStatusToDashboard = (status: string | undefined) => {
   }
 };
 
-const caregiverStats = {
-  totalJobs: 12,
-  monthlyIncome: 8.5,
-  rating: 4.9,
-  completionRate: 80,
-  satisfactionRate: 95,
+// Format earnings to display (VNĐ) - format ngắn gọn nhưng không làm tròn số nguyên
+const formatEarnings = (earnings: number): string => {
+  if (earnings >= 1000000) {
+    const millions = earnings / 1000000;
+    // Chỉ hiển thị 1 chữ số thập phân, không làm tròn số nguyên
+    return `${millions.toFixed(1)}M`;
+  } else if (earnings >= 1000) {
+    const thousands = earnings / 1000;
+    // Chỉ hiển thị 1 chữ số thập phân, không làm tròn số nguyên
+    return `${thousands.toFixed(1)}K`;
+  }
+  return earnings.toString();
+};
+
+// Format completion rate: show integer if whole number, otherwise show decimal
+const formatCompletionRate = (rate: number): string => {
+  if (rate === 0) return '0';
+  // Check if it's a whole number
+  if (rate % 1 === 0) {
+    return rate.toString();
+  }
+  // Otherwise, show with decimal
+  return rate.toFixed(1);
 };
 
 // Parse Vietnamese date format "T5, 13 Thg 11 2025" to "YYYY-MM-DD"
@@ -92,23 +163,98 @@ export default function CaregiverDashboardScreen() {
   const { user } = useAuth();
   const bottomNavPadding = useBottomNavPadding();
   
+  // All hooks must be called before any conditional returns
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const refresh = useCallback(async () => {
-    // Refresh will be called by fetchTodayAppointments
-  }, []);
   const [refreshKey, setRefreshKey] = useState(0);
   const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>({});
   const [newRequestsCount, setNewRequestsCount] = useState(0);
   const [loadingNewRequests, setLoadingNewRequests] = useState(true);
   
-  // Mock notifications (unread count for badge)
-  const [notifications] = useState([
-    { id: '1', isRead: false },
-    { id: '2', isRead: false },
-    { id: '3', isRead: true },
-  ]);
+  // Statistics state
+  const [statistics, setStatistics] = useState<{
+    totalCareServicesThisMonth: number;
+    totalEarningsThisMonth: number;
+    overallRating: number;
+    taskCompletionRate: number;
+  } | null>(null);
+  const [loadingStatistics, setLoadingStatistics] = useState(true);
+  
+  // Notification state
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    title: string;
+    message: string;
+    time: string;
+    type: 'info' | 'success' | 'warning' | 'error' | 'reminder';
+    isRead: boolean;
+    notificationId?: string;
+  }>>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const response = await mainService.getNotifications({
+        page: 0,
+        size: 20,
+        sort: 'createdAt,desc',
+      });
+      
+      // Sort: unread first, then by createdAt descending
+      const sortedContent = [...response.content].sort((a, b) => {
+        // Unread notifications first
+        if (!a.isRead && b.isRead) return -1;
+        if (a.isRead && !b.isRead) return 1;
+        // If both have same read status, sort by createdAt descending (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      const mappedNotifications = sortedContent.map((notif) => ({
+        id: notif.notificationId,
+        notificationId: notif.notificationId,
+        title: notif.title,
+        message: notif.body,
+        time: formatTimeAgo(notif.sentAt || notif.createdAt),
+        type: mapNotificationType(notif.notificationType),
+        isRead: notif.isRead,
+      }));
+      
+      setNotifications(mappedNotifications);
+    } catch (error: any) {
+      console.error('Error fetching notifications:', error);
+    }
+  }, []);
+
+  // Fetch unread count
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const count = await mainService.getUnreadNotificationCount();
+      setUnreadCount(count);
+    } catch (error: any) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, []);
+
+  // Fetch notifications on mount
+  useEffect(() => {
+    fetchNotifications();
+    fetchUnreadCount();
+  }, [fetchNotifications, fetchUnreadCount]);
+
+  // Refresh when modal opens
+  useEffect(() => {
+    if (showNotificationModal) {
+      fetchNotifications();
+      fetchUnreadCount();
+    }
+  }, [showNotificationModal, fetchNotifications, fetchUnreadCount]);
+
+  const refresh = useCallback(async () => {
+    // Refresh will be called by fetchTodayAppointments
+  }, []);
 
   // Fetch today's appointments from API
   const fetchTodayAppointments = useCallback(async () => {
@@ -163,7 +309,6 @@ export default function CaregiverDashboardScreen() {
         setAppointments([]);
       }
     } catch (error: any) {
-      console.error('Error fetching today appointments:', error);
       setError(error);
       setAppointments([]);
     } finally {
@@ -183,10 +328,24 @@ export default function CaregiverDashboardScreen() {
         setNewRequestsCount(0);
       }
     } catch (error: any) {
-      console.error('Error fetching new requests:', error);
       setNewRequestsCount(0);
     } finally {
       setLoadingNewRequests(false);
+    }
+  }, []);
+
+  // Fetch statistics
+  const fetchStatistics = useCallback(async () => {
+    try {
+      setLoadingStatistics(true);
+      const response = await mainService.getCaregiverPersonalStatistics();
+      if (response.status === 'Success' && response.data) {
+        setStatistics(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+    } finally {
+      setLoadingStatistics(false);
     }
   }, []);
 
@@ -195,7 +354,8 @@ export default function CaregiverDashboardScreen() {
     useCallback(() => {
       fetchNewRequestsCount();
       fetchTodayAppointments();
-    }, [fetchNewRequestsCount, fetchTodayAppointments])
+      fetchStatistics();
+    }, [fetchNewRequestsCount, fetchTodayAppointments, fetchStatistics])
   );
 
   // Load elderly names for appointments
@@ -227,56 +387,24 @@ export default function CaregiverDashboardScreen() {
     return () => unsubscribe();
   }, []);
 
+  // Redirect to complete profile if not completed - check after all hooks
+  useEffect(() => {
+    if (user && (user.role === "Caregiver" || user.role === "ROLE_CAREGIVER") && !user.hasCompletedProfile) {
+            navigation.navigate("Hoàn thiện hồ sơ", {
+              email: user.email,
+        accountId: user.id,
+            });
+    }
+  }, [user?.hasCompletedProfile, navigation, user]);
+
+  // Don't render dashboard if profile not completed
+  if (user && (user.role === "Caregiver" || user.role === "ROLE_CAREGIVER") && !user.hasCompletedProfile) {
+    return null;
+  }
+
   // Today's appointments already filtered by API (workDate = today)
   // Just display all appointments from state
   const todayAppointments = appointments;
-
-  // Check profile status and navigate accordingly
-  // DISABLED: This was causing infinite re-renders
-  /*
-  useFocusEffect(
-    useCallback(() => {
-      if (user && user.role === "Caregiver") {
-        // console.log('Dashboard check - user.hasCompletedProfile:', user.hasCompletedProfile);
-        // Small delay to ensure navigation is ready
-        setTimeout(() => {
-          // Check if profile has been submitted (exists in profileStore)
-          const { getProfileStatus, hasProfile } = require("@/data/profileStore");
-          const hasProfileInStore = hasProfile(user.id);
-          const profileStatus = getProfileStatus(user.id);
-          
-          // Check status from API (user.status) or profileStore
-          const currentStatus = user.status || profileStatus.status;
-          
-          // console.log('Dashboard check - hasProfileInStore:', hasProfileInStore, 'currentStatus:', currentStatus);
-          
-          // If no profile submitted yet and user hasn't completed profile, navigate to complete profile
-          if (!hasProfileInStore && !user.hasCompletedProfile) {
-            // console.log('Dashboard redirecting to complete-profile');
-            navigation.navigate("Hoàn thiện hồ sơ", {
-              email: user.email,
-              fullName: user.name || "",
-            });
-            return;
-          }
-
-          // If profile is approved (from API or profileStore), stay on dashboard
-          if (currentStatus === "approved") {
-            // console.log('Profile approved, staying on dashboard');
-            return; // Stay on dashboard
-          }
-
-          // If profile is pending or rejected, navigate to status screen
-          if (currentStatus === "pending" || currentStatus === "rejected") {
-            // console.log('Profile pending/rejected, navigating to status screen');
-            navigation.navigate("Trạng thái hồ sơ");
-            return;
-          }
-        }, 100); // Reduced timeout for faster response
-      }
-    }, [user, navigation])
-  );
-  */
 
   if (loading) {
     return (
@@ -343,13 +471,15 @@ export default function CaregiverDashboardScreen() {
               
               <TouchableOpacity 
                 style={styles.iconButton}
-                onPress={() => {/* Navigate to notifications */}}
+                onPress={() => {
+                  setShowNotificationModal(true);
+                }}
               >
                 <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
-                {notifications.filter(n => !n.isRead).length > 0 && (
+                {unreadCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>
-                      {notifications.filter(n => !n.isRead).length}
+                      {unreadCount > 99 ? "99+" : unreadCount}
                     </Text>
                   </View>
                 )}
@@ -472,7 +602,11 @@ export default function CaregiverDashboardScreen() {
               <View style={styles.statIconContainer}>
                 <Text style={styles.statIcon}>📄</Text>
               </View>
-              <Text style={styles.statValue}>{caregiverStats.totalJobs}</Text>
+              {loadingStatistics ? (
+                <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.statValue}>{statistics?.totalCareServicesThisMonth || 0}</Text>
+              )}
               <Text style={styles.statLabel}>Lịch hẹn tháng này</Text>
             </View>
 
@@ -480,7 +614,13 @@ export default function CaregiverDashboardScreen() {
               <View style={styles.statIconContainer}>
                 <Text style={styles.statIcon}>💰</Text>
               </View>
-              <Text style={styles.statValue}>{caregiverStats.monthlyIncome}M</Text>
+              {loadingStatistics ? (
+                <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.statValue}>
+                  {statistics ? formatEarnings(statistics.totalEarningsThisMonth) : '0'}
+                </Text>
+              )}
               <Text style={styles.statLabel}>Thu nhập tháng</Text>
             </View>
           </View>
@@ -490,15 +630,27 @@ export default function CaregiverDashboardScreen() {
               <View style={styles.statIconContainer}>
                 <Text style={styles.statIcon}>⭐</Text>
               </View>
-              <Text style={styles.statValue}>{caregiverStats.rating}</Text>
+              {loadingStatistics ? (
+                <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.statValue}>
+                  {statistics?.overallRating ? statistics.overallRating.toFixed(1) : '0.0'}
+                </Text>
+              )}
               <Text style={styles.statLabel}>Đánh giá tổng</Text>
             </View>
 
             <View style={[styles.statCard, { backgroundColor: "#EDE7F6" }]}>
               <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}></Text>
+                <Text style={styles.statIcon}>✓</Text>
               </View>
-              <Text style={styles.statValue}>{caregiverStats.completionRate}%</Text>
+              {loadingStatistics ? (
+                <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
+              ) : (
+                <Text style={styles.statValue}>
+                  {statistics?.taskCompletionRate !== undefined ? formatCompletionRate(statistics.taskCompletionRate) : '0'}%
+                </Text>
+              )}
               <Text style={styles.statLabel}>Tỷ lệ hoàn thành nhiệm vụ</Text>
             </View>
           </View>
@@ -508,6 +660,86 @@ export default function CaregiverDashboardScreen() {
 
       {/* Bottom Navigation */}
       <CaregiverBottomNav activeTab="home" />
+
+      {/* Notification Modal */}
+      <Modal
+        visible={showNotificationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowNotificationModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.notificationOverlay}
+          activeOpacity={1}
+          onPress={() => setShowNotificationModal(false)}
+        >
+          <View 
+            style={styles.notificationDropdown}
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
+            <View style={styles.notificationArrow} />
+            <NotificationPanel
+              notifications={notifications}
+              onNotificationPress={async (notification) => {
+                const notif = notification as any;
+                const notifId = notif.notificationId || notification.id;
+                if (notifId && !notification.isRead) {
+                  try {
+                    await mainService.markNotificationAsRead(notifId);
+                    setNotifications((prev) =>
+                      prev.map((notif) =>
+                        notif.id === notification.id
+                          ? { ...notif, isRead: true }
+                          : notif
+                      )
+                    );
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                  } catch (error: any) {
+                    console.error('Error marking notification as read:', error);
+                  }
+                }
+              }}
+              onMarkAsRead={async (notificationId) => {
+                const notification = notifications.find(n => {
+                  const nAny = n as any;
+                  return n.id === notificationId || nAny.notificationId === notificationId;
+                });
+                const notif = notification as any;
+                const notifId = notif?.notificationId || notification?.id;
+                if (notifId && notification && !notification.isRead) {
+                  try {
+                    await mainService.markNotificationAsRead(notifId);
+                    setNotifications((prev) =>
+                      prev.map((n) => {
+                        const nAny = n as any;
+                        if (n.id === notificationId || nAny.notificationId === notificationId) {
+                          return { ...n, isRead: true };
+                        }
+                        return n;
+                      })
+                    );
+                    setUnreadCount((prev) => Math.max(0, prev - 1));
+                  } catch (error: any) {
+                    console.error('Error marking notification as read:', error);
+                  }
+                }
+              }}
+              onMarkAllAsRead={async () => {
+                try {
+                  await mainService.markAllNotificationsAsRead();
+                  setNotifications((prev) =>
+                    prev.map((notif) => ({ ...notif, isRead: true }))
+                  );
+                  setUnreadCount(0);
+                } catch (error: any) {
+                  console.error('Error marking all notifications as read:', error);
+                }
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -619,6 +851,33 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+  },
+  notificationOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: 100,
+    paddingRight: 20,
+  },
+  notificationDropdown: {
+    width: screenWidth * 0.75,
+    maxHeight: "80%",
+    backgroundColor: "transparent",
+  },
+  notificationArrow: {
+    position: "absolute",
+    top: -8,
+    right: 12,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "white",
+    zIndex: 1002,
   },
   avatarButton: {
     marginRight: 14,

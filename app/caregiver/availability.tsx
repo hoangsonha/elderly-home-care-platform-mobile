@@ -1,12 +1,12 @@
-
-// AvailabilityScreen.js
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import AvailabilityModal from "@/components/schedule/AvailabilityModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointmentStore";
-// TODO: Replace with API calls
-// import { useAppointments } from "@/hooks/useDatabaseEntities";
-// import * as ElderlyRepository from "@/services/elderly.repository";
+import {
+  getAppointmentStatus,
+  subscribeToStatusChanges,
+} from "@/data/appointmentStore";
+import { CaregiverScheduleService } from "@/services/caregiver-schedule.service";
+
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import React, { useCallback, useEffect, useState } from "react";
@@ -16,7 +16,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -24,7 +24,7 @@ const { width } = Dimensions.get("window");
 // Parse Vietnamese date format "T5, 13 Thg 11 2025" to Date object
 const parseVietnameseDate = (dateStr: string): Date | null => {
   if (!dateStr) return null;
-  
+
   // Match pattern: "T5, 13 Thg 11 2025" or "CN, 16 Thg 11 2025"
   const match = dateStr.match(/(\d{1,2})\s+Thg\s+(\d{1,2})\s+(\d{4})/);
   if (match) {
@@ -33,55 +33,14 @@ const parseVietnameseDate = (dateStr: string): Date | null => {
     const year = parseInt(match[3]);
     return new Date(year, month, day);
   }
-  
+
   // If already in YYYY-MM-DD format
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return new Date(dateStr);
   }
-  
+
   return null;
 };
-
-// Initial mock data for availability (lịch rảnh đã set)
-const initialAvailabilityData = [
-  {
-    date: new Date(2025, 9, 23), // Oct 23, 2025
-    isFullDay: true, // Full day available - will show green
-    timeSlots: [
-      { start: "08:00", end: "12:00" },
-      { start: "14:00", end: "18:00" },
-    ],
-  },
-  {
-    date: new Date(2025, 9, 25), // Oct 25, 2025
-    isFullDay: false, // By time slots - will show split color
-    timeSlots: [
-      { start: "08:00", end: "12:00" },
-      { start: "14:00", end: "18:00" },
-    ],
-  },
-  {
-    date: new Date(2025, 9, 26), // Oct 26, 2025
-    isFullDay: false, // By time slots
-    timeSlots: [
-      { start: "08:00", end: "18:00" },
-    ],
-  },
-  {
-    date: new Date(2025, 9, 27), // Oct 27, 2025
-    isFullDay: false, // By time slots
-    timeSlots: [
-      { start: "08:00", end: "14:00" }, // Morning only
-    ],
-  },
-  {
-    date: new Date(2025, 9, 28), // Oct 28, 2025
-    isFullDay: true, // Full day available - will show green
-    timeSlots: [
-      { start: "08:00", end: "18:00" },
-    ],
-  },
-];
 
 // Mock data for schedule
 const scheduleData = [
@@ -131,24 +90,70 @@ export default function AvailabilityScreen() {
   // Mock data tạm thời
   const appointments: any[] = [
     {
-      id: 'apt-1',
-      elderly_profile_id: 'elderly-1',
-      start_date: '2024-12-25',
-      status: 'confirmed',
+      id: "apt-1",
+      elderly_profile_id: "elderly-1",
+      start_date: "2024-12-25",
+      status: "confirmed",
     },
   ];
   const loading = false;
   const error = null;
   const refresh = async () => {};
-  
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [modalVisible, setModalVisible] = useState(false);
-  const [availabilityData, setAvailabilityData] = useState(initialAvailabilityData);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>({});
+  const [availabilityData, setAvailabilityData] = useState<any[]>([]);
 
-  // Load elderly names for appointments
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>(
+    {}
+  );
+
+  const loadFreeSchedule = async () => {
+    try {
+      const res = await CaregiverScheduleService.getFreeSchedule();
+      console.log("check lich ranh", res);
+
+      const freeSchedule = res.data;
+
+      // Rảnh toàn thời gian
+      if (freeSchedule.available_all_time) {
+        setAvailabilityData([
+          {
+            date: new Date(),
+            isFullDay: true,
+            timeSlots: [],
+          },
+        ]);
+        return;
+      }
+
+      // Nếu sau này backend trả booked_slots
+      if (freeSchedule.booked_slots?.length) {
+        const mapped = freeSchedule.booked_slots.map((slot: any) => ({
+          date: new Date(slot.date),
+          isFullDay: false,
+          timeSlots: [
+            {
+              start: slot.start_time,
+              end: slot.end_time,
+            },
+          ],
+        }));
+
+        setAvailabilityData(mapped);
+      } else {
+        setAvailabilityData([]);
+      }
+    } catch (err) {
+    }
+  };
+
+  useEffect(() => {
+    loadFreeSchedule();
+  }, []);
+
   useEffect(() => {
     const loadElderlyNames = async () => {
       const names: { [key: string]: string } = {};
@@ -157,12 +162,13 @@ export default function AvailabilityScreen() {
           try {
             // Mock data tạm thời - TODO: Replace with API call
             const mockElderlyNames: { [key: string]: string } = {
-              'elderly-1': 'Bà Nguyễn Thị Mai',
-              'elderly-2': 'Ông Trần Văn Nam',
+              "elderly-1": "Bà Nguyễn Thị Mai",
+              "elderly-2": "Ông Trần Văn Nam",
             };
-            names[apt.elderly_profile_id] = mockElderlyNames[apt.elderly_profile_id] || 'Người già';
+            names[apt.elderly_profile_id] =
+              mockElderlyNames[apt.elderly_profile_id] || "Người già";
           } catch (err) {
-            console.error('Error loading elderly profile:', err);
+            console.error("Error loading elderly profile:", err);
           }
         }
       }
@@ -215,13 +221,11 @@ export default function AvailabilityScreen() {
     });
   }, [navigation, handleOpenModal]);
 
-  // Subscribe to status changes from global store
   useEffect(() => {
     const unsubscribe = subscribeToStatusChanges(() => {
-      // Trigger re-render when appointment status changes
-      setRefreshKey(prev => prev + 1);
+      setRefreshKey((prev) => prev + 1);
     });
-    
+
     return () => {
       unsubscribe();
     };
@@ -231,19 +235,18 @@ export default function AvailabilityScreen() {
   const getMonthData = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
-    
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startDayOfWeek = firstDay.getDay();
-    
+
     return { year, month, daysInMonth, startDayOfWeek };
   };
 
-  const { year, month, daysInMonth, startDayOfWeek } = getMonthData(currentDate);
+  const { year, month, daysInMonth, startDayOfWeek } =
+    getMonthData(currentDate);
 
-  // Get availability status for a day
-  // Returns: 'free' | 'busy' | 'mixed' | null
   const getAvailabilityStatus = (day: number) => {
     const availability = availabilityData.find(
       (item) =>
@@ -253,13 +256,16 @@ export default function AvailabilityScreen() {
     );
 
     const hasAppointment = appointments.some((item) => {
-      if (item.status === 'cancelled' || item.status === 'rejected') return false; // Skip cancelled/rejected
+      if (item.status === "cancelled" || item.status === "rejected")
+        return false; // Skip cancelled/rejected
       const parsedDate = parseVietnameseDate(item.start_date);
       if (!parsedDate) return false;
-      
-      return parsedDate.getDate() === day &&
-             parsedDate.getMonth() === month &&
-             parsedDate.getFullYear() === year;
+
+      return (
+        parsedDate.getDate() === day &&
+        parsedDate.getMonth() === month &&
+        parsedDate.getFullYear() === year
+      );
     });
 
     if (!availability) {
@@ -282,8 +288,8 @@ export default function AvailabilityScreen() {
   // Get dates with schedule from real appointments (excluding cancelled and rejected)
   const getDatesWithSchedule = () => {
     const dates = new Set<string>();
-    appointments.forEach(item => {
-      if (item.status === 'cancelled' || item.status === 'rejected') return; // Skip cancelled/rejected
+    appointments.forEach((item) => {
+      if (item.status === "cancelled" || item.status === "rejected") return; // Skip cancelled/rejected
       const parsedDate = parseVietnameseDate(item.start_date);
       if (parsedDate) {
         const dateStr = `${parsedDate.getDate()}-${parsedDate.getMonth()}-${parsedDate.getFullYear()}`;
@@ -304,28 +310,35 @@ export default function AvailabilityScreen() {
   // Check if date is today
   const isToday = (day: number) => {
     const today = new Date();
-    return day === today.getDate() && 
-           month === today.getMonth() && 
-           year === today.getFullYear();
+    return (
+      day === today.getDate() &&
+      month === today.getMonth() &&
+      year === today.getFullYear()
+    );
   };
 
   // Check if date is selected
   const isSelectedDate = (day: number) => {
-    return day === selectedDate.getDate() && 
-           month === selectedDate.getMonth() && 
-           year === selectedDate.getFullYear();
+    return (
+      day === selectedDate.getDate() &&
+      month === selectedDate.getMonth() &&
+      year === selectedDate.getFullYear()
+    );
   };
 
   // Get schedule for selected date from real appointments (excluding cancelled and rejected)
   const getScheduleForDate = () => {
-    return appointments.filter(item => {
-      if (item.status === 'cancelled' || item.status === 'rejected') return false; // Skip cancelled/rejected
+    return appointments.filter((item) => {
+      if (item.status === "cancelled" || item.status === "rejected")
+        return false; // Skip cancelled/rejected
       const parsedDate = parseVietnameseDate(item.start_date);
       if (!parsedDate) return false;
-      
-      return parsedDate.getDate() === selectedDate.getDate() &&
-             parsedDate.getMonth() === selectedDate.getMonth() &&
-             parsedDate.getFullYear() === selectedDate.getFullYear();
+
+      return (
+        parsedDate.getDate() === selectedDate.getDate() &&
+        parsedDate.getMonth() === selectedDate.getMonth() &&
+        parsedDate.getFullYear() === selectedDate.getFullYear()
+      );
     });
   };
 
@@ -333,10 +346,11 @@ export default function AvailabilityScreen() {
 
   // Get availability for selected date
   const getAvailabilityForDate = () => {
-    return availabilityData.find(item => 
-      item.date.getDate() === selectedDate.getDate() &&
-      item.date.getMonth() === selectedDate.getMonth() &&
-      item.date.getFullYear() === selectedDate.getFullYear()
+    return availabilityData.find(
+      (item) =>
+        item.date.getDate() === selectedDate.getDate() &&
+        item.date.getMonth() === selectedDate.getMonth() &&
+        item.date.getFullYear() === selectedDate.getFullYear()
     );
   };
 
@@ -364,7 +378,7 @@ export default function AvailabilityScreen() {
   // Render calendar
   const renderCalendar = () => {
     const days = [];
-    const dayLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const dayLabels = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
     // Day labels
     const dayLabelRow = (
@@ -380,7 +394,7 @@ export default function AvailabilityScreen() {
 
     // Empty cells before first day
     let weekRow = [];
-    
+
     for (let i = 0; i < startDayOfWeek; i++) {
       weekRow.push(
         <View key={`empty-${i}`} style={styles.dayCell}>
@@ -399,10 +413,7 @@ export default function AvailabilityScreen() {
       weekRow.push(
         <TouchableOpacity
           key={day}
-          style={[
-            styles.dayCell,
-            selectedFlag && styles.dayCellSelected,
-          ]}
+          style={[styles.dayCell, selectedFlag && styles.dayCellSelected]}
           onPress={() => handleDateSelect(day)}
         >
           {/* Availability status background */}
@@ -416,31 +427,40 @@ export default function AvailabilityScreen() {
             </View>
           )}
 
-          <View style={[
-            styles.dayContent,
-            todayFlag && styles.dayContentToday,
-            selectedFlag && styles.dayContentSelected,
-          ]}>
-            <Text style={[
-              styles.dayText,
-              todayFlag && styles.dayTextToday,
-              selectedFlag && styles.dayTextSelected,
-            ]}>
+          <View
+            style={[
+              styles.dayContent,
+              todayFlag && styles.dayContentToday,
+              selectedFlag && styles.dayContentSelected,
+            ]}
+          >
+            <Text
+              style={[
+                styles.dayText,
+                todayFlag && styles.dayTextToday,
+                selectedFlag && styles.dayTextSelected,
+              ]}
+            >
               {day}
             </Text>
           </View>
           {hasScheduleFlag && (
             <View style={styles.scheduleIndicator}>
               <View style={styles.scheduleIndicatorDot} />
-              {appointments.filter(item => {
-                if (item.status === 'cancelled' || item.status === 'rejected') return false; // Skip cancelled/rejected
+              {appointments.filter((item) => {
+                if (item.status === "cancelled" || item.status === "rejected")
+                  return false; // Skip cancelled/rejected
                 const parsedDate = parseVietnameseDate(item.start_date);
                 if (!parsedDate) return false;
-                return parsedDate.getDate() === day &&
-                       parsedDate.getMonth() === month &&
-                       parsedDate.getFullYear() === year;
+                return (
+                  parsedDate.getDate() === day &&
+                  parsedDate.getMonth() === month &&
+                  parsedDate.getFullYear() === year
+                );
               }).length > 1 && (
-                <View style={[styles.scheduleIndicatorDot, { marginLeft: 2 }]} />
+                <View
+                  style={[styles.scheduleIndicatorDot, { marginLeft: 2 }]}
+                />
               )}
             </View>
           )}
@@ -469,18 +489,38 @@ export default function AvailabilityScreen() {
   };
 
   const monthNames = [
-    "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
-    "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
+    "Tháng 1",
+    "Tháng 2",
+    "Tháng 3",
+    "Tháng 4",
+    "Tháng 5",
+    "Tháng 6",
+    "Tháng 7",
+    "Tháng 8",
+    "Tháng 9",
+    "Tháng 10",
+    "Tháng 11",
+    "Tháng 12",
   ];
 
   const formatSelectedDate = () => {
-    const dayOfWeek = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
-    return `${dayOfWeek[selectedDate.getDay()]}, ${selectedDate.getDate()} ${monthNames[selectedDate.getMonth()]}`;
+    const dayOfWeek = [
+      "Chủ Nhật",
+      "Thứ Hai",
+      "Thứ Ba",
+      "Thứ Tư",
+      "Thứ Năm",
+      "Thứ Sáu",
+      "Thứ Bảy",
+    ];
+    return `${dayOfWeek[selectedDate.getDay()]}, ${selectedDate.getDate()} ${
+      monthNames[selectedDate.getMonth()]
+    }`;
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -489,14 +529,30 @@ export default function AvailabilityScreen() {
         <View style={styles.calendarSection}>
           {/* Month Header */}
           <View style={styles.monthHeader}>
-            <TouchableOpacity onPress={goToPreviousMonth} style={styles.monthButton}>
-              <MaterialCommunityIcons name="chevron-left" size={24} color="#64748B" />
+            <TouchableOpacity
+              onPress={goToPreviousMonth}
+              style={styles.monthButton}
+            >
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={24}
+                color="#64748B"
+              />
             </TouchableOpacity>
-            
-            <Text style={styles.monthTitle}>{monthNames[month]}, {year}</Text>
-            
-            <TouchableOpacity onPress={goToNextMonth} style={styles.monthButton}>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#64748B" />
+
+            <Text style={styles.monthTitle}>
+              {monthNames[month]}, {year}
+            </Text>
+
+            <TouchableOpacity
+              onPress={goToNextMonth}
+              style={styles.monthButton}
+            >
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color="#64748B"
+              />
             </TouchableOpacity>
           </View>
 
@@ -509,15 +565,17 @@ export default function AvailabilityScreen() {
           <View style={styles.separator} />
 
           {/* Calendar Grid */}
-          <View style={styles.calendar}>
-            {renderCalendar()}
-          </View>
+          <View style={styles.calendar}>{renderCalendar()}</View>
         </View>
 
         {/* Schedule List Section */}
         <View style={styles.scheduleSection}>
           <View style={styles.scheduleDateHeader}>
-            <MaterialCommunityIcons name="calendar-blank" size={24} color="#2196F3" />
+            <MaterialCommunityIcons
+              name="calendar-blank"
+              size={24}
+              color="#2196F3"
+            />
             <Text style={styles.scheduleDateText}>{formatSelectedDate()}</Text>
           </View>
 
@@ -525,57 +583,89 @@ export default function AvailabilityScreen() {
           {availabilityForSelectedDate && (
             <View style={styles.availabilityInfo}>
               <View style={styles.availabilityHeader}>
-                <MaterialCommunityIcons name="clock-check-outline" size={20} color="#10B981" />
+                <MaterialCommunityIcons
+                  name="clock-check-outline"
+                  size={20}
+                  color="#10B981"
+                />
                 <Text style={styles.availabilityHeaderText}>
-                  {availabilityForSelectedDate.isFullDay ? "Rảnh cả ngày" : "Khung giờ rảnh"}
+                  {availabilityForSelectedDate.isFullDay
+                    ? "Rảnh cả ngày"
+                    : "Khung giờ rảnh"}
                 </Text>
               </View>
-              
-              {!availabilityForSelectedDate.isFullDay && availabilityForSelectedDate.timeSlots.length > 0 && (
-                <View style={styles.availabilityTimeSlots}>
-                  {availabilityForSelectedDate.timeSlots.map((slot, index) => (
-                    <View key={index} style={styles.availabilityTimeSlot}>
-                      <MaterialCommunityIcons name="clock-outline" size={16} color="#64748B" />
-                      <Text style={styles.availabilityTimeSlotText}>
-                        {slot.start} - {slot.end}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
+
+              {!availabilityForSelectedDate.isFullDay &&
+                availabilityForSelectedDate.timeSlots.length > 0 && (
+                  <View style={styles.availabilityTimeSlots}>
+                    {availabilityForSelectedDate.timeSlots.map(
+                      (slot, index) => (
+                        <View key={index} style={styles.availabilityTimeSlot}>
+                          <MaterialCommunityIcons
+                            name="clock-outline"
+                            size={16}
+                            color="#64748B"
+                          />
+                          <Text style={styles.availabilityTimeSlotText}>
+                            {slot.start} - {slot.end}
+                          </Text>
+                        </View>
+                      )
+                    )}
+                  </View>
+                )}
             </View>
           )}
 
           {scheduleForSelectedDate.length > 0 ? (
             scheduleForSelectedDate.map((item) => {
               // Get real-time status from global store
-              const currentStatus = getAppointmentStatus(item.id) || item.status;
-              
+              const currentStatus =
+                getAppointmentStatus(item.id) || item.status;
+
               // Skip cancelled and rejected appointments
-              if (currentStatus === 'cancelled' || currentStatus === 'rejected') return null;
-              
+              if (currentStatus === "cancelled" || currentStatus === "rejected")
+                return null;
+
               // Get elderly name
-              const elderlyName = elderlyNames[item.elderly_profile_id] || 'Đang tải...';
-              
+              const elderlyName =
+                elderlyNames[item.elderly_profile_id] || "Đang tải...";
+
               // Determine card border color based on status
               const getStatusBorderColor = () => {
                 switch (currentStatus) {
-                  case "new": return "#3B82F6"; // Blue
-                  case "pending": return "#F59E0B"; // Orange
-                  case "confirmed": return "#10B981"; // Green
-                  case "in-progress": return "#8B5CF6"; // Purple
-                  case "completed": return "#6B7280"; // Gray
-                  case "cancelled": return "#EF4444"; // Red
-                  case "rejected": return "#DC2626"; // Dark Red
-                  default: return "#10B981";
+                  case "new":
+                    return "#3B82F6"; // Blue
+                  case "pending":
+                    return "#F59E0B"; // Orange
+                  case "confirmed":
+                    return "#10B981"; // Green
+                  case "in-progress":
+                    return "#8B5CF6"; // Purple
+                  case "completed":
+                    return "#6B7280"; // Gray
+                  case "cancelled":
+                    return "#EF4444"; // Red
+                  case "rejected":
+                    return "#DC2626"; // Dark Red
+                  default:
+                    return "#10B981";
                 }
               };
-              
+
               return (
-                <TouchableOpacity 
-                  key={item.id} 
-                  style={[styles.scheduleCard, { borderLeftColor: getStatusBorderColor() }]}
-                  onPress={() => (navigation.navigate as any)("Appointment Detail", { appointmentId: item.id, fromScreen: "availability" })}
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.scheduleCard,
+                    { borderLeftColor: getStatusBorderColor() },
+                  ]}
+                  onPress={() =>
+                    (navigation.navigate as any)("Appointment Detail", {
+                      appointmentId: item.id,
+                      fromScreen: "availability",
+                    })
+                  }
                   activeOpacity={0.7}
                 >
                   <View style={styles.scheduleTime}>
@@ -586,41 +676,69 @@ export default function AvailabilityScreen() {
 
                   <View style={styles.scheduleDetails}>
                     <View style={styles.scheduleAvatar}>
-                      <MaterialCommunityIcons name="account" size={32} color="#2196F3" />
+                      <MaterialCommunityIcons
+                        name="account"
+                        size={32}
+                        color="#2196F3"
+                      />
                     </View>
 
                     <View style={styles.scheduleInfo}>
                       <Text style={styles.scheduleName}>{elderlyName}</Text>
-                      
+
                       <View style={styles.scheduleServiceRow}>
-                        <MaterialCommunityIcons name="heart-pulse" size={16} color="#7C3AED" />
+                        <MaterialCommunityIcons
+                          name="heart-pulse"
+                          size={16}
+                          color="#7C3AED"
+                        />
                         <Text style={styles.scheduleService}>
-                          {item.package_type || 'Gói cơ bản'}
+                          {item.package_type || "Gói cơ bản"}
                         </Text>
                       </View>
 
                       <View style={styles.scheduleAddressRow}>
-                        <MaterialCommunityIcons name="map-marker" size={16} color="#EF4444" />
-                        <Text style={styles.scheduleAddress}>{item.work_location || 'N/A'}</Text>
+                        <MaterialCommunityIcons
+                          name="map-marker"
+                          size={16}
+                          color="#EF4444"
+                        />
+                        <Text style={styles.scheduleAddress}>
+                          {item.work_location || "N/A"}
+                        </Text>
                       </View>
 
                       <View style={styles.schedulePriceRow}>
-                        <MaterialCommunityIcons name="cash" size={16} color="#F59E0B" />
+                        <MaterialCommunityIcons
+                          name="cash"
+                          size={16}
+                          color="#F59E0B"
+                        />
                         <Text style={styles.schedulePrice}>
-                          {(item.total_amount || 0).toLocaleString('vi-VN')} đ
+                          {(item.total_amount || 0).toLocaleString("vi-VN")} đ
                         </Text>
                       </View>
                     </View>
 
-                    <MaterialCommunityIcons name="chevron-right" size={24} color="#CBD5E1" />
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={24}
+                      color="#CBD5E1"
+                    />
                   </View>
                 </TouchableOpacity>
               );
             })
           ) : (
             <View style={styles.emptySchedule}>
-              <MaterialCommunityIcons name="calendar-blank-outline" size={64} color="#CBD5E1" />
-              <Text style={styles.emptyScheduleText}>Không có lịch làm việc</Text>
+              <MaterialCommunityIcons
+                name="calendar-blank-outline"
+                size={64}
+                color="#CBD5E1"
+              />
+              <Text style={styles.emptyScheduleText}>
+                Không có lịch làm việc
+              </Text>
             </View>
           )}
         </View>
@@ -633,107 +751,36 @@ export default function AvailabilityScreen() {
       <AvailabilityModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onSave={(data) => {
-          console.log("Saved availability:", data);
-          
-          const { isBusy, frequency, selectedDays, timeSlots, startDate, endDate, isFullDay } = data;
-          
-          // If isBusy is true, remove availability for selected dates
-          if (isBusy) {
-            const datesToRemove: Date[] = [];
-            
-            if (frequency === "Không lặp lại") {
-              datesToRemove.push(new Date(startDate));
+        onSave={async (data) => {
+          try {
+            const { isFullDay, timeSlots, startDate } = data;
+            console.log({ startDate });
+            if (isFullDay) {
+              await CaregiverScheduleService.updateFreeSchedule({
+                free_schedule: {
+                  available_all_time: true,
+                },
+              });
             } else {
-              // Weekly recurring - generate dates for 1 year or until endDate
-              const maxDate = endDate 
-                ? new Date(endDate) 
-                : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
-              const currentCheckDate = new Date(startDate);
-              
-              while (currentCheckDate <= maxDate) {
-                const dayOfWeek = currentCheckDate.getDay();
-                if (selectedDays.includes(dayOfWeek)) {
-                  datesToRemove.push(new Date(currentCheckDate));
-                }
-                currentCheckDate.setDate(currentCheckDate.getDate() + 1);
-              }
+              const bookedSlots = timeSlots.map((slot: any) => ({
+                date: startDate.toISOString().split("T")[0],
+                start_time: slot.startTime,
+                end_time: slot.endTime,
+              }));
+
+              await CaregiverScheduleService.updateFreeSchedule({
+                free_schedule: {
+                  available_all_time: false,
+                  booked_slots: bookedSlots,
+                },
+              });
             }
-            
-            // Remove availability for these dates
-            const updatedAvailability = availabilityData.filter((item) => {
-              const itemDateStr = item.date.toDateString();
-              return !datesToRemove.some((date) => date.toDateString() === itemDateStr);
-            });
-            
-            setAvailabilityData(updatedAvailability);
-            console.log(`Removed availability for ${datesToRemove.length} days`);
-            return;
+
+            await loadFreeSchedule();
+            setModalVisible(false);
+          } catch (err) {
+            console.log("Update free schedule error:", err);
           }
-          
-          // Mode is "available" - add/update availability
-          // Generate dates based on frequency
-          const newAvailability = [];
-          
-          if (frequency === "Không lặp lại") {
-            // One-time availability - just add the start date
-            newAvailability.push({
-              date: new Date(startDate),
-              isFullDay: isFullDay,
-              timeSlots: isFullDay ? [] : timeSlots.map((slot: any) => ({
-                start: slot.startTime,
-                end: slot.endTime,
-              })),
-            });
-          } else {
-            // Weekly recurring - generate dates for 1 year or until endDate
-            const maxDate = endDate 
-              ? new Date(endDate) 
-              : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year if no end date
-            const currentCheckDate = new Date(startDate);
-            
-            while (currentCheckDate <= maxDate) {
-              const dayOfWeek = currentCheckDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-              
-              if (selectedDays.includes(dayOfWeek)) {
-                newAvailability.push({
-                  date: new Date(currentCheckDate),
-                  isFullDay: isFullDay,
-                  timeSlots: isFullDay ? [] : timeSlots.map((slot: any) => ({
-                    start: slot.startTime,
-                    end: slot.endTime,
-                  })),
-                });
-              }
-              
-              // Move to next day
-              currentCheckDate.setDate(currentCheckDate.getDate() + 1);
-            }
-          }
-          
-          // Merge with existing availability (update if exists, add if new)
-          const updatedAvailability = [...availabilityData];
-          let addedCount = 0;
-          let updatedCount = 0;
-          
-          newAvailability.forEach((newItem) => {
-            const existingIndex = updatedAvailability.findIndex(
-              (item) => item.date.toDateString() === newItem.date.toDateString()
-            );
-            
-            if (existingIndex >= 0) {
-              // Update existing availability
-              updatedAvailability[existingIndex] = newItem;
-              updatedCount++;
-            } else {
-              // Add new availability
-              updatedAvailability.push(newItem);
-              addedCount++;
-            }
-          });
-          
-          setAvailabilityData(updatedAvailability);
-          console.log(`Updated ${updatedCount} days, added ${addedCount} days`);
         }}
         existingSchedule={scheduleData}
       />
