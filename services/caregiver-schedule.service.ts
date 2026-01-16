@@ -15,4 +15,11 @@ export const CaregiverScheduleService = {
     );
     return response.data;
   },
+  updateFreeScheduleByDate: async (payload: any) => {
+    const response = await apiClient.put(
+      `/api/v1/caregiver-schedule/free-schedule/date`,
+      payload
+    );
+    return response.data;
+  },
 };

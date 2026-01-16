@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   Modal,
   ScrollView,
@@ -12,12 +13,11 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-// import { LocationPickerModal } from '@/components/ui/LocationPickerModal';
+import { LocationPickerModal } from '@/components/ui/LocationPickerModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
 import { UserService } from '@/services/user.service';
@@ -150,10 +150,10 @@ export default function CompleteProfileScreen() {
 
       const avatarFile = avatarUri
         ? {
-            uri: avatarUri,
-            type: 'image/jpeg',
-            name: `avatar_${Date.now()}.jpg`,
-          }
+          uri: avatarUri,
+          type: 'image/jpeg',
+          name: `avatar_${Date.now()}.jpg`,
+        }
         : undefined;
 
       const response = await UserService.createCareSeekerProfile(requestData, avatarFile);
@@ -183,7 +183,7 @@ export default function CompleteProfileScreen() {
     } catch (error: any) {
       setIsSubmitting(false);
       console.error('Error completing profile:', error);
-      
+
       // Show error modal
       setErrorMessage(error.message || 'Có lỗi xảy ra khi hoàn thiện hồ sơ. Vui lòng thử lại.');
       setShowErrorModal(true);
@@ -400,8 +400,8 @@ export default function CompleteProfileScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Location Picker Modal - TEMPORARILY DISABLED */}
-      {/* <LocationPickerModal
+      {/* Location Picker Modal */}
+      <LocationPickerModal
         visible={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onSelectLocation={(lat, lng, address) => {
@@ -409,7 +409,7 @@ export default function CompleteProfileScreen() {
           setShowLocationPicker(false);
         }}
         initialLocation={location}
-      /> */}
+      />
 
       {/* Error Modal */}
       <Modal

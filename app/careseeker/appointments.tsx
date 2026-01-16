@@ -87,6 +87,7 @@ export default function AppointmentsScreen() {
             servicePackage: service.servicePackage,
             bookingCode: service.bookingCode,
             note: service.note,
+            feedback: service.feedback || null,
           };
         });
         
@@ -309,10 +310,12 @@ export default function AppointmentsScreen() {
           </View>
           <View style={styles.infoContent}>
             <ThemedText style={styles.caregiverName}>{caregiverName}</ThemedText>
-            <View style={styles.ratingRow}>
-              <Ionicons name="star" size={14} color="#FFB648" />
-              <ThemedText style={styles.ratingText}>4.5</ThemedText>
-            </View>
+            {item.feedback && item.feedback.rating ? (
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={14} color="#FFB648" />
+                <ThemedText style={styles.ratingText}>{item.feedback.rating.toFixed(1)}</ThemedText>
+              </View>
+            ) : null}
           </View>
         </View>
 

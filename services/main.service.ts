@@ -1251,4 +1251,65 @@ export const mainService = {
       throw new Error(`Failed to mark all notifications as read: ${error.message}`);
     }
   },
+
+  /**
+   * Tạo feedback cho care service
+   * @param feedbackData - Dữ liệu feedback
+   * @param images - Mảng các file ảnh (tối đa 5)
+   */
+  createFeedback: async (
+    feedbackData: {
+      targetType: string;
+      targetId: string;
+      rating: number;
+      professionalism: number;
+      attitude: number;
+      punctuality: number;
+      quality: number;
+      comment?: string;
+    },
+    images?: Array<{ uri: string; type?: string; name?: string }>
+  ): Promise<any> => {
+    try {
+      const formData = new FormData();
+      
+      // Append JSON data as 'request'
+      formData.append('request', JSON.stringify(feedbackData));
+
+      // Append images if provided
+      if (images && images.length > 0) {
+        images.forEach((image) => {
+          const fileExtension = image.uri.split('.').pop() || 'jpg';
+          const fileName = image.name || `feedback_image_${Date.now()}.${fileExtension}`;
+          const fileType = image.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+          
+          let fileUri = image.uri;
+          if (!fileUri.startsWith('file://') && 
+              !fileUri.startsWith('content://') && 
+              !fileUri.startsWith('http://') && 
+              !fileUri.startsWith('https://')) {
+            fileUri = `file://${fileUri}`;
+          }
+
+          formData.append('images', {
+            uri: Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri,
+            type: fileType,
+            name: fileName,
+          } as any);
+        });
+      }
+
+      const response = await apiClient.post('/api/v1/feedbacks', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 60000,
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Error creating feedback:', error);
+      throw error;
+    }
+  },
 };

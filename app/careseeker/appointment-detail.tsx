@@ -1,7 +1,8 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Linking from 'expo-linking';
-import { Platform } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Platform, Dimensions } from 'react-native';
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -209,7 +210,6 @@ export default function AppointmentDetailScreen() {
   const [cancelErrorMessage, setCancelErrorMessage] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [hasReviewed, setHasReviewed] = useState(false);
   const [rating, setRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [ratingDetails, setRatingDetails] = useState({
@@ -227,6 +227,10 @@ export default function AppointmentDetailScreen() {
     quality: false,
   });
   const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null);
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [selectedFeedbackImage, setSelectedFeedbackImage] = useState<string | null>(null);
 
   // Calculate remaining minutes until deadline
   const calculateRemainingMinutes = (deadline: string): number | null => {
@@ -257,41 +261,41 @@ export default function AppointmentDetailScreen() {
   }, [appointmentData?.caregiverResponseDeadline, status]);
 
   // Fetch appointment data
-  useEffect(() => {
-    const fetchAppointment = async () => {
-      try {
-        setLoading(true);
-        const response = await mainService.getMyCareServices();
+  const fetchAppointment = async () => {
+    try {
+      setLoading(true);
+      const response = await mainService.getMyCareServices();
+      
+      if (response.status === 'Success' && response.data) {
+        const appointment = response.data.find((service: MyCareServiceData) => 
+          service.careServiceId === appointmentId
+        );
         
-        if (response.status === 'Success' && response.data) {
-          const appointment = response.data.find((service: MyCareServiceData) => 
-            service.careServiceId === appointmentId
-          );
-          
-          if (appointment) {
-            setAppointmentData(appointment);
-            setStatus(appointment.status);
-            // Calculate remaining minutes if status is PENDING_CAREGIVER
-            if (appointment.status === "PENDING_CAREGIVER" && appointment.caregiverResponseDeadline) {
-              const minutes = calculateRemainingMinutes(appointment.caregiverResponseDeadline);
-              setRemainingMinutes(minutes);
-            }
-          } else {
-            Alert.alert('Lỗi', 'Không tìm thấy lịch hẹn');
-            router.back();
+        if (appointment) {
+          setAppointmentData(appointment);
+          setStatus(appointment.status);
+          // Calculate remaining minutes if status is PENDING_CAREGIVER
+          if (appointment.status === "PENDING_CAREGIVER" && appointment.caregiverResponseDeadline) {
+            const minutes = calculateRemainingMinutes(appointment.caregiverResponseDeadline);
+            setRemainingMinutes(minutes);
           }
         } else {
-          Alert.alert('Lỗi', response.message || 'Không thể tải thông tin lịch hẹn');
+          Alert.alert('Lỗi', 'Không tìm thấy lịch hẹn');
           router.back();
         }
-      } catch (error: any) {
-        Alert.alert('Lỗi', 'Không thể tải thông tin lịch hẹn');
+      } else {
+        Alert.alert('Lỗi', response.message || 'Không thể tải thông tin lịch hẹn');
         router.back();
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error: any) {
+      Alert.alert('Lỗi', 'Không thể tải thông tin lịch hẹn');
+      router.back();
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (appointmentId) {
       fetchAppointment();
     }
@@ -329,8 +333,44 @@ export default function AppointmentDetailScreen() {
     return timeStr.split(':').slice(0, 2).join(':');
   };
 
-  // Get rating (default to 0 if not available)
-  const caregiverRating = 0; // API doesn't provide rating yet
+  // Get caregiver rating from profileData
+  const getCaregiverRating = (): number => {
+    try {
+      if (!appointmentData?.caregiverProfile?.profileData) {
+        console.log('No profileData found');
+        return 0;
+      }
+
+      let profileData = appointmentData.caregiverProfile.profileData;
+      
+      // Parse if it's a string
+      if (typeof profileData === 'string') {
+        profileData = JSON.parse(profileData);
+      }
+
+      console.log('ProfileData:', JSON.stringify(profileData, null, 2));
+      console.log('Ratings reviews:', profileData?.ratings_reviews);
+
+      // Get overall_rating from ratings_reviews
+      const overallRating = profileData?.ratings_reviews?.overall_rating;
+      
+      console.log('Overall rating:', overallRating);
+      
+      if (overallRating !== null && overallRating !== undefined) {
+        const rating = parseFloat(overallRating.toString()) || 0;
+        console.log('Parsed rating:', rating);
+        return rating;
+      }
+      
+      return 0;
+    } catch (error) {
+      console.error('Error parsing caregiver rating:', error);
+      return 0;
+    }
+  };
+
+  // Calculate caregiver rating when appointmentData is available
+  const caregiverRating = appointmentData ? getCaregiverRating() : 0;
 
   // Get payment status text
   const getPaymentStatusText = () => {
@@ -373,6 +413,25 @@ export default function AppointmentDetailScreen() {
     }
   };
 
+  const getHealthStatusText = (healthStatus: string | null | undefined): string => {
+    if (!healthStatus) return "Chưa cập nhật";
+    
+    const status = String(healthStatus).toUpperCase().trim();
+    
+    // Handle exact matches first
+    if (status === "GOOD") return "Tốt";
+    if (status === "MODERATE" || status === "MODERRATE") return "Trung bình";
+    if (status === "WEAK") return "Yếu";
+    
+    // Handle partial matches
+    if (status.includes("GOOD")) return "Tốt";
+    if (status.includes("MODERATE") || status.includes("MODERRATE")) return "Trung bình";
+    if (status.includes("WEAK")) return "Yếu";
+    
+    // Fallback: return original value
+    return healthStatus;
+  };
+
   // Add note
   const handleAddNote = () => {
     if (!newNoteContent.trim()) {
@@ -393,8 +452,66 @@ export default function AppointmentDetailScreen() {
     Alert.alert("Thành công", "Đã thêm ghi chú mới");
   };
 
+  // Handle image picker
+  const handleImagePicker = () => {
+    setShowImagePickerModal(true);
+  };
+
+  const handlePickFromLibrary = async () => {
+    setShowImagePickerModal(false);
+    if (reviewImages.length >= 5) {
+      Alert.alert('Thông báo', 'Bạn chỉ có thể thêm tối đa 5 ảnh');
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Thông báo', 'Cần quyền truy cập thư viện ảnh');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+      allowsMultipleSelection: false,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setReviewImages([...reviewImages, result.assets[0].uri]);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    setShowImagePickerModal(false);
+    if (reviewImages.length >= 5) {
+      Alert.alert('Thông báo', 'Bạn chỉ có thể thêm tối đa 5 ảnh');
+      return;
+    }
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Thông báo', 'Cần quyền truy cập camera');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setReviewImages([...reviewImages, result.assets[0].uri]);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setReviewImages(reviewImages.filter((_, i) => i !== index));
+  };
+
   // Submit review
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     // Reset errors
     const newErrors = {
       rating: false,
@@ -448,37 +565,79 @@ export default function AppointmentDetailScreen() {
       return;
     }
 
-    Alert.alert(
-      "Thành công",
-      "Cảm ơn bạn đã đánh giá!",
-      [
-        {
-          text: "OK",
-          onPress: () => {
-            setHasReviewed(true);
-            setShowReviewModal(false);
-            // Reset form
-            setRating(0);
-            setReviewComment("");
-            setRatingDetails({
-              professionalism: 0,
-              attitude: 0,
-              punctuality: 0,
-              quality: 0,
-            });
-            setReviewErrors({
-              rating: false,
-              comment: false,
-              professionalism: false,
-              attitude: false,
-              punctuality: false,
-              quality: false,
-            });
-            // TODO: Send review to API
-          },
-        },
-      ]
-    );
+    if (!appointmentData) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin lịch hẹn");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+
+    try {
+      // Prepare feedback data
+      const feedbackData = {
+        targetType: "SERVICE",
+        targetId: appointmentData.careServiceId,
+        rating: rating,
+        professionalism: ratingDetails.professionalism,
+        attitude: ratingDetails.attitude,
+        punctuality: ratingDetails.punctuality,
+        quality: ratingDetails.quality,
+        comment: reviewComment.trim() || undefined,
+      };
+
+      // Prepare images
+      const imageFiles = reviewImages.map((uri) => ({
+        uri: uri,
+        type: 'image/jpeg',
+        name: `feedback_image_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`,
+      }));
+
+      // Call API
+      const response = await mainService.createFeedback(feedbackData, imageFiles);
+
+      if (response.status === 'Success') {
+        Alert.alert(
+          "Thành công",
+          "Cảm ơn bạn đã đánh giá!",
+          [
+            {
+              text: "OK",
+              onPress: async () => {
+                setShowReviewModal(false);
+                // Reset form
+                setRating(0);
+                setReviewComment("");
+                setReviewImages([]);
+                setRatingDetails({
+                  professionalism: 0,
+                  attitude: 0,
+                  punctuality: 0,
+                  quality: 0,
+                });
+                setReviewErrors({
+                  rating: false,
+                  comment: false,
+                  professionalism: false,
+                  attitude: false,
+                  punctuality: false,
+                  quality: false,
+                });
+                // Reload appointment data to get feedback
+                await fetchAppointment();
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Lỗi", response.message || "Có lỗi xảy ra khi gửi đánh giá");
+      }
+    } catch (error: any) {
+      console.error('Error submitting review:', error);
+      const errorMessage = error.response?.data?.message || error.message || "Có lỗi xảy ra khi gửi đánh giá";
+      Alert.alert("Lỗi", errorMessage);
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   // Cancel appointment
@@ -763,10 +922,12 @@ export default function AppointmentDetailScreen() {
                       </View>
                     )}
                   </View>
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={16} color="#FFB648" />
-                    <Text style={styles.ratingText}>{caregiverRating}</Text>
-                  </View>
+                  {caregiverRating > 0 && (
+                    <View style={styles.ratingRow}>
+                      <Ionicons name="star" size={16} color="#FFB648" />
+                      <Text style={styles.ratingText}>{caregiverRating.toFixed(1)}</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.caregiverMeta}>
                   {appointmentData.caregiverProfile.age} tuổi • {appointmentData.caregiverProfile.gender === 'MALE' ? 'Nam' : 'Nữ'}
@@ -817,7 +978,7 @@ export default function AppointmentDetailScreen() {
               <Text style={styles.infoText}>
                 <Text style={styles.healthStatusLabel}>Tình trạng sức khỏe: </Text>
                 <Text style={styles.healthStatusValue}>
-                  {appointmentData.elderlyProfile.healthStatus || "Chưa cập nhật"}
+                  {getHealthStatusText(appointmentData.elderlyProfile.healthStatus)}
                 </Text>
               </Text>
             </View>
@@ -1003,6 +1164,167 @@ export default function AppointmentDetailScreen() {
           </View>
         </View>
 
+        {/* Feedback Section - Only show if feedback exists */}
+        {appointmentData.feedback && appointmentData.feedback !== null && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Đánh giá của bạn</Text>
+            <View style={styles.card}>
+              {/* Submission Time - Moved to top */}
+              {appointmentData.feedback.submissionTime && (
+                <View style={styles.feedbackTime}>
+                  <Ionicons name="time-outline" size={16} color="#6B7280" />
+                  <Text style={styles.feedbackTimeText}>
+                    {new Date(appointmentData.feedback.submissionTime).toLocaleString("vi-VN", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+              )}
+
+              {appointmentData.feedback.submissionTime && <View style={styles.divider} />}
+
+              {/* Overall Rating */}
+              <View style={styles.feedbackOverallRating}>
+                <Text style={styles.feedbackOverallRatingLabel}>Đánh giá tổng thể</Text>
+                <View style={styles.feedbackStarsContainer}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Ionicons
+                      key={star}
+                      name={star <= appointmentData.feedback.rating ? "star" : "star-outline"}
+                      size={24}
+                      color={star <= appointmentData.feedback.rating ? "#FFB648" : "#D1D5DB"}
+                    />
+                  ))}
+                  <Text style={styles.feedbackRatingText}>{appointmentData.feedback.rating}/5</Text>
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Detailed Ratings */}
+              <View style={styles.feedbackDetailedRatings}>
+                <Text style={styles.feedbackDetailedRatingsTitle}>Đánh giá chi tiết</Text>
+                
+                <View style={styles.feedbackDetailItem}>
+                  <View style={styles.feedbackDetailHeader}>
+                    <Ionicons name="briefcase" size={18} color="#68C2E8" />
+                    <Text style={styles.feedbackDetailLabel}>Chuyên môn</Text>
+                  </View>
+                  <View style={styles.feedbackDetailStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= appointmentData.feedback.detailedRatings.professionalism ? "star" : "star-outline"}
+                        size={18}
+                        color={star <= appointmentData.feedback.detailedRatings.professionalism ? "#FFB648" : "#D1D5DB"}
+                      />
+                    ))}
+                    <Text style={styles.feedbackDetailRatingText}>
+                      {appointmentData.feedback.detailedRatings.professionalism}/5
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.feedbackDetailItem}>
+                  <View style={styles.feedbackDetailHeader}>
+                    <Ionicons name="happy" size={18} color="#68C2E8" />
+                    <Text style={styles.feedbackDetailLabel}>Thái độ</Text>
+                  </View>
+                  <View style={styles.feedbackDetailStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= appointmentData.feedback.detailedRatings.attitude ? "star" : "star-outline"}
+                        size={18}
+                        color={star <= appointmentData.feedback.detailedRatings.attitude ? "#FFB648" : "#D1D5DB"}
+                      />
+                    ))}
+                    <Text style={styles.feedbackDetailRatingText}>
+                      {appointmentData.feedback.detailedRatings.attitude}/5
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.feedbackDetailItem}>
+                  <View style={styles.feedbackDetailHeader}>
+                    <Ionicons name="time" size={18} color="#68C2E8" />
+                    <Text style={styles.feedbackDetailLabel}>Đúng giờ</Text>
+                  </View>
+                  <View style={styles.feedbackDetailStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= appointmentData.feedback.detailedRatings.punctuality ? "star" : "star-outline"}
+                        size={18}
+                        color={star <= appointmentData.feedback.detailedRatings.punctuality ? "#FFB648" : "#D1D5DB"}
+                      />
+                    ))}
+                    <Text style={styles.feedbackDetailRatingText}>
+                      {appointmentData.feedback.detailedRatings.punctuality}/5
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.feedbackDetailItem}>
+                  <View style={styles.feedbackDetailHeader}>
+                    <Ionicons name="checkmark-circle" size={18} color="#68C2E8" />
+                    <Text style={styles.feedbackDetailLabel}>Chất lượng</Text>
+                  </View>
+                  <View style={styles.feedbackDetailStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= appointmentData.feedback.detailedRatings.quality ? "star" : "star-outline"}
+                        size={18}
+                        color={star <= appointmentData.feedback.detailedRatings.quality ? "#FFB648" : "#D1D5DB"}
+                      />
+                    ))}
+                    <Text style={styles.feedbackDetailRatingText}>
+                      {appointmentData.feedback.detailedRatings.quality}/5
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Comment */}
+              {appointmentData.feedback.comment && (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.feedbackComment}>
+                    <Text style={styles.feedbackCommentLabel}>Nhận xét</Text>
+                    <Text style={styles.feedbackCommentText}>{appointmentData.feedback.comment}</Text>
+                  </View>
+                </>
+              )}
+
+              {/* Images */}
+              {appointmentData.feedback.attachmentUrls && appointmentData.feedback.attachmentUrls.length > 0 && (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.feedbackImages}>
+                    <Text style={styles.feedbackImagesLabel}>Hình ảnh đánh giá</Text>
+                    <View style={styles.feedbackImagesGrid}>
+                      {appointmentData.feedback.attachmentUrls.map((url: string, index: number) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.feedbackImageItem}
+                          onPress={() => setSelectedFeedbackImage(url)}
+                        >
+                          <Image source={{ uri: url }} style={styles.feedbackImage} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Actions */}
         {(status === "PENDING_CAREGIVER" || status === "CAREGIVER_APPROVED") && (
           <View style={styles.actionsSection}>
@@ -1017,20 +1339,27 @@ export default function AppointmentDetailScreen() {
         )}
 
         {/* Review Action for Completed Appointments */}
-        {status === "COMPLETED" && !hasReviewed && (
+        {status === "COMPLETED" && (
           <View style={styles.actionsSection}>
-            <TouchableOpacity
-              style={styles.reviewButton}
-              onPress={() => setShowReviewModal(true)}
-            >
-              <Ionicons name="star" size={20} color="#FFFFFF" />
-              <Text style={styles.reviewButtonText}>Đánh giá dịch vụ</Text>
-            </TouchableOpacity>
+            {appointmentData.feedback && appointmentData.feedback !== null ? (
+              <View style={styles.reviewedButton}>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                <Text style={styles.reviewedButtonText}>Đã đánh giá</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.reviewButton}
+                onPress={() => setShowReviewModal(true)}
+              >
+                <Ionicons name="star" size={20} color="#FFFFFF" />
+                <Text style={styles.reviewButtonText}>Đánh giá dịch vụ</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
         
         {/* Spacer for navbar */}
-        {(status === "COMPLETED" && hasReviewed) && (
+        {status === "COMPLETED" && (
           <View style={{ height: 120 }} />
         )}
       </ScrollView>
@@ -1132,14 +1461,54 @@ export default function AppointmentDetailScreen() {
         visible={showReviewModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowReviewModal(false)}
+        onRequestClose={() => {
+          setShowReviewModal(false);
+          // Reset form when closing
+          setRating(0);
+          setReviewComment("");
+          setReviewImages([]);
+          setRatingDetails({
+            professionalism: 0,
+            attitude: 0,
+            punctuality: 0,
+            quality: 0,
+          });
+          setReviewErrors({
+            rating: false,
+            comment: false,
+            professionalism: false,
+            attitude: false,
+            punctuality: false,
+            quality: false,
+          });
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.reviewModalContent}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Đánh giá dịch vụ</Text>
-                <TouchableOpacity onPress={() => setShowReviewModal(false)}>
+                <TouchableOpacity onPress={() => {
+                  setShowReviewModal(false);
+                  // Reset form when closing
+                  setRating(0);
+                  setReviewComment("");
+                  setReviewImages([]);
+                  setRatingDetails({
+                    professionalism: 0,
+                    attitude: 0,
+                    punctuality: 0,
+                    quality: 0,
+                  });
+                  setReviewErrors({
+                    rating: false,
+                    comment: false,
+                    professionalism: false,
+                    attitude: false,
+                    punctuality: false,
+                    quality: false,
+                  });
+                }}>
                   <Ionicons name="close" size={24} color="#6B7280" />
                 </TouchableOpacity>
               </View>
@@ -1346,12 +1715,55 @@ export default function AppointmentDetailScreen() {
                 />
               </View>
 
+              {/* Images Section */}
+              <View style={styles.imagesSection}>
+                <View style={styles.imagesSectionHeader}>
+                  <Text style={styles.sectionTitle}>
+                    Hình ảnh
+                    <Text style={styles.optionalText}> (Tùy chọn, tối đa 5)</Text>
+                  </Text>
+                  <Text style={styles.imagesCount}>
+                    {reviewImages.length}/5
+                  </Text>
+                </View>
+                
+                {/* Images Grid */}
+                <View style={styles.imagesGrid}>
+                  {reviewImages.map((uri, index) => (
+                    <View key={index} style={styles.imageItem}>
+                      <Image source={{ uri }} style={styles.reviewImage} />
+                      <TouchableOpacity
+                        style={styles.removeImageButton}
+                        onPress={() => handleRemoveImage(index)}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  
+                  {reviewImages.length < 5 && (
+                    <TouchableOpacity
+                      style={styles.addImageButton}
+                      onPress={handleImagePicker}
+                    >
+                      <Ionicons name="add" size={32} color="#68C2E8" />
+                      <Text style={styles.addImageText}>Thêm ảnh</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
               {/* Submit Button */}
               <TouchableOpacity
-                style={styles.submitReviewButton}
+                style={[styles.submitReviewButton, isSubmittingReview && styles.submitReviewButtonDisabled]}
                 onPress={handleSubmitReview}
+                disabled={isSubmittingReview}
               >
-                <Text style={styles.submitReviewButtonText}>Gửi đánh giá</Text>
+                {isSubmittingReview ? (
+                  <Text style={styles.submitReviewButtonText}>Đang gửi...</Text>
+                ) : (
+                  <Text style={styles.submitReviewButtonText}>Gửi đánh giá</Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1408,6 +1820,78 @@ export default function AppointmentDetailScreen() {
               <Text style={styles.errorButtonText}>Đóng</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
+
+      {/* Image Picker Modal for Review */}
+      <Modal
+        visible={showImagePickerModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImagePickerModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.imagePickerModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowImagePickerModal(false)}
+        >
+          <View style={styles.imagePickerModalContent} onTouchEnd={(e) => e.stopPropagation()}>
+            <View style={styles.imagePickerModalHeader}>
+              <Text style={styles.imagePickerModalTitle}>Chọn ảnh</Text>
+              <TouchableOpacity onPress={() => setShowImagePickerModal(false)}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.imagePickerModalSubtitle}>
+              Chọn nguồn ảnh
+            </Text>
+
+            <View style={styles.imagePickerOptionsContainer}>
+              <TouchableOpacity style={styles.imagePickerOption} onPress={handleTakePhoto}>
+                <View style={styles.imagePickerOptionIcon}>
+                  <Ionicons name="camera" size={32} color="#68C2E8" />
+                </View>
+                <Text style={styles.imagePickerOptionText}>Chụp ảnh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.imagePickerOption} onPress={handlePickFromLibrary}>
+                <View style={styles.imagePickerOptionIcon}>
+                  <Ionicons name="images" size={32} color="#68C2E8" />
+                </View>
+                <Text style={styles.imagePickerOptionText}>Thư viện</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.imagePickerCancelButton}
+              onPress={() => setShowImagePickerModal(false)}
+            >
+              <Text style={styles.imagePickerCancelButtonText}>Hủy</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Feedback Image Viewer Modal */}
+      <Modal
+        visible={selectedFeedbackImage !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSelectedFeedbackImage(null)}
+      >
+        <View style={styles.imageModalOverlay}>
+          <TouchableOpacity
+            style={styles.imageModalCloseButton}
+            onPress={() => setSelectedFeedbackImage(null)}
+          >
+            <Ionicons name="close" size={32} color="#FFFFFF" />
+          </TouchableOpacity>
+          {selectedFeedbackImage && (
+            <Image
+              source={{ uri: selectedFeedbackImage }}
+              style={styles.imageModalImage}
+              resizeMode="contain"
+            />
+          )}
         </View>
       </Modal>
 
@@ -1888,6 +2372,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
+  reviewedButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#D1FAE5",
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#10B981",
+  },
+  reviewedButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#065F46",
+  },
   reviewModalContent: {
     width: "100%",
     maxHeight: "90%",
@@ -1993,12 +2493,134 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
+  imagesSection: {
+    marginBottom: 24,
+  },
+  imagesSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  imagesCount: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "600",
+  },
+  imagesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  imageItem: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    position: "relative",
+    overflow: "hidden",
+  },
+  reviewImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+  },
+  addImageButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#68C2E8",
+    borderStyle: "dashed",
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  addImageText: {
+    fontSize: 12,
+    color: "#68C2E8",
+    fontWeight: "600",
+  },
+  imagePickerModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imagePickerModalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 24,
+    width: "85%",
+    maxWidth: 400,
+  },
+  imagePickerModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  imagePickerModalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#2C3E50",
+  },
+  imagePickerModalSubtitle: {
+    fontSize: 14,
+    color: "#7F8C8D",
+    marginBottom: 24,
+  },
+  imagePickerOptionsContainer: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 20,
+  },
+  imagePickerOption: {
+    flex: 1,
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#E8EBED",
+  },
+  imagePickerOptionIcon: {
+    marginBottom: 12,
+  },
+  imagePickerOptionText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2C3E50",
+  },
+  imagePickerCancelButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "#F8F9FA",
+    alignItems: "center",
+  },
+  imagePickerCancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#7F8C8D",
+  },
   submitReviewButton: {
     backgroundColor: "#68C2E8",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
-    marginBottom: 20,
+    marginTop: 20,
+    marginBottom: 40,
+  },
+  submitReviewButtonDisabled: {
+    opacity: 0.6,
   },
   submitReviewButtonText: {
     fontSize: 16,
@@ -2362,6 +2984,121 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  // Feedback styles
+  feedbackOverallRating: {
+    alignItems: "center",
+    paddingVertical: 16,
+    backgroundColor: "#FFFBF0",
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  feedbackOverallRatingLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  feedbackStarsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  feedbackRatingText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#12394A",
+    marginLeft: 8,
+  },
+  feedbackDetailedRatings: {
+    marginBottom: 16,
+  },
+  feedbackDetailedRatingsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+    marginBottom: 12,
+  },
+  feedbackDetailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  feedbackDetailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  feedbackDetailLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+  },
+  feedbackDetailStars: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  feedbackDetailRatingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+    marginLeft: 6,
+  },
+  feedbackComment: {
+    marginBottom: 16,
+  },
+  feedbackCommentLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+    marginBottom: 8,
+  },
+  feedbackCommentText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+  },
+  feedbackTime: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+  },
+  feedbackTimeText: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  feedbackImages: {
+    marginBottom: 16,
+  },
+  feedbackImagesLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+    marginBottom: 12,
+  },
+  feedbackImagesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  feedbackImageItem: {
+    width: (Dimensions.get('window').width - 40 - 32 - 24) / 3, // 3 images per row: (screen width - section padding - card padding - gaps) / 3
+    height: (Dimensions.get('window').width - 40 - 32 - 24) / 3,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  feedbackImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
   },
 });
 

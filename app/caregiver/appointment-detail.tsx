@@ -9,6 +9,7 @@ import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/nativ
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Dimensions,
   Image,
   Linking,
   Modal,
@@ -611,6 +612,10 @@ export default function AppointmentDetailScreen() {
   // State for image viewer modal
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  
+  // State for feedback image viewer modal
+  const [showFeedbackImageModal, setShowFeedbackImageModal] = useState(false);
+  const [selectedFeedbackImage, setSelectedFeedbackImage] = useState<string | null>(null);
   
   // Helper to calculate remaining minutes
   const calculateRemainingMinutes = (deadline: string): number => {
@@ -1711,7 +1716,7 @@ export default function AppointmentDetailScreen() {
         );
       
       case "Hoàn thành":
-        // Hoàn thành: Khiếu nại / Đánh giá (giống booking.tsx)
+        // Hoàn thành: Chỉ có Khiếu nại (caregiver không đánh giá, chỉ care seeker đánh giá)
         return (
           <View style={bottomActionsStyle}>
             <TouchableOpacity 
@@ -1721,15 +1726,6 @@ export default function AppointmentDetailScreen() {
               <Ionicons name={hasComplained ? "eye" : "alert-circle-outline"} size={20} color="#fff" />
               <Text style={styles.actionButtonDangerText}>
                 {hasComplained ? "Xem khiếu nại" : "Khiếu nại"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.actionButtonPrimary}
-              onPress={handleReview}
-            >
-              <Ionicons name={hasReviewed ? "eye" : "star"} size={20} color="#fff" />
-              <Text style={styles.actionButtonPrimaryText}>
-                {hasReviewed ? "Xem đánh giá" : "Đánh giá"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -2465,6 +2461,170 @@ export default function AppointmentDetailScreen() {
           </View>
         )}
 
+        {/* Feedback Section - Show feedback from care seeker if status is COMPLETED and feedback exists */}
+        {appointmentData && (appointmentData.status === 'COMPLETED' || status === 'Hoàn thành') && appointmentData.feedback && appointmentData.feedback !== null && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Đánh giá từ người thuê</Text>
+            <View style={styles.card}>
+              {/* Submission Time - At top */}
+              {appointmentData.feedback.submissionTime && (
+                <View style={styles.feedbackTime}>
+                  <Ionicons name="time-outline" size={16} color="#6B7280" />
+                  <Text style={styles.feedbackTimeText}>
+                    {new Date(appointmentData.feedback.submissionTime).toLocaleString("vi-VN", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+              )}
+
+              {appointmentData.feedback.submissionTime && <View style={styles.divider} />}
+
+              {/* Overall Rating */}
+              <View style={styles.feedbackOverallRating}>
+                <Text style={styles.feedbackOverallRatingLabel}>Đánh giá tổng thể</Text>
+                <View style={styles.feedbackStarsContainer}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Ionicons
+                      key={star}
+                      name={star <= appointmentData.feedback.rating ? "star" : "star-outline"}
+                      size={24}
+                      color={star <= appointmentData.feedback.rating ? "#FFB648" : "#D1D5DB"}
+                    />
+                  ))}
+                  <Text style={styles.feedbackRatingText}>{appointmentData.feedback.rating}/5</Text>
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Detailed Ratings */}
+              <View style={styles.feedbackDetailedRatings}>
+                <Text style={styles.feedbackDetailedRatingsTitle}>Đánh giá chi tiết</Text>
+                
+                <View style={styles.feedbackDetailItem}>
+                  <View style={styles.feedbackDetailHeader}>
+                    <Ionicons name="briefcase" size={18} color="#68C2E8" />
+                    <Text style={styles.feedbackDetailLabel}>Chuyên môn</Text>
+                  </View>
+                  <View style={styles.feedbackDetailStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= appointmentData.feedback.detailedRatings.professionalism ? "star" : "star-outline"}
+                        size={18}
+                        color={star <= appointmentData.feedback.detailedRatings.professionalism ? "#FFB648" : "#D1D5DB"}
+                      />
+                    ))}
+                    <Text style={styles.feedbackDetailRatingText}>
+                      {appointmentData.feedback.detailedRatings.professionalism}/5
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.feedbackDetailItem}>
+                  <View style={styles.feedbackDetailHeader}>
+                    <Ionicons name="happy" size={18} color="#68C2E8" />
+                    <Text style={styles.feedbackDetailLabel}>Thái độ</Text>
+                  </View>
+                  <View style={styles.feedbackDetailStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= appointmentData.feedback.detailedRatings.attitude ? "star" : "star-outline"}
+                        size={18}
+                        color={star <= appointmentData.feedback.detailedRatings.attitude ? "#FFB648" : "#D1D5DB"}
+                      />
+                    ))}
+                    <Text style={styles.feedbackDetailRatingText}>
+                      {appointmentData.feedback.detailedRatings.attitude}/5
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.feedbackDetailItem}>
+                  <View style={styles.feedbackDetailHeader}>
+                    <Ionicons name="time" size={18} color="#68C2E8" />
+                    <Text style={styles.feedbackDetailLabel}>Đúng giờ</Text>
+                  </View>
+                  <View style={styles.feedbackDetailStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= appointmentData.feedback.detailedRatings.punctuality ? "star" : "star-outline"}
+                        size={18}
+                        color={star <= appointmentData.feedback.detailedRatings.punctuality ? "#FFB648" : "#D1D5DB"}
+                      />
+                    ))}
+                    <Text style={styles.feedbackDetailRatingText}>
+                      {appointmentData.feedback.detailedRatings.punctuality}/5
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.feedbackDetailItem}>
+                  <View style={styles.feedbackDetailHeader}>
+                    <Ionicons name="checkmark-circle" size={18} color="#68C2E8" />
+                    <Text style={styles.feedbackDetailLabel}>Chất lượng</Text>
+                  </View>
+                  <View style={styles.feedbackDetailStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons
+                        key={star}
+                        name={star <= appointmentData.feedback.detailedRatings.quality ? "star" : "star-outline"}
+                        size={18}
+                        color={star <= appointmentData.feedback.detailedRatings.quality ? "#FFB648" : "#D1D5DB"}
+                      />
+                    ))}
+                    <Text style={styles.feedbackDetailRatingText}>
+                      {appointmentData.feedback.detailedRatings.quality}/5
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Comment */}
+              {appointmentData.feedback.comment && (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.feedbackComment}>
+                    <Text style={styles.feedbackCommentLabel}>Nhận xét</Text>
+                    <Text style={styles.feedbackCommentText}>{appointmentData.feedback.comment}</Text>
+                  </View>
+                </>
+              )}
+
+              {/* Images */}
+              {appointmentData.feedback.attachmentUrls && appointmentData.feedback.attachmentUrls.length > 0 && (
+                <>
+                  <View style={styles.divider} />
+                  <View style={styles.feedbackImages}>
+                    <Text style={styles.feedbackImagesLabel}>Hình ảnh đánh giá</Text>
+                    <View style={styles.feedbackImagesGrid}>
+                      {appointmentData.feedback.attachmentUrls.map((url: string, index: number) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.feedbackImageItem}
+                          onPress={() => {
+                            setSelectedFeedbackImage(url);
+                            setShowFeedbackImageModal(true);
+                          }}
+                        >
+                          <Image source={{ uri: url }} style={styles.feedbackImage} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        )}
+
         <View style={{ height: 200 }} />
 
     </ScrollView>
@@ -2577,6 +2737,31 @@ export default function AppointmentDetailScreen() {
         {selectedImageUrl && (
           <Image
             source={{ uri: selectedImageUrl }}
+            style={styles.imageModalImage}
+            resizeMode="contain"
+          />
+        )}
+      </View>
+    </Modal>
+
+    {/* Feedback Image Viewer Modal */}
+    <Modal
+      visible={showFeedbackImageModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowFeedbackImageModal(false)}
+    >
+      <View style={styles.imageModalOverlay}>
+        <TouchableOpacity
+          style={styles.imageModalCloseButton}
+          onPress={() => setShowFeedbackImageModal(false)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="close-circle" size={32} color="#fff" />
+        </TouchableOpacity>
+        {selectedFeedbackImage && (
+          <Image
+            source={{ uri: selectedFeedbackImage }}
             style={styles.imageModalImage}
             resizeMode="contain"
           />
@@ -4050,6 +4235,121 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
+  },
+  // Feedback styles
+  feedbackOverallRating: {
+    alignItems: "center",
+    paddingVertical: 16,
+    backgroundColor: "#FFFBF0",
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  feedbackOverallRatingLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  feedbackStarsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  feedbackRatingText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#12394A",
+    marginLeft: 8,
+  },
+  feedbackDetailedRatings: {
+    marginBottom: 16,
+  },
+  feedbackDetailedRatingsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+    marginBottom: 12,
+  },
+  feedbackDetailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  feedbackDetailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  feedbackDetailLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+  },
+  feedbackDetailStars: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  feedbackDetailRatingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+    marginLeft: 6,
+  },
+  feedbackComment: {
+    marginBottom: 16,
+  },
+  feedbackCommentLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+    marginBottom: 8,
+  },
+  feedbackCommentText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+  },
+  feedbackTime: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+  },
+  feedbackTimeText: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  feedbackImages: {
+    marginBottom: 16,
+  },
+  feedbackImagesLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#12394A",
+    marginBottom: 12,
+  },
+  feedbackImagesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  feedbackImageItem: {
+    width: (Dimensions.get('window').width - 40 - 32 - 24) / 3, // 3 images per row: (screen width - section padding - card padding - gaps) / 3
+    height: (Dimensions.get('window').width - 40 - 32 - 24) / 3,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  feedbackImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
   },
 });
 
