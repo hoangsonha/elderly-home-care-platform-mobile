@@ -75,6 +75,7 @@ export interface CreateElderlyProfileRequest {
       'kĩ năng bắt buộc': string[];
       'kĩ năng ưu tiên': string[];
     };
+    service_package_id?: string | null;
     age: [number, number] | null;
     gender: 'MALE' | 'FEMALE' | null;
     experience: number | null;

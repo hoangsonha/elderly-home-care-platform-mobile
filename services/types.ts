@@ -45,17 +45,38 @@ export interface CaregiverRecommendation {
   };
 }
 
+export interface FailureAnalysis {
+  total_candidates: number;
+  filter_statistics: {
+    [key: string]: {
+      failed: number;
+      percentage: number;
+    };
+  };
+  primary_reason: {
+    filter: string;
+    message: string;
+    failed_count: number;
+    failed_percentage: number;
+  };
+  suggestions: Array<{
+    filter: string;
+    suggestion: string;
+  }>;
+}
+
 export interface MatchResponse {
-  request_id: string;
-  care_level: number;
-  seeker_name: string;
-  location: {
+  request_id?: string;
+  care_level?: number;
+  seeker_name?: string;
+  location?: {
     lat: number;
     lon: number;
     address: string;
   };
   total_matches: number;
   recommendations: CaregiverRecommendation[];
+  failure_analysis?: FailureAnalysis;
 }
 
 export interface MobileMatchRequest {

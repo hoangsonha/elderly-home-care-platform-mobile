@@ -484,11 +484,31 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Recommended Caregivers */}
-        <RecommendedCaregivers 
-          caregivers={recommendedCaregivers} 
-          onBookPress={handleBookPress}
-        />
+        {/* Find Caregiver Section */}
+        <View style={styles.findCaregiverSection}>
+          <View style={styles.findCaregiverCard}>
+            <View style={styles.findCaregiverTopRow}>
+              <View style={styles.findCaregiverIconContainer}>
+                <Ionicons name="search" size={32} color="#4ECDC4" />
+              </View>
+              <View style={styles.findCaregiverTextContainer}>
+                <ThemedText style={styles.findCaregiverTitle}>Tìm người chăm sóc</ThemedText>
+                <ThemedText style={styles.findCaregiverDescription}>
+                  Tìm kiếm người chăm sóc phù hợp với nhu cầu của bạn
+                </ThemedText>
+              </View>
+            </View>
+            <View style={styles.findCaregiverButtonContainer}>
+              <TouchableOpacity 
+                style={styles.findCaregiverButton}
+                onPress={() => router.push('/careseeker/caregiver-search')}
+              >
+                <ThemedText style={styles.findCaregiverButtonText}>Tìm ngay</ThemedText>
+                <Ionicons name="arrow-forward" size={18} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
 
         {/* Elderly Profiles - Compact */}
         <View style={styles.elderlySection}>
@@ -937,6 +957,80 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   // Elderly Section
+  findCaregiverSection: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+  },
+  findCaregiverCard: {
+    backgroundColor: '#F0FDFA',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#B2F5EA',
+    shadowColor: '#4ECDC4',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  findCaregiverTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  findCaregiverIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: '#4ECDC4',
+  },
+  findCaregiverTextContainer: {
+    flex: 1,
+  },
+  findCaregiverTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 6,
+  },
+  findCaregiverDescription: {
+    fontSize: 13,
+    color: '#64748B',
+    lineHeight: 18,
+  },
+  findCaregiverButtonContainer: {
+    alignItems: 'flex-end',
+  },
+  findCaregiverButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4ECDC4',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    gap: 6,
+    shadowColor: '#4ECDC4',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  findCaregiverButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'white',
+  },
   elderlySection: {
     marginTop: 16,
     backgroundColor: '#FFFFFF',

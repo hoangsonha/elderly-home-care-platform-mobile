@@ -211,44 +211,51 @@ export const ProfilePreview: React.FC<ProfilePreviewProps> = ({ profile }) => {
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Yêu cầu chăm sóc</ThemedText>
         <View style={styles.compactGrid}>
+          {/* Độ tuổi người chăm sóc */}
           <View style={styles.compactItem}>
-            <ThemedText style={styles.compactLabel}>Mức độ:</ThemedText>
+            <Ionicons name="calendar" size={14} color="#68C2E8" />
+            <ThemedText style={styles.compactLabel}>Độ tuổi:</ThemedText>
             <ThemedText style={styles.compactValue}>
-              {profile.caregiverRequirements.careLevel === 1 ? 'Cơ bản' :
-               profile.caregiverRequirements.careLevel === 2 ? 'Trung bình' :
-               profile.caregiverRequirements.careLevel === 3 ? 'Nâng cao' : 'Chuyên biệt'}
+              {profile.caregiverRequirements.caregiverAgeRange?.min && profile.caregiverRequirements.caregiverAgeRange?.max
+                ? `Từ ${profile.caregiverRequirements.caregiverAgeRange.min} đến ${profile.caregiverRequirements.caregiverAgeRange.max} tuổi`
+                : 'Không yêu cầu'}
             </ThemedText>
           </View>
-          {(profile.caregiverRequirements.customRequiredSkills.length > 0 || profile.caregiverRequirements.requiredSkills.length > 0) && (
-            <View style={styles.tagContainer}>
-              <ThemedText style={styles.tagLabel}>Kỹ năng bắt buộc:</ThemedText>
-              <View style={styles.tags}>
-                {[...profile.caregiverRequirements.requiredSkills, ...profile.caregiverRequirements.customRequiredSkills].slice(0, 3).map((skill: string, idx: number) => (
-                  <View key={idx} style={styles.tag}>
-                    <ThemedText style={styles.tagText}>{skill}</ThemedText>
-                  </View>
-                ))}
-                {([...profile.caregiverRequirements.requiredSkills, ...profile.caregiverRequirements.customRequiredSkills].length > 3) && (
-                  <ThemedText style={styles.moreTag}>+{[...profile.caregiverRequirements.requiredSkills, ...profile.caregiverRequirements.customRequiredSkills].length - 3}</ThemedText>
-                )}
-              </View>
-            </View>
-          )}
-          {(profile.caregiverRequirements.customPrioritySkills.length > 0 || profile.caregiverRequirements.prioritySkills.length > 0) && (
-            <View style={styles.tagContainer}>
-              <ThemedText style={styles.tagLabel}>Kỹ năng ưu tiên:</ThemedText>
-              <View style={styles.tags}>
-                {[...profile.caregiverRequirements.prioritySkills, ...profile.caregiverRequirements.customPrioritySkills].slice(0, 3).map((skill: string, idx: number) => (
-                  <View key={idx} style={styles.tag}>
-                    <ThemedText style={styles.tagText}>{skill}</ThemedText>
-                  </View>
-                ))}
-                {([...profile.caregiverRequirements.prioritySkills, ...profile.caregiverRequirements.customPrioritySkills].length > 3) && (
-                  <ThemedText style={styles.moreTag}>+{[...profile.caregiverRequirements.prioritySkills, ...profile.caregiverRequirements.customPrioritySkills].length - 3}</ThemedText>
-                )}
-              </View>
-            </View>
-          )}
+
+          {/* Giới tính */}
+          <View style={styles.compactItem}>
+            <Ionicons name="male-female" size={14} color="#68C2E8" />
+            <ThemedText style={styles.compactLabel}>Giới tính:</ThemedText>
+            <ThemedText style={styles.compactValue}>
+              {profile.caregiverRequirements.genderPreference === 'male' 
+                ? 'Nam' 
+                : profile.caregiverRequirements.genderPreference === 'female' 
+                ? 'Nữ' 
+                : 'Không yêu cầu'}
+            </ThemedText>
+          </View>
+
+          {/* Kinh nghiệm */}
+          <View style={styles.compactItem}>
+            <Ionicons name="briefcase" size={14} color="#68C2E8" />
+            <ThemedText style={styles.compactLabel}>Kinh nghiệm:</ThemedText>
+            <ThemedText style={styles.compactValue}>
+              {profile.caregiverRequirements.requiredYearsExperienceRange?.min
+                ? `Từ ${profile.caregiverRequirements.requiredYearsExperienceRange.min} năm`
+                : 'Không yêu cầu'}
+            </ThemedText>
+          </View>
+
+          {/* Đánh giá */}
+          <View style={styles.compactItem}>
+            <Ionicons name="star" size={14} color="#68C2E8" />
+            <ThemedText style={styles.compactLabel}>Đánh giá:</ThemedText>
+            <ThemedText style={styles.compactValue}>
+              {profile.caregiverRequirements.overallRatingRange?.min && profile.caregiverRequirements.overallRatingRange?.max
+                ? `Từ ${profile.caregiverRequirements.overallRatingRange.min} đến ${profile.caregiverRequirements.overallRatingRange.max} sao`
+                : 'Không yêu cầu'}
+            </ThemedText>
+          </View>
         </View>
       </View>
 

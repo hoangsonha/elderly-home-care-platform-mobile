@@ -194,11 +194,89 @@ export default function CaregiverSearchScreen() {
     setShowAIModal(true);
   };
 
-  const handleGetAIRecommendations = (response: MatchResponse) => {
-    setAiRecommendations(response.recommendations);
-    setShowAIResults(true);
-    setShowAIModal(false);
-    setIsAILoading(false);
+  const [aiFailureAnalysis, setAiFailureAnalysis] = useState<MatchResponse['failure_analysis']>(undefined);
+
+  const handleGetAIRecommendations = async (response: MatchResponse) => {
+    setIsAILoading(true);
+    
+    // Debug log
+    console.log('handleGetAIRecommendations - response:', JSON.stringify(response, null, 2));
+    console.log('handleGetAIRecommendations - total_matches:', response.total_matches);
+    console.log('handleGetAIRecommendations - failure_analysis:', response.failure_analysis);
+    
+    // Store failure analysis if no matches
+    if (response.total_matches === 0 && response.failure_analysis) {
+      console.log('Setting failure analysis:', response.failure_analysis);
+      setAiFailureAnalysis(response.failure_analysis);
+    } else {
+      console.log('Clearing failure analysis');
+      setAiFailureAnalysis(undefined);
+    }
+    
+    try {
+      // If no recommendations, skip fetching details
+      if (response.recommendations.length === 0) {
+        setAiRecommendations([]);
+        setShowAIResults(true);
+        setShowAIModal(false);
+        setIsAILoading(false);
+        return;
+      }
+      
+      // Fetch detailed caregiver info for each recommendation
+      const enrichedRecommendations = await Promise.all(
+        response.recommendations.map(async (rec) => {
+          try {
+            const caregiverDetail = await caregiverService.getPublicCaregiverById(rec.caregiver_id);
+            
+            // Get rating and total_reviews from profileData.ratings_reviews
+            const ratingsReviews = caregiverDetail.profileData?.ratings_reviews;
+            const rating = ratingsReviews?.overall_rating || 0;
+            const totalReviews = ratingsReviews?.total_reviews || 0;
+            
+            // Format distance_km to distance string
+            const distanceKm = rec.distance_km || 0;
+            const distanceString = distanceKm > 0 
+              ? `${distanceKm.toFixed(1)} km` 
+              : rec.distance || '0 km';
+            
+            // Merge match data with detailed caregiver info
+            // Keep distance_km from match response, use rating from API
+            return {
+              ...rec,
+              name: caregiverDetail.fullName,
+              avatar: caregiverDetail.avatarUrl || rec.avatar,
+              bio: caregiverDetail.bio,
+              isVerified: caregiverDetail.isVerified,
+              years_experience: caregiverDetail.years_experience || rec.years_experience,
+              experience: caregiverDetail.years_experience 
+                ? `${caregiverDetail.years_experience} năm` 
+                : rec.experience,
+              rating: rating, // Use rating from API
+              total_reviews: totalReviews, // Use total_reviews from API
+              distance: distanceString, // Format distance_km to string
+              distance_km: distanceKm, // Keep distance_km for reference
+            };
+          } catch (error) {
+            console.error(`Error fetching caregiver ${rec.caregiver_id}:`, error);
+            // Return original recommendation if API call fails
+            return rec;
+          }
+        })
+      );
+      
+      setAiRecommendations(enrichedRecommendations);
+      setShowAIResults(true);
+      setShowAIModal(false);
+    } catch (error) {
+      console.error('Error enriching recommendations:', error);
+      // Fallback to original recommendations
+      setAiRecommendations(response.recommendations);
+      setShowAIResults(true);
+      setShowAIModal(false);
+    } finally {
+      setIsAILoading(false);
+    }
   };
 
   const handleRefreshAI = () => {
@@ -299,6 +377,8 @@ export default function CaregiverSearchScreen() {
           onChatPress={handleChatPress}
           onRefresh={handleRefreshAI}
           isLoading={isAILoading}
+          bottomPadding={bottomNavPadding}
+          failureAnalysis={aiFailureAnalysis}
         />
       ) : (
         <ScrollView

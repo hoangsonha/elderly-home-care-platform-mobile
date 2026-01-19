@@ -10,11 +10,15 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { DynamicInputList } from '@/components/ui/DynamicInputList';
 import { WorkTimeSelectorFromAI } from '@/components/ui/WorkTimeSelectorFromAI';
+import { SimpleTimePicker } from '@/components/ui/SimpleTimePicker';
+import { UserService } from '@/services/user.service';
 import { MatchResponse, matchService } from '@/services/matchServiceAxios';
+import { mainService, type ServicePackageApiResponse } from '@/services/main.service';
 import { formatCurrency } from '@/utils/currency';
 
 interface ElderlyProfile {
@@ -121,7 +125,8 @@ const ratingRangeOptions = [
 ];
 
 
-export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderlyProfiles = [] }: AIMatchingModalProps) {
+export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderlyProfiles: initialProfiles = [] }: AIMatchingModalProps) {
+  const insets = useSafeAreaInsets();
   const [userInfo, setUserInfo] = useState<UserInfo>({
     elderlyAge: '',
     healthStatus: 'moderate',
@@ -140,16 +145,77 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
     budgetPerHour: '',
   });
 
-
+  const [elderlyProfiles, setElderlyProfiles] = useState<ElderlyProfile[]>(initialProfiles);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const [currentStep, setCurrentStep] = useState(0); // Start from step 0
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [showManualInput, setShowManualInput] = useState(false);
-  const totalSteps = 6;
+  
+  // Total steps: 0 = select profile (Bước 1/2), 1 = select date/time and service package (Bước 2/2)
+  const totalSteps = 2;
+
+  // New state for date/time and service package selection
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [startHour, setStartHour] = useState<string>('');
+  const [startMinute, setStartMinute] = useState<string>('');
+  const [selectedServicePackageId, setSelectedServicePackageId] = useState<string>('');
+  const [servicePackages, setServicePackages] = useState<ServicePackageApiResponse[]>([]);
+  const [isLoadingServicePackages, setIsLoadingServicePackages] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [timePickerType, setTimePickerType] = useState<'hour' | 'minute'>('hour');
 
   // Animation values
   const spinValue = new Animated.Value(0);
   const pulseValue = new Animated.Value(1);
+
+  // Fetch elderly profiles from API when modal opens
+  useEffect(() => {
+    if (visible) {
+      const fetchElderlyProfiles = async () => {
+        try {
+          setIsLoadingProfiles(true);
+          const apiProfiles = await UserService.getElderlyProfiles();
+          
+          // Map API response to ElderlyProfile format
+          const mappedProfiles: ElderlyProfile[] = apiProfiles.map((profile: any) => {
+            // Map healthStatus from API to component format
+            let healthStatus: 'good' | 'fair' | 'poor' = 'fair';
+            if (profile.healthStatus) {
+              const statusLower = profile.healthStatus.toLowerCase();
+              if (statusLower === 'good' || statusLower === 'tốt') {
+                healthStatus = 'good';
+              } else if (statusLower === 'moderate' || statusLower === 'fair' || statusLower === 'trung bình' || statusLower === 'khá') {
+                healthStatus = 'fair';
+              } else if (statusLower === 'weak' || statusLower === 'poor' || statusLower === 'yếu' || statusLower === 'kém') {
+                healthStatus = 'poor';
+              }
+            }
+            
+            return {
+              id: profile.elderlyProfileId,
+              name: profile.fullName,
+              age: profile.age,
+              currentCaregivers: 0, // Not available in API
+              family: '', // Will be removed from UI
+              healthStatus: healthStatus,
+              avatar: profile.avatarUrl || undefined,
+            };
+          });
+          
+          setElderlyProfiles(mappedProfiles);
+        } catch (error) {
+          console.error('Error fetching elderly profiles:', error);
+          // Fallback to initial profiles on error
+          setElderlyProfiles(initialProfiles);
+        } finally {
+          setIsLoadingProfiles(false);
+        }
+      };
+
+      fetchElderlyProfiles();
+    }
+  }, [visible, initialProfiles]);
 
   useEffect(() => {
     if (isLoading) {
@@ -212,12 +278,26 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
     setSelectedProfileId(profileId);
   };
 
-  const handleManualInput = () => {
-    setShowManualInput(true);
-    setCurrentStep(1);
-  };
+  // Fetch service packages when moving to step 1
+  useEffect(() => {
+    if (currentStep === 1 && selectedProfileId) {
+      const fetchServicePackages = async () => {
+        try {
+          setIsLoadingServicePackages(true);
+          const packages = await mainService.getActiveServicePackages();
+          setServicePackages(packages);
+        } catch (error) {
+          console.error('Error fetching service packages:', error);
+          Alert.alert('Lỗi', 'Không thể tải danh sách gói dịch vụ. Vui lòng thử lại.');
+        } finally {
+          setIsLoadingServicePackages(false);
+        }
+      };
+      fetchServicePackages();
+    }
+  }, [currentStep, selectedProfileId]);
 
-  const handleConfirmProfile = async () => {
+  const handleConfirmProfile = () => {
     if (selectedProfileId) {
       // Auto-fill info from selected profile
       const profile = elderlyProfiles.find(p => p.id === selectedProfileId);
@@ -228,63 +308,48 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
           healthStatus: profile.healthStatus === 'good' ? 'low' : profile.healthStatus === 'fair' ? 'moderate' : 'high',
         }));
         
-        // Start AI matching with profile data
-        setIsLoading(true);
-        
-        try {
-          // Simulate API call with profile data
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          const requestBody = {
-            seeker_name: "Người dùng",
-            care_level: userInfo.careLevel,
-            health_status: profile.healthStatus === 'good' ? 'low' : profile.healthStatus === 'fair' ? 'moderate' : 'high',
-            elderly_age: profile.age,
-            caregiver_age_range: userInfo.caregiverAgeRange ? [
-              parseInt(userInfo.caregiverAgeRange.min),
-              parseInt(userInfo.caregiverAgeRange.max)
-            ] as [number, number] : null,
-            gender_preference: userInfo.genderPreference,
-            required_years_experience: userInfo.requiredYearsExperience ? parseInt(userInfo.requiredYearsExperience) : null,
-            overall_rating_range: userInfo.overallRatingRange ? [
-              userInfo.overallRatingRange.min,
-              userInfo.overallRatingRange.max
-            ] as [number, number] : null,
-            personality: userInfo.personality,
-            attitude: userInfo.attitude,
-            skills: {
-              required_skills: [...userInfo.requiredSkills, ...userInfo.customRequiredSkills],
-              priority_skills: [...userInfo.prioritySkills, ...userInfo.customPrioritySkills]
-            },
-            time_slots: userInfo.timeSlotGroups.flatMap(group => 
-              group.days.flatMap(day => 
-                group.timeSlots.map(slot => ({
-                  day: day.toLowerCase(),
-                  start: slot.start,
-                  end: slot.end
-                }))
-              )
-            ),
-            location: {
-              lat: 10.7350,
-              lon: 106.7200,
-              address: "Quận 7, TP.HCM"
-            },
-            budget_per_hour: parseInt(userInfo.budgetPerHour) || 150000, // Default budget
-          };
-
-          const response = await matchService.matchCaregivers(requestBody);
-          setIsLoading(false);
-          onGetRecommendations(response);
-        } catch (error: any) {
-          setIsLoading(false);
-          Alert.alert('Lỗi', 'Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.');
-        }
+        // Move to step 1 (date/time and service package selection) instead of calling API
+        setCurrentStep(1);
       }
     }
   };
 
   const handleNext = async () => {
+    // Step 1: Validate date/time and service package before calling API
+    if (currentStep === 1 && selectedProfileId) {
+      if (!selectedDate) {
+        Alert.alert('Thiếu thông tin', 'Vui lòng chọn ngày làm việc');
+        return;
+      }
+      if (!startHour || !startMinute) {
+        Alert.alert('Thiếu thông tin', 'Vui lòng chọn giờ bắt đầu');
+        return;
+      }
+      if (!selectedServicePackageId) {
+        Alert.alert('Thiếu thông tin', 'Vui lòng chọn gói dịch vụ');
+        return;
+      }
+
+      // Call API with new endpoint
+      setIsLoading(true);
+      try {
+        const response = await matchService.matchCaregiversWithProfile({
+          elderly_profile_id: selectedProfileId,
+          service_package_id: selectedServicePackageId,
+          work_date: selectedDate,
+          start_hour: startHour,
+          start_minute: startMinute,
+          top_n: 10,
+        });
+        setIsLoading(false);
+        onGetRecommendations(response);
+      } catch (error: any) {
+        setIsLoading(false);
+        Alert.alert('Lỗi', error.message || 'Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.');
+      }
+      return;
+    }
+
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     } else {
@@ -368,7 +433,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
 
   const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep(currentStep - 1);
     }
   };
 
@@ -398,8 +463,16 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
           Chọn một hồ sơ người già hoặc nhập yêu cầu thủ công
         </ThemedText>
 
-        {elderlyProfiles.length > 0 ? (
-          <ScrollView style={styles.profileList} showsVerticalScrollIndicator={false}>
+        {isLoadingProfiles ? (
+          <View style={styles.loadingProfilesContainer}>
+            <ThemedText style={styles.loadingProfilesText}>Đang tải danh sách người già...</ThemedText>
+          </View>
+        ) : elderlyProfiles.length > 0 ? (
+          <ScrollView 
+            style={styles.profileList} 
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+          >
             {elderlyProfiles.map((profile) => (
               <TouchableOpacity
                 key={profile.id}
@@ -435,12 +508,14 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
                 </View>
 
                 <View style={styles.profileDetails}>
-                  <View style={styles.detailRow}>
-                    <Ionicons name="people" size={16} color="#9CA3AF" />
-                    <ThemedText style={styles.detailText}>
-                      Gia đình: {profile.family}
-                    </ThemedText>
-                  </View>
+                  {profile.family && (
+                    <View style={styles.detailRow}>
+                      <Ionicons name="people" size={16} color="#9CA3AF" />
+                      <ThemedText style={styles.detailText}>
+                        Gia đình: {profile.family}
+                      </ThemedText>
+                    </View>
+                  )}
                   <View style={styles.detailRow}>
                     <Ionicons name="pulse" size={16} color="#9CA3AF" />
                     <View style={[styles.healthBadge, { backgroundColor: getHealthStatusColor(profile.healthStatus) + '20' }]}>
@@ -455,423 +530,297 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
             ))}
           </ScrollView>
         ) : null}
-
-        <TouchableOpacity
-          style={styles.manualInputButton}
-          onPress={handleManualInput}
-        >
-          <Ionicons name="add-circle-outline" size={24} color="#4ECDC4" />
-          <ThemedText style={styles.manualInputButtonText}>Nhập yêu cầu thủ công</ThemedText>
-        </TouchableOpacity>
       </View>
     );
   };
 
-  const renderStep1 = () => (
-    <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Thông tin cơ bản của người già</ThemedText>
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Tuổi của người già <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
-        <TextInput
-          style={styles.textInput}
-          value={userInfo.elderlyAge}
-          onChangeText={(text) => {
-            // Chỉ cho phép nhập số
-            const numericText = text.replace(/[^0-9]/g, '');
-            setUserInfo(prev => ({ ...prev, elderlyAge: numericText }));
-          }}
-          placeholder="Ví dụ: 60"
-          keyboardType="numeric"
-          placeholderTextColor="#999"
-        />
-      </View>
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Mức độ sức khỏe <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
-        <View style={styles.healthLevelContainer}>
-          <TouchableOpacity
-            style={[
-              styles.healthLevelCard,
-              userInfo.healthStatus === 'good' && styles.healthLevelCardSelected
-            ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, healthStatus: 'good' }))}
-          >
-            <Ionicons name="happy" size={32} color={userInfo.healthStatus === 'good' ? 'white' : '#4ECDC4'} />
-            <ThemedText style={[
-              styles.healthLevelText,
-              userInfo.healthStatus === 'good' && styles.healthLevelTextSelected
-            ]}>
-              Tốt
-            </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.healthLevelCard,
-              userInfo.healthStatus === 'moderate' && styles.healthLevelCardSelected
-            ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, healthStatus: 'moderate' }))}
-          >
-            <Ionicons name="medical" size={32} color={userInfo.healthStatus === 'moderate' ? 'white' : '#4ECDC4'} />
-            <ThemedText style={[
-              styles.healthLevelText,
-              userInfo.healthStatus === 'moderate' && styles.healthLevelTextSelected
-            ]}>
-              Trung bình
-            </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.healthLevelCard,
-              userInfo.healthStatus === 'weak' && styles.healthLevelCardSelected
-            ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, healthStatus: 'weak' }))}
-          >
-            <Ionicons name="warning" size={32} color={userInfo.healthStatus === 'weak' ? 'white' : '#4ECDC4'} />
-            <ThemedText style={[
-              styles.healthLevelText,
-              userInfo.healthStatus === 'weak' && styles.healthLevelTextSelected
-            ]}>
-              Yếu
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Mức độ chăm sóc cần thiết <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
-        {careLevels.map((level) => (
-          <TouchableOpacity
-            key={level.id}
-            style={[
-              styles.optionCard,
-              userInfo.careLevel === (level.id as number) && styles.optionCardSelected
-            ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, careLevel: level.id as number }))}
-          >
-            <View style={styles.optionContent}>
-              <ThemedText style={[
-                styles.optionTitle,
-                userInfo.careLevel === (level.id as number) && styles.optionTitleSelected
-              ]}>
-                {level.label}
-              </ThemedText>
-              <ThemedText style={[
-                styles.optionDescription,
-                userInfo.careLevel === (level.id as number) && styles.optionDescriptionSelected
-              ]}>
-                {level.description}
-              </ThemedText>
-            </View>
-            {userInfo.careLevel === (level.id as number) && (
-              <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderStep2 = () => (
-    <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Kĩ năng cần có ở người chăm sóc</ThemedText>
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Kĩ năng bắt buộc</ThemedText>
-        <View style={styles.optionsGrid}>
-          {requiredSkillsOptions.map((skill) => (
-            <TouchableOpacity
-              key={skill.id}
-              style={[
-                styles.specialNeedCard,
-                userInfo.requiredSkills.includes(skill.id) && styles.specialNeedCardSelected
-              ]}
-              onPress={() => handleRequiredSkillToggle(skill.id)}
-            >
-              <ThemedText style={[
-                styles.specialNeedText,
-                userInfo.requiredSkills.includes(skill.id) && styles.specialNeedTextSelected
-              ]}>
-                {skill.label}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <DynamicInputList
-          title="Kĩ năng bắt buộc khác"
-          placeholder="Nhập kĩ năng bắt buộc"
-          items={userInfo.customRequiredSkills || []}
-          onItemsChange={(customRequiredSkills) => setUserInfo(prev => ({ ...prev, customRequiredSkills }))}
-          maxItems={5}
-        />
-      </View>
+  const renderStep1 = () => {
+    // Show date/time and service package selection when profile is selected
+    if (selectedProfileId) {
+      const selectedProfile = elderlyProfiles.find(p => p.id === selectedProfileId);
       
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Kĩ năng ưu tiên</ThemedText>
-        <View style={styles.optionsGrid}>
-          {prioritySkillsOptions.map((skill) => (
-            <TouchableOpacity
-              key={skill.id}
-              style={[
-                styles.specialNeedCard,
-                userInfo.prioritySkills.includes(skill.id) && styles.specialNeedCardSelected
-              ]}
-              onPress={() => handlePrioritySkillToggle(skill.id)}
-            >
-              <ThemedText style={[
-                styles.specialNeedText,
-                userInfo.prioritySkills.includes(skill.id) && styles.specialNeedTextSelected
-              ]}>
-                {skill.label}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <DynamicInputList
-          title="Kĩ năng ưu tiên khác"
-          placeholder="Nhập kĩ năng ưu tiên"
-          items={userInfo.customPrioritySkills || []}
-          onItemsChange={(customPrioritySkills) => setUserInfo(prev => ({ ...prev, customPrioritySkills }))}
-          maxItems={5}
-        />
-      </View>
-        </View>
-  );
+      // Generate dates for next 7 days - format like BookingModal
+      const dates = [];
+      const today = new Date();
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        
+        const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+        const monthNames = ['Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 
+                          'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'];
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        const displayStr = `${dayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${year}`;
+        
+        dates.push({
+          date: date,
+          dateStr: dateStr,
+          displayStr: displayStr,
+        });
+      }
 
-  const renderStep3 = () => (
-    <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Thời gian làm việc</ThemedText>
-      <WorkTimeSelectorFromAI
-        timeSlotGroups={userInfo.timeSlotGroups}
-        onTimeSlotGroupsChange={(timeSlotGroups) => setUserInfo(prev => ({ ...prev, timeSlotGroups }))}
-      />
-
-      <ThemedText style={styles.helpText}>
-        Đừng lo, bạn có thể điều chỉnh thời gian này sau
-      </ThemedText>
-    </View>
-  );
-
-  const renderStep4 = () => (
-    <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Yêu cầu người chăm sóc</ThemedText>
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Độ tuổi người chăm sóc</ThemedText>
-        <View style={styles.ageRangeContainer}>
-          <View style={styles.ageInputContainer}>
-            <ThemedText style={styles.ageLabel}>Từ</ThemedText>
-            <TextInput
-              style={styles.ageInput}
-              value={userInfo.caregiverAgeRange?.min || ''}
-              onChangeText={(text) => setUserInfo(prev => ({ 
-                ...prev, 
-                caregiverAgeRange: prev.caregiverAgeRange ? { ...prev.caregiverAgeRange, min: text } : { min: text, max: '' }
-              }))}
-              placeholder="Ví dụ: 25"
-              keyboardType="numeric"
-              placeholderTextColor="#999"
-            />
-          </View>
-          <View style={styles.ageInputContainer}>
-            <ThemedText style={styles.ageLabel}>Đến</ThemedText>
-            <TextInput
-              style={styles.ageInput}
-              value={userInfo.caregiverAgeRange?.max || ''}
-              onChangeText={(text) => setUserInfo(prev => ({ 
-                ...prev, 
-                caregiverAgeRange: prev.caregiverAgeRange ? { ...prev.caregiverAgeRange, max: text } : { min: '', max: text }
-              }))}
-              placeholder="Ví dụ: 50"
-              keyboardType="numeric"
-              placeholderTextColor="#999"
-            />
-          </View>
-        </View>
-      </View>
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Giới tính ưu tiên</ThemedText>
-        <View style={styles.genderOptions}>
-          {genderOptions.map((gender) => (
-            <TouchableOpacity
-              key={gender.id || 'any'}
-              style={[
-                styles.genderCard,
-                userInfo.genderPreference === gender.id && styles.genderCardSelected
-              ]}
-              onPress={() => setUserInfo(prev => ({ ...prev, genderPreference: gender.id }))}
-            >
-              <ThemedText style={[
-                styles.genderText,
-                userInfo.genderPreference === gender.id && styles.genderTextSelected
-              ]}>
-                {gender.label}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Kinh nghiệm</ThemedText>
-        {experienceLevels.map((exp) => (
-          <TouchableOpacity
-            key={exp.id || 'none'}
-            style={[
-              styles.optionCard,
-              userInfo.requiredYearsExperience === exp.id && styles.optionCardSelected
-            ]}
-            onPress={() => setUserInfo(prev => ({ ...prev, requiredYearsExperience: exp.id }))}
-          >
-            <ThemedText style={[
-              styles.optionTitle,
-              userInfo.requiredYearsExperience === exp.id && styles.optionTitleSelected
-            ]}>
-              {exp.label}
-            </ThemedText>
-            {userInfo.requiredYearsExperience === exp.id && (
-              <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.inputGroup}>
-        <DynamicInputList
-          title="Tính cách"
-          placeholder="Nhập tính cách"
-          items={userInfo.personality}
-          onItemsChange={(personality) => setUserInfo(prev => ({ ...prev, personality }))}
-          maxItems={10}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <DynamicInputList
-          title="Thái độ"
-          placeholder="Nhập thái độ"
-          items={userInfo.attitude}
-          onItemsChange={(attitude) => setUserInfo(prev => ({ ...prev, attitude }))}
-          maxItems={10}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Đánh giá</ThemedText>
-        {ratingRangeOptions.map((rating) => (
-          <TouchableOpacity
-            key={rating.id || 'none'}
-            style={[
-              styles.optionCard,
-              ((!userInfo.overallRatingRange && !rating.id) || 
-               (userInfo.overallRatingRange && rating.id && 
-                userInfo.overallRatingRange.min === rating.min && 
-                userInfo.overallRatingRange.max === rating.max)) && styles.optionCardSelected
-            ]}
-            onPress={() => setUserInfo(prev => ({ 
-              ...prev, 
-              overallRatingRange: rating.id ? { min: rating.min, max: rating.max } : null 
-            }))}
-          >
-            <ThemedText style={[
-              styles.optionTitle,
-              ((!userInfo.overallRatingRange && !rating.id) || 
-               (userInfo.overallRatingRange && rating.id && 
-                userInfo.overallRatingRange.min === rating.min && 
-                userInfo.overallRatingRange.max === rating.max)) && styles.optionTitleSelected
-            ]}>
-              {rating.label}
-            </ThemedText>
-            {((!userInfo.overallRatingRange && !rating.id) || 
-              (userInfo.overallRatingRange && rating.id && 
-               userInfo.overallRatingRange.min === rating.min && 
-               userInfo.overallRatingRange.max === rating.max)) && (
-              <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderStep5 = () => (
-    <View style={styles.stepContent}>
-      <ThemedText style={styles.stepTitle}>Vị trí làm việc</ThemedText>
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Vị trí làm việc</ThemedText>
-        <View style={styles.locationCard}>
-          <Ionicons name="location" size={24} color="#4ECDC4" />
-          <ThemedText style={styles.locationText}>
-            Quận 7, TP.HCM (Tọa độ: 10.7350, 106.7200)
-          </ThemedText>
-        </View>
-        <ThemedText style={styles.locationNote}>
-          Vị trí đã được cố định cho mục đích demo
-        </ThemedText>
-      </View>
-    </View>
-  );
-
-  const renderStep6 = () => {
-    // Price reference for Quận 7, TP.HCM
-    const priceRef = { min: 100, max: 200, area: 'Quận 7, TP.HCM' };
-    const selectedBudget = parseInt(userInfo.budgetPerHour) || 0;
-    const showWarning = selectedBudget > 0 && selectedBudget < (priceRef.min * 1000);
-
-    return (
-      <View style={styles.stepContent}>
-        <ThemedText style={styles.stepTitle}>Mức lương theo giờ</ThemedText>
-        <View style={styles.inputGroup}>
-          <ThemedText style={styles.inputLabel}>Mức giá tham khảo tại {priceRef.area}</ThemedText>
-          <View style={styles.priceReferenceCard}>
-            <Ionicons name="information-circle" size={20} color="#4ECDC4" />
-            <ThemedText style={styles.priceReferenceText}>
-              {formatCurrency(priceRef.min * 1000, false)} - {formatCurrency(priceRef.max * 1000, false)}/giờ
+      return (
+        <View style={styles.stepContent}>
+          <ThemedText style={styles.stepTitle}>Chọn ngày giờ và dịch vụ</ThemedText>
+          
+          {/* Selected Profile Card */}
+          <View style={styles.selectedProfileCard}>
+            <Ionicons name="person-circle" size={24} color="#4ECDC4" />
+            <ThemedText style={styles.selectedProfileText}>
+              Đã chọn: <ThemedText style={styles.selectedProfileName}>{selectedProfile?.name || 'Người già'}</ThemedText>
             </ThemedText>
           </View>
-        </View>
-        {showWarning && (
-          <View style={styles.warningCard}>
-            <Ionicons name="warning" size={20} color="#ff6b6b" />
-            <ThemedText style={styles.warningText}>
-              Bạn đang chọn mức ngân sách ít hơn mức giá tham khảo, nếu bạn vẫn tiếp tục thì có thể ảnh hưởng tới quá trình tự động tìm người chăm sóc của chúng tôi
-            </ThemedText>
-          </View>
-        )}
-        <View style={styles.inputGroup}>
-          <ThemedText style={styles.inputLabel}>Bạn có thể trả bao nhiêu tiền/giờ? <ThemedText style={styles.requiredMark}>*</ThemedText></ThemedText>
-          <TextInput
-            style={styles.budgetInput}
-            value={userInfo.budgetPerHour}
-            onChangeText={(text) => {
-              // Chỉ cho phép nhập số
-              const numericText = text.replace(/[^0-9]/g, '');
-              setUserInfo(prev => ({ ...prev, budgetPerHour: numericText }));
-            }}
-            placeholder="Nhập số tiền (VND)/giờ"
-            keyboardType="numeric"
-            placeholderTextColor="#999"
-          />
-          {/* Hiển thị số tiền bằng tiếng Việt */}
-          {userInfo.budgetPerHour && parseInt(userInfo.budgetPerHour) > 0 && (
-            <View style={styles.currencyDisplay}>
-              <Ionicons name="cash-outline" size={16} color="#4ECDC4" />
-              <ThemedText style={styles.currencyText}>
-                {formatCurrency(parseInt(userInfo.budgetPerHour))}/giờ
-              </ThemedText>
+
+          {/* Date Selection */}
+          <View style={styles.inputGroup}>
+            <View style={styles.labelContainer}>
+              <ThemedText style={styles.inputLabel}>Ngày làm việc</ThemedText>
+              <ThemedText style={styles.requiredMark}>*</ThemedText>
             </View>
-              )}
+            <TouchableOpacity 
+              style={styles.pickerButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <ThemedText style={[styles.pickerButtonText, !selectedDate && styles.placeholderText]}>
+                {selectedDate ? dates.find(d => d.dateStr === selectedDate)?.displayStr : 'Chọn ngày làm việc'}
+              </ThemedText>
+              <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Time Selection */}
+          <View style={styles.inputGroup}>
+            <View style={styles.labelContainer}>
+              <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
+              <ThemedText style={styles.requiredMark}>*</ThemedText>
+            </View>
+            <View style={styles.timePickerContainer}>
+              <TouchableOpacity 
+                style={[styles.pickerButton, styles.timePickerButton]}
+                onPress={() => {
+                  setTimePickerType('hour');
+                  setShowTimePicker(true);
+                }}
+              >
+                <ThemedText style={[styles.pickerButtonText, !startHour && styles.placeholderText, { textAlign: 'center' }]}>
+                  {startHour || 'Giờ'}
+                </ThemedText>
+              </TouchableOpacity>
+              <ThemedText style={styles.timeSeparator}>:</ThemedText>
+              <TouchableOpacity 
+                style={[styles.pickerButton, styles.timePickerButton]}
+                onPress={() => {
+                  setTimePickerType('minute');
+                  setShowTimePicker(true);
+                }}
+              >
+                <ThemedText style={[styles.pickerButtonText, !startMinute && styles.placeholderText, { textAlign: 'center' }]}>
+                  {startMinute || 'Phút'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+            {startHour && startMinute && (
+              <ThemedText style={styles.timeRangeText}>
+                Giờ bắt đầu: {startHour}:{startMinute}
+              </ThemedText>
+            )}
+          </View>
+
+          {/* Service Package Selection */}
+          <View style={styles.inputGroup}>
+            <View style={styles.labelContainer}>
+              <ThemedText style={styles.inputLabel}>Chọn gói dịch vụ</ThemedText>
+              <ThemedText style={styles.requiredMark}>*</ThemedText>
+            </View>
+            {isLoadingServicePackages ? (
+              <View style={styles.loadingContainer}>
+                <ThemedText style={styles.loadingText}>Đang tải danh sách gói dịch vụ...</ThemedText>
+              </View>
+            ) : (
+              <ScrollView 
+                style={styles.packagesScrollView}
+                contentContainerStyle={styles.packagesContainer}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                {servicePackages.map((pkg) => (
+                  <TouchableOpacity
+                    key={pkg.servicePackageId}
+                    style={[
+                      styles.packageCard,
+                      selectedServicePackageId === pkg.servicePackageId && styles.packageCardSelected
+                    ]}
+                    onPress={() => setSelectedServicePackageId(pkg.servicePackageId)}
+                  >
+                    {selectedServicePackageId === pkg.servicePackageId && (
+                      <View style={styles.packageCheckmark}>
+                        <Ionicons name="checkmark-circle" size={24} color="#4ECDC4" />
+                      </View>
+                    )}
+                    <ThemedText style={styles.packageName}>{pkg.packageName}</ThemedText>
+                    <View style={styles.packageDetails}>
+                      <View style={styles.packageDetailItem}>
+                        <Ionicons name="time-outline" size={16} color="#6c757d" />
+                        <ThemedText style={styles.packageDetailText}>{pkg.durationHours}h</ThemedText>
+                      </View>
+                      <ThemedText style={styles.packagePrice}>
+                        {pkg.price.toLocaleString('vi-VN')} VNĐ
+                      </ThemedText>
+                    </View>
+                    {pkg.serviceTasks && pkg.serviceTasks.length > 0 && (
+                      <View style={styles.packageServices}>
+                        <ThemedText style={styles.packageServicesTitle}>Dịch vụ bao gồm:</ThemedText>
+                        {pkg.serviceTasks.map((task, index) => (
+                          <View key={index} style={styles.packageServiceItem}>
+                            <Ionicons name="checkmark" size={16} color="#4ECDC4" />
+                            <ThemedText style={styles.packageServiceText}>{task.taskName || task}</ThemedText>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          {/* Date Picker Modal */}
+          <Modal
+            visible={showDatePicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowDatePicker(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.pickerHeader}>
+                  <ThemedText style={styles.pickerTitle}>Chọn ngày làm việc</ThemedText>
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                    <Ionicons name="close" size={24} color="#6c757d" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.pickerScroll}>
+                  <View style={styles.pickerContent}>
+                    {dates.map((dateItem) => {
+                      const isSelected = selectedDate === dateItem.dateStr;
+                      return (
+                        <TouchableOpacity
+                          key={dateItem.dateStr}
+                          style={[
+                            styles.pickerItem,
+                            styles.datePickerItem,
+                            isSelected && styles.pickerItemSelected
+                          ]}
+                          onPress={() => {
+                            setSelectedDate(dateItem.dateStr);
+                            setShowDatePicker(false);
+                          }}
+                        >
+                          <ThemedText style={[
+                            styles.pickerText,
+                            isSelected && styles.pickerTextSelected
+                          ]}>
+                            {dateItem.displayStr}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Time Picker Modal */}
+          <Modal
+            visible={showTimePicker}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setShowTimePicker(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.pickerHeader}>
+                  <ThemedText style={styles.pickerTitle}>
+                    {timePickerType === 'hour' ? 'Chọn giờ' : 'Chọn phút'}
+                  </ThemedText>
+                  <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                    <Ionicons name="close" size={24} color="#6c757d" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.pickerScroll}>
+                  <View style={styles.pickerContent}>
+                    {timePickerType === 'hour' 
+                      ? Array.from({ length: 24 }, (_, i) => {
+                          const hour = i.toString().padStart(2, '0');
+                          return (
+                            <TouchableOpacity
+                              key={hour}
+                              style={[
+                                styles.pickerItem,
+                                startHour === hour && styles.pickerItemSelected
+                              ]}
+                              onPress={() => {
+                                setStartHour(hour);
+                                setShowTimePicker(false);
+                              }}
+                            >
+                              <ThemedText style={[
+                                styles.pickerText,
+                                startHour === hour && styles.pickerTextSelected
+                              ]}>
+                                {hour}
+                              </ThemedText>
+                            </TouchableOpacity>
+                          );
+                        })
+                      : Array.from({ length: 60 }, (_, i) => {
+                          const minute = i.toString().padStart(2, '0');
+                          return (
+                            <TouchableOpacity
+                              key={minute}
+                              style={[
+                                styles.pickerItem,
+                                startMinute === minute && styles.pickerItemSelected
+                              ]}
+                              onPress={() => {
+                                setStartMinute(minute);
+                                setShowTimePicker(false);
+                              }}
+                            >
+                              <ThemedText style={[
+                                styles.pickerText,
+                                startMinute === minute && styles.pickerTextSelected
+                              ]}>
+                                {minute}
+                              </ThemedText>
+                            </TouchableOpacity>
+                          );
+                        })
+                    }
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
         </View>
-      </View>
-    );
+      );
+    }
+
+    // If no profile selected, return empty view (should not happen)
+    return null;
   };
+
 
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 0: return renderStep0(); // Profile selection
-      case 1: return renderStep1();
-      case 2: return renderStep2();
-      case 3: return renderStep3();
-      case 4: return renderStep4();
-      case 5: return renderStep5();
-      case 6: return renderStep6();
-      default: return renderStep1();
+      case 1: return renderStep1(); // Date/time and service package selection
+      default: return renderStep0();
     }
   };
 
@@ -891,7 +840,7 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
           <View style={styles.headerContent}>
             <ThemedText style={styles.headerTitle}>AI Gợi ý Người Chăm Sóc</ThemedText>
             <ThemedText style={styles.headerSubtitle}>
-              Bước {currentStep}/{totalSteps}
+              Bước {currentStep + 1}/{totalSteps}
             </ThemedText>
           </View>
 
@@ -904,20 +853,24 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
             <View 
               style={[
                 styles.progressFill, 
-                { width: `${(currentStep / totalSteps) * 100}%` }
+                { width: `${((currentStep + 1) / totalSteps) * 100}%` }
               ]} 
             />
           </View>
         </View>
 
         {/* Content */}
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) }}
+        >
           {renderCurrentStep()}
         </ScrollView>
 
         {/* Navigation */}
-        <View style={styles.navigation}>
-          {currentStep > 1 && (
+        <View style={[styles.navigation, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          {currentStep > 0 && (
             <TouchableOpacity style={styles.previousButton} onPress={handlePrevious}>
               <Ionicons name="chevron-back" size={20} color="#4ECDC4" />
               <ThemedText style={styles.previousButtonText}>Trước</ThemedText>
@@ -925,13 +878,23 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
           )}
           <View style={styles.navigationSpacer} />
           <TouchableOpacity 
-            style={[styles.nextButton, (isLoading || (currentStep === 0 && !selectedProfileId && !showManualInput)) && styles.nextButtonDisabled]} 
+            style={[
+              styles.nextButton, 
+              (isLoading || 
+               (currentStep === 0 && !selectedProfileId) ||
+               (currentStep === 1 && selectedProfileId && (!selectedDate || !startHour || !startMinute || !selectedServicePackageId))
+              ) && styles.nextButtonDisabled
+            ]} 
             onPress={currentStep === 0 ? handleConfirmProfile : handleNext}
-            disabled={isLoading || (currentStep === 0 && !selectedProfileId && !showManualInput)}
+            disabled={
+              isLoading || 
+              (currentStep === 0 && !selectedProfileId) ||
+              (currentStep === 1 && selectedProfileId && (!selectedDate || !startHour || !startMinute || !selectedServicePackageId))
+            }
           >
             <ThemedText style={styles.nextButtonText}>
-              {currentStep === 0 ? 'Xác nhận' : 
-               currentStep === totalSteps ? 'Gợi ý từ AI' : 'Tiếp theo'}
+              {currentStep === 0 ? 'Xác nhận' :
+               currentStep === 1 ? 'Xác nhận' : 'Tiếp theo'}
             </ThemedText>
             <Ionicons name="chevron-forward" size={20} color="white" />
           </TouchableOpacity>
@@ -1183,9 +1146,27 @@ const styles = StyleSheet.create({
   nextButtonDisabled: {
     opacity: 0.6,
   },
+  loadingProfilesContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 100,
+  },
+  loadingProfilesText: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
   profileList: {
     maxHeight: 400,
     marginBottom: 16,
+    flex: 1,
+  },
+  manualInputButtonContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
   },
   profileCard: {
     backgroundColor: '#fff',
@@ -1465,6 +1446,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  loadingText: {
+    fontSize: 14,
+    color: '#6c757d',
+    textAlign: 'center',
+  },
   loadingIconContainer: {
     marginBottom: 24,
   },
@@ -1492,5 +1478,206 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#4ECDC4',
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#ced4da',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  pickerButtonText: {
+    fontSize: 16,
+    color: '#2c3e50',
+    flex: 1,
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  timePickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    width: '100%',
+  },
+  timePickerButton: {
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timeSeparator: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
+  timeRangeText: {
+    fontSize: 14,
+    color: '#68C2E8',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  packagesScrollView: {
+    maxHeight: 400,
+  },
+  packagesContainer: {
+    gap: 12,
+  },
+  packageCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    position: 'relative',
+  },
+  packageCardSelected: {
+    borderColor: '#4ECDC4',
+    backgroundColor: '#f0fdfa',
+  },
+  packageCheckmark: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+  packageName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  packageDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  packageDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  packageDetailText: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  packagePrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4ECDC4',
+  },
+  packageServices: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  packageServicesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  packageServiceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  packageServiceText: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    maxHeight: '80%',
+    width: '90%',
+    maxWidth: 400,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  pickerScroll: {
+    maxHeight: 400,
+  },
+  pickerContent: {
+    padding: 20,
+  },
+  pickerItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerItemSelected: {
+    backgroundColor: '#68C2E8',
+  },
+  pickerText: {
+    fontSize: 16,
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  pickerTextSelected: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginBottom: 24,
+  },
+  selectedProfileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDFA',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#B2F5EA',
+    gap: 12,
+  },
+  selectedProfileText: {
+    fontSize: 16,
+    color: '#64748B',
+  },
+  selectedProfileName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4ECDC4',
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  datePickerItem: {
+    width: '100%',
+    paddingHorizontal: 16,
   },
 });

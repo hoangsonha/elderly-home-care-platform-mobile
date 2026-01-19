@@ -9,7 +9,7 @@ import {
 
 import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverCard';
 import { ThemedText } from '@/components/themed-text';
-import { CaregiverRecommendation } from '@/services/types';
+import { CaregiverRecommendation, FailureAnalysis } from '@/services/types';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +20,8 @@ interface AIRecommendationsProps {
   onChatPress: (caregiver: Caregiver) => void;
   onRefresh: () => void;
   isLoading?: boolean;
+  bottomPadding?: number;
+  failureAnalysis?: FailureAnalysis;
 }
 
 // Convert CaregiverRecommendation to Caregiver format for CaregiverCard
@@ -44,10 +46,17 @@ export function AIRecommendations({
   onChatPress,
   onRefresh,
   isLoading = false,
+  bottomPadding = 0,
+  failureAnalysis,
 }: AIRecommendationsProps) {
+  // Debug log
+  console.log('AIRecommendations - failureAnalysis:', JSON.stringify(failureAnalysis, null, 2));
+  console.log('AIRecommendations - recommendations.length:', recommendations.length);
+  console.log('AIRecommendations - has primary_reason:', failureAnalysis?.primary_reason);
+  
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { paddingBottom: bottomPadding }]}>
         <View style={styles.loadingContent}>
           <View style={styles.loadingSpinner}>
             <Ionicons name="refresh" size={32} color="#4ECDC4" />
@@ -63,20 +72,57 @@ export function AIRecommendations({
 
   if (recommendations.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyContent}>
-          <Ionicons name="search" size={64} color="#ced4da" />
-          <ThemedText style={styles.emptyTitle}>Không tìm thấy kết quả</ThemedText>
-          <ThemedText style={styles.emptySubtitle}>
-            Hãy thử điều chỉnh yêu cầu hoặc mở rộng phạm vi tìm kiếm
-          </ThemedText>
+      <ScrollView 
+        style={styles.container} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomPadding }}
+      >
+        <View style={[styles.emptyContainer, { paddingBottom: bottomPadding }]}>
+          <View style={styles.emptyContent}>
+            <Ionicons name="search" size={64} color="#ced4da" />
+            <ThemedText style={styles.emptyTitle}>Không tìm thấy kết quả</ThemedText>
+            
+            {failureAnalysis && failureAnalysis.primary_reason ? (
+              <>
+                <View style={styles.failureReasonContainer}>
+                  <Ionicons name="alert-circle" size={24} color="#EF4444" />
+                  <ThemedText style={styles.failureReasonText}>
+                    {failureAnalysis.primary_reason.message || 'Không tìm thấy người chăm sóc phù hợp'}
+                  </ThemedText>
+                </View>
+                
+                {failureAnalysis.suggestions && failureAnalysis.suggestions.length > 0 && (
+                  <View style={styles.suggestionsContainer}>
+                    {failureAnalysis.suggestions.map((suggestion, index) => (
+                      <View key={index} style={styles.suggestionItem}>
+                        <Ionicons name="bulb-outline" size={16} color="#4ECDC4" style={{ marginTop: 2 }} />
+                        <View style={{ flex: 1 }}>
+                          <ThemedText style={styles.suggestionText}>
+                            {suggestion.suggestion}
+                          </ThemedText>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : (
+              <ThemedText style={styles.emptySubtitle}>
+                Hãy thử điều chỉnh yêu cầu hoặc mở rộng phạm vi tìm kiếm
+              </ThemedText>
+            )}
+          </View>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: bottomPadding }}
+    >
       {/* AI Header */}
       <View style={styles.aiHeader}>
         <View style={styles.aiIconContainer}>
@@ -157,12 +203,6 @@ export function AIRecommendations({
             <Ionicons name="checkmark" size={16} color="#28a745" />
             <ThemedText style={styles.explanationItemText}>
               Vị trí gần địa chỉ của bạn
-            </ThemedText>
-          </View>
-          <View style={styles.explanationItem}>
-            <Ionicons name="checkmark" size={16} color="#28a745" />
-            <ThemedText style={styles.explanationItemText}>
-              Giá cả phù hợp với ngân sách
             </ThemedText>
           </View>
         </View>
@@ -352,5 +392,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2c3e50',
     flex: 1,
+  },
+  failureReasonContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    gap: 12,
+  },
+  failureReasonText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#DC2626',
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  suggestionsContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#F0FDFA',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#B2F5EA',
+  },
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 10,
+    width: '100%',
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#2c3e50',
+    lineHeight: 20,
+    flexShrink: 1,
   },
 });

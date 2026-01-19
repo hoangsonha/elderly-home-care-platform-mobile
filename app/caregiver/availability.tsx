@@ -891,14 +891,17 @@ export default function AvailabilityScreen() {
             <TouchableOpacity
               style={styles.changeAvailabilityButton}
               onPress={handleOpenEditSlots}
+              activeOpacity={0.8}
             >
               <MaterialCommunityIcons
                 name="clock-edit-outline"
-                size={18}
-                color="#2563EB"
+                size={20}
+                color="#FFFFFF"
               />
               <Text style={styles.changeAvailabilityButtonText}>
-                Thay đổi giờ rảnh
+                {availabilityForSelectedDate.bookedSlots && availabilityForSelectedDate.bookedSlots.length > 0
+                  ? "Thay đổi lịch"
+                  : "Thêm khung giờ bận"}
               </Text>
             </TouchableOpacity>
           )}
@@ -1028,14 +1031,15 @@ export default function AvailabilityScreen() {
               <TouchableOpacity
                 style={styles.changeAvailabilityButton}
                 onPress={handleOpenEditSlots}
+                activeOpacity={0.8}
               >
                 <MaterialCommunityIcons
                   name="clock-edit-outline"
-                  size={18}
-                  color="#2563EB"
+                  size={20}
+                  color="#FFFFFF"
                 />
                 <Text style={styles.changeAvailabilityButtonText}>
-                  Thay đổi giờ rảnh
+                  Thêm khung giờ bận
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1478,18 +1482,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#EFF6FF",
-    borderRadius: 10,
-    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
+    marginTop: 8,
+    shadowColor: "#2563EB",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   changeAvailabilityButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#2563EB",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
   },
   scheduleDateHeader: {
     flexDirection: "row",

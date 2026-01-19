@@ -39,6 +39,32 @@ export class MatchService {
       throw new Error(`Match by ID failed: ${error.message}`);
     }
   }
+
+  /**
+   * Match caregivers với elderly profile và service package
+   * POST /api/v1/public/match-caregivers
+   */
+  async matchCaregiversWithProfile(request: {
+    elderly_profile_id: string;
+    service_package_id: string;
+    work_date: string; // YYYY-MM-DD
+    start_hour: number; // 0-23
+    start_minute: number; // 0-59
+    top_n?: number; // Optional, default: 10
+  }): Promise<MatchResponse> {
+    try {
+      const response = await apiClient.post('/api/v1/public/match-caregivers', request);
+      return response.data;
+    } catch (error: any) {
+      if (error.response) {
+        throw new Error(`Server error: ${error.response.status} - ${error.response.data?.message || error.message}`);
+      } else if (error.request) {
+        throw new Error('Network error: No response from server');
+      } else {
+        throw new Error(`Request error: ${error.message}`);
+      }
+    }
+  }
 }
 
 // Export singleton instance

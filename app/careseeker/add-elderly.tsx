@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -24,38 +25,8 @@ import { LocationPickerModal } from '@/components/ui/LocationPickerModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmergencyContact } from '@/contexts/EmergencyContactContext';
 import { useErrorNotification, useSuccessNotification } from '@/contexts/NotificationContext';
+import { mainService, ServicePackageApiResponse } from '@/services/main.service';
 import { UserService } from '@/services/user.service';
-
-// Caregiver requirements constants
-const careLevels = [
-  { id: 1, label: 'Cơ bản', description: 'Hỗ trợ sinh hoạt hàng ngày' },
-  { id: 2, label: 'Trung bình', description: 'Chăm sóc y tế cơ bản' },
-  { id: 3, label: 'Nâng cao', description: 'Chăm sóc y tế chuyên sâu' },
-  { id: 4, label: 'Chuyên biệt', description: 'Chăm sóc đặc biệt, phục hồi chức năng' },
-];
-
-const requiredSkillsOptions = [
-  { id: 'tiêm insulin', label: 'Tiêm insulin' },
-  { id: 'đo đường huyết', label: 'Đo đường huyết' },
-  { id: 'đái tháo đường', label: 'Chăm sóc đái tháo đường' },
-  { id: 'quản lý thuốc', label: 'Quản lý thuốc' },
-  { id: 'đo huyết áp', label: 'Đo huyết áp' },
-  { id: 'cao huyết áp', label: 'Chăm sóc cao huyết áp' },
-  { id: 'hỗ trợ vệ sinh', label: 'Hỗ trợ vệ sinh' },
-  { id: 'nấu ăn', label: 'Nấu ăn' },
-  { id: 'đồng hành', label: 'Đồng hành' },
-];
-
-const prioritySkillsOptions = [
-  { id: 'chăm sóc vết thương', label: 'Chăm sóc vết thương' },
-  { id: 'đo dấu hiệu sinh tồn', label: 'Đo dấu hiệu sinh tồn' },
-  { id: 'hỗ trợ đi lại', label: 'Hỗ trợ đi lại' },
-  { id: 'vật lý trị liệu', label: 'Vật lý trị liệu' },
-  { id: 'giám sát an toàn', label: 'Giám sát an toàn' },
-  { id: 'nhắc nhở uống thuốc', label: 'Nhắc nhở uống thuốc' },
-  { id: 'theo dõi sức khỏe', label: 'Theo dõi sức khỏe' },
-  { id: 'hỗ trợ tâm lý', label: 'Hỗ trợ tâm lý' },
-];
 
 const genderOptions = [
   { id: null, label: 'Không' },
@@ -63,24 +34,8 @@ const genderOptions = [
   { id: 'male', label: 'Nam' },
 ];
 
-const experienceLevels = [
-  { id: null, label: 'Không yêu cầu' },
-  { id: '1', label: '1 năm' },
-  { id: '2', label: '2 năm' },
-  { id: '3', label: '3 năm' },
-  { id: '5', label: '5 năm' },
-  { id: '7', label: '7 năm' },
-  { id: '10', label: '10 năm' },
-];
-
-const ratingRangeOptions = [
-  { id: null, label: 'Không yêu cầu' },
-  { id: '0-1', label: '0 tới 1 sao', min: 0.0, max: 1.0 },
-  { id: '1-2', label: '1 tới 2 sao', min: 1.0, max: 2.0 },
-  { id: '2-3', label: '2 tới 3 sao', min: 2.0, max: 3.0 },
-  { id: '3-4', label: '3 tới 4 sao', min: 3.0, max: 4.0 },
-  { id: '4-5', label: '4 tới 5 sao', min: 4.0, max: 5.0 },
-];
+const experienceValues = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const ratingValues = [1, 2, 3, 4, 5];
 
 // Mock families data
 const mockFamilies = [
@@ -180,9 +135,10 @@ interface ElderlyProfile {
     customRequiredSkills: string[];
     prioritySkills: string[];
     customPrioritySkills: string[];
+    servicePackageId: string | null;
     caregiverAgeRange: { min: string; max: string } | null;
     genderPreference: string | null;
-    requiredYearsExperience: string | null;
+    requiredYearsExperienceRange: { min: number; max: number } | null;
     overallRatingRange: { min: number; max: number } | null;
   };
 }
@@ -199,6 +155,8 @@ export default function AddElderlyScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBirthYearPicker, setShowBirthYearPicker] = useState(false);
+  const [servicePackages, setServicePackages] = useState<ServicePackageApiResponse[]>([]);
+  const [isLoadingPackages, setIsLoadingPackages] = useState(false);
   
   // Family selection states
   const [familySelectionType, setFamilySelectionType] = useState<'create' | 'select' | null>(null);
@@ -318,9 +276,10 @@ export default function AddElderlyScreen() {
       customRequiredSkills: [],
       prioritySkills: [],
       customPrioritySkills: [],
+      servicePackageId: null,
       caregiverAgeRange: null,
       genderPreference: null,
-      requiredYearsExperience: null,
+      requiredYearsExperienceRange: null,
       overallRatingRange: null,
     },
   });
@@ -328,6 +287,22 @@ export default function AddElderlyScreen() {
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip } = useErrorNotification();
 
+  useEffect(() => {
+    const fetchServicePackages = async () => {
+      try {
+        setIsLoadingPackages(true);
+        const packages = await mainService.getActiveServicePackages();
+        setServicePackages(packages);
+      } catch (error) {
+        setServicePackages([]);
+        showErrorTooltip('Không thể tải gói dịch vụ');
+      } finally {
+        setIsLoadingPackages(false);
+      }
+    };
+
+    fetchServicePackages();
+  }, [showErrorTooltip]);
   const totalSteps = 5;
 
   const validateStep = (step: number): boolean => {
@@ -513,15 +488,15 @@ export default function AddElderlyScreen() {
         female: 'FEMALE',
       };
 
-      // Map caregiver requirements
-      const allRequiredSkills = [
-        ...profile.caregiverRequirements.requiredSkills,
-        ...profile.caregiverRequirements.customRequiredSkills,
-      ];
-      const allPrioritySkills = [
-        ...profile.caregiverRequirements.prioritySkills,
-        ...profile.caregiverRequirements.customPrioritySkills,
-      ];
+      // Map caregiver requirements - Commented: không gửi skills, level_of_care, service_package_id nữa
+      // const allRequiredSkills = [
+      //   ...profile.caregiverRequirements.requiredSkills,
+      //   ...profile.caregiverRequirements.customRequiredSkills,
+      // ];
+      // const allPrioritySkills = [
+      //   ...profile.caregiverRequirements.prioritySkills,
+      //   ...profile.caregiverRequirements.customPrioritySkills,
+      // ];
 
       // Prepare API request data
       const requestData = {
@@ -543,11 +518,12 @@ export default function AddElderlyScreen() {
         },
         independence_level: independenceLevelMap,
         care_needs: {
-          level_of_care: careLevelMap[profile.caregiverRequirements.careLevel] || 'Trung bình',
-          skills: {
-            'kĩ năng bắt buộc': allRequiredSkills,
-            'kĩ năng ưu tiên': allPrioritySkills,
-          },
+          // level_of_care: careLevelMap[profile.caregiverRequirements.careLevel] || 'Trung bình', // Removed
+          // skills: { // Removed
+          //   'kĩ năng bắt buộc': allRequiredSkills,
+          //   'kĩ năng ưu tiên': allPrioritySkills,
+          // },
+          // service_package_id: profile.caregiverRequirements.servicePackageId || null, // Removed
           age: profile.caregiverRequirements.caregiverAgeRange
             ? [
                 parseInt(profile.caregiverRequirements.caregiverAgeRange.min) || 25,
@@ -557,8 +533,8 @@ export default function AddElderlyScreen() {
           gender: profile.caregiverRequirements.genderPreference
             ? (genderMap[profile.caregiverRequirements.genderPreference] || null)
             : null,
-          experience: profile.caregiverRequirements.requiredYearsExperience
-            ? parseInt(profile.caregiverRequirements.requiredYearsExperience)
+          experience: profile.caregiverRequirements.requiredYearsExperienceRange
+            ? profile.caregiverRequirements.requiredYearsExperienceRange.min
             : null,
           rating: profile.caregiverRequirements.overallRatingRange
             ? profile.caregiverRequirements.overallRatingRange.min
@@ -1294,100 +1270,80 @@ export default function AddElderlyScreen() {
     </View>
   );
 
-  const handleRequiredSkillToggle = (skillId: string) => {
-    setProfile(prev => ({
-      ...prev,
-      caregiverRequirements: {
-        ...prev.caregiverRequirements,
-        requiredSkills: prev.caregiverRequirements.requiredSkills.includes(skillId)
-          ? prev.caregiverRequirements.requiredSkills.filter(id => id !== skillId)
-          : [...prev.caregiverRequirements.requiredSkills, skillId]
-      }
-    }));
-  };
-
-  const handlePrioritySkillToggle = (skillId: string) => {
-    setProfile(prev => ({
-      ...prev,
-      caregiverRequirements: {
-        ...prev.caregiverRequirements,
-        prioritySkills: prev.caregiverRequirements.prioritySkills.includes(skillId)
-          ? prev.caregiverRequirements.prioritySkills.filter(id => id !== skillId)
-          : [...prev.caregiverRequirements.prioritySkills, skillId]
-      }
-    }));
-  };
-
   const renderCaregiverRequest = () => (
     <View style={styles.stepContent}>
       <ThemedText style={styles.stepTitle}>Yêu cầu tìm người chăm sóc</ThemedText>
       <ThemedText style={styles.stepDescription}>Thông tin về nhu cầu tìm người chăm sóc</ThemedText>
       
-      {/* Mức độ chăm sóc cần thiết */}
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Mức độ chăm sóc cần thiết</ThemedText>
-        {careLevels.map((level) => (
-          <TouchableOpacity
-            key={level.id}
-            style={[
-              styles.optionCard,
-              profile.caregiverRequirements.careLevel === level.id && styles.optionCardSelected
-            ]}
-            onPress={() => setProfile(prev => ({
-              ...prev,
-              caregiverRequirements: { ...prev.caregiverRequirements, careLevel: level.id }
-            }))}
+      {/* Gói dịch vụ - Commented: sẽ chuyển sang UI khác */}
+      {/* <View style={styles.inputGroup}>
+        <ThemedText style={styles.inputLabel}>Bạn quan tâm tới gói dịch vụ nào?</ThemedText>
+        {isLoadingPackages ? (
+          <View style={styles.loadingPackages}>
+            <ActivityIndicator size="small" color="#68C2E8" />
+          </View>
+        ) : servicePackages.length === 0 ? (
+          <ThemedText style={styles.emptyPackagesText}>Chưa có gói dịch vụ</ThemedText>
+        ) : (
+          <ScrollView
+            style={styles.packagesScrollView}
+            contentContainerStyle={styles.packagesContainer}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+            indicatorStyle={Platform.OS === 'ios' ? 'default' : undefined}
+            scrollIndicatorInsets={{ right: 8, top: 4, bottom: 4 }}
+            fadingEdgeLength={Platform.OS === 'android' ? 20 : undefined}
           >
-            <View style={styles.optionContent}>
-              <ThemedText style={[
-                styles.optionTitle,
-                profile.caregiverRequirements.careLevel === level.id && styles.optionTitleSelected
-              ]}>
-                {level.label}
-              </ThemedText>
-              <ThemedText style={[
-                styles.optionDescription,
-                profile.caregiverRequirements.careLevel === level.id && styles.optionDescriptionSelected
-              ]}>
-                {level.description}
-              </ThemedText>
-            </View>
-            {profile.caregiverRequirements.careLevel === level.id && (
-              <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
+            {servicePackages.map((pkg) => {
+              const isSelected = profile.caregiverRequirements.servicePackageId === pkg.servicePackageId;
+              const services = (pkg.serviceTasks || [])
+                .map(task => task.taskName)
+                .filter(Boolean);
+              return (
+                <TouchableOpacity
+                  key={pkg.servicePackageId}
+                  style={[styles.packageCard, isSelected && styles.packageCardSelected]}
+                  onPress={() => setProfile(prev => ({
+                    ...prev,
+                    caregiverRequirements: {
+                      ...prev.caregiverRequirements,
+                      servicePackageId: pkg.servicePackageId,
+                    },
+                  }))}
+                >
+                  {isSelected && (
+                    <View style={styles.packageCheckmark}>
+                      <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
+                    </View>
+                  )}
 
-      {/* Kĩ năng bắt buộc khác */}
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Kĩ năng bắt buộc khác</ThemedText>
-        <DynamicInputList
-          title=""
-          placeholder="Nhập kĩ năng bắt buộc"
-          items={profile.caregiverRequirements.customRequiredSkills}
-          onItemsChange={(customRequiredSkills) => setProfile(prev => ({
-            ...prev,
-            caregiverRequirements: { ...prev.caregiverRequirements, customRequiredSkills }
-          }))}
-          maxItems={5}
-        />
-      </View>
+                  <ThemedText style={styles.packageName}>{pkg.packageName}</ThemedText>
 
-      {/* Kĩ năng ưu tiên khác */}
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Kĩ năng ưu tiên khác</ThemedText>
-        <DynamicInputList
-          title=""
-          placeholder="Nhập kĩ năng ưu tiên"
-          items={profile.caregiverRequirements.customPrioritySkills}
-          onItemsChange={(customPrioritySkills) => setProfile(prev => ({
-            ...prev,
-            caregiverRequirements: { ...prev.caregiverRequirements, customPrioritySkills }
-          }))}
-          maxItems={5}
-        />
-      </View>
+                  <View style={styles.packageDetails}>
+                    <View style={styles.packageDetailItem}>
+                      <Ionicons name="time-outline" size={16} color="#6c757d" />
+                      <ThemedText style={styles.packageDetailText}>{pkg.durationHours}h</ThemedText>
+                    </View>
+                    <ThemedText style={styles.packagePrice}>
+                      {pkg.price.toLocaleString('vi-VN')} VNĐ
+                    </ThemedText>
+                  </View>
+
+                  <View style={styles.packageServices}>
+                    <ThemedText style={styles.packageServicesTitle}>Dịch vụ bao gồm:</ThemedText>
+                    {services.map((service, index) => (
+                      <View key={`${pkg.servicePackageId}-${index}`} style={styles.packageServiceItem}>
+                        <Ionicons name="checkmark" size={16} color="#68C2E8" />
+                        <ThemedText style={styles.packageServiceText}>{service}</ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+      </View> */}
 
       {/* Độ tuổi của người chăm sóc */}
       <View style={styles.inputGroup}>
@@ -1463,70 +1419,136 @@ export default function AddElderlyScreen() {
 
       {/* Kinh nghiệm */}
       <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Kinh nghiệm</ThemedText>
-        {experienceLevels.map((exp) => (
+        <View style={styles.rangeHeader}>
+          <ThemedText style={styles.inputLabel}>Kinh nghiệm</ThemedText>
           <TouchableOpacity
-            key={exp.id || 'none'}
-            style={[
-              styles.optionCard,
-              profile.caregiverRequirements.requiredYearsExperience === exp.id && styles.optionCardSelected
-            ]}
-            onPress={() => setProfile(prev => ({
-              ...prev,
-              caregiverRequirements: { ...prev.caregiverRequirements, requiredYearsExperience: exp.id }
-            }))}
-          >
-            <ThemedText style={[
-              styles.optionTitle,
-              profile.caregiverRequirements.requiredYearsExperience === exp.id && styles.optionTitleSelected
-            ]}>
-              {exp.label}
-            </ThemedText>
-            {profile.caregiverRequirements.requiredYearsExperience === exp.id && (
-              <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Đánh giá */}
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Đánh giá</ThemedText>
-        {ratingRangeOptions.map((rating) => (
-          <TouchableOpacity
-            key={rating.id || 'none'}
-            style={[
-              styles.optionCard,
-              ((!profile.caregiverRequirements.overallRatingRange && !rating.id) ||
-               (profile.caregiverRequirements.overallRatingRange && rating.id &&
-                profile.caregiverRequirements.overallRatingRange.min === rating.min &&
-                profile.caregiverRequirements.overallRatingRange.max === rating.max)) && styles.optionCardSelected
-            ]}
             onPress={() => setProfile(prev => ({
               ...prev,
               caregiverRequirements: {
                 ...prev.caregiverRequirements,
-                overallRatingRange: rating.id ? { min: rating.min, max: rating.max } : null
-              }
+                requiredYearsExperienceRange: null,
+              },
             }))}
           >
-            <ThemedText style={[
-              styles.optionTitle,
-              ((!profile.caregiverRequirements.overallRatingRange && !rating.id) ||
-               (profile.caregiverRequirements.overallRatingRange && rating.id &&
-                profile.caregiverRequirements.overallRatingRange.min === rating.min &&
-                profile.caregiverRequirements.overallRatingRange.max === rating.max)) && styles.optionTitleSelected
-            ]}>
-              {rating.label}
-            </ThemedText>
-            {((!profile.caregiverRequirements.overallRatingRange && !rating.id) ||
-              (profile.caregiverRequirements.overallRatingRange && rating.id &&
-               profile.caregiverRequirements.overallRatingRange.min === rating.min &&
-               profile.caregiverRequirements.overallRatingRange.max === rating.max)) && (
-              <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
-            )}
+            <ThemedText style={styles.rangeClearText}>Không yêu cầu</ThemedText>
           </TouchableOpacity>
-        ))}
+        </View>
+
+        <View style={styles.rangeBlock}>
+          <ThemedText style={styles.rangeLabel}>Từ</ThemedText>
+          <View style={styles.rangeOptionsRow}>
+            {experienceValues.filter(value => value !== 0).map((value) => {
+              const isSelected = profile.caregiverRequirements.requiredYearsExperienceRange?.min === value;
+              return (
+                <TouchableOpacity
+                  key={`exp-min-${value}`}
+                  style={[styles.rangeChip, isSelected && styles.rangeChipSelected]}
+                  onPress={() => setProfile(prev => ({
+                    ...prev,
+                    caregiverRequirements: {
+                      ...prev.caregiverRequirements,
+                      requiredYearsExperienceRange: { min: value, max: value },
+                    },
+                  }))}
+                >
+                  <ThemedText style={[styles.rangeChipText, isSelected && styles.rangeChipTextSelected]}>
+                    {value} năm
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+
+      {/* Đánh giá */}
+      <View style={styles.inputGroup}>
+        <View style={styles.rangeHeader}>
+          <ThemedText style={styles.inputLabel}>Đánh giá</ThemedText>
+          <TouchableOpacity
+            onPress={() => setProfile(prev => ({
+              ...prev,
+              caregiverRequirements: {
+                ...prev.caregiverRequirements,
+                overallRatingRange: null,
+              },
+            }))}
+          >
+            <ThemedText style={styles.rangeClearText}>Không yêu cầu</ThemedText>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.rangeBlock}>
+          <ThemedText style={styles.rangeLabel}>Từ</ThemedText>
+          <View style={styles.rangeOptionsRow}>
+            {ratingValues.map((value) => {
+              const isSelected = profile.caregiverRequirements.overallRatingRange?.min === value;
+              return (
+                <TouchableOpacity
+                  key={`rating-min-${value}`}
+                  style={[styles.rangeChip, isSelected && styles.rangeChipSelected]}
+                  onPress={() => setProfile(prev => {
+                    const currentMax = prev.caregiverRequirements.overallRatingRange?.max ?? value;
+                    const nextMin = value;
+                    const nextMax = Math.max(currentMax, nextMin);
+                    return {
+                      ...prev,
+                      caregiverRequirements: {
+                        ...prev.caregiverRequirements,
+                        overallRatingRange: { min: nextMin, max: nextMax },
+                      },
+                    };
+                  })}
+                >
+                  <Ionicons
+                    name={isSelected ? 'star' : 'star-outline'}
+                    size={14}
+                    color={isSelected ? '#68C2E8' : '#94a3b8'}
+                  />
+                  <ThemedText style={[styles.rangeChipText, isSelected && styles.rangeChipTextSelected]}>
+                    {value}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.rangeBlock}>
+          <ThemedText style={styles.rangeLabel}>Đến</ThemedText>
+          <View style={styles.rangeOptionsRow}>
+            {ratingValues.map((value) => {
+              const isSelected = profile.caregiverRequirements.overallRatingRange?.max === value;
+              return (
+                <TouchableOpacity
+                  key={`rating-max-${value}`}
+                  style={[styles.rangeChip, isSelected && styles.rangeChipSelected]}
+                  onPress={() => setProfile(prev => {
+                    const currentMin = prev.caregiverRequirements.overallRatingRange?.min ?? value;
+                    const nextMax = value;
+                    const nextMin = Math.min(currentMin, nextMax);
+                    return {
+                      ...prev,
+                      caregiverRequirements: {
+                        ...prev.caregiverRequirements,
+                        overallRatingRange: { min: nextMin, max: nextMax },
+                      },
+                    };
+                  })}
+                >
+                  <Ionicons
+                    name={isSelected ? 'star' : 'star-outline'}
+                    size={14}
+                    color={isSelected ? '#68C2E8' : '#94a3b8'}
+                  />
+                  <ThemedText style={[styles.rangeChipText, isSelected && styles.rangeChipTextSelected]}>
+                    {value}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -2650,6 +2672,145 @@ const styles = StyleSheet.create({
   },
   optionDescriptionSelected: {
     color: '#68C2E8',
+  },
+  loadingPackages: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  emptyPackagesText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  packageCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  packageCardSelected: {
+    borderColor: '#68C2E8',
+    backgroundColor: '#f0fdf4',
+    shadowColor: '#68C2E8',
+    shadowOpacity: 0.15,
+  },
+  packageCheckmark: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 1,
+  },
+  packageName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  packageDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  packageDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  packageDetailText: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  packagePrice: {
+    fontSize: 16,
+    color: '#68C2E8',
+    fontWeight: 'bold',
+  },
+  packageServices: {
+    gap: 8,
+  },
+  packageServicesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  packageServiceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  packageServiceText: {
+    fontSize: 14,
+    color: '#495057',
+    flex: 1,
+  },
+  packagesScrollView: {
+    maxHeight: 400,
+    paddingRight: 12,
+  },
+  packagesContainer: {
+    gap: 16,
+    paddingBottom: 8,
+    paddingRight: 8,
+  },
+  rangeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  rangeClearText: {
+    fontSize: 13,
+    color: '#68C2E8',
+    fontWeight: '600',
+  },
+  rangeBlock: {
+    marginTop: 12,
+  },
+  rangeLabel: {
+    fontSize: 13,
+    color: '#6c757d',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  rangeOptionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  rangeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  rangeChipSelected: {
+    borderColor: '#68C2E8',
+    backgroundColor: '#e8f7ff',
+  },
+  rangeChipText: {
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  rangeChipTextSelected: {
+    color: '#0ea5e9',
   },
   ageRangeContainer: {
     flexDirection: 'row',

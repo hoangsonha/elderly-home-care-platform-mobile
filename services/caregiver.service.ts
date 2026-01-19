@@ -61,6 +61,17 @@ export interface PublicCaregiverProfileData {
   years_experience?: number;
   specializations?: string[];
   certifications?: string[];
+  ratings_reviews?: {
+    total_reviews: number;
+    overall_rating: number;
+    rating_breakdown?: {
+      "1_star": number;
+      "2_star": number;
+      "3_star": number;
+      "4_star": number;
+      "5_star": number;
+    };
+  };
 }
 
 export interface PublicCaregiver {
@@ -168,6 +179,92 @@ export class CaregiverService {
       return response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch public caregivers: ${error.message}`);
+    }
+  }
+
+  /**
+   * Lấy thông tin chi tiết của một caregiver từ public API
+   * GET /api/v1/public/caregivers/{id}
+   */
+  async getPublicCaregiverById(id: string): Promise<PublicCaregiver> {
+    try {
+      const response = await apiClient.get<{
+        status: string;
+        message: string;
+        data: {
+          caregiverProfileId: string;
+          fullName: string;
+          phoneNumber: string;
+          bio: string;
+          isVerified: boolean;
+          status: string;
+          birthDate: string;
+          age: number;
+          gender: string;
+          location: string; // JSON string
+          profileData: string; // JSON string
+          avatarUrl: string;
+        } | null;
+      }>(`/api/v1/public/caregivers/${id}`);
+      
+      if (response.data.status === 'Success' && response.data.data) {
+        const data = response.data.data;
+        
+        // Parse location JSON
+        let location: PublicCaregiverLocation = {
+          address: '',
+          latitude: 0,
+          longitude: 0,
+        };
+        try {
+          if (data.location) {
+            const locationObj = typeof data.location === 'string' ? JSON.parse(data.location) : data.location;
+            location = {
+              address: locationObj.address || '',
+              latitude: locationObj.latitude || 0,
+              longitude: locationObj.longitude || 0,
+            };
+          }
+        } catch (e) {
+          console.error('Error parsing location:', e);
+        }
+        
+        // Parse profileData JSON
+        let profileData: PublicCaregiverProfileData | undefined;
+        try {
+          if (data.profileData) {
+            const profileDataObj = typeof data.profileData === 'string' ? JSON.parse(data.profileData) : data.profileData;
+            profileData = {
+              years_experience: profileDataObj.years_experience,
+              max_hours_per_week: profileDataObj.max_hours_per_week,
+              preferences: profileDataObj.preferences,
+              certifications: profileDataObj.certifications,
+              ratings_reviews: profileDataObj.ratings_reviews,
+            };
+          }
+        } catch (e) {
+          console.error('Error parsing profileData:', e);
+        }
+        
+        return {
+          caregiverProfileId: data.caregiverProfileId,
+          fullName: data.fullName,
+          phoneNumber: data.phoneNumber,
+          location: location,
+          bio: data.bio,
+          isVerified: data.isVerified,
+          birthDate: data.birthDate,
+          age: data.age,
+          gender: data.gender,
+          avatarUrl: data.avatarUrl,
+          years_experience: profileData?.years_experience,
+          profileData: profileData,
+        };
+      } else {
+        throw new Error(response.data.message || 'Failed to get caregiver');
+      }
+    } catch (error: any) {
+      throw new Error(`Failed to fetch caregiver by ID: ${error.message}`);
     }
   }
 }
