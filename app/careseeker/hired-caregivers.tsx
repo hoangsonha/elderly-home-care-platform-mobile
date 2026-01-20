@@ -134,6 +134,7 @@ export default function HiredCaregiversScreen() {
       params: {
         caregiverId: caregiver.id,
         caregiverName: caregiver.name,
+        caregiverAvatar: caregiver.avatar,
       },
     });
   };

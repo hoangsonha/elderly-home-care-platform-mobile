@@ -76,6 +76,7 @@ export interface PublicCaregiverProfileData {
 
 export interface PublicCaregiver {
   caregiverProfileId: string;
+  accountId?: string; // Account ID để dùng cho chat
   fullName: string;
   phoneNumber: string;
   location: PublicCaregiverLocation;
@@ -193,6 +194,7 @@ export class CaregiverService {
         message: string;
         data: {
           caregiverProfileId: string;
+          accountId?: string; // Account ID để dùng cho chat
           fullName: string;
           phoneNumber: string;
           bio: string;
@@ -248,6 +250,7 @@ export class CaregiverService {
         
         return {
           caregiverProfileId: data.caregiverProfileId,
+          accountId: data.accountId, // Include accountId if available
           fullName: data.fullName,
           phoneNumber: data.phoneNumber,
           location: location,

@@ -1,6 +1,7 @@
 import { NavigationHelper } from "@/components/navigation/NavigationHelper";
 import { AccountService } from "@/services/account.service";
 import { saveToken, removeToken } from "@/services/apiClient";
+import { firebaseAuthService } from "@/services/firebaseAuth.service";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, ReactNode, useContext, useState } from "react";
 
@@ -35,22 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string
   ): Promise<User | null> => {
-    console.log('🚀 AuthContext.login - Start');
-    console.log('📧 Email:', email);
-    console.log('🔐 Password length:', password.length);
     try {
       const res = await AccountService.login({ email, password });
-      console.log('📦 AccountService response:', JSON.stringify(res));
 
       if (!res || !res.token) {
-        console.warn('⚠️ No token in response');
         return null;
       }
 
       // Lưu token vào AsyncStorage
-      console.log('💾 Saving token to AsyncStorage...');
       await saveToken(res.token, res.refreshToken);
-      console.log('✅ Token saved successfully');
 
       const userData: User = {
         id: res.accountId || res.id,
@@ -65,9 +59,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         status: res.status,
       };
 
-      console.log('👤 User data created:', JSON.stringify(userData));
       setUser(userData);
-      console.log('✅ AuthContext.login - Success');
+
+      // Authenticate với Firebase để có thể đọc Firestore
+      // Option 1: Nếu backend trả về firebaseCustomToken trong response
+      if (res.firebaseCustomToken) {
+        await firebaseAuthService.signInWithCustomToken(res.firebaseCustomToken);
+      } else {
+        // Option 2: Tạm thời dùng email/password (cần backend tạo user trong Firebase)
+        // Hoặc thay đổi Security Rules để không cần auth
+        // Uncomment nếu backend đã tạo user trong Firebase
+        // await firebaseAuthService.signInWithEmail(email, password);
+      }
 
       // Register device token for push notifications after login
       try {
@@ -75,22 +78,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await NotificationService.initialize();
         await NotificationService.registerToken(res.token);
       } catch (notificationError) {
-        // Log error but don't block login
-        console.error("Failed to register notification token:", notificationError);
+        // Silent fail - don't block login
       }
 
       return userData;
     } catch (error: any) {
-      console.error('❌ AuthContext.login - Error:', error);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error response:', error.response?.data);
-      console.error('❌ Error status:', error.response?.status);
       return null;
     }
   };
 
   // LOGOUT
   const logout = async () => {
+    // Sign out khỏi Firebase
+    await firebaseAuthService.signOut();
     // Delete device token before logout
     try {
       const token = await AsyncStorage.getItem("token");
@@ -99,8 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await NotificationService.deleteToken(token);
       }
     } catch (notificationError) {
-      // Log error but don't block logout
-      console.error("Failed to delete notification token:", notificationError);
+      // Silent fail - don't block logout
     }
 
     // Xóa token khỏi AsyncStorage

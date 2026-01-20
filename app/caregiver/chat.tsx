@@ -1,105 +1,271 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
+import { useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
-import { ThemedText } from "@/components/themed-text";
+import CaregiverBottomNav from '@/components/navigation/CaregiverBottomNav';
+import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
+import { getChatId } from '@/hooks/useChatId';
+import { ChatMessage, useChatMessages } from '@/hooks/useChatMessages';
+import { chatService } from '@/services/chat.service';
 
 interface Message {
   id: string;
   text: string;
-  sender: "user" | "caregiver";
+  isMine: boolean;
   timestamp: Date;
-  isRead: boolean;
-}
-
-interface ChatScreenProps {
-  caregiverName: string;
-  caregiverAvatar: string;
+  status?: 'sent' | 'delivered' | 'read';
 }
 
 export default function ChatScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute();
   const params = useLocalSearchParams();
-  
-  // Thử lấy params từ cả route và useLocalSearchParams
-  const routeParams = (route.params || {}) as any;
-  
-  // Đọc từ các nguồn khác nhau (chat-list truyền chatName, các màn hình khác có thể truyền clientName)
-  const chatName = routeParams.chatName || params.chatName;
-  const chatAvatar = routeParams.chatAvatar || params.chatAvatar;
-  const clientName = routeParams.clientName || params.clientName;
-  const clientAvatar = routeParams.clientAvatar || params.clientAvatar;
-  const caregiverName = routeParams.caregiverName || params.caregiverName;
-  const fromScreen = routeParams.fromScreen || params.fromScreen;
-  const appointmentId = routeParams.appointmentId || params.appointmentId;
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: "Xin chào! Tôi có thể giúp gì cho bạn?",
-      sender: "caregiver",
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-      isRead: true,
-    },
-    {
-      id: "2",
-      text: "Chào anh/chị! Tôi đang cần tìm người chăm sóc cho bà nội của tôi",
-      sender: "user",
-      timestamp: new Date(Date.now() - 1000 * 60 * 25), // 25 minutes ago
-      isRead: true,
-    },
-    {
-      id: "3",
-      text: "Dạ, tôi có 5 năm kinh nghiệm chăm sóc người cao tuổi, đặc biệt là những người có vấn đề về trí nhớ và vận động. Bà nội của bạn bao nhiêu tuổi và tình trạng sức khỏe hiện tại như thế nào ạ?",
-      sender: "caregiver",
-      timestamp: new Date(Date.now() - 1000 * 60 * 20), // 20 minutes ago
-      isRead: true,
-    },
-  ]);
+  // Với Drawer Navigator, params sẽ ở route.params - dùng useMemo để tránh re-render
+  const routeParams = useMemo(() => {
+    return (route.params || {}) as any;
+  }, [route.params]);
 
-  const [newMessage, setNewMessage] = useState("");
+  // Đọc params từ route.params (Drawer Navigator) hoặc useLocalSearchParams (fallback)
+  // Ưu tiên routeParams vì dùng Drawer Navigator
+  const chatName = routeParams.chatName || (Array.isArray(params.chatName) ? params.chatName[0] : params.chatName) || "";
+  const chatAvatar = routeParams.chatAvatar || (Array.isArray(params.chatAvatar) ? params.chatAvatar[0] : params.chatAvatar) || "";
+  const seekerName = routeParams.seekerName || (Array.isArray(params.seekerName) ? params.seekerName[0] : params.seekerName) || "";
+  const seekerAvatar = routeParams.seekerAvatar || (Array.isArray(params.seekerAvatar) ? params.seekerAvatar[0] : params.seekerAvatar) || "";
+  const fromScreen = routeParams.fromScreen || (Array.isArray(params.fromScreen) ? params.fromScreen[0] : params.fromScreen) || "";
+  const appointmentId = routeParams.appointmentId || (Array.isArray(params.appointmentId) ? params.appointmentId[0] : params.appointmentId) || "";
+
+  // Lấy receiverId (seekerId) và accountId từ params - ưu tiên route.params vì dùng Drawer Navigator
+  // receiverId có thể là profileId, cần accountId để gửi message
+  const receiverId = (routeParams.receiverId ||
+    routeParams.seekerId ||
+    routeParams.chatId ||
+    (params.receiverId as string) ||
+    (params.seekerId as string) ||
+    (params.chatId as string)) as string;
+
+  // accountId để gửi tin nhắn (nếu có trong params)
+  const accountId = (routeParams.accountId ||
+    (params.accountId as string)) as string | undefined;
+
+  const { user } = useAuth();
+
+  const [inputText, setInputText] = useState('');
+  const [localMessages, setLocalMessages] = useState<Message[]>([]);
+  const [sending, setSending] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [inputHeight, setInputHeight] = useState(0);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  const [seekerAvatarFromResponse, setSeekerAvatarFromResponse] = useState<string | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+  const bottomNavPadding = useBottomNavPadding();
 
-  // Lấy tên và avatar người nhận từ params (ưu tiên chatName từ chat-list)
-  const recipientName = (chatName as string) || (clientName as string) || (caregiverName as string) || "";
-  const recipientAvatar = (chatAvatar as string) || (clientAvatar as string) || "👤";
-  
-  // Debug log
-  console.log("Chat params:", { chatName, chatAvatar, clientName, clientAvatar, caregiverName, recipientName });
+  // Validate receiverId trước khi generate chatId
+  const isValidReceiverId = receiverId && typeof receiverId === 'string' && receiverId.trim() !== '';
+
+  // Generate chatId từ userId và receiverId
+  const chatId = (user?.id && isValidReceiverId)
+    ? getChatId(user.id, receiverId.trim())
+    : null;
+
+  // Listen messages real-time từ Firestore
+  const { messages: firestoreMessages, loading } = useChatMessages(chatId);
+
+  // Đảm bảo firestoreMessages luôn là array - dùng useMemo để tránh re-render
+  const safeFirestoreMessages = useMemo(() => {
+    return Array.isArray(firestoreMessages) ? firestoreMessages : [];
+  }, [firestoreMessages]);
+
+  // Validate receiverId và hiển thị error nếu thiếu
+  useEffect(() => {
+    if (!isValidReceiverId || !user?.id) {
+      Alert.alert(
+        'Lỗi',
+        'Không tìm thấy thông tin người nhận. Vui lòng quay lại danh sách chat.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate("Danh sách tin nhắn" as any)
+          }
+        ]
+      );
+    }
+  }, [isValidReceiverId, user?.id, navigation]);
+
+  // Chỉ resolve name và avatar sau khi firestoreMessages đã được khởi tạo
+  const [displayName, setDisplayName] = useState<string>("Người dùng");
+  const [displayAvatar, setDisplayAvatar] = useState<string>("");
+  const [hasAvatar, setHasAvatar] = useState(false);
+
+  // Update displayName và displayAvatar khi có data
+  useEffect(() => {
+    try {
+      // Resolve name - ưu tiên từ params (chatName từ chat-list)
+      let name = "";
+
+      // Ưu tiên chatName (từ chat-list), sau đó seekerName
+      if (chatName && typeof chatName === 'string' && chatName.trim() !== '') {
+        name = chatName.trim();
+      } else if (seekerName && typeof seekerName === 'string' && seekerName.trim() !== '') {
+        name = seekerName.trim();
+      }
+
+      // Fallback: lấy từ Firestore messages
+      if (!name && Array.isArray(safeFirestoreMessages) && safeFirestoreMessages.length > 0) {
+        const firstMessage: any = safeFirestoreMessages[0];
+        if (firstMessage && typeof firstMessage === 'object') {
+          name = firstMessage.senderId === user?.id
+            ? firstMessage.receiverName || "Người dùng"
+            : firstMessage.senderName || "Người dùng";
+        }
+      }
+      if (!name) name = "Người dùng";
+
+      // Resolve avatar - dùng URL gốc từ params, không encode/decode
+      let avatar = "";
+
+      // Ưu tiên chatAvatar (từ chat-list), sau đó seekerAvatar
+      const avatarFromParams = (chatAvatar && typeof chatAvatar === 'string' && chatAvatar.trim() !== '')
+        ? chatAvatar.trim()
+        : (seekerAvatar && typeof seekerAvatar === 'string' && seekerAvatar.trim() !== '')
+          ? seekerAvatar.trim()
+          : "";
+
+      // Nếu có avatar từ params, dùng trực tiếp URL gốc (không encode/decode)
+      if (avatarFromParams && avatarFromParams.startsWith("http")) {
+        avatar = avatarFromParams; // Dùng URL gốc từ params, không encode/decode
+      }
+
+      if (!avatar && Array.isArray(safeFirestoreMessages) && safeFirestoreMessages.length > 0) {
+        const messageWithAvatar = safeFirestoreMessages.find((msg: any) => {
+          if (!msg || typeof msg !== 'object') return false;
+          if (msg.senderId === user?.id) {
+            return msg.receiverAvatar && typeof msg.receiverAvatar === 'string' && msg.receiverAvatar.startsWith("http");
+          } else {
+            return msg.senderAvatar && typeof msg.senderAvatar === 'string' && msg.senderAvatar.startsWith("http");
+          }
+        });
+
+        if (messageWithAvatar) {
+          const isSender = messageWithAvatar.senderId === user?.id;
+          const foundAvatar = isSender
+            ? messageWithAvatar.receiverAvatar || ""
+            : messageWithAvatar.senderAvatar || "";
+          if (foundAvatar && typeof foundAvatar === 'string' && foundAvatar.startsWith("http")) {
+            avatar = foundAvatar;
+          }
+        }
+      }
+
+      if (!avatar && seekerAvatarFromResponse && typeof seekerAvatarFromResponse === 'string' && seekerAvatarFromResponse.startsWith("http")) {
+        avatar = seekerAvatarFromResponse;
+      }
+
+      setDisplayName(name);
+      setDisplayAvatar(avatar);
+      setHasAvatar(typeof avatar === "string" && avatar.length > 0 && avatar.startsWith("http"));
+    } catch {
+      // Fallback nếu có lỗi
+      setDisplayName("Người dùng");
+      setDisplayAvatar("");
+      setHasAvatar(false);
+    }
+  }, [safeFirestoreMessages, chatName, seekerName, chatAvatar, seekerAvatar, seekerAvatarFromResponse, user?.id]);
+
+  const listBottomPadding =
+    Math.max(100, inputHeight + 32) +
+    (isKeyboardVisible ? keyboardHeight + 4 : 32);
+
+  // Convert Firestore messages to display format
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Dùng safeFirestoreMessages (đã đảm bảo là array)
+    const convertedMessages: Message[] = safeFirestoreMessages.map((msg: ChatMessage) => {
+      const timestamp = msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp);
+      return {
+        id: msg.id,
+        text: msg.content,
+        isMine: msg.senderId === user.id,
+        timestamp,
+        status: msg.read ? 'read' : 'sent',
+      };
+    });
+
+    setLocalMessages(convertedMessages);
+  }, [safeFirestoreMessages, user?.id]);
+
+  const scrollToBottom = () => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated: false });
+    });
+  };
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [localMessages]);
+
+  // Đánh dấu đã đọc khi vào chat và có tin nhắn mới
+  // Chỉ mark as read khi screen được focus (user thực sự xem chat)
+  const isFocused = useIsFocused();
 
   useEffect(() => {
-    // Auto scroll to bottom when new message is added
-    scrollViewRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+    // CHỈ mark as read khi screen đang focus
+    if (!isFocused || !user?.id || !Array.isArray(safeFirestoreMessages) || safeFirestoreMessages.length === 0) return;
+
+    // Tìm các tin nhắn chưa đọc mà receiver là current user
+    const unreadMessages = safeFirestoreMessages.filter(
+      (msg: ChatMessage) =>
+        msg &&
+        typeof msg === 'object' &&
+        msg.receiverId === user.id &&
+        !msg.read
+    );
+
+    // Đánh dấu đã đọc cho từng tin nhắn (ngay lập tức khi messages load và screen đang focus)
+    if (unreadMessages.length > 0) {
+      unreadMessages.forEach((msg: ChatMessage) => {
+        if (msg && msg.id && typeof msg.id === 'string') {
+          chatService.markAsRead(msg.id).catch((err) => {
+            // Silent fail - không cần hiển thị error
+          });
+        }
+      });
+    }
+  }, [safeFirestoreMessages, user?.id, isFocused]);
 
   useEffect(() => {
-    // Listen for keyboard show/hide events
     const keyboardDidShowListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => {
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (event) => {
         setIsKeyboardVisible(true);
+        setKeyboardHeight(event.endCoordinates?.height || 0);
       }
     );
     const keyboardDidHideListener = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
         setIsKeyboardVisible(false);
+        setKeyboardHeight(0);
       }
     );
 
@@ -109,370 +275,441 @@ export default function ChatScreen() {
     };
   }, []);
 
-  // Setup header back button based on fromScreen param
+  // Setup header - tắt default header để dùng custom header
   useEffect(() => {
-    const handleBack = () => {
-      if (fromScreen === "appointment-detail") {
-        // Quay lại trang appointment detail với appointmentId
-        if (appointmentId) {
-          (navigation.navigate as any)("Appointment Detail", {
-            appointmentId: appointmentId,
-            fromScreen: "chat",
-          });
-        } else {
-          navigation.goBack();
-        }
-      } else if (fromScreen === "dashboard") {
-        // Quay lại trang chủ
-        (navigation.navigate as any)("Trang chủ");
-      } else {
-        // Mặc định quay lại chat-list hoặc goBack
-        (navigation.navigate as any)("Danh sách tin nhắn");
-      }
+    navigation.setOptions({
+      headerShown: false, // Tắt default header để dùng custom header
+    });
+  }, [navigation]);
+
+  const handleSend = async () => {
+    if (!inputText.trim() || !user?.id) {
+      return;
+    }
+
+    // Cần accountId để gửi tin nhắn, không phải seekerProfileId
+    let receiverAccountId = accountId;
+
+    // Nếu không có accountId trong params, dùng receiverId (giả định là accountId)
+    // Nếu receiverId là profileId, cần lấy accountId từ API (nhưng không có API cho seeker)
+    // Tạm thời dùng receiverId, nếu fail thì sẽ báo lỗi
+    if (!receiverAccountId && receiverId) {
+      // Giả định receiverId từ chat-list đã là accountId
+      receiverAccountId = receiverId;
+    }
+
+    if (!receiverAccountId) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin người nhận.');
+      return;
+    }
+
+    if (sending) {
+      return;
+    }
+
+    // Optimistic update: Add message to local state immediately
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      text: inputText.trim(),
+      isMine: true,
+      timestamp: new Date(),
+      status: 'sent',
     };
 
-    navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={handleBack}
-          style={{ marginLeft: 15 }}
-        >
-          <MaterialCommunityIcons
-            name="arrow-left"
-            size={28}
-            color="#fff"
-          />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, fromScreen, appointmentId]);
+    setLocalMessages((prev) => [...prev, optimisticMessage]);
+    const messageContent = inputText.trim();
+    setInputText('');
+    setSending(true);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message: Message = {
-        id: Date.now().toString(),
-        text: newMessage.trim(),
-        sender: "user",
-        timestamp: new Date(),
-        isRead: false,
-      };
+    try {
+      // Gửi message qua REST API với accountId (receiverId)
+      const response = await chatService.sendMessage(receiverAccountId, messageContent);
 
-      setMessages((prev) => [...prev, message]);
-      setNewMessage("");
+      // Lưu avatar từ response vào state
+      let avatarToSave: string | null = null;
+      if (response?.data) {
+        const responseData = response.data;
+        if (responseData.senderId === user?.id) {
+          avatarToSave = responseData.receiverAvatar || null;
+        } else {
+          avatarToSave = responseData.senderAvatar || null;
+        }
+      } else if (response) {
+        if (response.senderId === user?.id) {
+          avatarToSave = response.receiverAvatar || null;
+        } else {
+          avatarToSave = response.senderAvatar || null;
+        }
+      }
 
-      // Simulate caregiver response after 2 seconds
+      if (avatarToSave) {
+        setSeekerAvatarFromResponse(avatarToSave);
+      }
+
+      // Firestore listener sẽ tự động update UI khi message được lưu
+      // Remove optimistic message sau 2 giây
       setTimeout(() => {
-        const responses = [
-          "Cảm ơn bạn đã quan tâm!",
-          "Tôi sẽ cố gắng hỗ trợ bạn tốt nhất có thể.",
-          "Bạn có câu hỏi gì khác không?",
-          "Tôi có thể tư vấn thêm về dịch vụ của mình.",
-        ];
-        const randomResponse =
-          responses[Math.floor(Math.random() * responses.length)];
-
-        const caregiverMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: randomResponse,
-          sender: "caregiver",
-          timestamp: new Date(),
-          isRead: true,
-        };
-
-        setMessages((prev) => [...prev, caregiverMessage]);
+        setLocalMessages((prev) =>
+          prev.filter((msg) => msg.id !== optimisticMessage.id)
+        );
       }, 2000);
+    } catch (err: any) {
+      // Remove optimistic message on error
+      setLocalMessages((prev) =>
+        prev.filter((msg) => msg.id !== optimisticMessage.id)
+      );
+      Alert.alert('Lỗi', err.message || 'Không thể gửi tin nhắn. Vui lòng thử lại.');
+    } finally {
+      setSending(false);
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const renderMessage = (message: Message) => {
-    // Trong màn hình chat của caregiver: caregiver ở bên phải, user/seeker ở bên trái
-    const isCaregiver = message.sender === "caregiver";
-
-    return (
-      <View
-        key={message.id}
-        style={[
-          styles.messageContainer,
-          isCaregiver
-            ? styles.userMessageContainer
-            : styles.caregiverMessageContainer,
-        ]}
-      >
-        <View
-          style={[
-            styles.messageBubble,
-            isCaregiver ? styles.userMessageBubble : styles.caregiverMessageBubble,
-          ]}
-        >
-          <ThemedText
-            style={[
-              styles.messageText,
-              isCaregiver ? styles.userMessageText : styles.caregiverMessageText,
-            ]}
-          >
-            {message.text}
+  const renderMessage = ({ item }: { item: Message }) => (
+    <View style={[
+      styles.messageContainer,
+      item.isMine ? styles.myMessageContainer : styles.theirMessageContainer
+    ]}>
+      <View style={[
+        styles.messageBubble,
+        item.isMine ? styles.myMessage : styles.theirMessage
+      ]}>
+        <ThemedText style={[
+          styles.messageText,
+          item.isMine ? styles.myMessageText : styles.theirMessageText
+        ]}>
+          {item.text}
+        </ThemedText>
+        <View style={styles.messageFooter}>
+          <ThemedText style={[
+            styles.timestamp,
+            item.isMine ? styles.myTimestamp : styles.theirTimestamp
+          ]}>
+            {item.timestamp.toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </ThemedText>
-          <ThemedText
-            style={[
-              styles.messageTime,
-              isCaregiver ? styles.userMessageTime : styles.caregiverMessageTime,
-            ]}
-          >
-            {formatTime(message.timestamp)}
-          </ThemedText>
+          {item.isMine && item.status && (
+            <Ionicons
+              name={
+                item.status === 'read' ? 'checkmark-done' :
+                  item.status === 'delivered' ? 'checkmark-done' :
+                    'checkmark'
+              }
+              size={14}
+              color={item.status === 'read' ? '#68C2E8' : '#FFFFFF'}
+            />
+          )}
         </View>
       </View>
-    );
-  };
+    </View>
+  );
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      {/* Chat Header - Info người nhận */}
-      <View style={styles.chatHeader}>
-        <View style={styles.chatHeaderAvatar}>
-          <Text style={styles.chatHeaderAvatarText}>{recipientAvatar}</Text>
-        </View>
-        <View style={styles.chatHeaderInfo}>
-          <ThemedText style={styles.chatHeaderName}>
-            {recipientName || "Chưa có tên"}
-          </ThemedText>
-        </View>
-      </View>
-
-      {/* Messages */}
-      <KeyboardAvoidingView
-        style={styles.messagesContainer}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-      >
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.messagesContent}
+    <View style={styles.wrapper}>
+      <SafeAreaView style={styles.safeAreaTop} edges={['top']}>
+        <View style={styles.topSafeAreaBackground} />
+      </SafeAreaView>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : bottomNavPadding}
         >
-          {messages.map(renderMessage)}
-        </ScrollView>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => {
+                if (fromScreen === "appointment-detail" && appointmentId) {
+                  navigation.navigate("Appointment Detail", {
+                    appointmentId: appointmentId,
+                    fromScreen: "chat",
+                  });
+                } else if (fromScreen === "dashboard") {
+                  navigation.navigate("Trang chủ");
+                } else {
+                  navigation.navigate("Danh sách tin nhắn");
+                }
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
 
-        {/* Input */}
-        <View style={[
-          styles.inputContainer,
-          { marginBottom: isKeyboardVisible ? 80 : 50 }
-        ]}>
-          <View style={styles.inputWrapper}>
+            <View style={styles.headerContent}>
+              <View style={styles.avatar}>
+                {hasAvatar && !avatarLoadError ? (
+                  <Image
+                    source={{ uri: displayAvatar }}
+                    style={styles.avatarImage}
+                    resizeMode="cover"
+                    onError={() => setAvatarLoadError(true)}
+                  />
+                ) : (
+                  <ThemedText style={styles.avatarText}>
+                    {displayName?.charAt(0) || 'N'}
+                  </ThemedText>
+                )}
+              </View>
+              <View style={styles.headerInfo}>
+                <ThemedText style={styles.headerName}>{displayName}</ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.headerRight} />
+          </View>
+
+          {/* Messages */}
+          {loading && localMessages.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#68C2E8" />
+              <ThemedText style={styles.loadingText}>Đang tải tin nhắn...</ThemedText>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={localMessages}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.messagesList}
+              onContentSizeChange={scrollToBottom}
+              onLayout={scrollToBottom}
+              showsVerticalScrollIndicator={false}
+              ListFooterComponent={<View style={{ height: listBottomPadding }} />}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <ThemedText style={styles.emptyText}>
+                    Chưa có tin nhắn nào. Hãy bắt đầu cuộc trò chuyện!
+                  </ThemedText>
+                </View>
+              }
+            />
+          )}
+
+          {/* Input */}
+          <View
+            style={[
+              styles.inputContainer,
+              {
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: isKeyboardVisible ? keyboardHeight + 12 : 16,
+                zIndex: 2,
+                elevation: 2,
+              },
+            ]}
+            onLayout={(event) => setInputHeight(event.nativeEvent.layout.height)}
+          >
+            <TouchableOpacity style={styles.attachButton}>
+              <Ionicons name="add-circle-outline" size={28} color="#68C2E8" />
+            </TouchableOpacity>
+
             <TextInput
-              style={styles.textInput}
+              style={styles.input}
+              value={inputText}
+              onChangeText={setInputText}
               placeholder="Nhập tin nhắn..."
               placeholderTextColor="#999"
-              value={newMessage}
-              onChangeText={setNewMessage}
               multiline
-              maxLength={500}
+              maxLength={1000}
+              editable={!sending}
             />
+
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                newMessage.trim()
-                  ? styles.sendButtonActive
-                  : styles.sendButtonInactive,
+                (!inputText.trim() || sending) && styles.sendButtonDisabled
               ]}
-              onPress={handleSendMessage}
-              disabled={!newMessage.trim()}
+              onPress={handleSend}
+              disabled={!inputText.trim() || sending}
             >
-              <Ionicons
-                name="send"
-                size={20}
-                color={newMessage.trim() ? "white" : "#999"}
-              />
+              {sending ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Ionicons name="send" size={20} color="white" />
+              )}
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-      
-      {/* Bottom Navigation */}
-      <CaregiverBottomNav activeTab="home" />
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+
+        <CaregiverBottomNav activeTab="home" />
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    backgroundColor: '#68C2E8',
+  },
+  safeAreaTop: {
+    backgroundColor: '#68C2E8',
+  },
+  topSafeAreaBackground: {
+    backgroundColor: '#68C2E8',
+  },
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: '#F5F7FA',
   },
-  
-  // Chat Header - Info người nhận
-  chatHeader: {
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  chatHeaderAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#FEF3C7",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  chatHeaderAvatarText: {
-    fontSize: 28,
-  },
-  chatHeaderInfo: {
-    flex: 1,
-  },
-  chatHeaderName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1F2937",
-    marginBottom: 2,
-  },
-  chatHeaderStatus: {
-    fontSize: 13,
-    color: "#10B981",
-  },
-  
   header: {
-    backgroundColor: "#4ECDC4",
-    paddingTop: 50,
-    paddingHorizontal: 20,
+    backgroundColor: '#68C2E8',
+    paddingTop: 16,
+    paddingHorizontal: 16,
     paddingBottom: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   backButton: {
     padding: 8,
+    marginRight: 12,
   },
   headerContent: {
     flex: 1,
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "white",
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.9)",
-    marginTop: 2,
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  moreButton: {
-    padding: 8,
-    marginRight: 8,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 8,
-  },
-  messagesContainer: {
-    flex: 1,
-  },
-  messagesList: {
-    flex: 1,
-  },
-  messagesContent: {
-    padding: 16,
-    paddingBottom: 160,
-  },
-  messageContainer: {
-    marginBottom: 12,
-  },
-  userMessageContainer: {
-    alignItems: "flex-end",
-  },
-  caregiverMessageContainer: {
-    alignItems: "flex-start",
-  },
-  messageBubble: {
-    maxWidth: "80%",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  avatarImage: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
   },
-  userMessageBubble: {
-    backgroundColor: "#4ECDC4",
-    borderBottomRightRadius: 4,
+  headerInfo: {
+    flex: 1,
   },
-  caregiverMessageBubble: {
-    backgroundColor: "white",
-    borderBottomLeftRadius: 4,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  messageText: {
+  headerName: {
     fontSize: 16,
-    lineHeight: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 4,
   },
-  userMessageText: {
-    color: "white",
+  headerRight: {
+    width: 40,
   },
-  caregiverMessageText: {
-    color: "#2c3e50",
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  messageTime: {
-    fontSize: 12,
-    marginTop: 4,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#999',
   },
-  userMessageTime: {
-    color: "rgba(255,255,255,0.8)",
-    textAlign: "right",
+  messagesList: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  caregiverMessageTime: {
-    color: "#6c757d",
+  messageContainer: {
+    marginBottom: 16,
+    maxWidth: '75%',
   },
-  inputContainer: {
-    backgroundColor: "white",
+  myMessageContainer: {
+    alignSelf: 'flex-end',
+  },
+  theirMessageContainer: {
+    alignSelf: 'flex-start',
+  },
+  messageBubble: {
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#e9ecef",
   },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    backgroundColor: "#f8f9fa",
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
+  myMessage: {
+    backgroundColor: '#68C2E8',
+    borderBottomRightRadius: 4,
   },
-  textInput: {
+  theirMessage: {
+    backgroundColor: '#FFFFFF',
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E8EBED',
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  myMessageText: {
+    color: '#FFFFFF',
+  },
+  theirMessageText: {
+    color: '#2C3E50',
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  timestamp: {
+    fontSize: 11,
+  },
+  myTimestamp: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  theirTimestamp: {
+    color: '#7F8C8D',
+  },
+  emptyContainer: {
     flex: 1,
-    fontSize: 16,
-    color: "#2c3e50",
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E8EBED',
+  },
+  attachButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#2C3E50',
     maxHeight: 100,
-    paddingVertical: 8,
   },
   sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#68C2E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
-  sendButtonActive: {
-    backgroundColor: "#4ECDC4",
-  },
-  sendButtonInactive: {
-    backgroundColor: "#e9ecef",
+  sendButtonDisabled: {
+    backgroundColor: '#BDC3C7',
   },
 });

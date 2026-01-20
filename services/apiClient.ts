@@ -7,8 +7,8 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 // - Trên Android emulator: có thể dùng 10.0.2.2 thay cho localhost
 // - Trên iOS simulator: dùng localhost hoặc IP của máy Mac
 // - Production: dùng domain/IP của server
-export const BASE_URL = 'http://157.245.155.77:8080'; // Server remote
-// export const BASE_URL = "http://192.168.2.77:8080"; // IP máy tính local (thay đổi theo IP của bạn)
+// export const BASE_URL = 'http://157.245.155.77:8080'; // Server remote
+export const BASE_URL = "http://192.168.241.168:8080"; // IP máy tính local (thay đổi theo IP của bạn)
 //export const BASE_URL = "http://10.0.2.2:8080"; // Android emulator -> máy host
 // export const BASE_URL = 'http://localhost:8080'; // Chỉ dùng khi test trên web
 

@@ -6,6 +6,7 @@ import { getAppointmentStatus, subscribeToStatusChanges } from "@/data/appointme
 // import { useAppointments } from "@/hooks/useDatabaseEntities";
 // import * as ElderlyRepository from "@/services/elderly.repository";
 import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
+import { useNewMessages } from "@/hooks/useNewMessages";
 import { mainService, type MyCareServiceData } from "@/services/main.service";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -193,6 +194,9 @@ export default function CaregiverDashboardScreen() {
     notificationId?: string;
   }>>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Listen unread messages real-time từ Firestore
+  const { unreadCount: chatUnreadCount } = useNewMessages();
 
   // Fetch notifications from API
   const fetchNotifications = useCallback(async () => {
@@ -467,6 +471,13 @@ export default function CaregiverDashboardScreen() {
                 onPress={() => navigation.navigate("Danh sách tin nhắn")}
               >
                 <Ionicons name="chatbubble-outline" size={24} color="#FFFFFF" />
+                {chatUnreadCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
               
               <TouchableOpacity 

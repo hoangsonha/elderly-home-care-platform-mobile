@@ -484,7 +484,6 @@ export const mainService = {
             };
 
             xhr.onerror = () => {
-              console.error('❌ XMLHttpRequest network error');
               resolve({
                 status: 'Fail',
                 message: 'Network error. Vui lòng kiểm tra kết nối và thử lại.',
@@ -493,7 +492,6 @@ export const mainService = {
             };
 
             xhr.ontimeout = () => {
-              console.error('❌ XMLHttpRequest timeout');
               resolve({
                 status: 'Fail',
                 message: 'Request timeout. Vui lòng thử lại.',
@@ -645,7 +643,6 @@ export const mainService = {
             };
 
             xhr.onerror = () => {
-              console.error('❌ XMLHttpRequest network error');
               resolve({
                 status: 'Fail',
                 message: 'Network error. Vui lòng kiểm tra kết nối và thử lại.',
@@ -654,7 +651,6 @@ export const mainService = {
             };
 
             xhr.ontimeout = () => {
-              console.error('❌ XMLHttpRequest timeout');
               resolve({
                 status: 'Fail',
                 message: 'Request timeout. Vui lòng thử lại.',
@@ -819,12 +815,6 @@ export const mainService = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('❌ Error fetching free schedule by date:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        code: error.code,
-        response: error.response?.data || 'No response',
-      });
       if (error.response?.data) {
         return error.response.data;
       }
@@ -863,8 +853,6 @@ export const mainService = {
     citizenIdBackImage?: { uri: string; type?: string; name?: string }
   ): Promise<CareServiceApiResponse> => {
     try {
-      console.log('📋 Profile data:', JSON.stringify(profileData, null, 2));
-      console.log('📄 Credential files:', credentialFiles?.length || 0);
 
       const formData = new FormData();
       
@@ -964,59 +952,18 @@ export const mainService = {
 
         return response.data;
       } catch (axiosError: any) {
-        // Log chi tiết lỗi axios
-        console.error('❌ Axios Error Details:');
-        console.error('  - Code:', axiosError.code);
-        console.error('  - Message:', axiosError.message);
-        console.error('  - Name:', axiosError.name);
-        console.error('  - Stack:', axiosError.stack);
-        
-        if (axiosError.request) {
-          console.error('  - Request made:', true);
-          console.error('  - Request method:', axiosError.config?.method);
-          console.error('  - Request URL:', axiosError.config?.url);
-          console.error('  - Request baseURL:', axiosError.config?.baseURL);
-          console.error('  - Request headers:', JSON.stringify(axiosError.config?.headers, null, 2));
-          console.error('  - Request data type:', axiosError.config?.data?.constructor?.name);
-          console.error('  - Request data is FormData:', axiosError.config?.data instanceof FormData);
-        } else {
-          console.error('  - Request made: false (request was not sent)');
-        }
-        
-        if (axiosError.response) {
-          console.error('  - Response status:', axiosError.response.status);
-          console.error('  - Response data:', axiosError.response.data);
-          console.error('  - Response headers:', axiosError.response.headers);
-        } else {
-          console.error('  - Response: No response received');
-        }
+        // Silent fail
         
         // Throw error để xử lý ở nơi gọi
         throw axiosError;
       }
     } catch (error: any) {
-      console.error('❌ Error creating caregiver profile:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        code: error.code,
-        response: error.response ? {
-          status: error.response.status,
-          data: error.response.data,
-        } : 'No response',
-        request: error.request ? 'Request made but no response' : 'No request made',
-      });
-      
       if (error.response?.data) {
         return error.response.data;
       }
       
       // Network error - có thể do FormData hoặc network issue
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        console.error('🌐 Network Error - Possible causes:');
-        console.error('  1. FormData serialization issue');
-        console.error('  2. File URI format issue');
-        console.error('  3. Server not accessible');
-        console.error('  4. Request timeout');
       }
       
       return {

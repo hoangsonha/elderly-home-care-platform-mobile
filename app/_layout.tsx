@@ -23,7 +23,22 @@ LogBox.ignoreLogs([
   'Error: Unable to activate keep awake',
   'Uncaught (in promise',
   'Cannot read property',
+  /Unable to activate keep awake/,
+  /Error: Unable to activate keep awake/,
 ]);
+
+// Suppress unhandled promise rejections for keep awake
+if (typeof global !== 'undefined') {
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const message = args.join(' ');
+    if (message.includes('Unable to activate keep awake') || 
+        message.includes('Error: Unable to activate keep awake')) {
+      return; // Suppress keep awake errors
+    }
+    originalConsoleError.apply(console, args);
+  };
+}
 
 export const unstable_settings = {
   anchor: "login",

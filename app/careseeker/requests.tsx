@@ -31,6 +31,7 @@ export default function RequestsScreen() {
       params: {
         caregiverId: caregiver.id,
         caregiverName: caregiver.name,
+        caregiverAvatar: caregiver.avatar,
       }
     });
   };

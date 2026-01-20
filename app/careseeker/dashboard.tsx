@@ -30,6 +30,7 @@ import { useNotification } from '@/contexts/NotificationContext';
 import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { mainService, type MyCareServiceData } from '@/services/main.service';
 import { ElderlyProfileApiResponse, UserService } from '@/services/user.service';
+import { useNewMessages } from '@/hooks/useNewMessages';
 
 const { width } = Dimensions.get('window');
 
@@ -284,6 +285,9 @@ export default function DashboardScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
+  
+  // Listen unread messages real-time từ Firestore
+  const { unreadCount: chatUnreadCount } = useNewMessages();
 
   // Fetch notifications from API
   const fetchNotifications = useCallback(async () => {
@@ -439,9 +443,16 @@ export default function DashboardScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity 
               style={styles.iconButton}
-              onPress={() => router.push('/careseeker/chat' as any)}
+              onPress={() => router.push('/careseeker/chat-list' as any)}
             >
               <Ionicons name="chatbubble-outline" size={24} color="#FFFFFF" />
+              {chatUnreadCount > 0 && (
+                <View style={styles.badge}>
+                  <ThemedText style={styles.badgeText}>
+                    {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
+                  </ThemedText>
+                </View>
+              )}
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -893,11 +904,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#68C2E8',
+    paddingHorizontal: 4,
   },
   badgeText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 11,
+    includeFontPadding: false,
   },
   avatarButton: {
     marginRight: 14,

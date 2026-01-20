@@ -263,24 +263,13 @@ export default function CaregiverSidebar() {
           name="Danh sách tin nhắn"
           component={ChatListScreen}
           options={({ navigation }) => ({
+            headerShown: false, // Ẩn default header để dùng custom header trong component
             drawerIcon: ({ color, size }) => (
               <MaterialCommunityIcons
                 name="chat-outline"
                 color={color}
                 size={size}
               />
-            ),
-            headerLeft: () => (
-              <TouchableOpacity
-                onPress={() => navigation.navigate("Trang chủ")}
-                style={{ marginLeft: 15 }}
-              >
-                <MaterialCommunityIcons
-                  name="arrow-left"
-                  size={28}
-                  color="#fff"
-                />
-              </TouchableOpacity>
             ),
           })}
         />

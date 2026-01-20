@@ -195,10 +195,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           });
         }
       } catch (error: any) {
-        console.error('❌ Failed to fetch schedule for date:', error);
-        console.error('❌ Error type:', error?.constructor?.name);
-        console.error('❌ Error message:', error?.message);
-        console.error('❌ Error stack:', error?.stack);
         // Default: available all day on error
         const dateApiFormat = formatDateForAPI(selectedDate);
         setSelectedDateSchedule({
@@ -207,9 +203,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           booked_slots: [],
         });
       } finally {
-        console.log('🏁 Setting isLoadingSchedule to false');
         setIsLoadingSchedule(false);
-        console.log('🏁 Finished fetching schedule');
       }
     };
 
@@ -1009,8 +1003,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   // Payment step removed - payment will be done after caregiver completes the booking
   /*
   const renderStep4 = () => {
-    console.log('=== Rendering Step 4 (Payment) ===');
-    console.log('selectedPaymentMethod:', selectedPaymentMethod);
     
     const selectedPackage = servicePackages.find(p => p.id === immediateData.selectedPackage);
     const totalAmount = selectedPackage?.price || 0;
@@ -1435,7 +1427,6 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                                 setLastFetchedDate(dateStr);
                               }
                             } catch (error: any) {
-                              console.error('❌ Failed to fetch schedule for date:', error);
                               const dateApiFormat = formatDateForAPI(dateStr);
                               setSelectedDateSchedule({
                                 date: dateApiFormat,

@@ -48,11 +48,9 @@ export function LocationPickerModal({
           await setAccessToken(MAPBOX_ACCESS_TOKEN);
           setHasMapSupport(true);
         } else {
-          console.warn('⚠️ Mapbox access token not found');
           setHasMapSupport(false);
         }
       } catch (error) {
-        console.warn('❌ Mapbox setup error:', error);
         // Don't disable - native module might not be ready yet but will work after rebuild
         // setHasMapSupport(false);
       }
@@ -95,7 +93,7 @@ export function LocationPickerModal({
         setSelectedLocation({ lat, lng });
       }
     } catch (error) {
-      console.error('Error getting location:', error);
+      // Silent fail
       Alert.alert('Lỗi', 'Không thể lấy vị trí hiện tại');
     } finally {
       setLoading(false);

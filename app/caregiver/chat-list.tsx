@@ -1,434 +1,523 @@
-import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import React, { useState } from "react";
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Types
-interface ChatItem {
+import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/AuthContext';
+import { useConversations } from '@/hooks/useConversations';
+import { chatService } from '@/services/chat.service';
+import { useFocusEffect } from '@react-navigation/native';
+
+interface ChatConversation {
   id: string;
-  name: string;
-  avatar: string;
+  seekerId: string; // accountId của seeker
+  seekerName: string;
+  seekerAvatar: string;
   lastMessage: string;
-  time: string;
+  lastMessageTime: string;
   unreadCount: number;
   isOnline: boolean;
-  isPriority?: boolean;
-  isTyping?: boolean;
-  isSeen?: boolean;
+  isTyping: boolean;
 }
-
-// Mock data
-const chatData: ChatItem[] = [
-  {
-    id: "1",
-    name: "Nguyễn Thị Lan",
-    avatar: "👵",
-    lastMessage: "Chào anh, hôm nay tôi cảm thấy khỏe hơn rồi",
-    time: "9:30",
-    unreadCount: 2,
-    isOnline: true,
-    isPriority: true,
-  },
-  {
-    id: "2",
-    name: "Trần Văn Hùng",
-    avatar: "👴",
-    lastMessage: "đang nhập...",
-    time: "9:15",
-    unreadCount: 0,
-    isOnline: true,
-    isTyping: true,
-  },
-  {
-    id: "3",
-    name: "Lê Thị Phương",
-    avatar: "�",
-    lastMessage: "🚨 Khẩn cấp: Tôi vừa ngã, cần hỗ trợ ngay!",
-    time: "8:45",
-    unreadCount: 1,
-    isOnline: false,
-    isPriority: true,
-  },
-  {
-    id: "4",
-    name: "Nguyễn Thị Mai",
-    avatar: "👵",
-    lastMessage: "✓✓ Cảm ơn anh đã chăm sóc tôi rất tốt!",
-    time: "Hôm qua",
-    unreadCount: 0,
-    isOnline: false,
-    isSeen: true,
-  },
-  {
-    id: "5",
-    name: "Lê Văn Sơn",
-    avatar: "👴",
-    lastMessage: "✓ Vâng, tôi đã uống thuốc đầy đủ rồi",
-    time: "Hôm qua",
-    unreadCount: 0,
-    isOnline: false,
-  },
-  {
-    id: "6",
-    name: "Phạm Văn Minh",
-    avatar: "�",
-    lastMessage: "✓✓ Lịch tuần sau như thế nào a?",
-    time: "3 ngày trước",
-    unreadCount: 0,
-    isOnline: false,
-    isSeen: true,
-  },
-  {
-    id: "7",
-    name: "Hoàng Thị Hoa",
-    avatar: "👵",
-    lastMessage: "✓✓ Hẹn gặp lại anh tuần sau nhé",
-    time: "1 tuần trước",
-    unreadCount: 0,
-    isOnline: false,
-    isSeen: true,
-  },
-  {
-    id: "8",
-    name: "Hỗ trợ Elder Care",
-    avatar: "🏥",
-    lastMessage: "Chào mừng bạn đến với Elder Care Connect! 👋",
-    time: "2 tuần trước",
-    unreadCount: 0,
-    isOnline: false,
-  },
-];
 
 export default function ChatListScreen() {
   const navigation = useNavigation<any>();
-  const [activeFilter, setActiveFilter] = useState<"all" | "unread">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const { user } = useAuth();
+  
+  // Listen conversations real-time từ Firestore
+  const { conversations: firestoreConversations } = useConversations();
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter chats
-  const filteredChats = chatData.filter((chat) => {
-    const matchesSearch = chat.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = activeFilter === "all" || (activeFilter === "unread" && chat.unreadCount > 0);
-    return matchesSearch && matchesFilter;
-  });
+  const fetchConversations = React.useCallback(async () => {
+    if (!user?.id) {
+      setConversations([]);
+      setIsLoading(false);
+      return;
+    }
 
-  const unreadCount = chatData.filter((chat) => chat.unreadCount > 0).length;
+    try {
+      setIsLoading(true);
+      setError(null);
 
-  const handleChatPress = (chat: ChatItem) => {
-    navigation.navigate("Tin nhắn", { 
-      chatId: chat.id,
-      chatName: chat.name,
-      chatAvatar: chat.avatar,
+      const apiConversations = await chatService.getConversations();
+      const mappedConversations: ChatConversation[] = apiConversations.map((conv: any) => {
+        // API returns participantId (the other user - seeker)
+        const seekerId = conv.participantId || conv.seekerId || conv.userId || conv.receiverId || conv.id;
+
+        let timeStr = "Vừa xong";
+        if (conv.lastMessageTime) {
+          const lastTime = new Date(conv.lastMessageTime);
+          const now = new Date();
+          const diffMs = now.getTime() - lastTime.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+
+          if (diffMins < 1) {
+            timeStr = "Vừa xong";
+          } else if (diffMins < 60) {
+            timeStr = `${diffMins} phút trước`;
+          } else if (diffHours < 24) {
+            timeStr = lastTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          } else if (diffDays === 1) {
+            timeStr = "Hôm qua";
+          } else if (diffDays < 7) {
+            timeStr = `${diffDays} ngày trước`;
+          } else {
+            timeStr = lastTime.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+          }
+        }
+
+        return {
+          id: seekerId,
+          seekerId,
+          seekerName: conv.participantName || conv.seekerName || conv.userName || conv.name || "Người dùng",
+          seekerAvatar: conv.participantAvatar || conv.seekerAvatar || conv.userAvatar || conv.avatar || "",
+          lastMessage: conv.lastMessage || conv.content || "",
+          lastMessageTime: timeStr,
+          unreadCount: conv.unreadCount || 0,
+          isOnline: conv.isOnline || false,
+          isTyping: conv.isTyping || false,
+        };
+      });
+
+      setConversations(mappedConversations);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Không thể tải danh sách tin nhắn';
+      setError(message);
+      setConversations([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchConversations();
+    }, [fetchConversations])
+  );
+
+  // Map Firestore conversations to ChatConversation format
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    // Update từ Firestore nhưng giữ lại tên/avatar từ API
+    if (firestoreConversations.length > 0) {
+      setConversations((prev) => {
+        const existingMap = new Map(prev.map(conv => [conv.id, conv]));
+        
+        firestoreConversations.forEach((conv: any) => {
+          // Get other participant (not current user) - should be seeker
+          const participants = conv.participants || [];
+          const seekerId = participants.find((id: string) => id !== user.id) || participants[0] || conv.id;
+          
+          // Format timestamp
+          let timeStr = "Vừa xong";
+          if (conv.lastMessageTime) {
+            const lastTime = conv.lastMessageTime?.toDate ? conv.lastMessageTime.toDate() : new Date(conv.lastMessageTime);
+            const now = new Date();
+            const diffMs = now.getTime() - lastTime.getTime();
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) {
+              timeStr = "Vừa xong";
+            } else if (diffMins < 60) {
+              timeStr = `${diffMins} phút trước`;
+            } else if (diffHours < 24) {
+              timeStr = lastTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+            } else if (diffDays === 1) {
+              timeStr = "Hôm qua";
+            } else if (diffDays < 7) {
+              timeStr = `${diffDays} ngày trước`;
+            } else {
+              timeStr = lastTime.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            }
+          }
+
+          // Lấy existing conversation từ API (có tên/avatar đúng)
+          const existingConv = existingMap.get(seekerId);
+          
+          // Kiểm tra xem có lastMessage mới không (so sánh với existing)
+          const hasNewMessage = conv.lastMessage && 
+            conv.lastMessage !== existingConv?.lastMessage &&
+            conv.lastMessage.trim() !== '';
+          
+          // Xác định unreadCount: ưu tiên Firestore, nếu có tin nhắn mới thì tăng unreadCount
+          let unreadCount = conv.unreadCount;
+          if (unreadCount === undefined || unreadCount === null) {
+            if (hasNewMessage) {
+              // Có tin nhắn mới: tăng unreadCount
+              unreadCount = (existingConv?.unreadCount ?? 0) + 1;
+            } else {
+              // Giữ nguyên từ existing
+              unreadCount = existingConv?.unreadCount ?? 0;
+            }
+          } else if (hasNewMessage && unreadCount === 0) {
+            // Nếu Firestore báo unreadCount = 0 nhưng có lastMessage mới, có thể là chưa sync
+            // Tăng lên 1 để đảm bảo hiển thị
+            unreadCount = 1;
+          }
+          
+          // Update chỉ các field real-time từ Firestore, giữ lại tên/avatar từ API
+          const updatedConv: ChatConversation = {
+            id: seekerId,
+            seekerId: seekerId,
+            seekerName: existingConv?.seekerName || conv.participantName || conv.seekerName || conv.userName || conv.name || "Người dùng",
+            seekerAvatar: existingConv?.seekerAvatar || conv.participantAvatar || conv.seekerAvatar || conv.userAvatar || conv.avatar || "",
+            lastMessage: conv.lastMessage || conv.content || existingConv?.lastMessage || "",
+            lastMessageTime: timeStr,
+            unreadCount: unreadCount,
+            isOnline: conv.isOnline ?? existingConv?.isOnline ?? false,
+            isTyping: conv.isTyping ?? existingConv?.isTyping ?? false,
+          };
+          
+          existingMap.set(seekerId, updatedConv);
+        });
+        
+        return Array.from(existingMap.values());
+      });
+    }
+  }, [firestoreConversations, user?.id]);
+
+  const handleConversationPress = (conversation: ChatConversation) => {
+    // Validate conversation data trước khi navigate
+    if (!conversation.seekerId || !conversation.id) {
+      return; // Không navigate nếu thiếu data
+    }
+
+    // KHÔNG mark as read ở đây - chỉ mark khi thực sự vào chat screen và xem tin nhắn
+    // Việc mark as read sẽ được xử lý trong chat.tsx khi user thực sự xem tin nhắn
+    
+    // Đảm bảo receiverId được pass đúng - conversation.seekerId đã là accountId (nếu có từ API)
+    const receiverId = conversation.seekerId || conversation.id;
+    
+    navigation.navigate("Tin nhắn", {
+      receiverId: receiverId, // accountId của seeker (nếu có từ API)
+      seekerId: receiverId, // Alias
+      accountId: receiverId, // accountId để gửi tin nhắn (đảm bảo là accountId, không phải profileId)
+      chatName: conversation.seekerName || "Người dùng",
+      chatAvatar: conversation.seekerAvatar || "", // Dùng URL gốc, không encode/decode
       fromScreen: "chat-list"
     });
   };
 
-  const renderChatItem = (chat: ChatItem) => (
+  const handleMarkAllAsRead = () => {
+    setConversations(prev => 
+      prev.map(conv => ({ ...conv, unreadCount: 0 }))
+    );
+  };
+
+  const formatTime = (timeString: string) => {
+    // If it's a time like "10:30", return as is
+    if (timeString.includes(':')) {
+      return timeString;
+    }
+    // If it's "Hôm qua", "2 ngày trước", etc., return as is
+    return timeString;
+  };
+
+  const totalUnreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
+
+  const renderConversation = (conversation: ChatConversation) => (
     <TouchableOpacity
-      key={chat.id}
-      style={[
-        styles.chatItem,
-        chat.unreadCount > 0 && styles.chatItemUnread,
-      ]}
-      onPress={() => handleChatPress(chat)}
+      key={conversation.id}
+      style={styles.conversationItem}
+      onPress={() => handleConversationPress(conversation)}
+      activeOpacity={0.7}
     >
       <View style={styles.avatarContainer}>
         <View style={styles.avatar}>
-          <MaterialCommunityIcons
-            name={chat.avatar === "🏥" ? "hospital-building" : "account"}
-            size={32}
-            color="#2196F3"
-          />
+          {conversation.seekerAvatar ? (
+            <Image source={{ uri: conversation.seekerAvatar }} style={styles.avatarImage} />
+          ) : (
+            <ThemedText style={styles.avatarText}>
+              {conversation.seekerName ? conversation.seekerName.split(' ').pop()?.charAt(0) : '?'}
+            </ThemedText>
+          )}
         </View>
-        {chat.isOnline && <View style={styles.onlineBadge} />}
+        {conversation.isOnline && (
+          <View style={styles.onlineIndicator} />
+        )}
       </View>
 
-      <View style={styles.chatContent}>
-        <View style={styles.chatHeader}>
-          <Text style={styles.chatName}>{chat.name}</Text>
-          <Text style={styles.chatTime}>{chat.time}</Text>
+      <View style={styles.conversationContent}>
+        <View style={styles.conversationHeader}>
+          <ThemedText style={styles.seekerName}>
+            {conversation.seekerName}
+          </ThemedText>
+          <ThemedText style={styles.messageTime}>
+            {formatTime(conversation.lastMessageTime)}
+          </ThemedText>
         </View>
-        <View style={styles.chatMessageRow}>
-          {chat.isPriority && !chat.isTyping && (
-            <Text style={styles.priorityIcon}>🚨</Text>
-          )}
-          <Text
+
+        <View style={styles.messageContainer}>
+          <ThemedText 
             style={[
-              styles.chatMessage,
-              chat.isTyping && styles.chatMessageTyping,
-              chat.unreadCount > 0 && styles.chatMessageUnread,
+              styles.lastMessage,
+              conversation.unreadCount > 0 && styles.unreadMessage
             ]}
             numberOfLines={1}
           >
-            {chat.lastMessage}
-          </Text>
-          {chat.unreadCount > 0 && (
+            {conversation.isTyping ? 'Đang nhập...' : conversation.lastMessage}
+          </ThemedText>
+          
+          {conversation.unreadCount > 0 && (
             <View style={styles.unreadBadge}>
-              <Text style={styles.unreadBadgeText}>{chat.unreadCount}</Text>
+              <ThemedText style={styles.unreadCount}>
+                {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+              </ThemedText>
             </View>
           )}
         </View>
       </View>
+
+      <Ionicons name="chevron-forward" size={16} color="#6c757d" />
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <MaterialCommunityIcons
-          name="magnify"
-          size={20}
-          color="#6B7280"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Tìm kiếm tin nhắn..."
-          placeholderTextColor="#9CA3AF"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Header */}
+      <View style={styles.header}>
         <TouchableOpacity
-          style={[
-            styles.filterTab,
-            activeFilter === "all" && styles.filterTabActive,
-          ]}
-          onPress={() => setActiveFilter("all")}
+          style={styles.backButton}
+          onPress={() => navigation.navigate("Trang chủ")}
         >
-          <Text
-            style={[
-              styles.filterTabText,
-              activeFilter === "all" && styles.filterTabTextActive,
-            ]}
-          >
-            Tất cả
-          </Text>
-          <View style={styles.filterBadge}>
-            <Text style={styles.filterBadgeText}>{chatData.length}</Text>
-          </View>
+          <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.filterTab,
-            activeFilter === "unread" && styles.filterTabActive,
-          ]}
-          onPress={() => setActiveFilter("unread")}
-        >
-          <Text
-            style={[
-              styles.filterTabText,
-              activeFilter === "unread" && styles.filterTabTextActive,
-            ]}
-          >
-            Chưa đọc
-          </Text>
-          {unreadCount > 0 && (
-            <View style={[styles.filterBadge, styles.filterBadgeUnread]}>
-              <Text style={styles.filterBadgeText}>{unreadCount}</Text>
-            </View>
+        
+        <View style={styles.headerContent}>
+          <ThemedText style={styles.headerTitle}>Tin nhắn</ThemedText>
+          <ThemedText style={styles.headerSubtitle}>
+            {totalUnreadCount > 0 ? `${totalUnreadCount} tin nhắn chưa đọc` : 'Tất cả đã đọc'}
+          </ThemedText>
+        </View>
+        
+        <View style={styles.headerActions}>
+          {totalUnreadCount > 0 && (
+            <TouchableOpacity style={styles.markAllButton} onPress={handleMarkAllAsRead}>
+              <Ionicons name="checkmark-done" size={20} color="white" />
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Chat List */}
-      <ScrollView
-        style={styles.chatList}
-        contentContainerStyle={styles.chatListContent}
+      {/* Content */}
+      <ScrollView 
+        style={styles.content} 
         showsVerticalScrollIndicator={false}
       >
-        {filteredChats.map(renderChatItem)}
+        {isLoading ? (
+          <View style={styles.emptyContainer}>
+            <ActivityIndicator size="large" color="#68C2E8" />
+            <ThemedText style={styles.emptySubtitle}>Đang tải danh sách tin nhắn...</ThemedText>
+          </View>
+        ) : error ? (
+          <View style={styles.emptyContainer}>
+            <ThemedText style={styles.emptySubtitle}>{error}</ThemedText>
+          </View>
+        ) : conversations.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="chatbubbles-outline" size={64} color="#ced4da" />
+            <ThemedText style={styles.emptyTitle}>Chưa có cuộc trò chuyện</ThemedText>
+            <ThemedText style={styles.emptySubtitle}>
+              Bạn chưa có cuộc trò chuyện nào. Tin nhắn sẽ xuất hiện ở đây khi có người nhắn cho bạn.
+            </ThemedText>
+          </View>
+        ) : (
+          <View style={styles.conversationsList}>
+            {conversations.map(renderConversation)}
+          </View>
+        )}
       </ScrollView>
-
-      {/* Bottom Navigation */}
-      <CaregiverBottomNav activeTab="home" />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: '#f8f9fa',
   },
-
-  // Search
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    margin: 16,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+  header: {
+    backgroundColor: '#68C2E8',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  searchIcon: {
-    marginRight: 8,
+  backButton: {
+    padding: 8,
+    minWidth: 40,
+    alignItems: 'center',
   },
-  searchInput: {
+  headerContent: {
     flex: 1,
-    fontSize: 15,
-    color: "#1F2937",
+    alignItems: 'center',
   },
-
-  // Filter
-  filterContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    gap: 12,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
   },
-  filterTab: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    gap: 8,
-  },
-  filterTabActive: {
-    backgroundColor: "#3B82F6",
-  },
-  filterTabText: {
+  headerSubtitle: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 2,
   },
-  filterTabTextActive: {
-    color: "#fff",
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 40,
+    justifyContent: 'flex-end',
   },
-  filterBadge: {
-    backgroundColor: "#E5E7EB",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 24,
-    alignItems: "center",
+  markAllButton: {
+    padding: 8,
+    marginRight: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
   },
-  filterBadgeUnread: {
-    backgroundColor: "#EF4444",
-  },
-  filterBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#374151",
-  },
-
-  // Chat List
-  chatList: {
+  content: {
     flex: 1,
   },
-  chatListContent: {
-    paddingBottom: 100,
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
   },
-  chatItem: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  chatItemUnread: {
-    backgroundColor: "#FEF3C7",
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#6c757d',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  conversationsList: {
+    padding: 20,
+  },
+  conversationItem: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   avatarContainer: {
-    position: "relative",
+    position: 'relative',
     marginRight: 12,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#E3F2FD",
-    justifyContent: "center",
-    alignItems: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#68C2E8',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  onlineBadge: {
-    position: "absolute",
+  avatarText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  onlineIndicator: {
+    position: 'absolute',
     bottom: 2,
     right: 2,
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: "#10B981",
+    backgroundColor: '#28a745',
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: 'white',
   },
-  chatContent: {
+  conversationContent: {
     flex: 1,
-    justifyContent: "center",
+    marginRight: 8,
   },
-  chatHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  conversationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
   },
-  chatName: {
+  seekerName: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontWeight: '600',
+    color: '#2c3e50',
     flex: 1,
   },
-  chatTime: {
+  messageTime: {
     fontSize: 12,
-    color: "#9CA3AF",
-    marginLeft: 8,
+    color: '#6c757d',
   },
-  chatMessageRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+  messageContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  priorityIcon: {
+  lastMessage: {
     fontSize: 14,
-  },
-  chatMessage: {
+    color: '#6c757d',
     flex: 1,
-    fontSize: 14,
-    color: "#6B7280",
   },
-  chatMessageTyping: {
-    color: "#3B82F6",
-    fontStyle: "italic",
-  },
-  chatMessageUnread: {
-    fontWeight: "600",
-    color: "#1F2937",
+  unreadMessage: {
+    fontWeight: '600',
+    color: '#2c3e50',
   },
   unreadBadge: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: '#68C2E8',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginLeft: 8,
   },
-  unreadBadgeText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "700",
+  unreadCount: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
   },
 });

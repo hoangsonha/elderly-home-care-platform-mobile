@@ -27,32 +27,24 @@ export default function LoginScreen() {
   const { showErrorTooltip } = useErrorNotification();
 
   const handleLogin = async () => {
-    console.log('🎯 LoginScreen.handleLogin - Start');
     if (!email || !password) {
-      console.warn('⚠️ Email or password is empty');
       showErrorTooltip("Vui lòng nhập đầy đủ email và mật khẩu");
       return;
     }
 
-    console.log('📝 Email:', email);
-    console.log('🔒 Password provided:', password ? 'Yes' : 'No');
     setIsLoading(true);
 
     try {
       // Gọi login trong AuthContext
-      console.log('📞 Calling AuthContext.login...');
       const user = await login(email, password);
 
       setIsLoading(false);
-      console.log('👤 Login result:', user ? 'User received' : 'Null');
 
       if (!user) {
-        console.error('❌ Login failed: No user returned');
         showErrorTooltip("Email hoặc mật khẩu không đúng");
         return;
       }
 
-      console.log('✅ Login successful!');
       showSuccessTooltip("Đăng nhập thành công!");
 
       // Điều hướng theo role - delay để đảm bảo navigation sẵn sàng
@@ -80,9 +72,6 @@ export default function LoginScreen() {
       }, 600);
     } catch (error: any) {
       setIsLoading(false);
-      console.error('❌ LoginScreen error:', error);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error response:', error.response?.data);
       showErrorTooltip("Đăng nhập thất bại");
     }
   };

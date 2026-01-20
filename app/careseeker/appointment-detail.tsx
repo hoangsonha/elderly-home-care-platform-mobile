@@ -687,6 +687,7 @@ export default function AppointmentDetailScreen() {
       params: {
         caregiverId: appointmentData.caregiverProfile.caregiverProfileId,
         caregiverName: appointmentData.caregiverProfile.fullName,
+        caregiverAvatar: appointmentData.caregiverProfile.avatarUrl,
       },
     });
   };

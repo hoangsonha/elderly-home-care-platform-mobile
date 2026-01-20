@@ -30,6 +30,7 @@ import { useAuth } from '@/contexts/AuthContext';
 // import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
 import { CaregiverRecommendation, MatchResponse } from '@/services/types';
 import { caregiverService, type PublicCaregiver } from '@/services/caregiver.service';
+import { chatService } from '@/services/chat.service';
 
 // Mock data
 const mockElderlyProfiles = [
@@ -139,16 +140,21 @@ export default function CaregiverSearchScreen() {
           const yearsExperience = cg.years_experience || cg.profileData?.years_experience;
           const experienceText = yearsExperience !== undefined ? `${yearsExperience} năm` : 'Chưa có';
           
+          // Get rating and total_reviews from profileData.ratings_reviews
+          const ratingsReviews = cg.profileData?.ratings_reviews;
+          const rating = ratingsReviews?.overall_rating || 0;
+          const totalReviews = ratingsReviews?.total_reviews || 0;
+          
           return {
           id: cg.caregiverProfileId,
           name: cg.fullName,
           avatar: cg.avatarUrl || 'https://via.placeholder.com/150',
-          rating: 0, // Tạm thời set 0
+          rating: rating,
             experience: experienceText,
           hourlyRate: 0, // Không hiển thị nữa nhưng vẫn cần trong interface
           distance: '5km', // Fix cứng 5km
           isVerified: cg.isVerified,
-          totalReviews: 0, // Tạm thời set 0
+          totalReviews: totalReviews,
           };
         });
         
@@ -174,14 +180,46 @@ export default function CaregiverSearchScreen() {
     router.push('/careseeker/caregiver-detail');
   };
 
-  const handleChatPress = (caregiver: Caregiver) => {
-    router.push({
-      pathname: '/careseeker/chat',
-      params: {
-        caregiverId: caregiver.id,
-        caregiverName: caregiver.name,
+  const handleChatPress = async (caregiver: Caregiver) => {
+    try {
+      // caregiver.id là caregiverProfileId, cần lấy accountId
+      // Gọi API để lấy chi tiết caregiver (có accountId)
+      const caregiverDetail = await caregiverService.getPublicCaregiverById(caregiver.id);
+      
+      // Lấy accountId từ response
+      const accountId = caregiverDetail.accountId;
+      
+      if (!accountId) {
+        throw new Error('AccountId not found');
       }
-    });
+      
+      // Gọi API để lấy chatId với accountId (receiverId)
+      const chatIdResponse = await chatService.getChatId(accountId);
+      
+      const chatId = chatIdResponse.chatId || chatIdResponse.id;
+      
+      // Navigate đến chat screen với chatId
+      router.push({
+        pathname: '/careseeker/chat',
+        params: {
+          chatId: chatId,
+          caregiverId: caregiver.id, // caregiverProfileId
+          accountId: accountId, // accountId
+          caregiverName: caregiver.name,
+          caregiverAvatar: caregiver.avatar,
+        }
+      });
+    } catch (error: any) {
+      // Nếu API fail, vẫn navigate với caregiverId (fallback)
+      router.push({
+        pathname: '/careseeker/chat',
+        params: {
+          caregiverId: caregiver.id,
+          caregiverName: caregiver.name,
+          caregiverAvatar: caregiver.avatar,
+        }
+      });
+    }
   };
 
   const handleBookNow = (caregiver: Caregiver) => {
@@ -388,7 +426,14 @@ export default function CaregiverSearchScreen() {
         >
           <View style={styles.resultsHeader}>
             <ThemedText style={styles.resultsCount}>
-              {isLoading ? 'Đang tải...' : `Tìm thấy ${caregivers.length} người chăm sóc`}
+              {isLoading ? 'Đang tải...' : `Tìm thấy ${caregivers.filter((caregiver) => {
+                if (!searchQuery.trim()) return true;
+                const query = searchQuery.toLowerCase();
+                return (
+                  caregiver.name.toLowerCase().includes(query) ||
+                  caregiver.experience.toLowerCase().includes(query)
+                );
+              }).length} người chăm sóc`}
             </ThemedText>
             {!isLoading && (
               <TouchableOpacity style={styles.sortButton}>
@@ -404,15 +449,25 @@ export default function CaregiverSearchScreen() {
             </View>
           ) : (
             <View style={styles.caregiversList}>
-              {caregivers.map((caregiver) => (
-                <CaregiverCard
-                  key={caregiver.id}
-                  caregiver={caregiver}
-                  onPress={handleCaregiverPress}
-                  onBookPress={handleBookNow}
-                  onChatPress={handleChatPress}
-                />
-              ))}
+              {caregivers
+                .filter((caregiver) => {
+                  // Filter by search query
+                  if (!searchQuery.trim()) return true;
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    caregiver.name.toLowerCase().includes(query) ||
+                    caregiver.experience.toLowerCase().includes(query)
+                  );
+                })
+                .map((caregiver) => (
+                  <CaregiverCard
+                    key={caregiver.id}
+                    caregiver={caregiver}
+                    onPress={handleCaregiverPress}
+                    onBookPress={handleBookNow}
+                    onChatPress={handleChatPress}
+                  />
+                ))}
             </View>
           )}
 

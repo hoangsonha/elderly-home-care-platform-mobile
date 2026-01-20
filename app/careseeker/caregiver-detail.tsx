@@ -236,6 +236,7 @@ export default function CaregiverDetailScreen() {
         params: {
           caregiverId: caregiver.id,
           caregiverName: caregiver.name,
+          caregiverAvatar: caregiver.avatar,
         }
       });
     } catch (error) {

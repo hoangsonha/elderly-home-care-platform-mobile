@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState, useCallback } from 'react';
 import {
-    Alert,
+    Modal,
     Image,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
     View,
     ActivityIndicator,
+    Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -52,6 +53,7 @@ export default function ProfileScreen() {
     const { user, logout } = useAuth();
     const bottomNavPadding = useBottomNavPadding();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [profile, setProfile] = useState<CareSeekerProfileData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -68,7 +70,6 @@ export default function ProfileScreen() {
                 setError(response.message || 'Không thể tải thông tin profile');
             }
         } catch (err: any) {
-            console.error('Error fetching profile:', err);
             setError(err.message || 'Có lỗi xảy ra khi tải thông tin');
         } finally {
             setLoading(false);
@@ -82,22 +83,19 @@ export default function ProfileScreen() {
     );
 
     const handleLogout = () => {
-        Alert.alert(
-            'Đăng xuất',
-            'Bạn có chắc chắn muốn đăng xuất?',
-            [
-                { text: 'Hủy', style: 'cancel' },
-                {
-                    text: 'Đăng xuất',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setIsLoggingOut(true);
-                        await logout();
-                        router.replace('/login');
-                    },
-                },
-            ]
-        );
+        setShowLogoutConfirm(true);
+    };
+
+    const confirmLogout = async () => {
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+        try {
+            await logout();
+            router.replace('/login');
+        } finally {
+            setIsLoggingOut(false);
+            setShowLogoutConfirm(false);
+        }
     };
 
     const menuSections = [
@@ -188,9 +186,15 @@ export default function ProfileScreen() {
     ];
 
     const handleMenuPress = (item: MenuItem) => {
+        if (item.id === 'logout') {
+            handleLogout();
+            return;
+        }
         if (item.action) {
             item.action();
-        } else if (item.route) {
+            return;
+        }
+        if (item.route) {
             router.push(item.route as any);
         }
     };
@@ -225,7 +229,48 @@ export default function ProfileScreen() {
     const totalCompletedBookings = profile?.totalCompletedBookings || 0;
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <>
+                <Modal
+                    transparent={true}
+                    visible={showLogoutConfirm}
+                    animationType="fade"
+                    onRequestClose={() => {
+                        setShowLogoutConfirm(false);
+                    }}
+                    statusBarTranslucent={true}
+                    hardwareAccelerated={true}
+                    presentationStyle="overFullScreen"
+                >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Đăng xuất</Text>
+                        <Text style={styles.modalMessage}>
+                            Bạn có chắc chắn muốn đăng xuất?
+                        </Text>
+                            <View style={styles.modalActions}>
+                                <TouchableOpacity
+                                    style={styles.modalCancelButton}
+                                    onPress={() => {
+                                        setShowLogoutConfirm(false);
+                                    }}
+                                    disabled={isLoggingOut}
+                                >
+                                    <Text style={styles.modalCancelText}>Hủy</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.modalConfirmButton}
+                                    onPress={confirmLogout}
+                                    disabled={isLoggingOut}
+                                >
+                                    <Text style={styles.modalConfirmText}>
+                                        {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+            <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header with Profile Info */}
             <View style={styles.header}>
                 <View style={styles.profileSection}>
@@ -339,7 +384,8 @@ export default function ProfileScreen() {
             </ScrollView>
 
             <SimpleNavBar />
-        </SafeAreaView>
+            </SafeAreaView>
+        </>
     );
 }
 
@@ -567,6 +613,70 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '600',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        zIndex: 9999,
+    },
+    modalContent: {
+        width: '100%',
+        maxWidth: 360,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 10,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1F2937',
+        marginBottom: 8,
+    },
+    modalMessage: {
+        fontSize: 14,
+        color: '#6B7280',
+        marginBottom: 16,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 20,
+    },
+    modalCancelButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 10,
+        backgroundColor: '#E5E7EB',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 6,
+    },
+    modalCancelText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#1F2937',
+    },
+    modalConfirmButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 10,
+        backgroundColor: '#EF4444',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 6,
+    },
+    modalConfirmText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#fff',
     },
 });
 
