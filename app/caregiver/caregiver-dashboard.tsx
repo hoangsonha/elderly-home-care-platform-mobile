@@ -503,16 +503,19 @@ export default function CaregiverDashboardScreen() {
         {/* New Requests Alert - Always show, even with 0 requests */}
         {loadingNewRequests ? (
           <View style={styles.alertCard}>
-            <ActivityIndicator size="small" color="#FF9800" />
-            <Text style={[styles.alertSubtitle, { marginLeft: 12 }]}>Đang tải yêu cầu mới...</Text>
+            <View style={styles.alertContent}>
+              <ActivityIndicator size="large" color="#68C2E8" />
+              <Text style={[styles.alertSubtitle, { marginTop: 12, textAlign: 'center' }]}>Đang tải yêu cầu mới...</Text>
+            </View>
           </View>
         ) : (
           <TouchableOpacity 
             style={styles.alertCard}
             onPress={() => navigation.navigate("Yêu cầu dịch vụ", { initialTab: "Mới" })}
+            activeOpacity={0.9}
           >
             <View style={styles.alertIconContainer}>
-              <Text style={styles.alertIcon}>📋</Text>
+              <Ionicons name="document-text" size={24} color="#FF9800" />
             </View>
             <View style={styles.alertContent}>
               <Text style={styles.alertTitle}>
@@ -522,7 +525,7 @@ export default function CaregiverDashboardScreen() {
                 {newRequestsCount > 0 ? 'Hãy phản hồi để nhận việc' : 'Chưa có yêu cầu mới'}
               </Text>
             </View>
-            <Text style={styles.alertArrow}>›</Text>
+            <Ionicons name="arrow-forward" size={24} color="#68C2E8" style={styles.alertArrow} />
           </TouchableOpacity>
         )}
 
@@ -553,7 +556,7 @@ export default function CaregiverDashboardScreen() {
                 <View style={styles.appointmentHeader}>
                   <View style={styles.appointmentInfo}>
                     <View style={styles.avatarCircle}>
-                      <Text style={styles.avatarEmoji}>👤</Text>
+                      <Ionicons name="person" size={24} color="#FFFFFF" />
                     </View>
                     <View style={styles.appointmentDetails}>
                       <Text style={styles.appointmentName}>
@@ -572,11 +575,11 @@ export default function CaregiverDashboardScreen() {
                 <View style={styles.appointmentFooter}>
                   <View style={styles.appointmentTimeLocation}>
                     <View style={styles.timeRow}>
-                      <Text style={styles.timeIcon}>🕐</Text>
+                      <Ionicons name="time-outline" size={18} color="#68C2E8" />
                       <Text style={styles.timeText}>{appointment.start_time}</Text>
                     </View>
                     <View style={styles.locationRow}>
-                      <Text style={styles.locationIcon}>📍</Text>
+                      <Ionicons name="location-outline" size={18} color="#68C2E8" />
                       <Text style={styles.locationText}>{appointment.work_location || 'Chưa có địa chỉ'}</Text>
                     </View>
                   </View>
@@ -609,9 +612,9 @@ export default function CaregiverDashboardScreen() {
       <View style={styles.statsOuterContainer}>
         <View style={styles.statsContainer}>
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: "#E3F2FD" }]}>
+            <View style={[styles.statCard, { backgroundColor: "#E8F2FF" }]}>
               <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>📄</Text>
+                <Ionicons name="calendar" size={28} color="#4A90E2" />
               </View>
               {loadingStatistics ? (
                 <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
@@ -621,9 +624,9 @@ export default function CaregiverDashboardScreen() {
               <Text style={styles.statLabel}>Lịch hẹn tháng này</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: "#E8F5E9" }]}>
+            <View style={[styles.statCard, { backgroundColor: "#EFFAF3" }]}>
               <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>💰</Text>
+                <Ionicons name="cash" size={28} color="#10B981" />
               </View>
               {loadingStatistics ? (
                 <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
@@ -637,9 +640,9 @@ export default function CaregiverDashboardScreen() {
           </View>
 
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: "#FFF3E0" }]}>
+            <View style={[styles.statCard, { backgroundColor: "#FFF8E1" }]}>
               <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>⭐</Text>
+                <Ionicons name="star" size={28} color="#FFA726" />
               </View>
               {loadingStatistics ? (
                 <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
@@ -651,9 +654,9 @@ export default function CaregiverDashboardScreen() {
               <Text style={styles.statLabel}>Đánh giá tổng</Text>
             </View>
 
-            <View style={[styles.statCard, { backgroundColor: "#EDE7F6" }]}>
+            <View style={[styles.statCard, { backgroundColor: "#F3E8FF" }]}>
               <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>✓</Text>
+                <Ionicons name="checkmark-circle" size={28} color="#9333EA" />
               </View>
               {loadingStatistics ? (
                 <ActivityIndicator size="small" color="#1F2937" style={{ marginVertical: 8 }} />
@@ -758,7 +761,7 @@ export default function CaregiverDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#FAFAFA",
   },
 
   loadingContainer: {
@@ -798,14 +801,76 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   statusBadge: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 20,
   },
   statusBadgeText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  appointmentFooter: {
+    backgroundColor: '#F9FAFB',
+    padding: 16,
+    paddingTop: 16,
+  },
+  appointmentTimeLocation: {
+    marginBottom: 16,
+  },
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  timeText: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  locationText: {
+    fontSize: 14,
+    color: "#374151",
+    flex: 1,
+    marginLeft: 8,
+  },
+  appointmentActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  detailButton: {
+    flex: 1,
+    backgroundColor: "#68C2E8",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  detailButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  contactButton: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
+  },
+  contactButtonText: {
+    color: "#374151",
+    fontSize: 15,
+    fontWeight: "700",
   },
 
   scrollContainer: {
@@ -816,15 +881,17 @@ const styles = StyleSheet.create({
   // Header styles
   header: {
     backgroundColor: '#68C2E8',
-    paddingTop: 45,
+    paddingTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 56,
+    minHeight: 60,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -840,10 +907,23 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#68C2E8',
   },
   badge: {
     position: 'absolute',
@@ -891,17 +971,17 @@ const styles = StyleSheet.create({
     zIndex: 1002,
   },
   avatarButton: {
-    marginRight: 14,
+    marginRight: 12,
   },
   userAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: '#FFFFFF',
   },
   userAvatarImage: {
     width: 48,
@@ -915,20 +995,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   greeting: {
-    fontSize: 14,
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 3,
+    marginBottom: 2,
+    fontWeight: '500',
   },
   userName: {
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
   },
 
   // Stats outer container
   statsOuterContainer: {
-    marginTop: 16,
-    paddingHorizontal: 16,
+    marginTop: 0,
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
 
   // Statistics styles
@@ -938,102 +1020,127 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: "row",
-    marginBottom: 12,
-    gap: 12,
+    marginBottom: 16,
+    gap: 16,
   },
   statCard: {
     width: CARD_WIDTH,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
     alignItems: "center",
-    minHeight: 140,
+    minHeight: 150,
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#fff",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#F9FAFB",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 16,
   },
   statIcon: {
-    fontSize: 24,
+    fontSize: 32,
   },
   statValue: {
-    fontSize: 28,
-    fontWeight: "700",
+    fontSize: 32,
+    fontWeight: "800",
     color: "#1F2937",
     marginTop: 4,
   },
   statLabel: {
     fontSize: 13,
     color: "#6B7280",
-    marginTop: 4,
+    marginTop: 8,
+    fontWeight: "500",
+    textAlign: "center",
   },
 
   // Alert card styles
   alertCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFF3E0",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#FFE0B2",
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 20,
+    padding: 0,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   alertIconContainer: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#FF9800",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   alertIcon: {
     fontSize: 24,
+    color: "#FF9800",
   },
   alertContent: {
-    flex: 1,
+    padding: 20,
+    paddingTop: 80,
+    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    minHeight: 160,
   },
   alertTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 24,
+    fontWeight: "800",
     color: "#1F2937",
-    marginBottom: 4,
+    marginBottom: 6,
   },
   alertSubtitle: {
     fontSize: 14,
     color: "#6B7280",
+    fontWeight: "400",
+    lineHeight: 20,
   },
   alertArrow: {
-    fontSize: 24,
-    color: "#FF9800",
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    fontSize: 28,
+    color: "#68C2E8",
     fontWeight: "700",
   },
 
   // Schedule card styles
   scheduleCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginVertical: 8,
-    padding: 20,
-    borderRadius: 16,
+    backgroundColor: "transparent",
+    marginHorizontal: 20,
+    marginBottom: 24,
+    padding: 0,
   },
   scheduleHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
+    paddingHorizontal: 4,
   },
   scheduleTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
     color: "#1F2937",
   },
@@ -1045,18 +1152,53 @@ const styles = StyleSheet.create({
 
   // Appointment card styles
   appointmentCard: {
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   appointmentHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    padding: 20,
+    paddingBottom: 16,
+  },
+  appointmentInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#68C2E8",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  avatarEmoji: {
+    fontSize: 22,
+    color: "#FFFFFF",
+  },
+  appointmentDetails: {
+    flex: 1,
+  },
+  appointmentName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  appointmentMeta: {
+    fontSize: 14,
+    color: "#6B7280",
   },
   appointmentInfo: {
     flexDirection: "row",
@@ -1091,38 +1233,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
-  },
-  appointmentFooter: {
-    marginTop: 12,
-  },
-  appointmentTimeLocation: {
-    marginBottom: 12,
-  },
-  timeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  timeIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  timeText: {
-    fontSize: 14,
-    color: "#374151",
-  },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  locationIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  locationText: {
-    fontSize: 14,
-    color: "#374151",
-    flex: 1,
   },
   appointmentActions: {
     flexDirection: "row",

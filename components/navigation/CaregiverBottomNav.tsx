@@ -25,7 +25,7 @@ export default function CaregiverBottomNav({ activeTab }: CaregiverBottomNavProp
           <MaterialCommunityIcons 
             name="home" 
             size={24} 
-            color={activeTab === "home" ? "#2196F3" : "#78909C"} 
+            color={activeTab === "home" ? "#FFFFFF" : "#9CA3AF"} 
           />
         </View>
         <Text style={activeTab === "home" ? styles.navLabelActive : styles.navLabel}>Trang chủ</Text>
@@ -39,7 +39,7 @@ export default function CaregiverBottomNav({ activeTab }: CaregiverBottomNavProp
           <MaterialCommunityIcons 
             name="clipboard-text" 
             size={24} 
-            color={activeTab === "jobs" ? "#2196F3" : "#78909C"} 
+            color={activeTab === "jobs" ? "#FFFFFF" : "#9CA3AF"} 
           />
         </View>
         <Text style={activeTab === "jobs" ? styles.navLabelActive : styles.navLabel}>Yêu cầu</Text>
@@ -53,7 +53,7 @@ export default function CaregiverBottomNav({ activeTab }: CaregiverBottomNavProp
           <MaterialCommunityIcons 
             name="calendar-month" 
             size={24} 
-            color={activeTab === "schedule" ? "#2196F3" : "#78909C"} 
+            color={activeTab === "schedule" ? "#FFFFFF" : "#9CA3AF"} 
           />
         </View>
         <Text style={activeTab === "schedule" ? styles.navLabelActive : styles.navLabel}>Lịch</Text>
@@ -67,7 +67,7 @@ export default function CaregiverBottomNav({ activeTab }: CaregiverBottomNavProp
           <MaterialCommunityIcons 
             name="cash" 
             size={24} 
-            color={activeTab === "income" ? "#2196F3" : "#78909C"} 
+            color={activeTab === "income" ? "#FFFFFF" : "#9CA3AF"} 
           />
         </View>
         <Text style={activeTab === "income" ? styles.navLabelActive : styles.navLabel}>Thu nhập</Text>
@@ -81,7 +81,7 @@ export default function CaregiverBottomNav({ activeTab }: CaregiverBottomNavProp
           <MaterialCommunityIcons 
             name="account" 
             size={24} 
-            color={activeTab === "profile" ? "#2196F3" : "#78909C"} 
+            color={activeTab === "profile" ? "#FFFFFF" : "#9CA3AF"} 
           />
         </View>
         <Text style={activeTab === "profile" ? styles.navLabelActive : styles.navLabel}>Cá nhân</Text>
@@ -94,50 +94,53 @@ const styles = StyleSheet.create({
   bottomNav: {
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#E3F2FD",
+    borderTopWidth: 0,
     paddingVertical: 8,
-    paddingHorizontal: 4,
-    // paddingBottom will be set dynamically based on safe area insets
+    paddingHorizontal: 8,
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    shadowColor: "#2196F3",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 12,
   },
   navItem: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 6,
+    paddingVertical: 2,
   },
   navItemActive: {
     transform: [{ scale: 1.05 }],
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: -2,
-    overflow: "hidden",
+    marginBottom: 2,
+    overflow: 'hidden',
   },
   iconContainerActive: {
-    backgroundColor: "#E3F2FD",
-    borderRadius: 20,
+    backgroundColor: "#68C2E8",
+    borderRadius: 24,
+    shadowColor: "#68C2E8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   navLabel: {
     fontSize: 11,
-    color: "#78909C",
-    fontWeight: "500",
+    color: "#9CA3AF",
+    fontWeight: "600",
   },
   navLabelActive: {
     fontSize: 11,
-    color: "#2196F3",
+    color: "#68C2E8",
     fontWeight: "700",
   },
 });

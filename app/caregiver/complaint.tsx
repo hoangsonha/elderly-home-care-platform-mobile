@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import {
   Alert,
   Image,
+  Modal,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -66,6 +67,7 @@ export default function ComplaintScreen() {
   const [hasComplaintFeedback, setHasComplaintFeedback] = useState(
     appointmentInfo.id ? getHasComplaintFeedback(appointmentInfo.id) : false
   );
+  const [showFilePickerModal, setShowFilePickerModal] = useState(false);
   
   // Sync complaint feedback status when screen is focused
   useFocusEffect(
@@ -101,15 +103,7 @@ export default function ComplaintScreen() {
   };
 
   const handlePickDocument = async () => {
-    Alert.alert(
-      "Chọn tài liệu",
-      "Bạn muốn chọn loại tài liệu nào?",
-      [
-        { text: "Hủy", style: "cancel" },
-        { text: "Ảnh/Video", onPress: handlePickImageOrVideo },
-        { text: "Chụp ảnh", onPress: handleTakePhoto },
-      ]
-    );
+    setShowFilePickerModal(true);
   };
 
   const requestMediaLibraryPermission = async () => {
@@ -480,6 +474,18 @@ export default function ComplaintScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={handleBack}
+        >
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Khiếu nại dịch vụ</Text>
+        <View style={styles.headerRight} />
+      </View>
+
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={{ paddingBottom: 20 }}
@@ -976,6 +982,64 @@ export default function ComplaintScreen() {
 
       {/* Bottom Navigation */}
       <CaregiverBottomNav activeTab="jobs" />
+
+      {/* Custom File Picker Modal */}
+      <Modal
+        transparent
+        visible={showFilePickerModal}
+        animationType="fade"
+        onRequestClose={() => setShowFilePickerModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.filePickerOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFilePickerModal(false)}
+        >
+          <View style={styles.filePickerContainer}>
+            <View style={styles.filePickerHeader}>
+              <Text style={styles.filePickerTitle}>Chọn tài liệu</Text>
+              <Text style={styles.filePickerSubtitle}>Bạn muốn chọn loại tài liệu nào?</Text>
+            </View>
+            
+            <View style={styles.filePickerOptions}>
+              <TouchableOpacity
+                style={styles.filePickerOption}
+                onPress={() => {
+                  setShowFilePickerModal(false);
+                  handlePickImageOrVideo();
+                }}
+              >
+                <View style={[styles.filePickerIconContainer, { backgroundColor: "#DBEAFE" }]}>
+                  <Ionicons name="images" size={28} color="#2563EB" />
+                </View>
+                <Text style={styles.filePickerOptionText}>Ảnh/Video</Text>
+                <Text style={styles.filePickerOptionDesc}>Chọn từ thư viện</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.filePickerOption}
+                onPress={() => {
+                  setShowFilePickerModal(false);
+                  handleTakePhoto();
+                }}
+              >
+                <View style={[styles.filePickerIconContainer, { backgroundColor: "#DBEAFE" }]}>
+                  <Ionicons name="camera" size={28} color="#2563EB" />
+                </View>
+                <Text style={styles.filePickerOptionText}>Chụp ảnh</Text>
+                <Text style={styles.filePickerOptionDesc}>Mở camera</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.filePickerCancelButton}
+              onPress={() => setShowFilePickerModal(false)}
+            >
+              <Text style={styles.filePickerCancelText}>Hủy</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -983,7 +1047,41 @@ export default function ComplaintScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#FAFAFA",
+  },
+  header: {
+    backgroundColor: "#68C2E8",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    flex: 1,
+    textAlign: "center",
+  },
+  headerRight: {
+    width: 40,
   },
   scrollView: {
     flex: 1,
@@ -991,16 +1089,16 @@ const styles = StyleSheet.create({
   warningBanner: {
     flexDirection: "row",
     backgroundColor: "#FEF2F2",
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 16,
     borderLeftWidth: 4,
     borderLeftColor: "#DC2626",
   },
   warningContent: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
   },
   warningTitle: {
     fontSize: 14,
@@ -1014,8 +1112,8 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   section: {
-    paddingHorizontal: 16,
-    marginTop: 20,
+    paddingHorizontal: 20,
+    marginTop: 24,
   },
   sectionTitle: {
     fontSize: 16,
@@ -1030,13 +1128,13 @@ const styles = StyleSheet.create({
   },
   appointmentCard: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 3,
   },
   appointmentDetails: {
     gap: 8,
@@ -1056,8 +1154,8 @@ const styles = StyleSheet.create({
   },
   urgencyButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: "#E5E7EB",
     alignItems: "center",
@@ -1079,8 +1177,8 @@ const styles = StyleSheet.create({
   typeCard: {
     width: "48%",
     backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: "#E5E7EB",
     alignItems: "center",
@@ -1115,8 +1213,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     fontSize: 14,
     color: "#1F2937",
     minHeight: 120,
@@ -1132,8 +1230,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#E5E7EB",
     borderStyle: "dashed",
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 16,
+    padding: 28,
     alignItems: "center",
   },
   uploadText: {
@@ -1148,27 +1246,27 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   uploadedFilesContainer: {
-    marginTop: 12,
-    paddingHorizontal: 16,
+    marginTop: 16,
+    paddingHorizontal: 20,
   },
   fileItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F3F4F6",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
     gap: 12,
   },
   filePreview: {
     width: 50,
     height: 50,
-    borderRadius: 4,
+    borderRadius: 8,
   },
   videoPreview: {
     width: 50,
     height: 50,
-    borderRadius: 4,
+    borderRadius: 8,
     backgroundColor: "#E0E0E0",
     alignItems: "center",
     justifyContent: "center",
@@ -1192,16 +1290,16 @@ const styles = StyleSheet.create({
   guidelinesCard: {
     flexDirection: "row",
     backgroundColor: "#EFF6FF",
-    marginHorizontal: 16,
-    marginTop: 20,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: 20,
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 16,
     borderLeftWidth: 4,
     borderLeftColor: "#2563EB",
   },
   guidelinesContent: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
   },
   guidelinesTitle: {
     fontSize: 14,
@@ -1216,8 +1314,8 @@ const styles = StyleSheet.create({
   },
   bottomAction: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     backgroundColor: "#fff",
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
@@ -1226,9 +1324,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
@@ -1241,8 +1339,8 @@ const styles = StyleSheet.create({
   submitButton: {
     flex: 2,
     flexDirection: "row",
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     backgroundColor: "#EF4444",
     alignItems: "center",
     justifyContent: "center",
@@ -1256,16 +1354,16 @@ const styles = StyleSheet.create({
   successBanner: {
     flexDirection: "row",
     backgroundColor: "#ECFDF5",
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 12,
+    marginHorizontal: 20,
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 16,
     borderLeftWidth: 4,
     borderLeftColor: "#10B981",
   },
   successContent: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
   },
   successTitle: {
     fontSize: 14,
@@ -1308,5 +1406,76 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 14,
     fontWeight: "700",
+  },
+  // Custom File Picker Modal Styles
+  filePickerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  filePickerContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    paddingHorizontal: 20,
+  },
+  filePickerHeader: {
+    marginBottom: 24,
+  },
+  filePickerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 6,
+  },
+  filePickerSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  filePickerOptions: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  filePickerOption: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+  },
+  filePickerIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  filePickerOptionText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  filePickerOptionDesc: {
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  filePickerCancelButton: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  filePickerCancelText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
   },
 });
