@@ -537,7 +537,10 @@ export default function AddElderlyScreen() {
             ? profile.caregiverRequirements.requiredYearsExperienceRange.min
             : null,
           rating: profile.caregiverRequirements.overallRatingRange
-            ? profile.caregiverRequirements.overallRatingRange.min
+            ? [
+                parseInt(profile.caregiverRequirements.overallRatingRange.min.toString()) || 0,
+                parseInt(profile.caregiverRequirements.overallRatingRange.max.toString()) || 5,
+              ]
             : null,
         },
         hobbies: profile.preferences.hobbies,
@@ -1029,7 +1032,10 @@ export default function AddElderlyScreen() {
 
       {/* Location Picker */}
       <View style={styles.inputGroup}>
-        <ThemedText style={styles.inputLabel}>Vị trí</ThemedText>
+        <View style={styles.labelContainer}>
+          <ThemedText style={styles.inputLabel}>Vị trí</ThemedText>
+          <ThemedText style={styles.requiredMark}>*</ThemedText>
+        </View>
         {profile.personalInfo.location ? (
           <TouchableOpacity
             style={styles.locationDisplayCard}

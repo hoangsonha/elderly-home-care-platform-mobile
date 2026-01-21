@@ -1,24 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useNavigation } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
+  FlatList,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
-  FlatList,
-  Platform,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -72,7 +72,7 @@ export default function CompleteProfileScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [bio, setBio] = useState('');
-  
+
   // CCCD/CMND
   const [idCardNumber, setIdCardNumber] = useState('');
   const [idCardFrontUri, setIdCardFrontUri] = useState<string | null>(null);
@@ -90,11 +90,10 @@ export default function CompleteProfileScreen() {
 
   // Professional info
   const [yearsExperience, setYearsExperience] = useState('');
-  const [maxHoursPerWeek, setMaxHoursPerWeek] = useState('');
 
   // Schedule
   const [availableAllTime, setAvailableAllTime] = useState(true);
-  const [bookedSlots, setBookedSlots] = useState<Array<{ date: string; start_time: string; end_time: string }>>([]);
+  const [bookedSlots, setBookedSlots] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [currentSlotIndex, setCurrentSlotIndex] = useState<number | null>(null);
@@ -256,7 +255,7 @@ export default function CompleteProfileScreen() {
     setImageViewerUri(uri);
     setImageDimensions(null);
     setShowImageViewer(true);
-    
+
     // Get image dimensions
     Image.getSize(
       uri,
@@ -265,10 +264,10 @@ export default function CompleteProfileScreen() {
         const screenHeight = Dimensions.get('window').height - 100;
         const imageAspectRatio = width / height;
         const screenAspectRatio = screenWidth / screenHeight;
-        
+
         let displayWidth = screenWidth;
         let displayHeight = screenHeight;
-        
+
         if (imageAspectRatio > screenAspectRatio) {
           // Image is wider
           displayHeight = screenWidth / imageAspectRatio;
@@ -276,7 +275,7 @@ export default function CompleteProfileScreen() {
           // Image is taller
           displayWidth = screenHeight * imageAspectRatio;
         }
-        
+
         setImageDimensions({ width: displayWidth, height: displayHeight });
       },
       (error) => {
@@ -316,7 +315,7 @@ export default function CompleteProfileScreen() {
   const handlePickCredentialImage = async () => {
     if (currentCredentialIndex === null) return;
     setShowCredentialFilePickerModal(false);
-    
+
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Thông báo', 'Cần quyền truy cập thư viện ảnh');
@@ -333,7 +332,7 @@ export default function CompleteProfileScreen() {
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         const fileSizeInMB = (asset.fileSize || 0) / (1024 * 1024);
-        
+
         if (fileSizeInMB > 5) {
           Alert.alert('File quá lớn', 'Vui lòng chọn file nhỏ hơn 5MB');
           return;
@@ -356,7 +355,7 @@ export default function CompleteProfileScreen() {
   const handlePickCredentialFile = async () => {
     if (currentCredentialIndex === null) return;
     setShowCredentialFilePickerModal(false);
-    
+
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
@@ -366,7 +365,7 @@ export default function CompleteProfileScreen() {
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
         const fileSizeInMB = (asset.size || 0) / (1024 * 1024);
-        
+
         if (fileSizeInMB > 5) {
           Alert.alert('File quá lớn', 'Vui lòng chọn file nhỏ hơn 5MB');
           return;
@@ -443,10 +442,6 @@ export default function CompleteProfileScreen() {
       showErrorTooltip('Bán kính phục vụ phải là số dương');
       return false;
     }
-    if (maxHoursPerWeek && (isNaN(parseInt(maxHoursPerWeek)) || parseInt(maxHoursPerWeek) > 48)) {
-      showErrorTooltip('Số giờ tối đa/tuần không được vượt quá 48');
-      return false;
-    }
     // Validate credentials
     for (let i = 0; i < credentials.length; i++) {
       const cred = credentials[i];
@@ -493,9 +488,6 @@ export default function CompleteProfileScreen() {
       if (yearsExperience.trim()) {
         requestData.years_experience = parseInt(yearsExperience);
       }
-      if (maxHoursPerWeek.trim()) {
-        requestData.max_hours_per_week = parseInt(maxHoursPerWeek);
-      }
 
       // Free schedule
       requestData.free_schedule = {
@@ -534,26 +526,26 @@ export default function CompleteProfileScreen() {
 
       const avatarFile = avatarUri
         ? {
-            uri: avatarUri,
-            type: 'image/jpeg',
-            name: `avatar_${Date.now()}.jpg`,
-          }
+          uri: avatarUri,
+          type: 'image/jpeg',
+          name: `avatar_${Date.now()}.jpg`,
+        }
         : undefined;
 
       const citizenIdFrontImage = idCardFrontUri
         ? {
-            uri: idCardFrontUri,
-            type: 'image/jpeg',
-            name: `citizenIdFront_${Date.now()}.jpg`,
-          }
+          uri: idCardFrontUri,
+          type: 'image/jpeg',
+          name: `citizenIdFront_${Date.now()}.jpg`,
+        }
         : undefined;
 
       const citizenIdBackImage = idCardBackUri
         ? {
-            uri: idCardBackUri,
-            type: 'image/jpeg',
-            name: `citizenIdBack_${Date.now()}.jpg`,
-          }
+          uri: idCardBackUri,
+          type: 'image/jpeg',
+          name: `citizenIdBack_${Date.now()}.jpg`,
+        }
         : undefined;
 
       const credentialFiles = credentials
@@ -561,8 +553,8 @@ export default function CompleteProfileScreen() {
         .map((cred) => cred.file!);
 
       const response = await mainService.createCaregiverProfile(
-        requestData, 
-        avatarFile, 
+        requestData,
+        avatarFile,
         credentialFiles,
         citizenIdFrontImage,
         citizenIdBackImage
@@ -614,7 +606,7 @@ export default function CompleteProfileScreen() {
     } catch (error: any) {
       setIsSubmitting(false);
       console.error('Error completing profile:', error);
-      
+
       // Show error modal
       setErrorMessage(error.message || 'Có lỗi xảy ra khi hoàn thiện hồ sơ. Vui lòng thử lại.');
       setShowErrorModal(true);
@@ -740,7 +732,7 @@ export default function CompleteProfileScreen() {
         {/* CCCD/CMND */}
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>CCCD/CMND</ThemedText>
-          
+
           {/* ID Card Number */}
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>
@@ -765,7 +757,7 @@ export default function CompleteProfileScreen() {
             <View style={styles.idCardContainer}>
               {idCardFrontUri ? (
                 <View style={styles.idCardWrapper}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     activeOpacity={0.9}
                     style={styles.idCardImageTouchable}
                     onPress={() => {
@@ -774,21 +766,21 @@ export default function CompleteProfileScreen() {
                       }
                     }}
                   >
-                    <Image 
-                      source={{ uri: idCardFrontUri }} 
+                    <Image
+                      source={{ uri: idCardFrontUri }}
                       style={styles.idCardImage}
                       resizeMode="cover"
                     />
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.removeIdCardButton} 
+                  <TouchableOpacity
+                    style={styles.removeIdCardButton}
                     onPress={() => handleRemoveIdCardImage('front')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <Ionicons name="close-circle" size={30} color="#dc3545" />
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.changeIdCardButton} 
+                  <TouchableOpacity
+                    style={styles.changeIdCardButton}
                     onPress={() => handleIdCardImagePicker('front')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
@@ -797,8 +789,8 @@ export default function CompleteProfileScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity 
-                  style={styles.uploadIdCardButton} 
+                <TouchableOpacity
+                  style={styles.uploadIdCardButton}
                   onPress={() => handleIdCardImagePicker('front')}
                 >
                   <Ionicons name="camera" size={40} color="#68C2E8" />
@@ -816,7 +808,7 @@ export default function CompleteProfileScreen() {
             <View style={styles.idCardContainer}>
               {idCardBackUri ? (
                 <View style={styles.idCardWrapper}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     activeOpacity={0.9}
                     style={styles.idCardImageTouchable}
                     onPress={() => {
@@ -825,21 +817,21 @@ export default function CompleteProfileScreen() {
                       }
                     }}
                   >
-                    <Image 
-                      source={{ uri: idCardBackUri }} 
+                    <Image
+                      source={{ uri: idCardBackUri }}
                       style={styles.idCardImage}
                       resizeMode="cover"
                     />
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.removeIdCardButton} 
+                  <TouchableOpacity
+                    style={styles.removeIdCardButton}
                     onPress={() => handleRemoveIdCardImage('back')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <Ionicons name="close-circle" size={30} color="#dc3545" />
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.changeIdCardButton} 
+                  <TouchableOpacity
+                    style={styles.changeIdCardButton}
                     onPress={() => handleIdCardImagePicker('back')}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
@@ -848,8 +840,8 @@ export default function CompleteProfileScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity 
-                  style={styles.uploadIdCardButton} 
+                <TouchableOpacity
+                  style={styles.uploadIdCardButton}
                   onPress={() => handleIdCardImagePicker('back')}
                 >
                   <Ionicons name="camera" size={40} color="#68C2E8" />
@@ -924,7 +916,7 @@ export default function CompleteProfileScreen() {
         {/* Professional Info */}
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Thông tin nghề nghiệp</ThemedText>
-          
+
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Số năm kinh nghiệm</ThemedText>
             <TextInput
@@ -936,24 +928,12 @@ export default function CompleteProfileScreen() {
               keyboardType="numeric"
             />
           </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Số giờ tối đa/tuần (tối đa 48)</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={maxHoursPerWeek}
-              onChangeText={setMaxHoursPerWeek}
-              placeholder="Nhập số giờ tối đa/tuần"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-            />
-          </View>
         </View>
 
         {/* Schedule */}
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Lịch làm việc</ThemedText>
-          
+
           <TouchableOpacity
             style={styles.checkboxContainer}
             onPress={() => setAvailableAllTime(!availableAllTime)}
@@ -970,7 +950,7 @@ export default function CompleteProfileScreen() {
               <ThemedText style={styles.hintText}>
                 Chỉ có thể chọn từ hôm nay đến 7 ngày sau. Bạn có thể để trống nếu chưa có lịch bận.
               </ThemedText>
-              
+
               {bookedSlots.map((slot, index) => (
                 <View key={index} style={styles.bookedSlotCard}>
                   <View style={styles.bookedSlotHeader}>
@@ -982,7 +962,7 @@ export default function CompleteProfileScreen() {
                       <Ionicons name="close-circle" size={24} color="#dc3545" />
                     </TouchableOpacity>
                   </View>
-                  
+
                   <TouchableOpacity
                     style={styles.birthYearInput}
                     onPress={() => {
@@ -996,7 +976,7 @@ export default function CompleteProfileScreen() {
                     </ThemedText>
                     <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     style={styles.birthYearInput}
                     onPress={() => {
@@ -1010,7 +990,7 @@ export default function CompleteProfileScreen() {
                     </ThemedText>
                     <Ionicons name="time-outline" size={20} color="#68C2E8" />
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity
                     style={styles.birthYearInput}
                     onPress={() => {
@@ -1026,7 +1006,7 @@ export default function CompleteProfileScreen() {
                   </TouchableOpacity>
                 </View>
               ))}
-              
+
               <TouchableOpacity
                 style={styles.addSlotButton}
                 onPress={() => {
@@ -1038,62 +1018,6 @@ export default function CompleteProfileScreen() {
               </TouchableOpacity>
             </View>
           )}
-        </View>
-
-        {/* Preferences */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Mong muốn</ThemedText>
-          
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Tình trạng sức khỏe ưa thích</ThemedText>
-            <View style={styles.genderOptions}>
-              {healthStatusOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.genderCard,
-                    preferredHealthStatus === option.id && styles.genderCardSelected,
-                  ]}
-                  onPress={() => setPreferredHealthStatus(preferredHealthStatus === option.id ? null : option.id)}
-                >
-                  <ThemedText
-                    style={[
-                      styles.genderText,
-                      styles.healthStatusText,
-                      preferredHealthStatus === option.id && styles.genderTextSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.ageRow}>
-            <View style={styles.ageInputGroup}>
-              <ThemedText style={styles.label}>Tuổi tối thiểu</ThemedText>
-              <TextInput
-                style={styles.input}
-                value={elderlyMinAge}
-                onChangeText={setElderlyMinAge}
-                placeholder="Min"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={styles.ageInputGroup}>
-              <ThemedText style={styles.label}>Tuổi tối đa</ThemedText>
-              <TextInput
-                style={styles.input}
-                value={elderlyMaxAge}
-                onChangeText={setElderlyMaxAge}
-                placeholder="Max"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
         </View>
 
         {/* Credentials */}
@@ -1182,7 +1106,7 @@ export default function CompleteProfileScreen() {
                   <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label}>Ngày hết hạn</ThemedText>
                 <TouchableOpacity
@@ -1261,6 +1185,62 @@ export default function CompleteProfileScreen() {
               </View>
             </View>
           ))}
+        </View>
+
+        {/* Preferences */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Mong muốn ghép người già (AI Matching)</ThemedText>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Tình trạng sức khỏe</ThemedText>
+            <View style={styles.genderOptions}>
+              {healthStatusOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.genderCard,
+                    preferredHealthStatus === option.id && styles.genderCardSelected,
+                  ]}
+                  onPress={() => setPreferredHealthStatus(preferredHealthStatus === option.id ? null : option.id)}
+                >
+                  <ThemedText
+                    style={[
+                      styles.genderText,
+                      styles.healthStatusText,
+                      preferredHealthStatus === option.id && styles.genderTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.ageRow}>
+            <View style={styles.ageInputGroup}>
+              <ThemedText style={styles.label}>Tuổi tối thiểu</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={elderlyMinAge}
+                onChangeText={setElderlyMinAge}
+                placeholder="Min"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.ageInputGroup}>
+              <ThemedText style={styles.label}>Tuổi tối đa</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={elderlyMaxAge}
+                onChangeText={setElderlyMaxAge}
+                placeholder="Max"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
         </View>
 
         {/* Submit Button */}
@@ -1354,7 +1334,7 @@ export default function CompleteProfileScreen() {
               <ThemedText style={styles.imagePickerModalTitle}>
                 Chọn nguồn ảnh cho {currentIdCardSide === 'front' ? 'mặt trước' : 'mặt sau'} CCCD/CMND
               </ThemedText>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.idCardModalCloseButton}
                 onPress={() => {
                   setShowIdCardImagePickerModal(false);
@@ -1651,9 +1631,9 @@ export default function CompleteProfileScreen() {
               })}
               keyExtractor={(item) => item}
               renderItem={({ item }) => {
-                const isSelected = currentSlotIndex !== null && 
+                const isSelected = currentSlotIndex !== null &&
                   ((currentSlotField === 'start_time' && bookedSlots[currentSlotIndex]?.start_time === item) ||
-                   (currentSlotField === 'end_time' && bookedSlots[currentSlotIndex]?.end_time === item));
+                    (currentSlotField === 'end_time' && bookedSlots[currentSlotIndex]?.end_time === item));
                 return (
                   <TouchableOpacity
                     style={[

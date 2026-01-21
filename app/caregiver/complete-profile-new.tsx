@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   Modal,
   ScrollView,
@@ -12,7 +13,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -71,11 +71,10 @@ export default function CompleteProfileScreen() {
 
   // Professional info
   const [yearsExperience, setYearsExperience] = useState('');
-  const [maxHoursPerWeek, setMaxHoursPerWeek] = useState('');
 
   // Schedule
   const [availableAllTime, setAvailableAllTime] = useState(true);
-  const [bookedSlots, setBookedSlots] = useState<Array<{ date: string; start_time: string; end_time: string }>>([]);
+  const [bookedSlots, setBookedSlots] = useState<{ date: string; start_time: string; end_time: string }[]>([]);
 
   // Preferences
   const [preferredHealthStatus, setPreferredHealthStatus] = useState<string | null>(null);
@@ -235,10 +234,6 @@ export default function CompleteProfileScreen() {
       showErrorTooltip('Bán kính phục vụ phải là số dương');
       return false;
     }
-    if (maxHoursPerWeek && (isNaN(parseInt(maxHoursPerWeek)) || parseInt(maxHoursPerWeek) > 48)) {
-      showErrorTooltip('Số giờ tối đa/tuần không được vượt quá 48');
-      return false;
-    }
     // Validate credentials
     for (let i = 0; i < credentials.length; i++) {
       const cred = credentials[i];
@@ -284,9 +279,6 @@ export default function CompleteProfileScreen() {
       if (yearsExperience.trim()) {
         requestData.years_experience = parseInt(yearsExperience);
       }
-      if (maxHoursPerWeek.trim()) {
-        requestData.max_hours_per_week = parseInt(maxHoursPerWeek);
-      }
 
       // Free schedule
       requestData.free_schedule = {
@@ -325,10 +317,10 @@ export default function CompleteProfileScreen() {
 
       const avatarFile = avatarUri
         ? {
-            uri: avatarUri,
-            type: 'image/jpeg',
-            name: `avatar_${Date.now()}.jpg`,
-          }
+          uri: avatarUri,
+          type: 'image/jpeg',
+          name: `avatar_${Date.now()}.jpg`,
+        }
         : undefined;
 
       const credentialFiles = credentials
@@ -362,7 +354,7 @@ export default function CompleteProfileScreen() {
     } catch (error: any) {
       setIsSubmitting(false);
       console.error('Error completing profile:', error);
-      
+
       // Show error modal
       setErrorMessage(error.message || 'Có lỗi xảy ra khi hoàn thiện hồ sơ. Vui lòng thử lại.');
       setShowErrorModal(true);
@@ -542,7 +534,7 @@ export default function CompleteProfileScreen() {
         {/* Professional Info */}
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Thông tin nghề nghiệp</ThemedText>
-          
+
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Số năm kinh nghiệm</ThemedText>
             <TextInput
@@ -554,24 +546,12 @@ export default function CompleteProfileScreen() {
               keyboardType="numeric"
             />
           </View>
-
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Số giờ tối đa/tuần (tối đa 48)</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={maxHoursPerWeek}
-              onChangeText={setMaxHoursPerWeek}
-              placeholder="Nhập số giờ tối đa/tuần"
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-            />
-          </View>
         </View>
 
         {/* Schedule */}
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Lịch làm việc</ThemedText>
-          
+
           <TouchableOpacity
             style={styles.checkboxContainer}
             onPress={() => setAvailableAllTime(!availableAllTime)}
@@ -590,61 +570,6 @@ export default function CompleteProfileScreen() {
               </ThemedText>
             </View>
           )}
-        </View>
-
-        {/* Preferences */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Sở thích</ThemedText>
-          
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Tình trạng sức khỏe ưa thích</ThemedText>
-            <View style={styles.genderOptions}>
-              {healthStatusOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.genderCard,
-                    preferredHealthStatus === option.id && styles.genderCardSelected,
-                  ]}
-                  onPress={() => setPreferredHealthStatus(preferredHealthStatus === option.id ? null : option.id)}
-                >
-                  <ThemedText
-                    style={[
-                      styles.genderText,
-                      preferredHealthStatus === option.id && styles.genderTextSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.inputRow}>
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Tuổi tối thiểu</ThemedText>
-              <TextInput
-                style={styles.input}
-                value={elderlyMinAge}
-                onChangeText={setElderlyMinAge}
-                placeholder="Min"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Tuổi tối đa</ThemedText>
-              <TextInput
-                style={styles.input}
-                value={elderlyMaxAge}
-                onChangeText={setElderlyMaxAge}
-                placeholder="Max"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
         </View>
 
         {/* Credentials */}
@@ -759,6 +684,61 @@ export default function CompleteProfileScreen() {
               </TouchableOpacity>
             </View>
           ))}
+        </View>
+
+        {/* Preferences */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Mong muốn</ThemedText>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Tình trạng sức khỏe mong muốn</ThemedText>
+            <View style={styles.genderOptions}>
+              {healthStatusOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.genderCard,
+                    preferredHealthStatus === option.id && styles.genderCardSelected,
+                  ]}
+                  onPress={() => setPreferredHealthStatus(preferredHealthStatus === option.id ? null : option.id)}
+                >
+                  <ThemedText
+                    style={[
+                      styles.genderText,
+                      preferredHealthStatus === option.id && styles.genderTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.inputRow}>
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Tuổi tối thiểu</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={elderlyMinAge}
+                onChangeText={setElderlyMinAge}
+                placeholder="Min"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label}>Tuổi tối đa</ThemedText>
+              <TextInput
+                style={styles.input}
+                value={elderlyMaxAge}
+                onChangeText={setElderlyMaxAge}
+                placeholder="Max"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
         </View>
 
         {/* Submit Button */}

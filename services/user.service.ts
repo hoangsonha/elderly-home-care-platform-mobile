@@ -79,7 +79,7 @@ export interface CreateElderlyProfileRequest {
     age: [number, number] | null;
     gender: 'MALE' | 'FEMALE' | null;
     experience: number | null;
-    rating: number | null;
+    rating: [number, number] | null;
   };
   hobbies: string[];
   favorite_activities: string[];
