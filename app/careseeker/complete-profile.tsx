@@ -301,9 +301,10 @@ export default function CompleteProfileScreen() {
 
         {/* Location */}
         <View style={styles.section}>
-          <ThemedText style={styles.label}>
-            Vị trí <ThemedText style={styles.required}>*</ThemedText>
-          </ThemedText>
+          <View style={styles.labelContainer}>
+            <ThemedText style={styles.label}>Vị trí</ThemedText>
+            <ThemedText style={styles.required}>*</ThemedText>
+          </View>
           <TouchableOpacity
             style={styles.locationButton}
             onPress={() => setShowLocationPicker(true)}
@@ -514,14 +515,19 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     marginBottom: 12,
   },
+  labelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   label: {
     fontSize: 14,
     fontWeight: '600',
     color: '#2C3E50',
-    marginBottom: 8,
   },
   required: {
     color: '#E74C3C',
+    marginLeft: 4,
   },
   input: {
     height: 50,

@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { useConversations } from '@/hooks/useConversations';
+import { useNewMessages } from '@/hooks/useNewMessages';
 import { chatService } from '@/services/chat.service';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -37,9 +38,13 @@ export default function ChatListScreen() {
 
   // Listen conversations real-time từ Firestore
   const { conversations: firestoreConversations } = useConversations();
+  // Listen unread messages real-time để tính unreadCount chính xác
+  const { newMessages } = useNewMessages();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Track conversation đang được xem để tạm thời không tính unreadCount (tránh hiển thị lại khi out ra quá nhanh)
+  const [viewingConversationId, setViewingConversationId] = useState<string | null>(null);
 
   const fetchConversations = React.useCallback(async () => {
     if (!user?.id) {
@@ -127,14 +132,29 @@ export default function ChatListScreen() {
     }
 
     // Update từ Firestore nhưng giữ lại tên/avatar từ API
+    // CHỈ update conversation nếu nó đã tồn tại trong API list (tránh tạo conversation mới với tên mặc định)
     if (firestoreConversations.length > 0) {
       setConversations((prev) => {
+        // Chỉ update nếu đã có conversations từ API (prev.length > 0)
+        // Nếu chưa có, đợi API load xong trước
+        if (prev.length === 0) {
+          return prev;
+        }
+
         const existingMap = new Map(prev.map(conv => [conv.id, conv]));
 
         firestoreConversations.forEach((conv: any) => {
           // Get other participant (not current user) - should be caregiver
           const participants = conv.participants || [];
           const caregiverId = participants.find((id: string) => id !== user.id) || participants[0] || conv.id;
+
+          // CHỈ update nếu conversation đã tồn tại trong API list
+          const existingConv = existingMap.get(caregiverId);
+          if (!existingConv) {
+            // Bỏ qua conversation mới từ Firestore nếu chưa có trong API list
+            // Đợi API load để có tên/avatar đúng
+            return;
+          }
 
           // Format timestamp
           let timeStr = "Vừa xong";
@@ -161,36 +181,41 @@ export default function ChatListScreen() {
             }
           }
 
-          // Lấy existing conversation từ API (có tên/avatar đúng)
-          const existingConv = existingMap.get(caregiverId);
+          // Tính unreadCount từ newMessages (tin nhắn chưa đọc real-time)
+          // Đếm số tin nhắn chưa đọc từ caregiver này
+          // So sánh với cả caregiverId và caregiverAccountId để đảm bảo khớp
+          const caregiverAccountIdForCompare = (existingConv as any)?.caregiverAccountId || caregiverId;
+          const unreadMessagesFromCaregiver = newMessages.filter(
+            (msg) => 
+              (msg.senderId === caregiverId || msg.senderId === caregiverAccountIdForCompare) && 
+              msg.receiverId === user.id
+          );
+          const realTimeUnreadCount = unreadMessagesFromCaregiver.length;
 
-          // Kiểm tra xem có lastMessage mới không (so sánh với existing)
-          const hasNewMessage = conv.lastMessage &&
-            conv.lastMessage !== existingConv?.lastMessage &&
-            conv.lastMessage.trim() !== '';
-
-          // Xác định unreadCount: ưu tiên Firestore, nếu có tin nhắn mới thì tăng unreadCount
-          let unreadCount = conv.unreadCount;
-          if (unreadCount === undefined || unreadCount === null) {
-            if (hasNewMessage) {
-              // Có tin nhắn mới: tăng unreadCount
-              unreadCount = (existingConv?.unreadCount ?? 0) + 1;
-            } else {
-              // Giữ nguyên từ existing
-              unreadCount = existingConv?.unreadCount ?? 0;
-            }
-          } else if (hasNewMessage && unreadCount === 0) {
-            // Nếu Firestore báo unreadCount = 0 nhưng có lastMessage mới, có thể là chưa sync
-            // Tăng lên 1 để đảm bảo hiển thị
-            unreadCount = 1;
+          // Xác định unreadCount: ưu tiên real-time từ newMessages, sau đó Firestore, cuối cùng là existing
+          // Nếu conversation đang được xem, tạm thời không tính từ newMessages (tránh hiển thị lại khi out ra quá nhanh)
+          let unreadCount: number;
+          
+          if (viewingConversationId === caregiverId) {
+            // Conversation đang được xem: dùng 0 hoặc giá trị từ Firestore (đã được mark as read)
+            unreadCount = conv.unreadCount !== undefined && conv.unreadCount !== null ? conv.unreadCount : 0;
+          } else if (realTimeUnreadCount > 0) {
+            // Có tin nhắn chưa đọc real-time: dùng số lượng này (chính xác nhất)
+            unreadCount = realTimeUnreadCount;
+          } else if (conv.unreadCount !== undefined && conv.unreadCount !== null) {
+            // Không có tin nhắn chưa đọc real-time, dùng giá trị từ Firestore
+            unreadCount = conv.unreadCount;
+          } else {
+            // Không có cả hai, giữ nguyên từ existing
+            unreadCount = existingConv?.unreadCount ?? 0;
           }
 
           // Update chỉ các field real-time từ Firestore, giữ lại tên/avatar từ API
           const updatedConv: ChatConversation = {
             id: caregiverId,
             caregiverId: caregiverId,
-            caregiverName: existingConv?.caregiverName || conv.participantName || conv.caregiverName || conv.userName || conv.name || "Người chăm sóc",
-            caregiverAvatar: existingConv?.caregiverAvatar || conv.participantAvatar || conv.caregiverAvatar || conv.userAvatar || conv.avatar || "",
+            caregiverName: existingConv.caregiverName, // Luôn dùng tên từ API, không fallback
+            caregiverAvatar: existingConv.caregiverAvatar, // Luôn dùng avatar từ API, không fallback
             lastMessage: conv.lastMessage || conv.content || existingConv?.lastMessage || "",
             lastMessageTime: timeStr,
             unreadCount: unreadCount,
@@ -204,10 +229,13 @@ export default function ChatListScreen() {
         return Array.from(existingMap.values());
       });
     }
-  }, [firestoreConversations, user?.id]);
+  }, [firestoreConversations, newMessages, user?.id, viewingConversationId]);
 
   const handleConversationPress = (conversation: ChatConversation) => {
-    // Mark as read
+    // Đánh dấu conversation đang được xem
+    setViewingConversationId(conversation.caregiverId);
+    
+    // Mark as read (optimistic update)
     if (conversation.unreadCount > 0) {
       setConversations(prev =>
         prev.map(conv =>
@@ -231,6 +259,18 @@ export default function ChatListScreen() {
       }
     });
   };
+  
+  // Reset viewingConversationId khi quay lại chat list (screen được focus)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset sau 2 giây để đảm bảo API mark as read đã hoàn thành
+      const timer = setTimeout(() => {
+        setViewingConversationId(null);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }, [setViewingConversationId])
+  );
 
   const handleMarkAllAsRead = () => {
     setConversations(prev =>

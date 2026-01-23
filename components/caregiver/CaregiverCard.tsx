@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    Image,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -39,7 +39,7 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
     >
       <View style={styles.cardHeader}>
         <Image source={{ uri: caregiver.avatar }} style={styles.avatar} />
-        
+
         <View style={styles.caregiverInfo}>
           <View style={styles.nameRow}>
             <View style={styles.nameContainer}>
@@ -57,7 +57,7 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
               </ThemedText>
             </View>
           </View>
-          
+
           {/* Verification status badge - always on a new line */}
           <View style={styles.verificationRow}>
             {caregiver.isVerified ? (
@@ -72,14 +72,14 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
               </View>
             )}
           </View>
-          
+
           <View style={styles.experienceRow}>
             <Ionicons name="time" size={14} color="#666" />
             <ThemedText style={styles.experience}>
               {caregiver.experience}
             </ThemedText>
           </View>
-          
+
           <View style={styles.locationRow}>
             <Ionicons name="location" size={14} color="#666" />
             <ThemedText style={styles.distance}>
@@ -99,7 +99,7 @@ export function CaregiverCard({ caregiver, onPress, onBookPress, onChatPress, sh
               <Ionicons name="chatbubble-outline" size={16} color="#68C2E8" />
               <ThemedText style={styles.chatButtonText}>Chat</ThemedText>
             </TouchableOpacity>
-            
+
             {!hideBookingButton && (
               <TouchableOpacity
                 style={styles.bookButton}

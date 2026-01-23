@@ -26,12 +26,16 @@ export default function EmergencyContactsScreen() {
   const bottomNavPadding = useBottomNavPadding();
   const [contacts, setContacts] = useState<Contact[]>([]);
 
-  // Load contacts from context on mount
+  // Load contacts from context on mount and when tempContacts changes
   useEffect(() => {
+    console.log('EmergencyContactsScreen: tempContacts changed:', tempContacts);
     if (tempContacts.length > 0) {
       setContacts(tempContacts);
+    } else {
+      // If no tempContacts, keep empty array
+      setContacts([]);
     }
-  }, []);
+  }, [tempContacts]);
 
   const handleSave = () => {
     // Update context with new contacts

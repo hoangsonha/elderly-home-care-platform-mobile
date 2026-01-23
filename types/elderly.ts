@@ -21,6 +21,7 @@ export interface ElderlyProfile {
   independenceLevel: {
     eating: string;
     bathing: string;
+    toileting?: string;
     mobility: string;
     dressing: string;
   };

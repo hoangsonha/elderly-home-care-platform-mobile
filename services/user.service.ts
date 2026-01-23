@@ -97,6 +97,56 @@ export interface CreateElderlyProfileResponse {
   data?: any;
 }
 
+export interface UpdateElderlyProfileRequest {
+  name?: string;
+  birth_year?: number;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  location?: {
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  weight?: number;
+  height?: number;
+  medical_conditions?: {
+    underlying_diseases?: string[];
+    special_conditions?: string[];
+    allergies?: string[];
+    medications?: Array<{
+      name: string;
+      dosage: string;
+      frequency: string;
+    }>;
+  };
+  independence_level?: Array<{
+    activity: string;
+    level: string;
+  }>;
+  care_needs?: {
+    age?: [number, number];
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    experience?: number;
+    rating?: [number, number];
+  };
+  hobbies?: string[];
+  favorite_activities?: string[];
+  favorite_food?: string[];
+  emergency_contacts?: Array<{
+    name: string;
+    relationship: string;
+    phone: string;
+  }>;
+  health_status?: 'GOOD' | 'WEAK' | 'MODERATE' | 'STABLE' | 'CRITICAL';
+  health_note?: string;
+  note?: string;
+}
+
+export interface UpdateElderlyProfileResponse {
+  status: 'Success' | 'Failed';
+  message: string;
+  data?: ElderlyProfileApiResponse;
+}
+
 export interface CreateCareSeekerProfileRequest {
   full_name: string;
   birth_year: number;
@@ -282,6 +332,45 @@ export const UserService = {
       return response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch elderly profiles: ${error.message}`);
+    }
+  },
+
+  /**
+   * Lấy chi tiết elderly profile theo ID
+   * GET /api/v1/elderly/{id}
+   * Cần token để gọi API này
+   */
+  getElderlyProfileById: async (id: string): Promise<ElderlyProfileApiResponse> => {
+    try {
+      console.log('=== UserService.getElderlyProfileById ===');
+      console.log('ID received:', id);
+      console.log('ID type:', typeof id);
+      console.log('API Endpoint: GET /api/v1/elderly/' + id);
+      
+      const response = await apiClient.get<{
+        status: string;
+        message: string;
+        data: ElderlyProfileApiResponse | null;
+      }>(`/api/v1/elderly/${id}`);
+      
+      console.log('API Response status:', response.data.status);
+      console.log('API Response message:', response.data.message);
+      console.log('API Response data:', response.data.data);
+      
+      if (response.data.status === 'Success' && response.data.data) {
+        console.log('Returning profile data');
+        return response.data.data;
+      } else {
+        console.error('API returned error:', response.data.message);
+        throw new Error(response.data.message || 'Failed to get elderly profile');
+      }
+    } catch (error: any) {
+      console.error('=== UserService.getElderlyProfileById ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      throw new Error(`Failed to fetch elderly profile: ${error.message}`);
     }
   },
 
@@ -473,6 +562,88 @@ export const UserService = {
       }
 
       throw new Error(axiosError.message || 'Có lỗi xảy ra khi tạo hồ sơ');
+    }
+  },
+
+  /**
+   * Cập nhật thông tin elderly profile
+   * PUT /api/v1/elderly/{id} (với avatar) hoặc PUT /api/v1/elderly/{id}/json (không có avatar)
+   * @param id - ID của elderly profile
+   * @param request - Dữ liệu cần cập nhật (tất cả fields đều optional)
+   * @param avatarFile - File ảnh avatar (optional)
+   */
+  updateElderlyProfile: async (
+    id: string,
+    request: UpdateElderlyProfileRequest,
+    avatarFile?: { uri: string; type?: string; name?: string }
+  ): Promise<UpdateElderlyProfileResponse> => {
+    try {
+      // Remove undefined properties from request object
+      const cleanedRequest = JSON.parse(JSON.stringify(request));
+
+      // Nếu KHÔNG có avatar, gọi endpoint JSON riêng
+      if (!avatarFile) {
+        const response = await apiClient.put<UpdateElderlyProfileResponse>(
+          `/api/v1/elderly/${id}/json`,
+          cleanedRequest,
+          {
+            timeout: 60000,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        return response.data;
+      }
+
+      // Có avatar, gọi endpoint multipart/form-data
+      const formData = new FormData();
+      const jsonData = JSON.stringify(cleanedRequest);
+      formData.append('data', jsonData);
+
+      // Append avatar file
+      const fileExtension = avatarFile.uri.split('.').pop() || 'jpg';
+      const fileName = avatarFile.name || `avatar_${Date.now()}.${fileExtension}`;
+      const fileType = avatarFile.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+
+      // Format cho React Native FormData
+      let fileUri = avatarFile.uri;
+      if (!fileUri.startsWith('file://') && 
+          !fileUri.startsWith('content://') && 
+          !fileUri.startsWith('http://') && 
+          !fileUri.startsWith('https://')) {
+        fileUri = `file://${fileUri}`;
+      }
+
+      formData.append('avatar', {
+        uri: fileUri,
+        type: fileType,
+        name: fileName,
+      } as any);
+      
+      const response = await apiClient.put<UpdateElderlyProfileResponse>(
+        `/api/v1/elderly/${id}`,
+        formData,
+        {
+          timeout: 60000,
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('=== UserService.updateElderlyProfile ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      
+      throw new Error(`Failed to update elderly profile: ${error.message}`);
     }
   },
 };

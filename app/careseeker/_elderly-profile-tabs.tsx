@@ -10,74 +10,76 @@ import { ThemedText } from '@/components/themed-text';
 // Helper functions for rendering new tabs
 export const renderMedicalTab = (profile: any) => (
   <View style={styles.tabContent}>
-    {/* Blood Type */}
-    <View style={styles.section}>
-      <ThemedText style={styles.sectionTitle}>Thông tin y tế cơ bản</ThemedText>
-      <View style={styles.infoItem}>
-        <Ionicons name="water" size={16} color="#6c757d" />
-        <View style={styles.infoTextContainer}>
-          <ThemedText style={styles.infoLabel}>Nhóm máu</ThemedText>
-          <ThemedText style={styles.infoValue}>O+</ThemedText>
-        </View>
-      </View>
-    </View>
-
     {/* Underlying Diseases */}
-
     <View style={styles.section}>
       <ThemedText style={styles.sectionTitle}>Bệnh nền</ThemedText>
-      {profile.medicalConditions.underlyingDiseases?.map((disease: string, index: number) => (
-        <View key={index} style={styles.diseaseCard}>
-          <View style={styles.diseaseIcon}>
-            <Ionicons name="medical" size={20} color="#dc3545" />
+      {profile.medicalConditions.underlyingDiseases?.length > 0 ? (
+        profile.medicalConditions.underlyingDiseases.map((disease: string, index: number) => (
+          <View key={index} style={styles.diseaseCard}>
+            <View style={styles.diseaseIcon}>
+              <Ionicons name="medical" size={20} color="#dc3545" />
+            </View>
+            <View style={styles.diseaseInfo}>
+              <ThemedText style={styles.diseaseName}>{disease}</ThemedText>
+            </View>
           </View>
-          <View style={styles.diseaseInfo}>
-            <ThemedText style={styles.diseaseName}>{disease}</ThemedText>
-            <ThemedText style={styles.diseaseStatus}>Đang điều trị</ThemedText>
-          </View>
-        </View>
-      ))}
+        ))
+      ) : (
+        <ThemedText style={styles.emptyText}>Không có thông tin</ThemedText>
+      )}
     </View>
 
     {/* Special Conditions */}
     <View style={styles.section}>
       <ThemedText style={styles.sectionTitle}>Tình trạng đặc biệt</ThemedText>
-      {profile.medicalConditions.specialConditions?.map((condition: string, index: number) => (
-        <View key={index} style={styles.conditionCard}>
-          <Ionicons name="alert-circle" size={16} color="#ffc107" />
-          <ThemedText style={styles.conditionText}>{condition}</ThemedText>
-        </View>
-      ))}
+      {profile.medicalConditions.specialConditions?.length > 0 ? (
+        profile.medicalConditions.specialConditions.map((condition: string, index: number) => (
+          <View key={index} style={styles.conditionCard}>
+            <Ionicons name="alert-circle" size={16} color="#ffc107" />
+            <ThemedText style={styles.conditionText}>{condition}</ThemedText>
+          </View>
+        ))
+      ) : (
+        <ThemedText style={styles.emptyText}>Không có thông tin</ThemedText>
+      )}
     </View>
 
     {/* Current Medications */}
     <View style={styles.section}>
       <ThemedText style={styles.sectionTitle}>Thuốc đang sử dụng</ThemedText>
-      {profile.medicalConditions.medications?.map((med: any, index: number) => (
-        <View key={index} style={styles.medicationCard}>
-          <View style={styles.medicationIcon}>
-            <Ionicons name="medical" size={20} color="#4ECDC4" />
+      {profile.medicalConditions.medications?.length > 0 ? (
+        profile.medicalConditions.medications.map((med: any, index: number) => (
+          <View key={index} style={styles.medicationCard}>
+            <View style={styles.medicationIcon}>
+              <Ionicons name="medical" size={20} color="#4ECDC4" />
+            </View>
+            <View style={styles.medicationInfo}>
+              <ThemedText style={styles.medicationName}>{med.name}</ThemedText>
+              <ThemedText style={styles.medicationDosage}>{med.dosage}</ThemedText>
+              <ThemedText style={styles.medicationFrequency}>{med.frequency}</ThemedText>
+            </View>
           </View>
-          <View style={styles.medicationInfo}>
-            <ThemedText style={styles.medicationName}>{med.name}</ThemedText>
-            <ThemedText style={styles.medicationDosage}>{med.dosage}</ThemedText>
-            <ThemedText style={styles.medicationFrequency}>{med.frequency}</ThemedText>
-          </View>
-        </View>
-      ))}
+        ))
+      ) : (
+        <ThemedText style={styles.emptyText}>Không có thông tin</ThemedText>
+      )}
     </View>
 
     {/* Allergies */}
     <View style={styles.section}>
       <ThemedText style={styles.sectionTitle}>Dị ứng</ThemedText>
-      <View style={styles.allergiesContainer}>
-        {profile.medicalConditions.allergies?.map((allergy: string, index: number) => (
-          <View key={index} style={styles.allergyTag}>
-            <Ionicons name="warning" size={14} color="#dc3545" />
-            <ThemedText style={styles.allergyText}>{allergy}</ThemedText>
-          </View>
-        ))}
-      </View>
+      {profile.medicalConditions.allergies?.length > 0 ? (
+        <View style={styles.allergiesContainer}>
+          {profile.medicalConditions.allergies.map((allergy: string, index: number) => (
+            <View key={index} style={styles.allergyTag}>
+              <Ionicons name="warning" size={14} color="#dc3545" />
+              <ThemedText style={styles.allergyText}>{allergy}</ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <ThemedText style={styles.emptyText}>Không có thông tin</ThemedText>
+      )}
     </View>
   </View>
 );
@@ -97,13 +99,14 @@ export const renderIndependenceTab = (profile: any) => {
       case 'independent': return 'Tự lập';
       case 'assisted': return 'Cần hỗ trợ';
       case 'dependent': return 'Phụ thuộc';
-      default: return 'Không rõ';
+      default: return 'Không có thông tin';
     }
   };
 
   const independenceItems = [
     { key: 'eating', label: 'Ăn uống', icon: 'restaurant' },
     { key: 'bathing', label: 'Tắm rửa', icon: 'water' },
+    { key: 'toileting', label: 'Vệ sinh', icon: 'medical' },
     { key: 'mobility', label: 'Di chuyển', icon: 'walk' },
     { key: 'dressing', label: 'Mặc quần áo', icon: 'shirt' },
   ];
@@ -112,27 +115,30 @@ export const renderIndependenceTab = (profile: any) => {
     <View style={styles.tabContent}>
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Mức độ tự lập</ThemedText>
-        {independenceItems.map((item, index) => (
-          <View key={index} style={styles.independenceCard}>
-            <View style={styles.independenceIcon}>
-              <Ionicons name={item.icon as any} size={20} color="#4ECDC4" />
-            </View>
-            <View style={styles.independenceInfo}>
-              <ThemedText style={styles.independenceLabel}>{item.label}</ThemedText>
-              <View style={[
-                styles.independenceStatus,
-                { backgroundColor: getIndependenceColor(profile.independenceLevel[item.key]) + '20' }
-              ]}>
-                <ThemedText style={[
-                  styles.independenceStatusText,
-                  { color: getIndependenceColor(profile.independenceLevel[item.key]) }
+        {independenceItems.map((item, index) => {
+          const level = profile.independenceLevel[item.key] || 'independent';
+          return (
+            <View key={index} style={styles.independenceCard}>
+              <View style={styles.independenceIcon}>
+                <Ionicons name={item.icon as any} size={20} color="#4ECDC4" />
+              </View>
+              <View style={styles.independenceInfo}>
+                <ThemedText style={styles.independenceLabel}>{item.label}</ThemedText>
+                <View style={[
+                  styles.independenceStatus,
+                  { backgroundColor: getIndependenceColor(level) + '20' }
                 ]}>
-                  {getIndependenceText(profile.independenceLevel[item.key])}
-                </ThemedText>
+                  <ThemedText style={[
+                    styles.independenceStatusText,
+                    { color: getIndependenceColor(level) }
+                  ]}>
+                    {getIndependenceText(level)}
+                  </ThemedText>
+                </View>
               </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
@@ -174,7 +180,7 @@ export const renderNeedsTab = (profile: any) => {
           <View style={styles.emptyState}>
             <Ionicons name="checkmark-circle" size={48} color="#28a745" />
             <ThemedText style={styles.emptyStateText}>
-              Không có nhu cầu chăm sóc đặc biệt
+              Không có thông tin
             </ThemedText>
           </View>
         )}
@@ -188,62 +194,52 @@ export const renderPreferencesTab = (profile: any) => (
     {/* Hobbies */}
     <View style={styles.section}>
       <ThemedText style={styles.sectionTitle}>Sở thích</ThemedText>
-      <View style={styles.tagsContainer}>
-        {profile.preferences.hobbies?.map((hobby: string, index: number) => (
-          <View key={index} style={styles.hobbyTag}>
-            <Ionicons name="star" size={14} color="#ffc107" />
-            <ThemedText style={styles.hobbyText}>{hobby}</ThemedText>
-          </View>
-        ))}
-      </View>
+      {profile.preferences.hobbies?.length > 0 ? (
+        <View style={styles.tagsContainer}>
+          {profile.preferences.hobbies.map((hobby: string, index: number) => (
+            <View key={index} style={styles.hobbyTag}>
+              <Ionicons name="star" size={14} color="#ffc107" />
+              <ThemedText style={styles.hobbyText}>{hobby}</ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <ThemedText style={styles.emptyText}>Không có thông tin</ThemedText>
+      )}
     </View>
 
     {/* Favorite Activities */}
     <View style={styles.section}>
       <ThemedText style={styles.sectionTitle}>Hoạt động yêu thích</ThemedText>
-      <View style={styles.tagsContainer}>
-        {profile.preferences.favoriteActivities?.map((activity: string, index: number) => (
-          <View key={index} style={styles.activityTag}>
-            <Ionicons name="happy" size={14} color="#4ECDC4" />
-            <ThemedText style={styles.activityText}>{activity}</ThemedText>
-          </View>
-        ))}
-      </View>
-    </View>
-
-    {/* Music & TV */}
-    <View style={styles.section}>
-      <ThemedText style={styles.sectionTitle}>Giải trí</ThemedText>
-      <View style={styles.infoItem}>
-        <Ionicons name="musical-notes" size={16} color="#6c757d" />
-        <View style={styles.infoText}>
-          <ThemedText style={styles.infoLabel}>Âm nhạc</ThemedText>
-          <ThemedText style={styles.infoValue}>{profile.preferences.musicPreference || 'Không có'}</ThemedText>
+      {profile.preferences.favoriteActivities?.length > 0 ? (
+        <View style={styles.tagsContainer}>
+          {profile.preferences.favoriteActivities.map((activity: string, index: number) => (
+            <View key={index} style={styles.activityTag}>
+              <Ionicons name="happy" size={14} color="#4ECDC4" />
+              <ThemedText style={styles.activityText}>{activity}</ThemedText>
+            </View>
+          ))}
         </View>
-      </View>
-      
-      <View style={styles.infoItem}>
-        <Ionicons name="tv" size={16} color="#6c757d" />
-        <View style={styles.infoText}>
-          <ThemedText style={styles.infoLabel}>Chương trình TV</ThemedText>
-          <ThemedText style={styles.infoValue}>
-            {profile.preferences.tvShows?.join(', ') || 'Không có'}
-          </ThemedText>
-        </View>
-      </View>
+      ) : (
+        <ThemedText style={styles.emptyText}>Không có thông tin</ThemedText>
+      )}
     </View>
 
     {/* Food Preferences */}
     <View style={styles.section}>
       <ThemedText style={styles.sectionTitle}>Món ăn yêu thích</ThemedText>
-      <View style={styles.tagsContainer}>
-        {profile.preferences.foodPreferences?.map((food: string, index: number) => (
-          <View key={index} style={styles.foodTag}>
-            <Ionicons name="restaurant" size={14} color="#28a745" />
-            <ThemedText style={styles.foodText}>{food}</ThemedText>
-          </View>
-        ))}
-      </View>
+      {profile.preferences.foodPreferences?.length > 0 ? (
+        <View style={styles.tagsContainer}>
+          {profile.preferences.foodPreferences.map((food: string, index: number) => (
+            <View key={index} style={styles.foodTag}>
+              <Ionicons name="restaurant" size={14} color="#28a745" />
+              <ThemedText style={styles.foodText}>{food}</ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <ThemedText style={styles.emptyText}>Không có thông tin</ThemedText>
+      )}
     </View>
   </View>
 );
@@ -259,7 +255,7 @@ export const renderBudgetTab = (profile: any) => (
         </View>
         <View style={styles.budgetInfo}>
           <ThemedText style={styles.budgetLabel}>Giá theo giờ</ThemedText>
-          <ThemedText style={styles.budgetValue}>{profile.budget?.hourlyRate || 'Chưa xác định'}</ThemedText>
+          <ThemedText style={styles.budgetValue}>{profile.budget?.hourlyRate || 'Không có thông tin'}</ThemedText>
         </View>
       </View>
 
@@ -269,7 +265,7 @@ export const renderBudgetTab = (profile: any) => (
         </View>
         <View style={styles.budgetInfo}>
           <ThemedText style={styles.budgetLabel}>Ngân sách tháng</ThemedText>
-          <ThemedText style={styles.budgetValue}>{profile.budget?.monthlyBudget || 'Chưa xác định'}</ThemedText>
+          <ThemedText style={styles.budgetValue}>{profile.budget?.monthlyBudget || 'Không có thông tin'}</ThemedText>
         </View>
       </View>
 
@@ -279,7 +275,7 @@ export const renderBudgetTab = (profile: any) => (
         </View>
         <View style={styles.budgetInfo}>
           <ThemedText style={styles.budgetLabel}>Phương thức thanh toán</ThemedText>
-          <ThemedText style={styles.budgetValue}>{profile.budget?.paymentMethod || 'Chưa xác định'}</ThemedText>
+          <ThemedText style={styles.budgetValue}>{profile.budget?.paymentMethod || 'Không có thông tin'}</ThemedText>
         </View>
       </View>
     </View>
@@ -287,61 +283,76 @@ export const renderBudgetTab = (profile: any) => (
 );
 
 export const renderEnvironmentTab = (profile: any) => {
-  const getHouseTypeText = (type: string) => {
-    switch (type) {
-      case 'private_house': return 'Nhà riêng';
-      case 'apartment': return 'Căn hộ chung cư';
-      case 'nursing_home': return 'Viện dưỡng lão';
-      default: return 'Khác';
-    }
+  const extendedProfile = profile as any;
+  const careRequirement = extendedProfile.careRequirement || {};
+  
+  // Helper function to format gender
+  const formatGender = (gender?: string) => {
+    if (!gender) return 'Không yêu cầu';
+    return gender === 'MALE' ? 'Nam' : gender === 'FEMALE' ? 'Nữ' : gender === 'OTHER' ? 'Khác' : gender;
+  };
+
+  // Helper function to format rating
+  const formatRating = (rating?: number[]) => {
+    if (!rating || !Array.isArray(rating) || rating.length !== 2) return 'Không yêu cầu';
+    return `${rating[0]} - ${rating[1]} sao`;
+  };
+
+  // Helper function to format age range
+  const formatAgeRange = (age?: number[]) => {
+    if (!age || !Array.isArray(age) || age.length !== 2) return 'Không yêu cầu';
+    return `${age[0]} - ${age[1]} tuổi`;
   };
 
   return (
     <View style={styles.tabContent}>
       <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Môi trường sống</ThemedText>
+        <ThemedText style={styles.sectionTitle}>Yêu cầu với người chăm sóc</ThemedText>
         
+        {/* Age Range */}
         <View style={styles.infoItem}>
-          <Ionicons name="home" size={16} color="#6c757d" />
-          <View style={styles.infoText}>
-            <ThemedText style={styles.infoLabel}>Loại nhà ở</ThemedText>
+          <Ionicons name="calendar" size={16} color="#6c757d" />
+          <View style={styles.infoTextContainer}>
+            <ThemedText style={styles.infoLabel}>Độ tuổi</ThemedText>
             <ThemedText style={styles.infoValue}>
-              {getHouseTypeText(profile.livingEnvironment.houseType)}
+              {formatAgeRange(careRequirement.age)}
             </ThemedText>
           </View>
         </View>
 
+        {/* Gender */}
         <View style={styles.infoItem}>
-          <Ionicons name="people" size={16} color="#6c757d" />
-          <View style={styles.infoText}>
-            <ThemedText style={styles.infoLabel}>Sống cùng</ThemedText>
+          <Ionicons name="person" size={16} color="#6c757d" />
+          <View style={styles.infoTextContainer}>
+            <ThemedText style={styles.infoLabel}>Giới tính</ThemedText>
             <ThemedText style={styles.infoValue}>
-              {profile.livingEnvironment.livingWith?.join(', ') || 'Không có'}
+              {formatGender(careRequirement.gender)}
             </ThemedText>
           </View>
         </View>
 
-        <View style={styles.infoItem}>
-          <Ionicons name="location" size={16} color="#6c757d" />
-          <View style={styles.infoText}>
-            <ThemedText style={styles.infoLabel}>Môi trường xung quanh</ThemedText>
-            <ThemedText style={styles.infoValue}>
-              {profile.livingEnvironment.surroundings || 'Không có thông tin'}
-            </ThemedText>
-          </View>
-        </View>
-      </View>
-
-      {/* Accessibility Features */}
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Tiện nghi hỗ trợ</ThemedText>
-        <View style={styles.tagsContainer}>
-          {profile.livingEnvironment.accessibility?.map((item: string, index: number) => (
-            <View key={index} style={styles.accessibilityTag}>
-              <Ionicons name="checkmark-circle" size={14} color="#28a745" />
-              <ThemedText style={styles.accessibilityText}>{item}</ThemedText>
+        {/* Experience */}
+        {careRequirement.experience && (
+          <View style={styles.infoItem}>
+            <Ionicons name="school" size={16} color="#6c757d" />
+            <View style={styles.infoTextContainer}>
+              <ThemedText style={styles.infoLabel}>Kinh nghiệm tối thiểu</ThemedText>
+              <ThemedText style={styles.infoValue}>
+                {careRequirement.experience} năm
+              </ThemedText>
             </View>
-          ))}
+          </View>
+        )}
+
+        {/* Rating */}
+        <View style={styles.infoItem}>
+          <Ionicons name="star" size={16} color="#6c757d" />
+          <View style={styles.infoTextContainer}>
+            <ThemedText style={styles.infoLabel}>Đánh giá</ThemedText>
+            <ThemedText style={styles.infoValue}>
+              {formatRating(careRequirement.rating)}
+            </ThemedText>
+          </View>
         </View>
       </View>
     </View>
@@ -351,7 +362,7 @@ export const renderEnvironmentTab = (profile: any) => {
 export const renderCaregiverTab = (profile: any) => {
   return (
     <View style={styles.tabContent}>
-      <ThemedText style={styles.emptyText}>Không có thông tin yêu cầu</ThemedText>
+      <ThemedText style={styles.emptyText}>Không có thông tin</ThemedText>
     </View>
   );
 };

@@ -1,19 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -24,13 +24,13 @@ import { CaregiverCard, type Caregiver } from '@/components/caregiver/CaregiverC
 import { SearchFilters, type FilterOption } from '@/components/caregiver/SearchFilters';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
-import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 // TODO: Replace with API call
 // import { useElderlyProfiles } from '@/hooks/useDatabaseEntities';
-import { CaregiverRecommendation, MatchResponse } from '@/services/types';
 import { caregiverService, type PublicCaregiver } from '@/services/caregiver.service';
 import { chatService } from '@/services/chat.service';
+import { CaregiverRecommendation, MatchResponse } from '@/services/types';
 
 // Mock data
 const mockElderlyProfiles = [
@@ -110,9 +110,11 @@ export default function CaregiverSearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [caregivers, setCaregivers] = useState<Caregiver[]>([]);
+  const [caregiversFullData, setCaregiversFullData] = useState<PublicCaregiver[]>([]); // Lưu data gốc từ API
   const [isLoading, setIsLoading] = useState(true);
   const [showAIModal, setShowAIModal] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<CaregiverRecommendation[]>([]);
+  const [aiRecommendationsFullData, setAiRecommendationsFullData] = useState<PublicCaregiver[]>([]); // Lưu data gốc từ AI recommendations
   const [showAIResults, setShowAIResults] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   const [showFloatingAI, setShowFloatingAI] = useState(true);
@@ -133,35 +135,57 @@ export default function CaregiverSearchScreen() {
       try {
         setIsLoading(true);
         const publicCaregivers = await caregiverService.getPublicCaregivers();
+
+        // Log response từ BE
+        console.log('=== RESPONSE FROM BE (TÌM NGƯỜI CHĂM SÓC) ===');
+        console.log('Full response:', JSON.stringify(publicCaregivers, null, 2));
+        console.log('Number of caregivers:', publicCaregivers.length);
         
+        // Log avatar URLs từ response
+        publicCaregivers.forEach((cg: any, index: number) => {
+          console.log(`Caregiver ${index + 1} - ${cg.fullName}:`);
+          console.log(`  - avatarUrl (raw):`, cg.avatarUrl);
+          console.log(`  - avatarUrl type:`, typeof cg.avatarUrl);
+          console.log(`  - avatarUrl length:`, cg.avatarUrl?.length);
+          if (cg.avatarUrl) {
+            console.log(`  - avatarUrl includes %2F:`, cg.avatarUrl.includes('%2F'));
+            console.log(`  - avatarUrl includes /o/:`, cg.avatarUrl.includes('/o/'));
+          }
+        });
+        console.log('=== END RESPONSE LOG ===');
+
+        // Lưu data gốc từ API
+        setCaregiversFullData(publicCaregivers);
+
         // Map API response to Caregiver interface
         const mappedCaregivers: Caregiver[] = publicCaregivers.map((cg: PublicCaregiver) => {
           // Get years_experience from cg.years_experience or cg.profileData?.years_experience
           const yearsExperience = cg.years_experience || cg.profileData?.years_experience;
           const experienceText = yearsExperience !== undefined ? `${yearsExperience} năm` : 'Chưa có';
-          
+
           // Get rating and total_reviews from profileData.ratings_reviews
           const ratingsReviews = cg.profileData?.ratings_reviews;
           const rating = ratingsReviews?.overall_rating || 0;
           const totalReviews = ratingsReviews?.total_reviews || 0;
-          
+
           return {
-          id: cg.caregiverProfileId,
-          name: cg.fullName,
-          avatar: cg.avatarUrl || 'https://via.placeholder.com/150',
-          rating: rating,
+            id: cg.caregiverProfileId,
+            name: cg.fullName,
+            avatar: cg.avatarUrl || 'https://via.placeholder.com/150',
+            rating: rating,
             experience: experienceText,
-          hourlyRate: 0, // Không hiển thị nữa nhưng vẫn cần trong interface
-          distance: '5km', // Fix cứng 5km
-          isVerified: cg.isVerified,
-          totalReviews: totalReviews,
+            hourlyRate: 0, // Không hiển thị nữa nhưng vẫn cần trong interface
+            distance: '5km', // Fix cứng 5km
+            isVerified: cg.isVerified,
+            totalReviews: totalReviews,
           };
         });
-        
+
         setCaregivers(mappedCaregivers);
       } catch (error) {
         // Fallback to mock data on error
         setCaregivers(mockCaregivers);
+        setCaregiversFullData([]);
       } finally {
         setIsLoading(false);
       }
@@ -177,7 +201,36 @@ export default function CaregiverSearchScreen() {
   const translateY = useSharedValue(screenHeight - 200); // Initial position (bottom)
 
   const handleCaregiverPress = (caregiver: Caregiver) => {
-    router.push('/careseeker/caregiver-detail');
+    // Tìm data gốc từ list ban đầu hoặc AI recommendations
+    const fullData = caregiversFullData.find(cg => cg.caregiverProfileId === caregiver.id) ||
+                     aiRecommendationsFullData.find(cg => cg.caregiverProfileId === caregiver.id);
+    
+    if (fullData) {
+      // Truyền data gốc vào params
+      // Truyền avatarUrl riêng để tránh bị encode trong JSON string
+      router.push({
+        pathname: '/careseeker/caregiver-detail',
+        params: {
+          id: caregiver.id,
+          caregiverId: caregiver.id,
+          caregiverName: caregiver.name,
+          // Truyền avatarUrl riêng để giữ nguyên URL gốc
+          avatarUrl: fullData.avatarUrl || '',
+          // Truyền toàn bộ object caregiver detail (sẽ được stringify tự động)
+          caregiver: JSON.stringify(fullData),
+        }
+      });
+    } else {
+      // Fallback: chỉ truyền id và name nếu không tìm thấy data gốc
+      router.push({
+        pathname: '/careseeker/caregiver-detail',
+        params: {
+          id: caregiver.id,
+          caregiverId: caregiver.id,
+          caregiverName: caregiver.name,
+        }
+      });
+    }
   };
 
   const handleChatPress = async (caregiver: Caregiver) => {
@@ -185,19 +238,19 @@ export default function CaregiverSearchScreen() {
       // caregiver.id là caregiverProfileId, cần lấy accountId
       // Gọi API để lấy chi tiết caregiver (có accountId)
       const caregiverDetail = await caregiverService.getPublicCaregiverById(caregiver.id);
-      
+
       // Lấy accountId từ response
       const accountId = caregiverDetail.accountId;
-      
+
       if (!accountId) {
         throw new Error('AccountId not found');
       }
-      
+
       // Gọi API để lấy chatId với accountId (receiverId)
       const chatIdResponse = await chatService.getChatId(accountId);
-      
+
       const chatId = chatIdResponse.chatId || chatIdResponse.id;
-      
+
       // Navigate đến chat screen với chatId
       router.push({
         pathname: '/careseeker/chat',
@@ -236,12 +289,12 @@ export default function CaregiverSearchScreen() {
 
   const handleGetAIRecommendations = async (response: MatchResponse) => {
     setIsAILoading(true);
-    
+
     // Debug log
     console.log('handleGetAIRecommendations - response:', JSON.stringify(response, null, 2));
     console.log('handleGetAIRecommendations - total_matches:', response.total_matches);
     console.log('handleGetAIRecommendations - failure_analysis:', response.failure_analysis);
-    
+
     // Store failure analysis if no matches
     if (response.total_matches === 0 && response.failure_analysis) {
       console.log('Setting failure analysis:', response.failure_analysis);
@@ -250,7 +303,7 @@ export default function CaregiverSearchScreen() {
       console.log('Clearing failure analysis');
       setAiFailureAnalysis(undefined);
     }
-    
+
     try {
       // If no recommendations, skip fetching details
       if (response.recommendations.length === 0) {
@@ -260,24 +313,31 @@ export default function CaregiverSearchScreen() {
         setIsAILoading(false);
         return;
       }
-      
+
       // Fetch detailed caregiver info for each recommendation
       const enrichedRecommendations = await Promise.all(
         response.recommendations.map(async (rec) => {
           try {
-            const caregiverDetail = await caregiverService.getPublicCaregiverById(rec.caregiver_id);
-            
+            // Kiểm tra xem có trong list ban đầu không
+            const existingData = caregiversFullData.find(cg => cg.caregiverProfileId === rec.caregiver_id);
+            const caregiverDetail = existingData || await caregiverService.getPublicCaregiverById(rec.caregiver_id);
+
+            // Lưu data gốc nếu chưa có trong list
+            if (!existingData) {
+              setAiRecommendationsFullData(prev => [...prev, caregiverDetail]);
+            }
+
             // Get rating and total_reviews from profileData.ratings_reviews
             const ratingsReviews = caregiverDetail.profileData?.ratings_reviews;
             const rating = ratingsReviews?.overall_rating || 0;
             const totalReviews = ratingsReviews?.total_reviews || 0;
-            
+
             // Format distance_km to distance string
             const distanceKm = rec.distance_km || 0;
-            const distanceString = distanceKm > 0 
-              ? `${distanceKm.toFixed(1)} km` 
+            const distanceString = distanceKm > 0
+              ? `${distanceKm.toFixed(1)} km`
               : rec.distance || '0 km';
-            
+
             // Merge match data with detailed caregiver info
             // Keep distance_km from match response, use rating from API
             return {
@@ -287,8 +347,8 @@ export default function CaregiverSearchScreen() {
               bio: caregiverDetail.bio,
               isVerified: caregiverDetail.isVerified,
               years_experience: caregiverDetail.years_experience || rec.years_experience,
-              experience: caregiverDetail.years_experience 
-                ? `${caregiverDetail.years_experience} năm` 
+              experience: caregiverDetail.years_experience
+                ? `${caregiverDetail.years_experience} năm`
                 : rec.experience,
               rating: rating, // Use rating from API
               total_reviews: totalReviews, // Use total_reviews from API
@@ -302,7 +362,7 @@ export default function CaregiverSearchScreen() {
           }
         })
       );
-      
+
       setAiRecommendations(enrichedRecommendations);
       setShowAIResults(true);
       setShowAIModal(false);
@@ -338,7 +398,7 @@ export default function CaregiverSearchScreen() {
       // Snap to edges
       const buttonSize = 56;
       const margin = 20;
-      
+
       if (translateX.value < screenWidth / 2) {
         // Snap to left edge
         translateX.value = withSpring(margin);
@@ -346,7 +406,7 @@ export default function CaregiverSearchScreen() {
         // Snap to right edge
         translateX.value = withSpring(screenWidth - buttonSize - margin);
       }
-      
+
       // Keep Y within screen bounds
       translateY.value = withSpring(
         Math.max(margin, Math.min(screenHeight - buttonSize - margin, translateY.value))
@@ -367,156 +427,156 @@ export default function CaregiverSearchScreen() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerContent}>
-          <ThemedText style={styles.headerTitle}>Tìm người chăm sóc</ThemedText>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+
+          <View style={styles.headerContent}>
+            <ThemedText style={styles.headerTitle}>Tìm người chăm sóc</ThemedText>
+          </View>
+
+          <View style={styles.placeholder} />
         </View>
-        
-        <View style={styles.placeholder} />
-      </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#999" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Tìm theo tên, kỹ năng, khu vực..."
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Filters */}
-      <SearchFilters
-        filters={filterOptions}
-        selectedFilter={selectedFilter}
-        onFilterChange={setSelectedFilter}
-      />
-
-      {/* Results */}
-      {showAIResults ? (
-        <AIRecommendations
-          recommendations={aiRecommendations}
-          onCaregiverPress={handleCaregiverPress}
-          onBookPress={handleBookNow}
-          onChatPress={handleChatPress}
-          onRefresh={handleRefreshAI}
-          isLoading={isAILoading}
-          bottomPadding={bottomNavPadding}
-          failureAnalysis={aiFailureAnalysis}
-        />
-      ) : (
-        <ScrollView
-          style={styles.resultsContainer}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: bottomNavPadding }}
-        >
-          <View style={styles.resultsHeader}>
-            <ThemedText style={styles.resultsCount}>
-              {isLoading ? 'Đang tải...' : `Tìm thấy ${caregivers.filter((caregiver) => {
-                if (!searchQuery.trim()) return true;
-                const query = searchQuery.toLowerCase();
-                return (
-                  caregiver.name.toLowerCase().includes(query) ||
-                  caregiver.experience.toLowerCase().includes(query)
-                );
-              }).length} người chăm sóc`}
-            </ThemedText>
-            {!isLoading && (
-              <TouchableOpacity style={styles.sortButton}>
-                <Ionicons name="swap-vertical" size={16} color="#68C2E8" />
-                <ThemedText style={styles.sortButtonText}>Sắp xếp</ThemedText>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color="#999" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm theo tên, kỹ năng, khu vực..."
+              placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color="#999" />
               </TouchableOpacity>
             )}
           </View>
+        </View>
 
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ThemedText style={styles.loadingText}>Đang tải danh sách người chăm sóc...</ThemedText>
-            </View>
-          ) : (
-            <View style={styles.caregiversList}>
-              {caregivers
-                .filter((caregiver) => {
-                  // Filter by search query
+        {/* Filters */}
+        <SearchFilters
+          filters={filterOptions}
+          selectedFilter={selectedFilter}
+          onFilterChange={setSelectedFilter}
+        />
+
+        {/* Results */}
+        {showAIResults ? (
+          <AIRecommendations
+            recommendations={aiRecommendations}
+            onCaregiverPress={handleCaregiverPress}
+            onBookPress={handleBookNow}
+            onChatPress={handleChatPress}
+            onRefresh={handleRefreshAI}
+            isLoading={isAILoading}
+            bottomPadding={bottomNavPadding}
+            failureAnalysis={aiFailureAnalysis}
+          />
+        ) : (
+          <ScrollView
+            style={styles.resultsContainer}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: bottomNavPadding }}
+          >
+            <View style={styles.resultsHeader}>
+              <ThemedText style={styles.resultsCount}>
+                {isLoading ? 'Đang tải...' : `Tìm thấy ${caregivers.filter((caregiver) => {
                   if (!searchQuery.trim()) return true;
                   const query = searchQuery.toLowerCase();
                   return (
                     caregiver.name.toLowerCase().includes(query) ||
                     caregiver.experience.toLowerCase().includes(query)
                   );
-                })
-                .map((caregiver) => (
-                  <CaregiverCard
-                    key={caregiver.id}
-                    caregiver={caregiver}
-                    onPress={handleCaregiverPress}
-                    onBookPress={handleBookNow}
-                    onChatPress={handleChatPress}
-                  />
-                ))}
+                }).length} người chăm sóc`}
+              </ThemedText>
+              {!isLoading && (
+                <TouchableOpacity style={styles.sortButton}>
+                  <Ionicons name="swap-vertical" size={16} color="#68C2E8" />
+                  <ThemedText style={styles.sortButtonText}>Sắp xếp</ThemedText>
+                </TouchableOpacity>
+              )}
             </View>
-          )}
 
-          {/* Bottom spacing */}
-          <View style={styles.bottomSpacing} />
-        </ScrollView>
-      )}
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ThemedText style={styles.loadingText}>Đang tải danh sách người chăm sóc...</ThemedText>
+              </View>
+            ) : (
+              <View style={styles.caregiversList}>
+                {caregivers
+                  .filter((caregiver) => {
+                    // Filter by search query
+                    if (!searchQuery.trim()) return true;
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      caregiver.name.toLowerCase().includes(query) ||
+                      caregiver.experience.toLowerCase().includes(query)
+                    );
+                  })
+                  .map((caregiver) => (
+                    <CaregiverCard
+                      key={caregiver.id}
+                      caregiver={caregiver}
+                      onPress={handleCaregiverPress}
+                      onBookPress={handleBookNow}
+                      onChatPress={handleChatPress}
+                    />
+                  ))}
+              </View>
+            )}
 
-      {/* Floating AI Button */}
-      {showFloatingAI && (
-        <GestureDetector gesture={panGesture}>
-          <Animated.View style={[styles.floatingAIContainer, animatedStyle]}>
-            <TouchableOpacity style={styles.floatingAIButton} onPress={handleAIMatching}>
-              <Ionicons name="sparkles" size={24} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.closeFloatingButton} 
-              onPress={() => setShowFloatingAI(false)}
-            >
-              <Ionicons name="close" size={16} color="#666" />
-            </TouchableOpacity>
-          </Animated.View>
-        </GestureDetector>
-      )}
+            {/* Bottom spacing */}
+            <View style={styles.bottomSpacing} />
+          </ScrollView>
+        )}
 
-      {/* AI Matching Modal */}
-      <AIMatchingModal
-        visible={showAIModal}
-        onClose={() => setShowAIModal(false)}
-        onGetRecommendations={handleGetAIRecommendations}
-        elderlyProfiles={mockElderlyProfiles}
-      />
+        {/* Floating AI Button */}
+        {showFloatingAI && (
+          <GestureDetector gesture={panGesture}>
+            <Animated.View style={[styles.floatingAIContainer, animatedStyle]}>
+              <TouchableOpacity style={styles.floatingAIButton} onPress={handleAIMatching}>
+                <Ionicons name="sparkles" size={24} color="white" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.closeFloatingButton}
+                onPress={() => setShowFloatingAI(false)}
+              >
+                <Ionicons name="close" size={16} color="#666" />
+              </TouchableOpacity>
+            </Animated.View>
+          </GestureDetector>
+        )}
 
-      {/* Booking Modal */}
-      {selectedCaregiver && (
-        <BookingModal
-          visible={showBookingModal}
-          onClose={() => {
-            setShowBookingModal(false);
-            setSelectedCaregiver(null);
-          }}
-          caregiver={selectedCaregiver}
-          elderlyProfiles={elderlyProfiles}
+        {/* AI Matching Modal */}
+        <AIMatchingModal
+          visible={showAIModal}
+          onClose={() => setShowAIModal(false)}
+          onGetRecommendations={handleGetAIRecommendations}
+          elderlyProfiles={mockElderlyProfiles}
         />
-      )}
 
-      {/* Navigation Bar */}
-      <SimpleNavBar />
-    </SafeAreaView>
+        {/* Booking Modal */}
+        {selectedCaregiver && (
+          <BookingModal
+            visible={showBookingModal}
+            onClose={() => {
+              setShowBookingModal(false);
+              setSelectedCaregiver(null);
+            }}
+            caregiver={selectedCaregiver}
+            elderlyProfiles={elderlyProfiles}
+          />
+        )}
+
+        {/* Navigation Bar */}
+        <SimpleNavBar />
+      </SafeAreaView>
     </GestureHandlerRootView>
   );
 }

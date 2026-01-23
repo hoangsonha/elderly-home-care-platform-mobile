@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -10,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
   View,
@@ -58,6 +60,9 @@ export default function ChatScreen() {
 
   // Listen messages real-time từ Firestore
   const { messages: firestoreMessages, loading, error } = useChatMessages(chatId);
+  
+  // Kiểm tra xem screen có đang focus không (chỉ mark as read khi screen đang focus)
+  const isFocused = useIsFocused();
 
   const normalizeParam = (value?: string | string[]) => {
     const raw = Array.isArray(value) ? value[0] : value;
@@ -167,8 +172,10 @@ export default function ChatScreen() {
   }, [localMessages]);
 
   // Đánh dấu đã đọc khi vào chat và có tin nhắn mới
+  // CHỈ mark as read khi screen đang focus (user thực sự xem chat)
+  // Chỉ mark tin nhắn mới nhất (tin nhắn cuối cùng chưa đọc) - backend sẽ tự động mark tất cả tin nhắn cũ hơn
   useEffect(() => {
-    if (!user?.id || !firestoreMessages.length) return;
+    if (!isFocused || !user?.id || !firestoreMessages.length) return;
 
     // Tìm các tin nhắn chưa đọc mà receiver là current user
     const unreadMessages = firestoreMessages.filter(
@@ -177,15 +184,25 @@ export default function ChatScreen() {
         !msg.read
     );
 
-    // Đánh dấu đã đọc cho từng tin nhắn
+    // Chỉ mark tin nhắn mới nhất (tin nhắn cuối cùng chưa đọc)
+    // Backend sẽ tự động mark tất cả tin nhắn cũ hơn là đã đọc khi mark tin nhắn mới nhất
     if (unreadMessages.length > 0) {
-      unreadMessages.forEach((msg: ChatMessage) => {
-        chatService.markAsRead(msg.id).catch((err) => {
+      // Sắp xếp theo timestamp để tìm tin nhắn mới nhất
+      const sortedUnreadMessages = [...unreadMessages].sort((a, b) => {
+        const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime();
+        const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime();
+        return timeB - timeA; // Descending - tin nhắn mới nhất đầu tiên
+      });
+
+      // Chỉ mark tin nhắn mới nhất
+      const latestUnreadMessage = sortedUnreadMessages[0];
+      if (latestUnreadMessage && latestUnreadMessage.id && typeof latestUnreadMessage.id === 'string') {
+        chatService.markAsRead(latestUnreadMessage.id).catch((err) => {
           // Silent fail - không cần hiển thị error
         });
-      });
+      }
     }
-  }, [firestoreMessages, user?.id]);
+  }, [firestoreMessages, user?.id, isFocused]);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -298,21 +315,28 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <View style={[
-      styles.messageContainer,
-      item.isMine ? styles.myMessageContainer : styles.theirMessageContainer
-    ]}>
+  const renderMessage = ({ item }: { item: Message }) => {
+    // Ensure text is properly rendered by using a string directly
+    const messageText = typeof item.text === 'string' ? item.text : String(item.text || '');
+    
+    return (
       <View style={[
-        styles.messageBubble,
-        item.isMine ? styles.myMessage : styles.theirMessage
+        styles.messageContainer,
+        item.isMine ? styles.myMessageContainer : styles.theirMessageContainer
       ]}>
-        <ThemedText style={[
-          styles.messageText,
-          item.isMine ? styles.myMessageText : styles.theirMessageText
+        <View style={[
+          styles.messageBubble,
+          item.isMine ? styles.myMessage : styles.theirMessage
         ]}>
-          {item.text}
-        </ThemedText>
+          <Text 
+            style={[
+              styles.messageText,
+              item.isMine ? styles.myMessageText : styles.theirMessageText
+            ]}
+            selectable={false}
+          >
+            {messageText}
+          </Text>
         <View style={styles.messageFooter}>
           <ThemedText style={[
             styles.timestamp,
@@ -337,7 +361,8 @@ export default function ChatScreen() {
         </View>
       </View>
     </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.wrapper}>

@@ -374,7 +374,8 @@ export default function AppointmentsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.headerContainer}>
+        <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
@@ -383,6 +384,7 @@ export default function AppointmentsScreen() {
           <ThemedText style={styles.headerSubtitle}>Quản lý lịch chăm sóc</ThemedText>
         </View>
         <View style={styles.placeholder} />
+      </View>
       </View>
 
       {/* Tabs */}
@@ -448,6 +450,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F4F9FD',
+  },
+  headerContainer: {
+    backgroundColor: '#68C2E8',
   },
   loadingContainer: {
     flex: 1,

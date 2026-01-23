@@ -245,17 +245,17 @@ export const mainService = {
   getMyCareServices: async (workDate?: string, status?: string): Promise<MyCareServicesApiResponse> => {
     try {
       // console.log('Fetching my care services...', workDate ? `for date: ${workDate}` : '', status ? `with status: ${status}` : '');
-      
+
       // Build query parameters
       const params = new URLSearchParams();
       if (workDate) params.append('workDate', workDate);
       if (status) params.append('status', status);
-      
+
       const queryString = params.toString();
-      const url = queryString 
+      const url = queryString
         ? `/api/v1/care-services/my-care-services?${queryString}`
         : '/api/v1/care-services/my-care-services';
-      
+
       const response = await apiClient.get<MyCareServicesApiResponse>(url);
       // console.log('My care services fetched:', response.data);
       return response.data;
@@ -376,21 +376,21 @@ export const mainService = {
   ): Promise<CareServiceApiResponse> => {
     try {
       const formData = new FormData();
-      
+
       // Append JSON request
       const request = { careServiceId };
       formData.append('request', JSON.stringify(request));
-      
+
       // Append check-in image
       const fileExtension = checkInImage.uri.split('.').pop() || 'jpg';
       const fileName = checkInImage.name || `checkIn_${Date.now()}.${fileExtension}`;
       const fileType = checkInImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
 
       let fileUri = checkInImage.uri;
-      if (!fileUri.startsWith('file://') && 
-          !fileUri.startsWith('content://') && 
-          !fileUri.startsWith('http://') && 
-          !fileUri.startsWith('https://')) {
+      if (!fileUri.startsWith('file://') &&
+        !fileUri.startsWith('content://') &&
+        !fileUri.startsWith('http://') &&
+        !fileUri.startsWith('https://')) {
         fileUri = `file://${fileUri}`;
       }
 
@@ -416,7 +416,7 @@ export const mainService = {
 
       // Nếu axios fail với Network Error, thử XMLHttpRequest (fallback)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        
+
         const token = await AsyncStorage.getItem('token');
         if (!token) {
           return {
@@ -432,16 +432,16 @@ export const mainService = {
             const formData = new FormData();
             const request = { careServiceId };
             formData.append('request', JSON.stringify(request));
-            
+
             const fileExtension = checkInImage.uri.split('.').pop() || 'jpg';
             const fileName = checkInImage.name || `checkIn_${Date.now()}.${fileExtension}`;
             const fileType = checkInImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
 
             let fileUri = checkInImage.uri;
-            if (!fileUri.startsWith('file://') && 
-                !fileUri.startsWith('content://') && 
-                !fileUri.startsWith('http://') && 
-                !fileUri.startsWith('https://')) {
+            if (!fileUri.startsWith('file://') &&
+              !fileUri.startsWith('content://') &&
+              !fileUri.startsWith('http://') &&
+              !fileUri.startsWith('https://')) {
               fileUri = `file://${fileUri}`;
             }
 
@@ -452,7 +452,7 @@ export const mainService = {
             } as any);
 
             const xhr = new XMLHttpRequest();
-            
+
             xhr.onload = () => {
               if (xhr.status >= 200 && xhr.status < 300) {
                 try {
@@ -535,21 +535,21 @@ export const mainService = {
   ): Promise<CareServiceApiResponse> => {
     try {
       const formData = new FormData();
-      
+
       // Append JSON request
       const request = { careServiceId };
       formData.append('request', JSON.stringify(request));
-      
+
       // Append check-out image
       const fileExtension = checkOutImage.uri.split('.').pop() || 'jpg';
       const fileName = checkOutImage.name || `checkOut_${Date.now()}.${fileExtension}`;
       const fileType = checkOutImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
 
       let fileUri = checkOutImage.uri;
-      if (!fileUri.startsWith('file://') && 
-          !fileUri.startsWith('content://') && 
-          !fileUri.startsWith('http://') && 
-          !fileUri.startsWith('https://')) {
+      if (!fileUri.startsWith('file://') &&
+        !fileUri.startsWith('content://') &&
+        !fileUri.startsWith('http://') &&
+        !fileUri.startsWith('https://')) {
         fileUri = `file://${fileUri}`;
       }
 
@@ -575,7 +575,7 @@ export const mainService = {
 
       // Nếu axios fail với Network Error, thử XMLHttpRequest (fallback)
       if (axiosError.code === 'ERR_NETWORK' || axiosError.message === 'Network Error') {
-        
+
         const token = await AsyncStorage.getItem('token');
         if (!token) {
           return {
@@ -591,16 +591,16 @@ export const mainService = {
             const formData = new FormData();
             const request = { careServiceId };
             formData.append('request', JSON.stringify(request));
-            
+
             const fileExtension = checkOutImage.uri.split('.').pop() || 'jpg';
             const fileName = checkOutImage.name || `checkOut_${Date.now()}.${fileExtension}`;
             const fileType = checkOutImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
 
             let fileUri = checkOutImage.uri;
-            if (!fileUri.startsWith('file://') && 
-                !fileUri.startsWith('content://') && 
-                !fileUri.startsWith('http://') && 
-                !fileUri.startsWith('https://')) {
+            if (!fileUri.startsWith('file://') &&
+              !fileUri.startsWith('content://') &&
+              !fileUri.startsWith('http://') &&
+              !fileUri.startsWith('https://')) {
               fileUri = `file://${fileUri}`;
             }
 
@@ -611,7 +611,7 @@ export const mainService = {
             } as any);
 
             const xhr = new XMLHttpRequest();
-            
+
             xhr.onload = () => {
               if (xhr.status >= 200 && xhr.status < 300) {
                 try {
@@ -726,7 +726,7 @@ export const mainService = {
           data: null,
         };
       }
-      
+
       if (!paymentId) {
         console.error('checkPaymentStatus: paymentId is missing');
         return {
@@ -735,7 +735,7 @@ export const mainService = {
           data: null,
         };
       }
-      
+
       if (!careServiceId) {
         console.error('checkPaymentStatus: careServiceId is missing');
         return {
@@ -744,17 +744,17 @@ export const mainService = {
           data: null,
         };
       }
-      
+
       const url = `/api/v1/payments/order/${orderId}`;
       const requestBody = {
         paymentId: paymentId,
         careServiceId: careServiceId,
       };
-      
+
       console.log('checkPaymentStatus: Calling API with URL:', url);
       console.log('checkPaymentStatus: orderId:', orderId);
       console.log('checkPaymentStatus: requestBody:', requestBody);
-      
+
       const response = await apiClient.post<CareServiceApiResponse>(url, requestBody);
       console.log('checkPaymentStatus: Response:', response.data);
       return response.data;
@@ -840,6 +840,120 @@ export const mainService = {
   },
 
   /**
+   * Thêm chứng chỉ cho caregiver
+   * POST /api/v1/caregivers/qualifications
+   */
+  addCaregiverQualification: async (
+    qualificationData: {
+      qualification_type_id: string;
+      certificate_number?: string;
+      issuing_organization?: string;
+      issue_date?: string;
+      expiry_date?: string;
+      notes?: string;
+    },
+    credentialFile: { uri: string; type?: string; name?: string }
+  ): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> => {
+    try {
+      const formData = new FormData();
+
+      // Append JSON data
+      formData.append('data', JSON.stringify(qualificationData));
+
+      // Append credential file
+      // Xác định file extension từ URI hoặc name
+      let fileExtension = 'pdf';
+      if (credentialFile.name) {
+        const nameParts = credentialFile.name.split('.');
+        if (nameParts.length > 1) {
+          fileExtension = nameParts.pop()?.toLowerCase() || 'pdf';
+        }
+      } else if (credentialFile.uri) {
+        const uriParts = credentialFile.uri.split('.');
+        if (uriParts.length > 1) {
+          fileExtension = uriParts.pop()?.toLowerCase() || 'pdf';
+        }
+      }
+
+      const fileName = credentialFile.name || `certificate_${Date.now()}.${fileExtension}`;
+
+      // Xác định MIME type dựa trên extension hoặc type đã có
+      let fileType = credentialFile.type;
+      if (!fileType || fileType === 'image' || fileType === 'document') {
+        // Nếu type là generic, xác định từ extension
+        if (fileExtension === 'pdf') {
+          fileType = 'application/pdf';
+        } else if (fileExtension === 'jpg' || fileExtension === 'jpeg') {
+          fileType = 'image/jpeg';
+        } else if (fileExtension === 'png') {
+          fileType = 'image/png';
+        } else {
+          fileType = 'application/octet-stream';
+        }
+      }
+
+      // Format URI correctly for React Native - giữ nguyên format gốc
+      let fileUri = credentialFile.uri;
+      // Không modify URI - React Native FormData xử lý file://, content://, etc.
+
+      // Tạo file object cho React Native FormData
+      const fileObject = {
+        uri: fileUri,
+        type: fileType,
+        name: fileName,
+      } as any;
+
+      formData.append('credentialFile', fileObject);
+
+      // Không set Content-Type header - để apiClient tự động xử lý
+      const response = await apiClient.post('/api/v1/caregivers/qualifications', formData);
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Error adding qualification:', error);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Không thể thêm chứng chỉ',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Xóa chứng chỉ của caregiver
+   * DELETE /api/v1/caregivers/qualifications/{id}
+   */
+  deleteCaregiverQualification: async (
+    qualificationId: string
+  ): Promise<{
+    status: string;
+    message: string;
+    data: any;
+  }> => {
+    try {
+      const response = await apiClient.delete(`/api/v1/caregivers/qualifications/${qualificationId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error deleting qualification:', error);
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      return {
+        status: 'Fail',
+        message: error.message || 'Không thể xóa chứng chỉ',
+        data: null,
+      };
+    }
+  },
+
+  /**
    * Tạo caregiver profile với multipart/form-data
    * @param profileData - Dữ liệu profile (JSON)
    * @param avatarFile - File avatar (optional)
@@ -848,14 +962,14 @@ export const mainService = {
   createCaregiverProfile: async (
     profileData: any,
     avatarFile?: { uri: string; type?: string; name?: string },
-    credentialFiles?: Array<{ uri: string; type?: string; name?: string }>,
+    credentialFiles?: { uri: string; type?: string; name?: string }[],
     citizenIdFrontImage?: { uri: string; type?: string; name?: string },
     citizenIdBackImage?: { uri: string; type?: string; name?: string }
   ): Promise<CareServiceApiResponse> => {
     try {
 
       const formData = new FormData();
-      
+
       // Append JSON data
       formData.append('data', JSON.stringify(profileData));
 
@@ -864,7 +978,7 @@ export const mainService = {
         const fileExtension = avatarFile.uri.split('.').pop() || 'jpg';
         const fileName = avatarFile.name || `avatar_${Date.now()}.${fileExtension}`;
         const fileType = avatarFile.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
-        
+
         // Format URI correctly for React Native
         let fileUri = avatarFile.uri;
         // Keep original URI format (file://, content://, etc.)
@@ -883,7 +997,7 @@ export const mainService = {
           const fileExtension = file.uri.split('.').pop() || 'pdf';
           const fileName = file.name || `credential_${Date.now()}.${fileExtension}`;
           const fileType = file.type || (fileExtension === 'pdf' ? 'application/pdf' : 'image/jpeg');
-          
+
           // Format URI correctly for React Native
           let fileUri = file.uri;
           // Keep original URI format (file://, content://, etc.)
@@ -902,9 +1016,9 @@ export const mainService = {
         const fileExtension = citizenIdFrontImage.uri.split('.').pop() || 'jpg';
         const fileName = citizenIdFrontImage.name || `citizenIdFront_${Date.now()}.${fileExtension}`;
         const fileType = citizenIdFrontImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
-        
+
         let fileUri = citizenIdFrontImage.uri;
-        
+
         formData.append('citizenIdFrontImage', {
           uri: fileUri,
           type: fileType,
@@ -917,9 +1031,9 @@ export const mainService = {
         const fileExtension = citizenIdBackImage.uri.split('.').pop() || 'jpg';
         const fileName = citizenIdBackImage.name || `citizenIdBack_${Date.now()}.${fileExtension}`;
         const fileType = citizenIdBackImage.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
-        
+
         let fileUri = citizenIdBackImage.uri;
-        
+
         formData.append('citizenIdBackImage', {
           uri: fileUri,
           type: fileType,
@@ -927,7 +1041,7 @@ export const mainService = {
         } as any);
       }
 
-      
+
       // Try with axios first
       try {
         const response = await apiClient.post<CareServiceApiResponse>(
@@ -953,7 +1067,7 @@ export const mainService = {
         return response.data;
       } catch (axiosError: any) {
         // Silent fail
-        
+
         // Throw error để xử lý ở nơi gọi
         throw axiosError;
       }
@@ -961,11 +1075,11 @@ export const mainService = {
       if (error.response?.data) {
         return error.response.data;
       }
-      
+
       // Network error - có thể do FormData hoặc network issue
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
       }
-      
+
       return {
         status: 'Fail',
         message: error.message || 'Không thể tạo hồ sơ. Vui lòng thử lại sau.',
@@ -995,6 +1109,56 @@ export const mainService = {
       return {
         status: 'Fail',
         message: error.response?.data?.message || error.message || 'Không thể lấy thống kê. Vui lòng thử lại sau.',
+        data: null,
+      };
+    }
+  },
+
+  /**
+   * Lấy thu nhập của caregiver
+   */
+  getCaregiverIncome: async (): Promise<{
+    status: string;
+    message: string;
+    data: {
+      totalEarnings: number;
+      incomeByMonth: Array<{
+        year: number;
+        month: number;
+        totalEarnings: number;
+        totalBookings: number;
+        totalServiceAmount: number;
+        status: string;
+        batchCode: string;
+        payoutBatchId: string;
+        payoutDetails: Array<{
+          payoutId: string;
+          payoutCode: string;
+          caregiverEarnings: number;
+          totalAmount: number;
+          systemRevenue: number;
+          systemFeePercentage: number;
+          serviceDate: string;
+          status: string;
+          includedAt: string;
+          paidAt: string | null;
+          careServiceId: string;
+          bookingCode: string;
+          workDate: string;
+          payoutBatchId: string;
+          batchCode: string;
+        }>;
+      }>;
+    } | null;
+  }> => {
+    try {
+      const response = await apiClient.get('/api/v1/statistics/caregiver/income');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching caregiver income:', error);
+      return {
+        status: 'Fail',
+        message: error.response?.data?.message || error.message || 'Không thể lấy thông tin thu nhập. Vui lòng thử lại sau.',
         data: null,
       };
     }
@@ -1031,7 +1195,7 @@ export const mainService = {
       totalCompletedBookings: number;
       totalEarnings: number;
       taskCompletionRate: number;
-      qualifications: Array<{
+      qualifications: {
         qualificationId: string;
         qualificationTypeId: string;
         qualificationTypeName: string;
@@ -1047,7 +1211,7 @@ export const mainService = {
         declinedAt: string | null;
         reviewedBy: string | null;
         notes: string | null;
-      }>;
+      }[];
     } | null;
   }> => {
     try {
@@ -1088,7 +1252,7 @@ export const mainService = {
       nonLocked: boolean;
       totalElderlyProfiles: number;
       totalCompletedBookings: number;
-      elderlyProfiles: Array<{
+      elderlyProfiles: {
         elderlyProfileId: string;
         fullName: string;
         phoneNumber: string;
@@ -1103,7 +1267,7 @@ export const mainService = {
         healthStatus: string | null;
         healthNote: string | null;
         status: string;
-      }>;
+      }[];
     } | null;
   }> => {
     try {
@@ -1125,7 +1289,7 @@ export const mainService = {
   /**
    * Notification API
    */
-  
+
   /**
    * Lấy danh sách thông báo
    */
@@ -1134,7 +1298,7 @@ export const mainService = {
     size?: number;
     sort?: string;
   }): Promise<{
-    content: Array<{
+    content: {
       notificationId: string;
       title: string;
       body: string;
@@ -1147,7 +1311,7 @@ export const mainService = {
       readAt: string | null;
       sentAt: string;
       createdAt: string;
-    }>;
+    }[];
     totalElements: number;
     totalPages: number;
     size: number;
@@ -1215,11 +1379,11 @@ export const mainService = {
       quality: number;
       comment?: string;
     },
-    images?: Array<{ uri: string; type?: string; name?: string }>
+    images?: { uri: string; type?: string; name?: string }[]
   ): Promise<any> => {
     try {
       const formData = new FormData();
-      
+
       // Append JSON data as 'request'
       formData.append('request', JSON.stringify(feedbackData));
 
@@ -1229,12 +1393,12 @@ export const mainService = {
           const fileExtension = image.uri.split('.').pop() || 'jpg';
           const fileName = image.name || `feedback_image_${Date.now()}.${fileExtension}`;
           const fileType = image.type || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
-          
+
           let fileUri = image.uri;
-          if (!fileUri.startsWith('file://') && 
-              !fileUri.startsWith('content://') && 
-              !fileUri.startsWith('http://') && 
-              !fileUri.startsWith('https://')) {
+          if (!fileUri.startsWith('file://') &&
+            !fileUri.startsWith('content://') &&
+            !fileUri.startsWith('http://') &&
+            !fileUri.startsWith('https://')) {
             fileUri = `file://${fileUri}`;
           }
 

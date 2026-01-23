@@ -226,6 +226,7 @@ export default function ChatScreen() {
 
   // Đánh dấu đã đọc khi vào chat và có tin nhắn mới
   // Chỉ mark as read khi screen được focus (user thực sự xem chat)
+  // Chỉ mark tin nhắn mới nhất (tin nhắn cuối cùng chưa đọc) - backend sẽ tự động mark tất cả tin nhắn cũ hơn
   const isFocused = useIsFocused();
 
   useEffect(() => {
@@ -241,15 +242,23 @@ export default function ChatScreen() {
         !msg.read
     );
 
-    // Đánh dấu đã đọc cho từng tin nhắn (ngay lập tức khi messages load và screen đang focus)
+    // Chỉ mark tin nhắn mới nhất (tin nhắn cuối cùng chưa đọc)
+    // Backend sẽ tự động mark tất cả tin nhắn cũ hơn là đã đọc khi mark tin nhắn mới nhất
     if (unreadMessages.length > 0) {
-      unreadMessages.forEach((msg: ChatMessage) => {
-        if (msg && msg.id && typeof msg.id === 'string') {
-          chatService.markAsRead(msg.id).catch((err) => {
-            // Silent fail - không cần hiển thị error
-          });
-        }
+      // Sắp xếp theo timestamp để tìm tin nhắn mới nhất
+      const sortedUnreadMessages = [...unreadMessages].sort((a, b) => {
+        const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : new Date(a.timestamp).getTime();
+        const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : new Date(b.timestamp).getTime();
+        return timeB - timeA; // Descending - tin nhắn mới nhất đầu tiên
       });
+
+      // Chỉ mark tin nhắn mới nhất
+      const latestUnreadMessage = sortedUnreadMessages[0];
+      if (latestUnreadMessage && latestUnreadMessage.id && typeof latestUnreadMessage.id === 'string') {
+        chatService.markAsRead(latestUnreadMessage.id).catch((err) => {
+          // Silent fail - không cần hiển thị error
+        });
+      }
     }
   }, [safeFirestoreMessages, user?.id, isFocused]);
 

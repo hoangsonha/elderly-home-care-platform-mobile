@@ -20,6 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { SimpleNavBar } from "@/components/navigation/SimpleNavBar";
 import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 import { mainService, type MyCareServiceData } from "@/services/main.service";
+import { caregiverService } from "@/services/caregiver.service";
 
 // Mock data
 const appointmentsDataMap: { [key: string]: any } = {
@@ -697,6 +698,70 @@ export default function AppointmentDetailScreen() {
     router.push("/careseeker/video-call");
   };
 
+  // View caregiver detail
+  const handleViewCaregiverDetail = async () => {
+    try {
+      if (!appointmentData?.caregiverProfile?.caregiverProfileId) {
+        Alert.alert('Lỗi', 'Không tìm thấy thông tin người chăm sóc');
+        return;
+      }
+
+      // Gọi API để lấy full caregiver data
+      const caregiverDetail = await caregiverService.getPublicCaregiverById(
+        appointmentData.caregiverProfile.caregiverProfileId
+      );
+
+      // Navigate đến caregiver detail với full data
+      router.push({
+        pathname: '/careseeker/caregiver-detail',
+        params: {
+          id: caregiverDetail.caregiverProfileId,
+          caregiver: JSON.stringify(caregiverDetail),
+          avatarUrl: caregiverDetail.avatarUrl || '',
+        }
+      });
+    } catch (error: any) {
+      console.error('Error fetching caregiver detail:', error);
+      // Fallback: navigate với basic info
+      router.push({
+        pathname: '/careseeker/caregiver-detail',
+        params: {
+          id: appointmentData.caregiverProfile.caregiverProfileId,
+          caregiver: JSON.stringify({
+            caregiverProfileId: appointmentData.caregiverProfile.caregiverProfileId,
+            fullName: appointmentData.caregiverProfile.fullName,
+            avatarUrl: appointmentData.caregiverProfile.avatarUrl,
+            age: appointmentData.caregiverProfile.age,
+            gender: appointmentData.caregiverProfile.gender,
+            bio: appointmentData.caregiverProfile.bio,
+            phoneNumber: appointmentData.caregiverProfile.phoneNumber,
+            email: appointmentData.caregiverProfile.email,
+            isVerified: appointmentData.caregiverProfile.isVerified,
+            location: appointmentData.caregiverProfile.location,
+            profileData: appointmentData.caregiverProfile.profileData,
+            qualifications: appointmentData.caregiverProfile.qualifications || [],
+          }),
+          avatarUrl: appointmentData.caregiverProfile.avatarUrl || '',
+        }
+      });
+    }
+  };
+
+  // View elderly detail
+  const handleViewElderlyDetail = () => {
+    if (!appointmentData?.elderlyProfile?.elderlyProfileId) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin người được chăm sóc');
+      return;
+    }
+
+    router.push({
+      pathname: '/careseeker/elderly-detail',
+      params: {
+        id: appointmentData.elderlyProfile.elderlyProfileId,
+      }
+    });
+  };
+
   // Handle view map
   const handleViewMap = () => {
     if (!locationObj.latitude || !locationObj.longitude || locationObj.latitude === 0 || locationObj.longitude === 0) {
@@ -899,7 +964,11 @@ export default function AppointmentDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Người chăm sóc</Text>
           <View style={styles.card}>
-            <View style={styles.caregiverHeader}>
+            <TouchableOpacity 
+              style={styles.caregiverHeader}
+              onPress={handleViewCaregiverDetail}
+              activeOpacity={0.7}
+            >
               {appointmentData.caregiverProfile.avatarUrl ? (
                 <Image
                   source={{ uri: appointmentData.caregiverProfile.avatarUrl }}
@@ -934,7 +1003,7 @@ export default function AppointmentDetailScreen() {
                   {appointmentData.caregiverProfile.age} tuổi • {appointmentData.caregiverProfile.gender === 'MALE' ? 'Nam' : 'Nữ'}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
             
             <View style={styles.divider} />
             
@@ -955,7 +1024,11 @@ export default function AppointmentDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Người được chăm sóc</Text>
           <View style={styles.card}>
-            <View style={styles.elderlyHeader}>
+            <TouchableOpacity 
+              style={styles.elderlyHeader}
+              onPress={handleViewElderlyDetail}
+              activeOpacity={0.7}
+            >
               {appointmentData.elderlyProfile.avatarUrl ? (
                 <Image
                   source={{ uri: appointmentData.elderlyProfile.avatarUrl }}
@@ -972,7 +1045,7 @@ export default function AppointmentDetailScreen() {
                 <Text style={styles.elderlyName}>{appointmentData.elderlyProfile.fullName}</Text>
                 <Text style={styles.elderlyAge}>{appointmentData.elderlyProfile.age} tuổi</Text>
               </View>
-            </View>
+            </TouchableOpacity>
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Ionicons name="medical-outline" size={20} color="#6B7280" />

@@ -19,6 +19,7 @@ import CompleteProfileScreen from "@/app/caregiver/complete-profile";
 import ExpertProfileScreen from "@/app/caregiver/expert-profile";
 import FAQScreen from "@/app/caregiver/faq";
 import FeedbackScreen from "@/app/caregiver/feedback";
+import IncomeDetailScreen from "@/app/caregiver/income-detail";
 import IncomingCallScreen from "@/app/caregiver/incoming-call";
 import PaymentScreen from "@/app/caregiver/payment";
 import PersonalScreen from "@/app/caregiver/personal";
@@ -74,7 +75,7 @@ const features = [
   },
   {
     id: "certificates",
-    title: "Chứng chỉ và kỹ năng",
+    title: "Chứng chỉ",
     icon: "chart-line",
     component: CertificatesScreen,
   },
@@ -204,9 +205,9 @@ export default function CaregiverSidebar() {
           })}
         />
         
-        {/* Chứng chỉ và kỹ năng với back button */}
+        {/* Chứng chỉ với back button */}
         <Drawer.Screen
-          name="Chứng chỉ và kỹ năng"
+          name="Chứng chỉ"
           component={CertificatesScreen}
           options={({ navigation }) => ({
             drawerIcon: ({ color, size }) => (
@@ -392,6 +393,16 @@ export default function CaregiverSidebar() {
               ),
             };
           }}
+        />
+        
+        {/* Income Detail - hidden from drawer */}
+        <Drawer.Screen
+          name="Chi tiết thu nhập"
+          component={IncomeDetailScreen}
+          options={({ navigation }) => ({
+            drawerItemStyle: { height: 0 },
+            headerShown: false, // Use custom header from component
+          })}
         />
         
         {/* Complete Profile - hidden from drawer */}

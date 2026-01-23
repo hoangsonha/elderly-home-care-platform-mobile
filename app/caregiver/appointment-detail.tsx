@@ -2063,193 +2063,154 @@ export default function AppointmentDetailScreen() {
               </View>
             </View>
             <View style={styles.divider} />
-            <View style={styles.infoRow}>
-              <Ionicons name="location-outline" size={20} color="#6B7280" />
-              <Text style={styles.infoText}>{displayData.elderly.address}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="call-outline" size={20} color="#6B7280" />
-              <Text style={styles.infoText}>{displayData.elderly.phone}</Text>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            {/* Blood Type */}
-            <View style={styles.infoRow}>
-              <Ionicons name="water" size={20} color="#6B7280" />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Nhóm máu</Text>
-                <Text style={styles.infoValue}>{displayData.elderly.bloodType}</Text>
-              </View>
-            </View>
             
             {/* Health Conditions */}
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="medical-bag" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Bệnh nền</Text>
-                {displayData.elderly.underlyingDiseases.length > 0 ? (
-                  displayData.elderly.underlyingDiseases.map((disease: any, index: number) => (
-                    <View key={index} style={styles.diseaseTag}>
-                      <MaterialCommunityIcons name="circle-small" size={16} color="#EF4444" />
-                      <Text style={styles.diseaseText}>{disease}</Text>
-                    </View>
-                  ))
+                {displayData.elderly.underlyingDiseases && displayData.elderly.underlyingDiseases.length > 0 ? (
+                  <View style={styles.tagContainer}>
+                    {displayData.elderly.underlyingDiseases.map((disease: any, index: number) => (
+                      <View key={index} style={styles.uniformTag}>
+                        <MaterialCommunityIcons name="circle-small" size={14} color="#EF4444" />
+                        <Text style={styles.uniformTagText}>{disease}</Text>
+                      </View>
+                    ))}
+                  </View>
                 ) : (
-                  <Text style={styles.infoText}>Không có</Text>
+                  <Text style={styles.infoText}>Không có thông tin</Text>
                 )}
               </View>
             </View>
             
+            <View style={styles.divider} />
+            
             {/* Medications */}
-            <View style={styles.medicationSection}>
-              <Text style={styles.subsectionTitle}>Thuốc đang sử dụng:</Text>
-              {displayData.elderly.medications.length > 0 ? (
-                displayData.elderly.medications.map((med: any, index: number) => (
-                  <View key={index} style={styles.medicationItem}>
-                    <View style={styles.medicationDot} />
-                    <View style={styles.medicationDetails}>
-                      <Text style={styles.medicationName}>{med.name}</Text>
-                      <Text style={styles.medicationDosage}>
-                        {med.dosage} - {med.frequency}
-                      </Text>
-                    </View>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="pill" size={20} color="#6B7280" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Thuốc đang sử dụng</Text>
+                {displayData.elderly.medications && displayData.elderly.medications.length > 0 ? (
+                  <View style={styles.tagContainer}>
+                    {displayData.elderly.medications.map((med: any, index: number) => (
+                      <View key={index} style={styles.uniformTag}>
+                        <MaterialCommunityIcons name="pill" size={14} color="#10B981" />
+                        <Text style={styles.uniformTagText}>
+                          {med.name} {med.dosage ? `(${med.dosage} - ${med.frequency})` : ''}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
-                ))
-              ) : (
-                <Text style={styles.infoText}>Không có</Text>
-              )}
+                ) : (
+                  <Text style={styles.infoText}>Không có thông tin</Text>
+                )}
+              </View>
             </View>
+            
+            <View style={styles.divider} />
             
             {/* Allergies */}
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="alert-circle-outline" size={20} color="#6B7280" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Dị ứng</Text>
-                <View style={styles.allergyContainer}>
-                  {displayData.elderly.allergies.length > 0 ? (
-                    displayData.elderly.allergies.map((allergy: any, index: number) => (
-                      <View key={index} style={styles.allergyTag}>
+                {displayData.elderly.allergies && displayData.elderly.allergies.length > 0 ? (
+                  <View style={styles.tagContainer}>
+                    {displayData.elderly.allergies.map((allergy: any, index: number) => (
+                      <View key={index} style={styles.uniformTag}>
                         <MaterialCommunityIcons name="alert" size={14} color="#EF4444" />
-                        <Text style={styles.allergyText}>{allergy}</Text>
+                        <Text style={styles.uniformTagText}>{allergy}</Text>
                       </View>
-                    ))
-                  ) : (
-                    <Text style={styles.infoText}>Không có</Text>
-                  )}
-                </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.infoText}>Không có thông tin</Text>
+                )}
               </View>
             </View>
             
             <View style={styles.divider} />
             
             {/* Independence Level */}
-            <View style={styles.independenceSection}>
-              <Text style={styles.subsectionTitle}>Mức độ tự lập:</Text>
-              <View style={styles.independenceGrid}>
-                <View style={styles.independenceItem}>
-                  <Ionicons name="restaurant" size={18} color="#6B7280" />
-                  <Text style={styles.independenceLabel}>Ăn uống</Text>
-                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.eating) }]}>
-                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.eating)}</Text>
-                  </View>
-                </View>
-                <View style={styles.independenceItem}>
-                  <Ionicons name="water" size={18} color="#6B7280" />
-                  <Text style={styles.independenceLabel}>Tắm rửa</Text>
-                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.bathing) }]}>
-                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.bathing)}</Text>
-                  </View>
-                </View>
-                <View style={styles.independenceItem}>
-                  <Ionicons name="walk" size={18} color="#6B7280" />
-                  <Text style={styles.independenceLabel}>Di chuyển</Text>
-                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.mobility) }]}>
-                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.mobility)}</Text>
-                  </View>
-                </View>
-                <View style={styles.independenceItem}>
-                  <Ionicons name="shirt" size={18} color="#6B7280" />
-                  <Text style={styles.independenceLabel}>Mặc đồ</Text>
-                  <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.dressing) }]}>
-                    <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.dressing)}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            {/* Living Environment */}
-            <View style={styles.livingEnvSection}>
-              <Text style={styles.subsectionTitle}>Môi trường sống:</Text>
-              <View style={styles.infoRow}>
-                <MaterialCommunityIcons name="home" size={18} color="#6B7280" />
-                <Text style={styles.infoText}>Căn hộ chung cư</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialCommunityIcons name="account-multiple" size={18} color="#6B7280" />
-                <Text style={styles.infoText}>Sống cùng: {displayData.elderly.livingEnvironment.livingWith.length > 0 ? displayData.elderly.livingEnvironment.livingWith.join(", ") : "Không có"}</Text>
-              </View>
-              <View style={styles.accessibilityTags}>
-                {displayData.elderly.livingEnvironment.accessibility.length > 0 ? (
-                  displayData.elderly.livingEnvironment.accessibility.map((item: any, index: number) => (
-                    <View key={index} style={styles.accessibilityTag}>
-                      <MaterialCommunityIcons name="check-circle" size={14} color="#10B981" />
-                      <Text style={styles.accessibilityText}>{item}</Text>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="human-handsup" size={20} color="#6B7280" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Mức độ tự lập</Text>
+                {displayData.elderly.independenceLevel ? (
+                  <View style={styles.independenceContainer}>
+                    <View style={styles.independenceGrid}>
+                      <View style={styles.independenceItem}>
+                        <Ionicons name="restaurant" size={18} color="#6B7280" />
+                        <Text style={styles.independenceLabel}>Ăn uống</Text>
+                        <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.eating) }]}>
+                          <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.eating)}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.independenceItem}>
+                        <Ionicons name="water" size={18} color="#6B7280" />
+                        <Text style={styles.independenceLabel}>Tắm rửa</Text>
+                        <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.bathing) }]}>
+                          <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.bathing)}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.independenceItem}>
+                        <Ionicons name="walk" size={18} color="#6B7280" />
+                        <Text style={styles.independenceLabel}>Di chuyển</Text>
+                        <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.mobility) }]}>
+                          <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.mobility)}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.independenceItem}>
+                        <Ionicons name="shirt" size={18} color="#6B7280" />
+                        <Text style={styles.independenceLabel}>Mặc đồ</Text>
+                        <View style={[styles.independenceBadge, { backgroundColor: getIndependenceColor(displayData.elderly.independenceLevel.dressing) }]}>
+                          <Text style={styles.independenceBadgeText}>{getIndependenceText(displayData.elderly.independenceLevel.dressing)}</Text>
+                        </View>
+                      </View>
                     </View>
-                  ))
+                  </View>
                 ) : (
-                  <Text style={styles.infoText}>Không có</Text>
+                  <Text style={styles.infoText}>Không có thông tin</Text>
                 )}
               </View>
             </View>
             
             <View style={styles.divider} />
             
-            {/* Hobbies & Preferences */}
-            <View style={styles.preferencesSection}>
-              <Text style={styles.subsectionTitle}>Sở thích & Ưa thích:</Text>
-              <View style={styles.hobbyTags}>
-                {displayData.elderly.hobbies.length > 0 ? (
-                  displayData.elderly.hobbies.map((hobby: any, index: number) => (
-                    <View key={index} style={styles.hobbyTag}>
-                      <Ionicons name="star" size={14} color="#F59E0B" />
-                      <Text style={styles.hobbyText}>{hobby}</Text>
+            {/* Emergency Contact */}
+            <View style={styles.infoRow}>
+              <Ionicons name="warning-outline" size={20} color="#EF4444" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Liên hệ khẩn cấp</Text>
+                {(() => {
+                  const contact = displayData.elderly.emergencyContact;
+                  const hasName = contact?.name && contact.name !== 'Không có';
+                  const hasPhone = contact?.phone && contact.phone !== 'Không có';
+                  const hasRelationship = contact?.relationship && contact.relationship !== 'Không có';
+                  
+                  if (!hasName && !hasPhone) {
+                    return <Text style={styles.infoText}>Không có thông tin</Text>;
+                  }
+                  
+                  return (
+                    <View style={styles.emergencyContactContainer}>
+                      {hasName && (
+                        <Text style={styles.emergencyName}>
+                          {hasRelationship 
+                            ? `${contact.name} (${contact.relationship})`
+                            : contact.name}
+                        </Text>
+                      )}
+                      {hasPhone && (
+                        <Text style={styles.emergencyPhone}>
+                          {contact.phone}
+                        </Text>
+                      )}
                     </View>
-                  ))
-                ) : (
-                  <Text style={styles.infoText}>Không có</Text>
-                )}
+                  );
+                })()}
               </View>
-              <Text style={styles.preferencesLabel}>Món ăn yêu thích:</Text>
-              <View style={styles.foodTags}>
-                {displayData.elderly.foodPreferences.length > 0 ? (
-                  displayData.elderly.foodPreferences.map((food: any, index: number) => (
-                    <View key={index} style={styles.foodTag}>
-                      <Ionicons name="restaurant" size={14} color="#10B981" />
-                      <Text style={styles.foodText}>{food}</Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.infoText}>Không có</Text>
-                )}
-              </View>
-            </View>
-            
-            <View style={styles.divider} />
-            <View style={styles.emergencyContact}>
-              <Text style={styles.emergencyTitle}>
-                <Ionicons name="warning-outline" size={16} color="#EF4444" /> Liên hệ khẩn cấp
-              </Text>
-              <Text style={styles.emergencyName}>
-                {displayData.elderly.emergencyContact.name && displayData.elderly.emergencyContact.name !== 'Không có' && displayData.elderly.emergencyContact.relationship && displayData.elderly.emergencyContact.relationship !== 'Không có'
-                  ? `${displayData.elderly.emergencyContact.name} (${displayData.elderly.emergencyContact.relationship})`
-                  : displayData.elderly.emergencyContact.name || 'Không có'}
-              </Text>
-              <Text style={styles.emergencyPhone}>
-                {displayData.elderly.emergencyContact.phone || 'Không có'}
-              </Text>
             </View>
           </View>
         </View>
@@ -2276,15 +2237,36 @@ export default function AppointmentDetailScreen() {
                 <Ionicons name="call-outline" size={20} color="#6B7280" />
                 <Text style={styles.infoText}>{displayData.careSeeker.phone}</Text>
               </View>
-              {displayData.careSeeker.location?.address && (
-                <>
-                  <View style={styles.divider} />
-                  <View style={styles.infoRow}>
-                    <Ionicons name="location-outline" size={20} color="#6B7280" />
-                    <Text style={styles.infoText}>{displayData.careSeeker.location.address}</Text>
-                  </View>
-                </>
-              )}
+              <View style={styles.divider} />
+              <TouchableOpacity 
+                style={styles.chatButton}
+                onPress={() => {
+                  const contactName = displayData.careSeeker.name || 'Người thuê';
+                  let contactAvatar = "👤";
+                  
+                  if (displayData.careSeeker.gender === "Nam") {
+                    contactAvatar = "👨";
+                  } else if (displayData.careSeeker.gender === "Nữ") {
+                    contactAvatar = "👩";
+                  }
+                  
+                  (navigation.navigate as any)("Tin nhắn", {
+                    clientName: contactName,
+                    clientAvatar: contactAvatar,
+                    chatName: contactName,
+                    chatAvatar: contactAvatar,
+                    fromScreen: "appointment-detail",
+                    appointmentId: appointmentId,
+                    seekerId: displayData.careSeeker.id,
+                    seekerName: contactName,
+                    seekerAvatar: contactAvatar,
+                  });
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chatbubble-outline" size={20} color="#68C2E8" />
+                <Text style={styles.chatButtonText}>Chat</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -3106,10 +3088,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
   },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#F0F8FF",
+    borderWidth: 1.5,
+    borderColor: "#68C2E8",
+    gap: 8,
+    marginTop: 8,
+  },
+  chatButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#68C2E8",
+  },
   emergencyContact: {
     backgroundColor: "#FEF2F2",
     padding: 16,
     borderRadius: 12,
+  },
+  emergencyContactContainer: {
+    marginTop: 8,
+    gap: 4,
   },
   emergencyTitle: {
     fontSize: 14,
@@ -3570,15 +3574,27 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   // New styles for elderly info
-  diseaseTag: {
+  tagContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
+  },
+  uniformTag: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 4,
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  diseaseText: {
+  uniformTagText: {
     fontSize: 13,
     color: "#1F2937",
-    marginLeft: 4,
+    fontWeight: "500",
   },
   subsectionTitle: {
     fontSize: 14,
@@ -3589,52 +3605,6 @@ const styles = StyleSheet.create({
   },
   medicationSection: {
     marginTop: 8,
-  },
-  medicationItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 6,
-  },
-  medicationDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#10B981",
-    marginTop: 6,
-    marginRight: 8,
-  },
-  medicationDetails: {
-    flex: 1,
-  },
-  medicationName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#1F2937",
-  },
-  medicationDosage: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 2,
-  },
-  allergyContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 6,
-  },
-  allergyTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEE2E2",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  allergyText: {
-    fontSize: 12,
-    color: "#DC2626",
-    fontWeight: "500",
   },
   specialConditionsSection: {
     marginTop: 8,
@@ -3655,6 +3625,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   independenceSection: {
+    marginTop: 8,
+  },
+  independenceContainer: {
     marginTop: 8,
   },
   independenceGrid: {

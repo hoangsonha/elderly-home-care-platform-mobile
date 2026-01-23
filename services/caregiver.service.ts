@@ -177,6 +177,22 @@ export class CaregiverService {
   async getPublicCaregivers(): Promise<PublicCaregiver[]> {
     try {
       const response = await apiClient.get<PublicCaregiverApiResponse>('/api/v1/public/caregivers');
+      
+      // Log raw response từ BE
+      console.log('=== RAW RESPONSE FROM API (getPublicCaregivers) ===');
+      console.log('Response status:', response.status);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      
+      // Log avatar URLs từ raw response
+      if (response.data && response.data.data) {
+        response.data.data.forEach((cg: any, index: number) => {
+          console.log(`Raw Caregiver ${index + 1} - ${cg.fullName}:`);
+          console.log(`  - avatarUrl (from API):`, cg.avatarUrl);
+          console.log(`  - avatarUrl type:`, typeof cg.avatarUrl);
+        });
+      }
+      console.log('=== END RAW RESPONSE LOG ===');
+      
       return response.data.data;
     } catch (error: any) {
       throw new Error(`Failed to fetch public caregivers: ${error.message}`);

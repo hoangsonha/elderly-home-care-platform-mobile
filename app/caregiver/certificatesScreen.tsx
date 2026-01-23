@@ -1,11 +1,15 @@
 import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { mainService } from "@/services/main.service";
 
 // Mock data
 const MOCK_CERTIFICATES = [
@@ -46,96 +51,138 @@ const MOCK_CERTIFICATES = [
   },
 ];
 
-const MOCK_SKILLS = [
-  { id: 1, name: "Quản lý thuốc", description: "Nhắc nhở và hỗ trợ uống thuốc", icon: "pill", selected: true },
-  { id: 2, name: "Đo sinh hiệu", description: "Đo huyết áp, nhiệt độ, nhịp tim", icon: "heart-pulse", selected: true },
-  { id: 3, name: "Sơ cấp cứu", description: "Xử lý tình huống khẩn cấp", icon: "ambulance", selected: false },
-  { id: 4, name: "Dinh dưỡng", description: "Chuẩn bị bữa ăn lành mạnh", icon: "food-variant", selected: true },
-  { id: 5, name: "Vật lý trị liệu", description: "Hỗ trợ phục hồi chức năng", icon: "human-handsup", selected: false },
-  { id: 6, name: "Alzheimer Care", description: "Chăm sóc người mất trí nhớ", icon: "brain", selected: true },
-  { id: 7, name: "Vệ sinh cá nhân", description: "Hỗ trợ tắm rửa, thay quần áo", icon: "shower", selected: false },
-  { id: 8, name: "Chăm sóc vết thương", description: "Thay băng, vệ sinh vết thương", icon: "bandage", selected: false },
-  { id: 9, name: "Hỗ trợ giao tiếp", description: "Trò chuyện, đồng hành tinh thần", icon: "chat", selected: false },
-  { id: 10, name: "Hỗ trợ y tế", description: "Đi khám, mua thuốc", icon: "hospital-box", selected: false },
-];
+
+interface QualificationType {
+  qualificationTypeId: string;
+  typeName: string;
+  description?: string;
+  isActive?: boolean;
+}
 
 export default function CertificatesScreen() {
-  const [activeTab, setActiveTab] = useState<"certificates" | "skills">("certificates");
-  const [certificates, setCertificates] = useState<any[]>(MOCK_CERTIFICATES);
-  const [skills, setSkills] = useState<any[]>(MOCK_SKILLS);
+  const [certificates, setCertificates] = useState<any[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [imageSourceModal, setImageSourceModal] = useState(false);
-  const [skillModalVisible, setSkillModalVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [qualificationTypes, setQualificationTypes] = useState<QualificationType[]>([]);
+  const [showQualificationPicker, setShowQualificationPicker] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [currentDateField, setCurrentDateField] = useState<'issueDate' | 'expiryDate' | null>(null);
+  const [datePickerValue, setDatePickerValue] = useState(new Date());
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [certificateToDelete, setCertificateToDelete] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [form, setForm] = useState({
-    name: "",
+    qualificationTypeId: "",
     organization: "",
     issueDate: "",
     expiryDate: "",
     certificateNumber: "",
+    notes: "",
     image: null as any,
   });
 
-  const [skillForm, setSkillForm] = useState({
-    name: "",
-    description: "",
-    icon: "star", // Default icon
-  });
-
-  const [skillError, setSkillError] = useState("");
-
   const [errors, setErrors] = useState({
-    name: "",
+    qualificationTypeId: "",
     organization: "",
     issueDate: "",
     expiryDate: "",
     image: "",
   });
 
+  // Load qualification types
+  useEffect(() => {
+    const loadQualificationTypes = async () => {
+      try {
+        const types = await mainService.getQualificationTypes();
+        setQualificationTypes(types);
+      } catch (error) {
+        // Error loading qualification types
+      }
+    };
+    loadQualificationTypes();
+  }, []);
+
+  // Load certificates from API
+  const loadCertificates = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await mainService.getCaregiverProfile();
+      
+      if (response.status === 'Success' && response.data) {
+        // Map qualifications to certificates format
+        const mappedCertificates = (response.data.qualifications || []).map((qual: any, index: number) => {
+          
+          // Format dates
+          const formatDate = (dateString: string | null) => {
+            if (!dateString) return 'Vô thời hạn';
+            try {
+              const date = new Date(dateString);
+              return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            } catch {
+              return dateString;
+            }
+          };
+
+          // Map status - check deleted first
+          let status = 'pending';
+          if (qual.deleted === true || qual.deleted === 'true') {
+            status = 'deleted';
+          } else if (qual.isVerified && qual.status === 'ACCEPTED') {
+            status = 'verified';
+          } else if (qual.status === 'REJECTED') {
+            status = 'rejected';
+          } else if (qual.status === 'PENDING') {
+            status = 'pending';
+          }
+
+          return {
+            id: qual.qualificationId || index + 1,
+            qualificationId: qual.qualificationId,
+            name: qual.qualificationTypeName || 'Chứng chỉ',
+            organization: qual.issuingOrganization || 'Chưa có',
+            issueDate: formatDate(qual.issueDate),
+            expiryDate: formatDate(qual.expiryDate),
+            certificateNumber: qual.certificateNumber || 'Chưa có',
+            status: status,
+            deleted: qual.deleted === true || qual.deleted === 'true',
+            rejectReason: qual.rejection_reason || qual.rejectionReason || null,
+            certificateUrl: qual.certificateUrl || null,
+          };
+        });
+        
+        setCertificates(mappedCertificates);
+      } else {
+        setError(response.message || 'Không thể tải dữ liệu');
+        setCertificates([]);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Có lỗi xảy ra khi tải dữ liệu');
+      setCertificates([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
   const validateForm = () => {
     const newErrors: any = {};
     
-    // Tên chứng chỉ
-    if (!form.name) {
-      newErrors.name = "Tên chứng chỉ là bắt buộc";
-    } else if (form.name.length < 5) {
-      newErrors.name = "Tên chứng chỉ phải có ít nhất 5 ký tự";
-    } else if (form.name.length > 100) {
-      newErrors.name = "Tên chứng chỉ không được quá 100 ký tự";
-    }
-
-    // Tổ chức cấp
-    if (!form.organization) {
-      newErrors.organization = "Tổ chức cấp là bắt buộc";
-    } else if (form.organization.length < 3) {
-      newErrors.organization = "Tổ chức cấp phải có ít nhất 3 ký tự";
-    } else if (form.organization.length > 100) {
-      newErrors.organization = "Tổ chức cấp không được quá 100 ký tự";
-    }
-
-    // Ngày cấp
-    if (!form.issueDate) {
-      newErrors.issueDate = "Ngày cấp là bắt buộc";
-    } else {
-      const issueDate = new Date(form.issueDate);
-      const today = new Date();
-      if (issueDate > today) {
-        newErrors.issueDate = "Ngày cấp không được sau ngày hiện tại";
-      }
-    }
-
-    // Ngày hết hạn (optional)
-    if (form.expiryDate && form.issueDate) {
-      const issueDate = new Date(form.issueDate);
-      const expiryDate = new Date(form.expiryDate);
-      if (expiryDate <= issueDate) {
-        newErrors.expiryDate = "Ngày hết hạn phải sau ngày cấp";
-      }
-    }
-
-    // Số chứng chỉ (optional)
-    if (form.certificateNumber && form.certificateNumber.length > 50) {
-      newErrors.certificateNumber = "Số chứng chỉ không được quá 50 ký tự";
+    // Qualification type
+    if (!form.qualificationTypeId) {
+      newErrors.qualificationTypeId = "Vui lòng chọn loại chứng chỉ";
     }
 
     // Hình ảnh
@@ -147,40 +194,103 @@ export default function CertificatesScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!validateForm()) {
       return;
     }
     
-    const newCert = {
-      id: certificates.length + 1,
-      name: form.name,
-      organization: form.organization,
-      issueDate: form.issueDate,
-      expiryDate: form.expiryDate || "Vô thời hạn",
-      certificateNumber: form.certificateNumber || "Chưa có",
-      status: "pending",
-      image: form.image,
-    };
+    try {
+      setAdding(true);
+
+      // Format dates to yyyy-MM-dd
+      const formatDateForAPI = (dateString: string) => {
+        if (!dateString) return undefined;
+        try {
+          const date = new Date(dateString);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        } catch {
+          return undefined;
+        }
+      };
+
+      const qualificationData = {
+        qualification_type_id: form.qualificationTypeId,
+        certificate_number: form.certificateNumber || undefined,
+        issuing_organization: form.organization || undefined,
+        issue_date: formatDateForAPI(form.issueDate),
+        expiry_date: formatDateForAPI(form.expiryDate),
+        notes: form.notes || undefined,
+      };
+
+      const response = await mainService.addCaregiverQualification(
+        qualificationData,
+        form.image
+      );
+
+      if (response.status === 'Success') {
+        setModalVisible(false);
+        setForm({ 
+          qualificationTypeId: "", 
+          organization: "", 
+          issueDate: "", 
+          expiryDate: "", 
+          certificateNumber: "",
+          notes: "",
+          image: null 
+        });
+        setErrors({
+          qualificationTypeId: "",
+          organization: "",
+          issueDate: "",
+          expiryDate: "",
+          image: "",
+        });
+        // Reload certificates
+        await loadCertificates();
+        // Show success modal
+        setSuccessMessage("Chứng chỉ đã được gửi để xác minh!");
+        setShowSuccessModal(true);
+      } else {
+        Alert.alert("Lỗi", response.message || "Không thể thêm chứng chỉ");
+      }
+    } catch (err: any) {
+      Alert.alert("Lỗi", err.message || "Có lỗi xảy ra khi thêm chứng chỉ");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDelete = (qualificationId: string) => {
+    setCertificateToDelete(qualificationId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!certificateToDelete) return;
     
-    setCertificates([...certificates, newCert]);
-    setModalVisible(false);
-    setForm({ 
-      name: "", 
-      organization: "", 
-      issueDate: "", 
-      expiryDate: "", 
-      certificateNumber: "", 
-      image: null 
-    });
-    setErrors({
-      name: "",
-      organization: "",
-      issueDate: "",
-      expiryDate: "",
-      image: "",
-    });
-    alert("Chứng chỉ đã được gửi để xác minh!");
+    try {
+      setDeleting(certificateToDelete);
+      const response = await mainService.deleteCaregiverQualification(certificateToDelete);
+      
+      if (response.status === 'Success') {
+        // Reload certificates
+        await loadCertificates();
+        // Show success modal
+        setSuccessMessage("Đã xóa chứng chỉ");
+        setShowSuccessModal(true);
+      } else {
+        Alert.alert("Lỗi", response.message || "Không thể xóa chứng chỉ");
+      }
+    } catch (err: any) {
+      Alert.alert("Lỗi", err.message || "Có lỗi xảy ra khi xóa chứng chỉ");
+    } finally {
+      setDeleting(null);
+      setShowDeleteModal(false);
+      setCertificateToDelete(null);
+    }
   };
 
   const handlePickImage = async () => {
@@ -196,7 +306,6 @@ export default function CertificatesScreen() {
       // Show custom modal instead of Alert
       setImageSourceModal(true);
     } catch (error) {
-      console.error("Error picking image:", error);
       Alert.alert("Lỗi", "Không thể chọn file. Vui lòng thử lại!");
     }
   };
@@ -231,7 +340,7 @@ export default function CertificatesScreen() {
         setErrors({ ...errors, image: "" });
       }
     } catch (error) {
-      console.error("Error selecting from library:", error);
+      // Error selecting from library
     }
   };
 
@@ -270,7 +379,7 @@ export default function CertificatesScreen() {
         setErrors({ ...errors, image: "" });
       }
     } catch (error) {
-      console.error("Error taking photo:", error);
+      // Error taking photo
     }
   };
 
@@ -303,102 +412,48 @@ export default function CertificatesScreen() {
         setErrors({ ...errors, image: "" });
       }
     } catch (error) {
-      console.error("Error selecting document:", error);
+      // Error selecting document
     }
   };
 
-  const toggleSkill = (id: number) => {
-    setSkills(skills.map(skill => 
-      skill.id === id ? { ...skill, selected: !skill.selected } : skill
-    ));
-  };
-
-  const handleDeleteSkill = (id: number, skillName: string) => {
-    Alert.alert(
-      "Xóa kỹ năng",
-      `Bạn có chắc muốn xóa kỹ năng "${skillName}"?`,
-      [
-        {
-          text: "Hủy",
-          style: "cancel"
-        },
-        {
-          text: "Xóa",
-          style: "destructive",
-          onPress: () => {
-            setSkills(skills.filter(skill => skill.id !== id));
-            Alert.alert("Đã xóa", `Đã xóa kỹ năng "${skillName}"`);
-          }
-        }
-      ]
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3FD2CD" />
+          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
+        </View>
+        <CaregiverBottomNav activeTab="profile" />
+      </View>
     );
-  };
+  }
 
-  // Available icons for skills
-  const availableIcons = [
-    "pill", "heart-pulse", "ambulance", "food-variant", "human-handsup", "brain",
-    "shower", "bandage", "chat", "hospital-box", "stethoscope", "needle",
-    "medical-bag", "thermometer", "clipboard-pulse", "hand-heart", "spa", "flower"
-  ];
-
-  const handleAddSkill = () => {
-    // Validate
-    if (!skillForm.name || skillForm.name.trim().length < 3) {
-      setSkillError("Vui lòng nhập tên kỹ năng (tối thiểu 3 ký tự)");
-      return;
-    }
-
-    if (skillForm.name.length > 50) {
-      setSkillError("Tên kỹ năng không được quá 50 ký tự");
-      return;
-    }
-
-    // Create new skill
-    const newSkill = {
-      id: skills.length + 1,
-      name: skillForm.name.trim(),
-      description: skillForm.description.trim() || "Kỹ năng chăm sóc",
-      icon: skillForm.icon,
-      selected: true, // Auto-select new skill
-    };
-
-    // Add to skills list
-    setSkills([...skills, newSkill]);
-
-    // Reset form
-    setSkillForm({ name: "", description: "", icon: "star" });
-    setSkillError("");
-    setSkillModalVisible(false);
-
-    // Show success alert
-    Alert.alert("Thành công", "✓ Đã thêm kỹ năng mới");
-  };
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <MaterialCommunityIcons name="alert-circle" size={48} color="#F44336" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={() => {
+              setLoading(true);
+              setError(null);
+              // Reload will be triggered by useEffect
+            }}
+          >
+            <Text style={styles.retryButtonText}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
+        <CaregiverBottomNav activeTab="profile" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "certificates" && styles.tabActive]}
-          onPress={() => setActiveTab("certificates")}
-        >
-          <Text style={[styles.tabText, activeTab === "certificates" && styles.tabTextActive]}>
-            Chứng chỉ
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "skills" && styles.tabActive]}
-          onPress={() => setActiveTab("skills")}
-        >
-          <Text style={[styles.tabText, activeTab === "skills" && styles.tabTextActive]}>
-            Kỹ năng
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {activeTab === "certificates" ? (
-          <View>
+        <View>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
                 <MaterialCommunityIcons name="certificate" size={22} color="#333" /> Chứng chỉ của tôi
@@ -412,6 +467,7 @@ export default function CertificatesScreen() {
               const isVerified = cert.status === "verified";
               const isPending = cert.status === "pending";
               const isRejected = cert.status === "rejected";
+              const isDeleted = cert.status === "deleted" || cert.deleted === true;
 
               return (
                 <View
@@ -421,14 +477,25 @@ export default function CertificatesScreen() {
                     isVerified && styles.certVerified,
                     isPending && styles.certPending,
                     isRejected && styles.certRejected,
+                    isDeleted && styles.certDeleted,
                   ]}
                 >
                   <View style={styles.certHeader}>
                     <View style={styles.certIcon}>
                       <MaterialCommunityIcons 
-                        name={isVerified ? "certificate" : "alert-circle"} 
+                        name={
+                          isDeleted ? "delete-circle" :
+                          isRejected ? "close-circle" :
+                          isPending ? "clock-outline" :
+                          isVerified ? "certificate" : "certificate-outline"
+                        } 
                         size={36} 
-                        color={isVerified ? "#4CAF50" : "#FF9800"} 
+                        color={
+                          isDeleted ? "#9E9E9E" :
+                          isRejected ? "#F44336" :
+                          isPending ? "#FF9800" :
+                          isVerified ? "#4CAF50" : "#FF9800"
+                        } 
                       />
                     </View>
                     <View style={styles.certInfo}>
@@ -448,23 +515,16 @@ export default function CertificatesScreen() {
                     </View>
                   </View>
 
-                  {isVerified && (
+
+                  {isDeleted && (
                     <View style={styles.statusBadge}>
-                      <Text style={styles.statusVerified}>
-                        <MaterialCommunityIcons name="check-circle" size={16} color="#4CAF50" /> Đã xác minh
+                      <Text style={styles.statusDeleted}>
+                        <MaterialCommunityIcons name="delete-circle" size={16} color="#9E9E9E" /> Đã xóa
                       </Text>
                     </View>
                   )}
 
-                  {isPending && (
-                    <View style={styles.statusBadge}>
-                      <Text style={styles.statusPending}>
-                        <MaterialCommunityIcons name="clock-outline" size={16} color="#FF9800" /> Đang chờ duyệt
-                      </Text>
-                    </View>
-                  )}
-
-                  {isRejected && (
+                  {isRejected && !isDeleted && (
                     <>
                       <View style={styles.statusBadge}>
                         <Text style={styles.statusRejected}>
@@ -478,13 +538,45 @@ export default function CertificatesScreen() {
                     </>
                   )}
 
+                  {isPending && !isDeleted && (
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusPending}>
+                        <MaterialCommunityIcons name="clock-outline" size={16} color="#FF9800" /> Đang chờ duyệt
+                      </Text>
+                    </View>
+                  )}
+
+                  {isVerified && !isDeleted && (
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusVerified}>
+                        <MaterialCommunityIcons name="check-circle" size={16} color="#4CAF50" /> Đã xác minh
+                      </Text>
+                    </View>
+                  )}
+
                   <View style={styles.certActions}>
-                    <TouchableOpacity style={styles.btnView}>
-                      <Text style={styles.btnViewText}>Xem ảnh</Text>
-                    </TouchableOpacity>
-                    {isRejected && (
-                      <TouchableOpacity style={styles.btnDelete}>
-                        <Text style={styles.btnDeleteText}>Xóa</Text>
+                    {cert.certificateUrl && !isDeleted && (
+                      <TouchableOpacity 
+                        style={styles.btnView}
+                        onPress={() => {
+                          setSelectedImageUrl(cert.certificateUrl);
+                          setShowImageModal(true);
+                        }}
+                      >
+                        <Text style={styles.btnViewText}>Xem ảnh</Text>
+                      </TouchableOpacity>
+                    )}
+                    {!isDeleted && (
+                      <TouchableOpacity 
+                        style={[styles.btnDelete, deleting === cert.qualificationId && styles.btnDeleteDisabled]}
+                        onPress={() => cert.qualificationId && handleDelete(cert.qualificationId)}
+                        disabled={deleting === cert.qualificationId}
+                      >
+                        {deleting === cert.qualificationId ? (
+                          <ActivityIndicator size="small" color="#666" />
+                        ) : (
+                          <Text style={styles.btnDeleteText}>Xóa</Text>
+                        )}
                       </TouchableOpacity>
                     )}
                   </View>
@@ -492,65 +584,6 @@ export default function CertificatesScreen() {
               );
             })}
           </View>
-        ) : (
-          <View>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                <MaterialCommunityIcons name="star-circle" size={22} color="#333" /> Chọn kỹ năng của bạn
-              </Text>
-              <TouchableOpacity 
-                style={styles.addButton}
-                onPress={() => setSkillModalVisible(true)}
-              >
-                <MaterialCommunityIcons name="plus" size={24} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.selectedBanner}>
-              <Text style={styles.selectedText}>
-                <MaterialCommunityIcons name="check-circle" size={18} color="#1976D2" /> Đã chọn {skills.filter(s => s.selected).length} kỹ năng
-              </Text>
-              <Text style={styles.selectedList}>
-                {skills.filter(s => s.selected).map(s => s.name).join(", ")}
-              </Text>
-            </View>
-
-            <TouchableOpacity style={styles.saveSkillBtn}>
-              <Text style={styles.saveSkillText}>Lưu kỹ năng</Text>
-            </TouchableOpacity>
-
-            <View style={styles.skillsGrid}>
-              {skills.map((skill) => (
-                <TouchableOpacity
-                  key={skill.id}
-                  style={[styles.skillCard, skill.selected && styles.skillSelected]}
-                  onPress={() => toggleSkill(skill.id)}
-                  onLongPress={() => handleDeleteSkill(skill.id, skill.name)}
-                  delayLongPress={500}
-                >
-                  <View style={styles.skillIcon}>
-                    <MaterialCommunityIcons 
-                      name={skill.icon as any} 
-                      size={32} 
-                      color={skill.selected ? "#2196F3" : "#757575"} 
-                    />
-                  </View>
-                  <Text style={[styles.skillName, skill.selected && styles.skillNameSelected]}>
-                    {skill.name}
-                  </Text>
-                  <Text style={[styles.skillDesc, skill.selected && styles.skillDescSelected]}>
-                    {skill.description}
-                  </Text>
-                  {skill.selected && (
-                    <View style={styles.checkMark}>
-                      <MaterialCommunityIcons name="check" size={16} color="#FFF" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       {/* Modal thêm chứng chỉ */}
@@ -567,30 +600,36 @@ export default function CertificatesScreen() {
                 Vui lòng điền đầy đủ thông tin và tải lên hình ảnh chứng chỉ.
               </Text>
 
-              {/* Tên chứng chỉ */}
+              {/* Loại chứng chỉ */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>
-                  Tên chứng chỉ <Text style={styles.required}>*</Text>
+                  Loại chứng chỉ <Text style={styles.required}>*</Text>
                 </Text>
-                <TextInput
-                  placeholder="VD: Chứng chỉ Điều dưỡng viên"
-                  value={form.name}
-                  onChangeText={(t) => {
-                    setForm({ ...form, name: t });
-                    if (errors.name) setErrors({ ...errors, name: "" });
-                  }}
-                  style={[styles.input, errors.name && styles.inputError]}
-                />
-                {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
+                <TouchableOpacity
+                  style={[styles.pickerButton, errors.qualificationTypeId && styles.inputError]}
+                  onPress={() => setShowQualificationPicker(true)}
+                >
+                  <Text style={[
+                    styles.pickerText,
+                    !form.qualificationTypeId && styles.pickerPlaceholder
+                  ]}>
+                    {form.qualificationTypeId
+                      ? qualificationTypes.find(t => t.qualificationTypeId === form.qualificationTypeId)?.typeName || 'Chọn loại chứng chỉ'
+                      : 'Chọn loại chứng chỉ'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#68C2E8" />
+                </TouchableOpacity>
+                {errors.qualificationTypeId ? <Text style={styles.errorText}>{errors.qualificationTypeId}</Text> : null}
               </View>
 
               {/* Tổ chức cấp */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>
-                  Tổ chức cấp <Text style={styles.required}>*</Text>
+                  Nơi cấp
                 </Text>
                 <TextInput
-                  placeholder="VD: Bộ Y tế, Trường Y Hà Nội"
+                  placeholder="Nơi cấp"
+                  placeholderTextColor="#999"
                   value={form.organization}
                   onChangeText={(t) => {
                     setForm({ ...form, organization: t });
@@ -604,44 +643,68 @@ export default function CertificatesScreen() {
               {/* Ngày cấp */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>
-                  Ngày cấp <Text style={styles.required}>*</Text>
+                  Ngày cấp
                 </Text>
-                <TextInput
-                  placeholder="10/20/2023"
-                  value={form.issueDate}
-                  onChangeText={(t) => {
-                    setForm({ ...form, issueDate: t });
-                    if (errors.issueDate) setErrors({ ...errors, issueDate: "" });
+                <TouchableOpacity
+                  style={[styles.birthYearInput, errors.issueDate && styles.inputError]}
+                  onPress={() => {
+                    setCurrentDateField('issueDate');
+                    setDatePickerValue(form.issueDate ? new Date(form.issueDate) : new Date());
+                    setShowDatePicker(true);
                   }}
-                  style={[styles.input, errors.issueDate && styles.inputError]}
-                />
+                >
+                  <Text style={form.issueDate ? styles.dateText : styles.placeholderText}>
+                    {form.issueDate ? new Date(form.issueDate).toLocaleDateString('vi-VN') : 'Chọn ngày cấp'}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
+                </TouchableOpacity>
                 {errors.issueDate ? <Text style={styles.errorText}>{errors.issueDate}</Text> : null}
               </View>
 
               {/* Ngày hết hạn */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>
-                  Ngày hết hạn <Text style={styles.optional}>(nếu có)</Text>
+                  Ngày hết hạn
                 </Text>
-                <TextInput
-                  placeholder="mm/dd/yyyy"
-                  value={form.expiryDate}
-                  onChangeText={(t) => {
-                    setForm({ ...form, expiryDate: t });
-                    if (errors.expiryDate) setErrors({ ...errors, expiryDate: "" });
+                <TouchableOpacity
+                  style={[styles.birthYearInput, errors.expiryDate && styles.inputError]}
+                  onPress={() => {
+                    setCurrentDateField('expiryDate');
+                    setDatePickerValue(form.expiryDate ? new Date(form.expiryDate) : new Date());
+                    setShowDatePicker(true);
                   }}
-                  style={[styles.input, errors.expiryDate && styles.inputError]}
-                />
+                >
+                  <Text style={form.expiryDate ? styles.dateText : styles.placeholderText}>
+                    {form.expiryDate ? new Date(form.expiryDate).toLocaleDateString('vi-VN') : 'Chọn ngày hết hạn'}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
+                </TouchableOpacity>
                 {errors.expiryDate ? <Text style={styles.errorText}>{errors.expiryDate}</Text> : null}
+              </View>
+
+              {/* Ghi chú */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Ghi chú</Text>
+                <TextInput
+                  placeholder="Ghi chú"
+                  placeholderTextColor="#999"
+                  value={form.notes}
+                  onChangeText={(t) => setForm({ ...form, notes: t })}
+                  style={[styles.input, styles.textArea, styles.textAreaTop]}
+                  multiline
+                  numberOfLines={2}
+                  textAlignVertical="top"
+                />
               </View>
 
               {/* Số chứng chỉ */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>
-                  Số chứng chỉ <Text style={styles.optional}>(nếu có)</Text>
+                  Số chứng chỉ
                 </Text>
                 <TextInput
-                  placeholder="VD: CC-2023-12345"
+                  placeholder="Số chứng chỉ"
+                  placeholderTextColor="#999"
                   value={form.certificateNumber}
                   onChangeText={(t) => setForm({ ...form, certificateNumber: t })}
                   style={styles.input}
@@ -649,56 +712,91 @@ export default function CertificatesScreen() {
                 />
               </View>
 
-              {/* Hình ảnh chứng chỉ */}
+              {/* File chứng chỉ */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>
-                  Hình ảnh chứng chỉ <Text style={styles.required}>*</Text>
+                  File chứng chỉ <Text style={styles.required}>*</Text>
                 </Text>
-                <TouchableOpacity 
-                  style={styles.uploadBox} 
-                  onPress={handlePickImage}
-                >
-                  <MaterialCommunityIcons name="file-document" size={48} color="#CCC" />
-                  <Text style={styles.uploadTitle}>Tải lên hình ảnh chứng chỉ</Text>
-                  <Text style={styles.uploadSubtitle}>PDF, JPG, PNG - Tối đa 5MB</Text>
-                  <View style={styles.uploadButton}>
-                    <MaterialCommunityIcons name="folder" size={18} color="#FFF" />
-                    <Text style={styles.uploadButtonText}>Chọn file</Text>
+                {form.image ? (
+                  <View style={styles.filePreviewContainer}>
+                    <TouchableOpacity
+                      style={styles.filePreviewButton}
+                      onPress={() => {
+                        // Show image preview if needed
+                        setSelectedImageUrl(form.image.uri);
+                        setShowImageModal(true);
+                      }}
+                    >
+                      <Ionicons name="document-text" size={24} color="#68C2E8" />
+                      <View style={styles.filePreviewInfo}>
+                        <Text style={styles.filePreviewName} numberOfLines={1}>
+                          {form.image.name}
+                        </Text>
+                        <Text style={styles.filePreviewType}>
+                          {form.image.type?.includes('pdf') ? 'PDF' : 'Image'}
+                        </Text>
+                      </View>
+                      <Ionicons name="eye-outline" size={20} color="#68C2E8" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.removeFileButton}
+                      onPress={() => setForm({ ...form, image: null })}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#dc3545" />
+                    </TouchableOpacity>
                   </View>
-                </TouchableOpacity>
-                {form.image && (
-                  <View style={styles.filePreview}>
-                    <MaterialCommunityIcons name="check-circle" size={20} color="#4CAF50" />
-                    <Text style={styles.fileName}>{form.image.name}</Text>
-                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.fileButton}
+                    onPress={handlePickImage}
+                  >
+                    <Ionicons name="document" size={20} color="#68C2E8" />
+                    <Text style={styles.fileButtonText}>
+                      Chọn file chứng chỉ
+                    </Text>
+                  </TouchableOpacity>
                 )}
                 {errors.image ? <Text style={styles.errorText}>{errors.image}</Text> : null}
-                
-                <View style={styles.warningBox}>
-                  <Text style={styles.warningText}>
-                    Meo: Chụp ảnh rõ ràng, đầy đủ 4 góc để tăng tỷ lệ duyệt
-                  </Text>
-                </View>
               </View>
 
               {/* Actions */}
-              <TouchableOpacity style={styles.submitBtn} onPress={handleAdd}>
-                <MaterialCommunityIcons name="check" size={20} color="#FFF" />
-                <Text style={styles.submitBtnText}>Gửi chứng chỉ để xác minh</Text>
+              <TouchableOpacity 
+                style={[styles.submitBtn, adding && styles.submitBtnDisabled]} 
+                onPress={handleAdd}
+                disabled={adding}
+              >
+                {adding ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="check" size={20} color="#FFF" />
+                    <Text style={styles.submitBtnText}>Gửi chứng chỉ để xác minh</Text>
+                  </>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.cancelBtn}
                 onPress={() => {
                   setModalVisible(false);
+                  setForm({
+                    qualificationTypeId: "",
+                    organization: "",
+                    issueDate: "",
+                    expiryDate: "",
+                    certificateNumber: "",
+                    notes: "",
+                    image: null,
+                  });
                   setErrors({
-                    name: "",
+                    qualificationTypeId: "",
                     organization: "",
                     issueDate: "",
                     expiryDate: "",
                     image: "",
                   });
                 }}
+                disabled={adding}
               >
                 <Text style={styles.cancelBtnText}>Hủy</Text>
               </TouchableOpacity>
@@ -764,107 +862,245 @@ export default function CertificatesScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Modal thêm kỹ năng */}
-      <Modal visible={skillModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.skillModalContent}>
-            {/* Header */}
-            <View style={styles.skillModalHeader}>
-              <MaterialCommunityIcons name="plus-circle" size={24} color="#2196F3" />
-              <Text style={styles.skillModalTitle}>Thêm kỹ năng mới</Text>
-              <TouchableOpacity onPress={() => setSkillModalVisible(false)}>
-                <MaterialCommunityIcons name="close" size={24} color="#666" />
+      {/* Modal chọn loại chứng chỉ */}
+      <Modal visible={showQualificationPicker} animationType="slide" transparent>
+        <View style={styles.pickerModalOverlay}>
+          <View style={styles.pickerModalContent}>
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>Chọn loại chứng chỉ</Text>
+              <TouchableOpacity onPress={() => setShowQualificationPicker(false)}>
+                <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Tên kỹ năng */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>
-                  Tên kỹ năng <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  placeholder="VD: Trị liệu âm nhạc"
-                  value={skillForm.name}
-                  onChangeText={(text) => {
-                    setSkillForm({ ...skillForm, name: text });
-                    if (skillError) setSkillError("");
+            <ScrollView style={styles.pickerModalList}>
+              {qualificationTypes.map((type) => (
+                <TouchableOpacity
+                  key={type.qualificationTypeId}
+                  style={[
+                    styles.pickerOption,
+                    form.qualificationTypeId === type.qualificationTypeId && styles.pickerOptionSelected
+                  ]}
+                  onPress={() => {
+                    setForm({ ...form, qualificationTypeId: type.qualificationTypeId });
+                    setErrors({ ...errors, qualificationTypeId: "" });
+                    setShowQualificationPicker(false);
                   }}
-                  style={[styles.input, skillError && styles.inputError]}
-                  maxLength={50}
-                />
-                {skillError ? <Text style={styles.errorText}>{skillError}</Text> : null}
-              </View>
-
-              {/* Mô tả ngắn */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mô tả ngắn</Text>
-                <TextInput
-                  placeholder="VD: Sử dụng âm nhạc để cải thiện tâm trạng"
-                  value={skillForm.description}
-                  onChangeText={(text) => setSkillForm({ ...skillForm, description: text })}
-                  style={[styles.input, styles.textArea]}
-                  multiline
-                  numberOfLines={3}
-                  maxLength={100}
-                />
-              </View>
-
-              {/* Chọn biểu tượng */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>
-                  Chọn biểu tượng <Text style={styles.required}>*</Text>
-                </Text>
-                <View style={styles.iconGrid}>
-                  {availableIcons.map((icon, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.iconOption,
-                        skillForm.icon === icon && styles.iconOptionSelected
-                      ]}
-                      onPress={() => setSkillForm({ ...skillForm, icon })}
-                    >
-                      <MaterialCommunityIcons 
-                        name={icon as any} 
-                        size={28} 
-                        color={skillForm.icon === icon ? "#2196F3" : "#757575"} 
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Preview */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Xem trước</Text>
-                <View style={styles.skillPreview}>
-                  <View style={styles.skillPreviewIcon}>
-                    <MaterialCommunityIcons 
-                      name={skillForm.icon as any} 
-                      size={36} 
-                      color="#2196F3" 
-                    />
-                  </View>
-                  <Text style={styles.skillPreviewName}>
-                    {skillForm.name || "Tên kỹ năng"}
+                >
+                  <Text style={[
+                    styles.pickerOptionText,
+                    form.qualificationTypeId === type.qualificationTypeId && styles.pickerOptionTextSelected
+                  ]}>
+                    {type.typeName}
                   </Text>
-                  <Text style={styles.skillPreviewDesc}>
-                    {skillForm.description || "Mô tả ngắn"}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Submit Button */}
-              <TouchableOpacity
-                style={styles.submitSkillBtn}
-                onPress={handleAddSkill}
-              >
-                <MaterialCommunityIcons name="check" size={20} color="#FFF" />
-                <Text style={styles.submitSkillBtnText}>Thêm kỹ năng</Text>
-              </TouchableOpacity>
+                  {form.qualificationTypeId === type.qualificationTypeId && (
+                    <Ionicons name="checkmark" size={20} color="#4CAF50" />
+                  )}
+                </TouchableOpacity>
+              ))}
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.datePickerModalContainer}>
+              <View style={styles.datePickerModalHeader}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.birthYearPickerCancel}>Hủy</Text>
+                </TouchableOpacity>
+                <Text style={styles.birthYearPickerTitle}>
+                  {currentDateField === 'issueDate' ? 'Chọn ngày cấp' : 'Chọn ngày hết hạn'}
+                </Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.birthYearPickerDone}>Xong</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={datePickerValue}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                maximumDate={currentDateField === 'issueDate' ? new Date() : undefined}
+                minimumDate={currentDateField === 'expiryDate' ? new Date() : undefined}
+                onChange={(event, selectedDate) => {
+                  if (selectedDate) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const selected = new Date(selectedDate);
+                    selected.setHours(0, 0, 0, 0);
+                    
+                    // Validate ngày cấp: không được sau hôm nay
+                    if (currentDateField === 'issueDate' && selected > today) {
+                      Alert.alert("Lỗi", "Ngày cấp không được sau ngày hiện tại");
+                      return;
+                    }
+                    
+                    // Validate ngày hết hạn: không được trước hôm nay
+                    if (currentDateField === 'expiryDate' && selected < today) {
+                      Alert.alert("Lỗi", "Ngày hết hạn không được trong quá khứ");
+                      return;
+                    }
+                    
+                    setDatePickerValue(selectedDate);
+                    if (Platform.OS === 'android') {
+                      if (currentDateField) {
+                        const dateStr = selectedDate.toISOString().split('T')[0];
+                        setForm({ ...form, [currentDateField]: dateStr });
+                        setErrors({ ...errors, [currentDateField]: "" });
+                        setShowDatePicker(false);
+                      }
+                    }
+                  } else if (Platform.OS === 'android') {
+                    setShowDatePicker(false);
+                  }
+                }}
+              />
+              {Platform.OS === 'ios' && (
+                <TouchableOpacity
+                  style={styles.datePickerDoneButton}
+                  onPress={() => {
+                    if (currentDateField) {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const selected = new Date(datePickerValue);
+                      selected.setHours(0, 0, 0, 0);
+                      
+                      // Validate ngày cấp: không được sau hôm nay
+                      if (currentDateField === 'issueDate' && selected > today) {
+                        Alert.alert("Lỗi", "Ngày cấp không được sau ngày hiện tại");
+                        return;
+                      }
+                      
+                      // Validate ngày hết hạn: không được trước hôm nay
+                      if (currentDateField === 'expiryDate' && selected < today) {
+                        Alert.alert("Lỗi", "Ngày hết hạn không được trong quá khứ");
+                        return;
+                      }
+                      
+                      const dateStr = datePickerValue.toISOString().split('T')[0];
+                      setForm({ ...form, [currentDateField]: dateStr });
+                      setErrors({ ...errors, [currentDateField]: "" });
+                    }
+                    setShowDatePicker(false);
+                  }}
+                >
+                  <Text style={styles.datePickerDoneButtonText}>Xong</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Modal xác nhận xóa */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowDeleteModal(false);
+          setCertificateToDelete(null);
+        }}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <View style={styles.deleteModalIconContainer}>
+              <MaterialCommunityIcons name="alert-circle" size={48} color="#F44336" />
+            </View>
+            <Text style={styles.deleteModalTitle}>Xác nhận xóa</Text>
+            <Text style={styles.deleteModalMessage}>
+              Bạn có chắc chắn muốn xóa chứng chỉ này? Hành động này không thể hoàn tác.
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalCancelButton}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  setCertificateToDelete(null);
+                }}
+              >
+                <Text style={styles.deleteModalCancelText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalConfirmButton, deleting && styles.deleteModalConfirmButtonDisabled]}
+                onPress={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.deleteModalConfirmText}>Xóa</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal thành công */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalContent}>
+            <View style={styles.successModalIconContainer}>
+              <MaterialCommunityIcons name="check-circle" size={64} color="#4CAF50" />
+            </View>
+            <Text style={styles.successModalTitle}>Thành công</Text>
+            <Text style={styles.successModalMessage}>
+              {successMessage}
+            </Text>
+            <TouchableOpacity
+              style={styles.successModalButton}
+              onPress={() => setShowSuccessModal(false)}
+            >
+              <Text style={styles.successModalButtonText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal xem ảnh chứng chỉ */}
+      <Modal
+        visible={showImageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <View style={styles.imageModalOverlay}>
+          <TouchableOpacity
+            style={styles.imageModalCloseButton}
+            onPress={() => setShowImageModal(false)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="close-circle" size={32} color="#fff" />
+          </TouchableOpacity>
+          {selectedImageUrl && (
+            <ScrollView
+              style={styles.imageModalScrollView}
+              contentContainerStyle={styles.imageModalScrollContent}
+              showsVerticalScrollIndicator={true}
+              showsHorizontalScrollIndicator={true}
+              bounces={true}
+              centerContent={true}
+            >
+              <Image
+                source={{ uri: selectedImageUrl }}
+                style={styles.imageModalImage}
+                resizeMode="contain"
+              />
+            </ScrollView>
+          )}
         </View>
       </Modal>
 
@@ -876,35 +1112,6 @@ export default function CertificatesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F5F5F5" },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    gap: 12,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  tabActive: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#FFA726",
-    borderWidth: 3,
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#999999",
-  },
-  tabTextActive: {
-    color: "#6B4CE6",
-  },
   scrollContent: {
     padding: 16,
     paddingBottom: 200, // Large padding to ensure bottom content is visible
@@ -957,6 +1164,11 @@ const styles = StyleSheet.create({
   certRejected: {
     borderLeftWidth: 6,
     borderLeftColor: "#F44336",
+  },
+  certDeleted: {
+    borderLeftWidth: 6,
+    borderLeftColor: "#9E9E9E",
+    opacity: 0.7,
   },
   certHeader: {
     flexDirection: "row",
@@ -1021,6 +1233,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignSelf: "flex-start",
   },
+  statusDeleted: {
+    color: "#9E9E9E",
+    fontWeight: "600",
+    fontSize: 13,
+    backgroundColor: "#F5F5F5",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
   rejectBox: {
     backgroundColor: "#FFF9E6",
     padding: 12,
@@ -1066,105 +1288,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FFCDD2",
   },
+  btnDeleteDisabled: {
+    opacity: 0.6,
+  },
   btnDeleteText: {
     color: "#666",
     fontWeight: "600",
     fontSize: 14,
-  },
-  // Skills Styles
-  selectedBanner: {
-    backgroundColor: "#E3F2FD",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  selectedText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1976D2",
-    marginBottom: 4,
-  },
-  selectedList: {
-    fontSize: 14,
-    color: "#42A5F5",
-  },
-  saveSkillBtn: {
-    backgroundColor: "#2196F3",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  saveSkillText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  skillsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "space-between",
-  },
-  skillCard: {
-    width: "48%",
-    backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
-    position: "relative",
-  },
-  skillSelected: {
-    backgroundColor: "#E3F2FD",
-    borderColor: "#2196F3",
-  },
-  skillIcon: {
-    width: 50,
-    height: 50,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  skillIconText: {
-    fontSize: 28,
-  },
-  skillName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  skillNameSelected: {
-    color: "#1976D2",
-  },
-  skillDesc: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center",
-  },
-  skillDescSelected: {
-    color: "#42A5F5",
-  },
-  checkMark: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#2196F3",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  checkMarkText: {
-    color: "#FFF",
-    fontSize: 14,
-    fontWeight: "bold",
   },
   // Modal Styles
   modalOverlay: {
@@ -1219,12 +1349,62 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#DDD",
-    borderRadius: 8,
-    padding: 12,
+    height: 50,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingHorizontal: 16,
     fontSize: 15,
-    backgroundColor: "#F9F9F9",
+    color: '#2C3E50',
+    borderWidth: 1,
+    borderColor: '#E8EBED',
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 50,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E8EBED',
+  },
+  pickerText: {
+    fontSize: 15,
+    color: '#2C3E50',
+    flex: 1,
+  },
+  pickerPlaceholder: {
+    fontSize: 15,
+    color: '#999',
+  },
+  birthYearInput: {
+    height: 50,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#E8EBED',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateText: {
+    fontSize: 15,
+    color: '#2C3E50',
+  },
+  placeholderText: {
+    fontSize: 15,
+    color: '#999',
+  },
+  textArea: {
+    height: 100,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  textAreaTop: {
+    textAlignVertical: 'top',
   },
   inputError: {
     borderColor: "#F44336",
@@ -1235,54 +1415,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
-  uploadBox: {
-    borderWidth: 2,
-    borderColor: "#DDD",
-    borderStyle: "dashed",
-    borderRadius: 12,
-    padding: 24,
-    alignItems: "center",
-    backgroundColor: "#FAFAFA",
-  },
-  uploadTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginTop: 12,
-  },
-  uploadSubtitle: {
-    fontSize: 13,
-    color: "#999",
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  uploadButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#2196F3",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    gap: 6,
-  },
-  uploadButtonText: {
-    color: "#FFF",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  filePreview: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E8F5E9",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
+  fileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#68C2E8',
+    marginTop: 8,
   },
-  fileName: {
+  fileButtonText: {
     fontSize: 14,
-    color: "#4CAF50",
-    fontWeight: "500",
+    fontWeight: '500',
+    color: '#68C2E8',
+  },
+  filePreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+  },
+  filePreviewButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E8EBED',
+  },
+  filePreviewInfo: {
+    flex: 1,
+  },
+  filePreviewName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2C3E50',
+    marginBottom: 4,
+  },
+  filePreviewType: {
+    fontSize: 12,
+    color: '#7F8C8D',
+  },
+  removeFileButton: {
+    padding: 4,
   },
   warningBox: {
     backgroundColor: "#FFF9E6",
@@ -1306,6 +1487,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 8,
     gap: 8,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
   submitBtnText: {
     color: "#FFF",
@@ -1397,133 +1581,308 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
   },
-  // Add Skill Button Styles
-  addSkillButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E3F2FD",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
     marginTop: 16,
-    gap: 8,
-    borderWidth: 2,
-    borderColor: "#2196F3",
-    borderStyle: "dashed",
+    fontSize: 16,
+    color: '#666',
   },
-  addSkillButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#2196F3",
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
   },
-  // Skill Modal Styles
-  skillModalContent: {
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#F44336',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#3FD2CD',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Picker Modal Styles
+  pickerModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pickerModalContent: {
     backgroundColor: "#FFF",
-    marginTop: 80,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 24,
     padding: 24,
-    maxHeight: "90%",
+    width: "90%",
+    maxHeight: "70%",
     elevation: 5,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
   },
-  skillModalHeader: {
+  pickerModalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
-    gap: 12,
   },
-  skillModalTitle: {
+  pickerModalTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#333",
-    flex: 1,
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: "top",
-    paddingTop: 12,
+  pickerModalList: {
+    maxHeight: 400,
   },
-  iconGrid: {
+  pickerOption: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 12,
-  },
-  iconOption: {
-    width: 56,
-    height: 56,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
-    justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-  iconOptionSelected: {
-    backgroundColor: "#E3F2FD",
-    borderColor: "#2196F3",
-    borderWidth: 3,
-  },
-  iconOptionText: {
-    fontSize: 28,
-  },
-  skillPreview: {
-    backgroundColor: "#F8F9FA",
-    borderRadius: 16,
-    padding: 20,
-    alignItems: "center",
-    marginTop: 12,
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: "#F9F9F9",
     borderWidth: 1,
     borderColor: "#E0E0E0",
   },
-  skillPreviewIcon: {
-    width: 64,
-    height: 64,
-    backgroundColor: "#FFF",
-    borderRadius: 32,
+  pickerOptionSelected: {
+    backgroundColor: "#E3F2FD",
+    borderColor: "#2196F3",
+    borderWidth: 2,
+  },
+  pickerOptionText: {
+    fontSize: 15,
+    color: "#333",
+    flex: 1,
+  },
+  pickerOptionTextSelected: {
+    color: "#1976D2",
+    fontWeight: "600",
+  },
+  // Image Modal Styles
+  imageModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.9)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  skillPreviewIconText: {
-    fontSize: 32,
+  imageModalCloseButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 1,
+    padding: 8,
   },
-  skillPreviewName: {
+  imageModalScrollView: {
+    flex: 1,
+    width: "100%",
+  },
+  imageModalScrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 100,
+  },
+  imageModalImage: {
+    width: "100%",
+    height: "100%",
+    minHeight: 400,
+  },
+  // Date Picker Modal Styles
+  datePickerModalContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: '80%',
+  },
+  datePickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8EBED',
+  },
+  birthYearPickerCancel: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 4,
-    textAlign: "center",
+    color: '#7F8C8D',
+    fontWeight: '500',
   },
-  skillPreviewDesc: {
-    fontSize: 13,
-    color: "#666",
-    textAlign: "center",
+  birthYearPickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
   },
-  submitSkillBtn: {
-    flexDirection: "row",
-    backgroundColor: "#2196F3",
+  birthYearPickerDone: {
+    fontSize: 16,
+    color: '#68C2E8',
+    fontWeight: '600',
+  },
+  datePickerDoneButton: {
+    backgroundColor: '#68C2E8',
+    marginHorizontal: 20,
+    marginTop: 16,
     paddingVertical: 14,
     borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 24,
-    gap: 8,
+    alignItems: 'center',
   },
-  submitSkillBtnText: {
-    color: "#FFF",
+  datePickerDoneButtonText: {
+    color: 'white',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
+  },
+  // Delete Modal Styles
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  deleteModalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFEBEE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  deleteModalMessage: {
+    fontSize: 15,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalCancelButton: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8EBED',
+  },
+  deleteModalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7F8C8D',
+  },
+  deleteModalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#F44336',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteModalConfirmButtonDisabled: {
+    opacity: 0.6,
+  },
+  deleteModalConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  // Success Modal Styles
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  successModalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  successModalIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  successModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successModalMessage: {
+    fontSize: 16,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  successModalButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  successModalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
   },
 });

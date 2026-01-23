@@ -3,9 +3,10 @@ import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Alert,
+  ActivityIndicator,
   FlatList,
   Image,
   Modal,
@@ -18,45 +19,246 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { mainService } from "@/services/main.service";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
+import { useAuth } from "@/contexts/AuthContext";
 
 const GENDER_OPTIONS = ["Nam", "Nữ"];
-const EDUCATION_OPTIONS = [
-  "Trung học cơ sở",
-  "Trung học phổ thông",
-  "Cao đẳng",
-  "Đại học",
-  "Sau đại học",
-];
 
 export default function ExpertProfileScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  
+  // Get params from navigation
+  const routeParams = route.params as any;
+  const profileFromParams = routeParams?.profile;
+  const parsedProfileDataFromParams = routeParams?.parsedProfileData;
   
   // avatar & cccd images
-  const [avatarUri, setAvatarUri] = useState(null);
-  const [cccdFrontUri, setCccdFrontUri] = useState("https://via.placeholder.com/300x200?text=CCCD+Front"); // Mock data - will be replaced by API
-  const [cccdBackUri, setCccdBackUri] = useState("https://via.placeholder.com/300x200?text=CCCD+Back"); // Mock data - will be replaced by API
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [cccdFrontUri, setCccdFrontUri] = useState<string | null>(null);
+  const [cccdBackUri, setCccdBackUri] = useState<string | null>(null);
 
   // basic info (non-editable)
-  const [fullName] = useState("Lê Văn C"); // Not editable
-  const [email, setEmail] = useState("caregiver2@gmail.com");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
 
   // personal & contact
-  const [dob, setDob] = useState(""); // mm/dd/yyyy
+  const [dob, setDob] = useState("");
   const [gender, setGender] = useState("");
   const [showGenderModal, setShowGenderModal] = useState(false);
 
-  const [idNumber] = useState("079203012345"); // Not editable - mock data
+  const [idNumber, setIdNumber] = useState("");
   const [phone, setPhone] = useState("");
-  const [permanentAddress] = useState("123 Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM"); // Not editable - mock data
-  const [temporaryAddress, setTemporaryAddress] = useState("");
+  const [locationData, setLocationData] = useState<any>({});
 
   // career
-  const [yearsExp, setYearsExp] = useState("0");
-  const [workPlace, setWorkPlace] = useState("");
-  const [education, setEducation] = useState("");
-  const [showEducationModal, setShowEducationModal] = useState(false);
-  const [universityDegreeUri, setUniversityDegreeUri] = useState("https://via.placeholder.com/400x300?text=University+Degree"); // Mock data for university degree
+  const [yearsExp, setYearsExp] = useState("");
   const [selfIntroduction, setSelfIntroduction] = useState("");
+
+  // Load profile data
+  const loadProfile = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Nếu có params từ navigation, dùng params thay vì gọi API
+      if (profileFromParams) {
+        console.log('=== USING PARAMS FROM NAVIGATION ===');
+        console.log('profileFromParams:', JSON.stringify(profileFromParams, null, 2));
+        console.log('parsedProfileDataFromParams:', JSON.stringify(parsedProfileDataFromParams, null, 2));
+        
+        const profile = profileFromParams;
+        
+        // Basic info
+        setFullName(profile.fullName || user?.name || "");
+        setEmail(profile.email || user?.email || "");
+        
+        // Avatar
+        if (profile.avatarUrl) {
+          setAvatarUri(profile.avatarUrl);
+        }
+        
+        // Personal info
+        if (profile.birthDate) {
+          // Format date from API (yyyy-MM-dd) to year only
+          const date = new Date(profile.birthDate);
+          const year = date.getFullYear();
+          setDob(year.toString());
+        }
+        
+        // Log params để debug
+        console.log('=== PROFILE DATA FROM PARAMS ===');
+        console.log('Full profile (from params):', JSON.stringify(profile, null, 2));
+        console.log('profileData (raw):', profile.profileData);
+        console.log('location (raw):', profile.location);
+        
+        setGender(profile.gender === 'MALE' ? 'Nam' : profile.gender === 'FEMALE' ? 'Nữ' : '');
+        setPhone(profile.phoneNumber || "");
+        
+        // Parse location
+        let locationDataParsed: any = {};
+        if (profile.location) {
+          try {
+            locationDataParsed = typeof profile.location === 'string' 
+              ? JSON.parse(profile.location) 
+              : profile.location;
+          } catch (e) {
+            // If parse fails, use as is
+            locationDataParsed = profile.location;
+          }
+        }
+        setLocationData(locationDataParsed);
+        
+        // Parse profileData
+        let profileData: any = {};
+        if (profile.profileData) {
+          try {
+            profileData = typeof profile.profileData === 'string' 
+              ? JSON.parse(profile.profileData) 
+              : profile.profileData;
+          } catch (e) {
+            profileData = {};
+          }
+        }
+        
+        // Log parsed profileData
+        console.log('=== PARSED PROFILE DATA ===');
+        console.log('profileData:', JSON.stringify(profileData, null, 2));
+        console.log('profileData keys:', Object.keys(profileData));
+        
+        // Career info
+        setYearsExp(profileData.years_experience?.toString() || "");
+        setSelfIntroduction(profile.bio || "");
+        
+        // CCCD images - map từ profileData
+        if (profileData.citizen_id_front_image_url) {
+          setCccdFrontUri(profileData.citizen_id_front_image_url);
+        } else if (profileData.citizenIdFrontImage) {
+          setCccdFrontUri(profileData.citizenIdFrontImage);
+        }
+        
+        if (profileData.citizen_id_back_image_url) {
+          setCccdBackUri(profileData.citizen_id_back_image_url);
+        } else if (profileData.citizenIdBackImage) {
+          setCccdBackUri(profileData.citizenIdBackImage);
+        }
+        
+        // ID Number - map từ profileData
+        if (profileData.citizen_id) {
+          setIdNumber(profileData.citizen_id);
+        } else if (profileData.idNumber || profileData.id_number) {
+          setIdNumber(profileData.idNumber || profileData.id_number || "");
+        }
+        
+        // Log all mapped fields
+        console.log('=== MAPPED FIELDS ===');
+        console.log('fullName:', profile.fullName);
+        console.log('email:', profile.email);
+        console.log('birthDate (year):', dob);
+        console.log('gender:', profile.gender);
+        console.log('phone:', profile.phoneNumber);
+        console.log('location (latitude, longitude):', locationData.latitude, locationData.longitude);
+        console.log('yearsExp:', profileData.years_experience);
+        console.log('selfIntroduction (bio):', profile.bio);
+        console.log('idNumber (citizen_id):', profileData.citizen_id || profileData.idNumber || profileData.id_number);
+        console.log('cccdFrontUri:', profileData.citizen_id_front_image_url || profileData.citizenIdFrontImage);
+        console.log('cccdBackUri:', profileData.citizen_id_back_image_url || profileData.citizenIdBackImage);
+        
+        setLoading(false);
+        return;
+      }
+      
+      // Nếu không có params, gọi API
+      console.log('=== CALLING API (NO PARAMS) ===');
+      const response = await mainService.getCaregiverProfile();
+      
+      if (response.status === 'Success' && response.data) {
+        const profile = response.data;
+        
+        // Basic info
+        setFullName(profile.fullName || user?.name || "");
+        setEmail(profile.email || user?.email || "");
+        
+        // Avatar
+        if (profile.avatarUrl) {
+          setAvatarUri(profile.avatarUrl);
+        }
+        
+        // Personal info
+        if (profile.birthDate) {
+          const date = new Date(profile.birthDate);
+          const year = date.getFullYear();
+          setDob(year.toString());
+        }
+        
+        setGender(profile.gender === 'MALE' ? 'Nam' : profile.gender === 'FEMALE' ? 'Nữ' : '');
+        setPhone(profile.phoneNumber || "");
+        
+        // Parse location
+        let locationDataParsed: any = {};
+        if (profile.location) {
+          try {
+            locationDataParsed = typeof profile.location === 'string' 
+              ? JSON.parse(profile.location) 
+              : profile.location;
+          } catch (e) {
+            locationDataParsed = profile.location;
+          }
+        }
+        setLocationData(locationDataParsed);
+        
+        // Parse profileData
+        let profileData: any = {};
+        if (profile.profileData) {
+          try {
+            profileData = typeof profile.profileData === 'string' 
+              ? JSON.parse(profile.profileData) 
+              : profile.profileData;
+          } catch (e) {
+            profileData = {};
+          }
+        }
+        
+        // Career info
+        setYearsExp(profileData.years_experience?.toString() || "");
+        // Không cần set workPlace và education nữa
+        setSelfIntroduction(profile.bio || "");
+        
+        // CCCD images - map từ profileData
+        if (profileData.citizen_id_front_image_url) {
+          setCccdFrontUri(profileData.citizen_id_front_image_url);
+        } else if (profileData.citizenIdFrontImage) {
+          setCccdFrontUri(profileData.citizenIdFrontImage);
+        }
+        
+        if (profileData.citizen_id_back_image_url) {
+          setCccdBackUri(profileData.citizen_id_back_image_url);
+        } else if (profileData.citizenIdBackImage) {
+          setCccdBackUri(profileData.citizenIdBackImage);
+        }
+        
+        // ID Number - map từ profileData
+        if (profileData.citizen_id) {
+          setIdNumber(profileData.citizen_id);
+        } else if (profileData.idNumber || profileData.id_number) {
+          setIdNumber(profileData.idNumber || profileData.id_number || "");
+        }
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      Alert.alert("Lỗi", "Không thể tải thông tin hồ sơ");
+    } finally {
+      setLoading(false);
+    }
+  }, [user, profileFromParams, parsedProfileDataFromParams]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
 
   // request permission for image picker
   useEffect(() => {
@@ -73,6 +275,18 @@ export default function ExpertProfileScreen() {
       }
     })();
   }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={{ marginTop: 12, color: '#6B7280' }}>Đang tải thông tin...</Text>
+        </View>
+        <CaregiverBottomNav activeTab="profile" />
+      </SafeAreaView>
+    );
+  }
 
   const pickImage = async (setter) => {
     try {
@@ -119,16 +333,11 @@ export default function ExpertProfileScreen() {
       gender,
       idNumber, // Read-only
       phone,
-      permanentAddress, // Read-only
-      temporaryAddress,
       yearsExp,
-      workPlace,
-      education,
       selfIntroduction,
       avatarUri,
       cccdFrontUri, // Read-only
       cccdBackUri, // Read-only
-      universityDegreeUri: education === "Đại học" || education === "Sau đại học" ? universityDegreeUri : null,
     };
     console.log("Save payload:", payload);
     Alert.alert("Lưu hồ sơ", "Thông tin đã được lưu (demo).");
@@ -230,11 +439,12 @@ export default function ExpertProfileScreen() {
 
           <View style={styles.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={styles.label}>Ngày sinh</Text>
+              <Text style={styles.label}>Năm sinh</Text>
               <TextInput
-                placeholder="mm/dd/yyyy"
+                placeholder="yyyy"
                 value={dob}
                 onChangeText={setDob}
+                keyboardType="numeric"
                 style={styles.input}
               />
             </View>
@@ -275,24 +485,14 @@ export default function ExpertProfileScreen() {
             </View>
           </View>
 
-          <Text style={[styles.label, { marginTop: 8 }]}>
-            Địa chỉ thường trú
-          </Text>
+          <Text style={[styles.label, { marginTop: 8 }]}>Tọa độ</Text>
           <TextInput
-            value={permanentAddress}
-            placeholder="Địa chỉ thường trú"
-            style={[styles.input, { height: 80 }, styles.disabledInput]}
-            multiline
+            value={locationData.latitude && locationData.longitude 
+              ? `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`
+              : "Chưa có tọa độ"}
+            placeholder="Tọa độ"
+            style={[styles.input, styles.disabledInput]}
             editable={false}
-          />
-
-          <Text style={[styles.label, { marginTop: 8 }]}>Địa chỉ tạm trú</Text>
-          <TextInput
-            value={temporaryAddress}
-            onChangeText={setTemporaryAddress}
-            placeholder="Địa chỉ tạm trú"
-            style={[styles.input, { height: 80 }]}
-            multiline
           />
         </View>
 
@@ -341,7 +541,7 @@ export default function ExpertProfileScreen() {
           <Text style={styles.sectionTitle}>3. Thông tin nghề nghiệp</Text>
 
           <View style={styles.row}>
-            <View style={{ flex: 1, marginRight: 8 }}>
+            <View style={{ flex: 1 }}>
               <Text style={styles.label}>Số năm kinh nghiệm</Text>
               <TextInput
                 value={yearsExp}
@@ -351,71 +551,9 @@ export default function ExpertProfileScreen() {
                 style={styles.input}
               />
             </View>
-
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={styles.label}>Nơi từng làm việc</Text>
-              <TextInput
-                value={workPlace}
-                onChangeText={setWorkPlace}
-                placeholder="Nơi từng làm việc"
-                style={styles.input}
-              />
-            </View>
           </View>
-
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Học vấn</Text>
-              <TouchableOpacity
-                style={[styles.input, { justifyContent: "center" }]}
-                onPress={() => setShowEducationModal(true)}
-              >
-                <Text style={{ color: education ? "#000" : "#9CA3AF" }}>
-                  {education || "Chọn trình độ"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ width: 12 }} />
-          </View>
-
-          {/* University Degree Image - only for Đại học and Sau đại học */}
-          {(education === "Đại học" || education === "Sau đại học") && (
-            <>
-              <Text style={[styles.label, { marginTop: 8 }]}>
-                Bằng đại học
-              </Text>
-              <View style={styles.degreeImageContainer}>
-                {universityDegreeUri ? (
-                  <Image
-                    source={{ uri: universityDegreeUri }}
-                    style={styles.degreeImage}
-                  />
-                ) : (
-                  <Text style={styles.cccdPlaceholder}>
-                    Chưa có ảnh bằng đại học
-                  </Text>
-                )}
-              </View>
-            </>
-          )}
 
           <Text style={[styles.label, { marginTop: 8 }]}>
-            Chứng chỉ và kỹ năng
-          </Text>
-          <TouchableOpacity
-            style={styles.linkCard}
-            onPress={() => navigation.navigate("Chứng chỉ và kỹ năng")}
-          >
-            <View style={styles.linkCardContent}>
-              <MaterialCommunityIcons name="certificate" size={20} color="#2563EB" />
-              <Text style={styles.linkCardText}>
-                Quản lý chứng chỉ và kỹ năng
-              </Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <Text style={[styles.label, { marginTop: 12 }]}>
             Giới thiệu bản thân
           </Text>
           <TextInput
@@ -466,26 +604,6 @@ export default function ExpertProfileScreen() {
           </View>
         </Modal>
 
-        {/* Education modal */}
-        <Modal visible={showEducationModal} animationType="slide" transparent>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Chọn trình độ</Text>
-              {renderModalList(EDUCATION_OPTIONS, (val) => {
-                setEducation(val);
-                setShowEducationModal(false);
-              })}
-              <TouchableOpacity
-                onPress={() => setShowEducationModal(false)}
-                style={styles.modalClose}
-              >
-                <Text style={{ color: "#2563EB", fontWeight: "700" }}>
-                  Đóng
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
       </ScrollView>
       
       {/* Bottom Navigation */}

@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import React, { useState, useCallback } from "react";
 import {
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -164,6 +165,7 @@ export default function PersonalScreen() {
   const [parsedProfileData, setParsedProfileData] = useState<ParsedProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -171,7 +173,20 @@ export default function PersonalScreen() {
       setError(null);
       const response = await mainService.getCaregiverProfile();
       
+      // Log response từ BE
+      console.log('=== RESPONSE FROM BE (CÁ NHÂN) ===');
+      console.log('Full response:', JSON.stringify(response, null, 2));
+      console.log('Response status:', response.status);
+      console.log('Response message:', response.message);
+      console.log('Response data:', JSON.stringify(response.data, null, 2));
+      
       if (response.status === 'Success' && response.data) {
+        console.log('=== RESPONSE DATA DETAILS ===');
+        console.log('profileData (raw):', response.data.profileData);
+        console.log('profileData type:', typeof response.data.profileData);
+        console.log('location (raw):', response.data.location);
+        console.log('location type:', typeof response.data.location);
+        
         setProfile(response.data);
         
         // Parse profileData từ JSON string
@@ -267,13 +282,15 @@ export default function PersonalScreen() {
     
     switch (itemId) {
       case "personal-info":
+        // Truyền full profile trừ qualifications
+        const { qualifications, ...profileWithoutQualifications } = profile || {};
         navigation.navigate("Hồ sơ của bạn", { 
-          profile: profile,
+          profile: profileWithoutQualifications,
           parsedProfileData: parsedProfileData 
         });
         break;
       case "certificates":
-        navigation.navigate("Chứng chỉ và kỹ năng", { 
+        navigation.navigate("Chứng chỉ", { 
           qualifications: profile?.qualifications || [] 
         });
         break;
@@ -287,21 +304,7 @@ export default function PersonalScreen() {
         navigation.navigate("Cài đặt");
         break;
       case "logout":
-        Alert.alert(
-          "Xác nhận đăng xuất",
-          "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?",
-          [
-            { text: "Hủy", style: "cancel" },
-            {
-              text: "Đăng xuất",
-              style: "destructive",
-              onPress: () => {
-                logout();
-                router.replace("/(tabs)");
-              },
-            },
-          ]
-        );
+        setShowLogoutModal(true);
         break;
       default:
         console.log("Menu item not implemented:", itemId);
@@ -379,11 +382,22 @@ export default function PersonalScreen() {
           {/* Verified Badge */}
           {isVerified ? (
             <View style={styles.verifiedTag}>
-              <Text style={styles.verifiedText}>✓ Đã xác minh</Text>
+              <Text style={styles.verifiedText}>Đã xác minh</Text>
             </View>
           ) : (
             <View style={styles.unverifiedTag}>
               <Text style={styles.unverifiedText}>Chưa xác minh</Text>
+            </View>
+          )}
+
+          {/* Rejection Reason */}
+          {profile?.status === 'REJECTED' && profile?.rejectionReason && (
+            <View style={styles.rejectionBox}>
+              <View style={styles.rejectionHeader}>
+                <MaterialCommunityIcons name="alert-circle" size={20} color="#F44336" />
+                <Text style={styles.rejectionTitle}>Lý do từ chối</Text>
+              </View>
+              <Text style={styles.rejectionText}>{profile.rejectionReason}</Text>
             </View>
           )}
 
@@ -455,6 +469,44 @@ export default function PersonalScreen() {
         {/* Bottom spacing */}
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* Modal xác nhận đăng xuất */}
+      <Modal
+        visible={showLogoutModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.logoutModalOverlay}>
+          <View style={styles.logoutModalContent}>
+            <View style={styles.logoutModalIconContainer}>
+              <MaterialCommunityIcons name="logout" size={48} color="#F44336" />
+            </View>
+            <Text style={styles.logoutModalTitle}>Xác nhận đăng xuất</Text>
+            <Text style={styles.logoutModalMessage}>
+              Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?
+            </Text>
+            <View style={styles.logoutModalButtons}>
+              <TouchableOpacity
+                style={styles.logoutModalCancelButton}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={styles.logoutModalCancelText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutModalConfirmButton}
+                onPress={() => {
+                  setShowLogoutModal(false);
+                  logout();
+                  router.replace("/(tabs)");
+                }}
+              >
+                <Text style={styles.logoutModalConfirmText}>Đăng xuất</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Bottom Navigation */}
       <CaregiverBottomNav activeTab="profile" />
@@ -584,6 +636,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#D97706",
     fontWeight: "600",
+  },
+  rejectionBox: {
+    backgroundColor: "#FFF9E6",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#FFB300",
+  },
+  rejectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  rejectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#F57C00",
+  },
+  rejectionText: {
+    fontSize: 13,
+    color: "#666",
+    lineHeight: 20,
   },
 
   // Stats
@@ -716,5 +793,80 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
+  },
+  // Logout Modal Styles
+  logoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  logoutModalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  logoutModalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFEBEE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logoutModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2C3E50',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  logoutModalMessage: {
+    fontSize: 15,
+    color: '#7F8C8D',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  logoutModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  logoutModalCancelButton: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E8EBED',
+  },
+  logoutModalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#7F8C8D',
+  },
+  logoutModalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#F44336',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  logoutModalConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
   },
 });
