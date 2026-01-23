@@ -4,6 +4,7 @@ import CaregiverBottomNav from "@/components/navigation/CaregiverBottomNav";
 import { NavigationHelper } from "@/components/navigation/NavigationHelper";
 import { getAppointmentHasComplained, getAppointmentHasReviewed, getAppointmentStatus, subscribeToStatusChanges, updateAppointmentStatus } from "@/data/appointmentStore";
 import { mainService, MyCareServiceData } from "@/services/main.service";
+import { chatService } from "@/services/chat.service";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import React, { useEffect, useMemo, useState } from "react";
@@ -587,6 +588,15 @@ export default function AppointmentDetailScreen() {
   const fromScreen = params?.fromScreen;
   const insets = useSafeAreaInsets();
   
+  // Log params khi vào screen
+  useEffect(() => {
+    console.log('=== APPOINTMENT DETAIL SCREEN PARAMS ===');
+    console.log('Route params:', JSON.stringify(params, null, 2));
+    console.log('appointmentId:', appointmentId);
+    console.log('fromScreen:', fromScreen);
+    console.log('=== END PARAMS ===');
+  }, []);
+  
   // Nhận qrCodeData từ route params (khi quay lại từ check-out screen)
   useEffect(() => {
     if (params?.qrCodeData) {
@@ -643,19 +653,38 @@ export default function AppointmentDetailScreen() {
       isFetchingRef.current = true;
       lastFetchRef.current = now;
       setLoading(true);
+      
+      console.log('=== FETCHING APPOINTMENT DETAIL ===');
+      console.log('appointmentId:', appointmentId);
+      
       const response = await mainService.getCareServiceDetail(appointmentId);
+      
+      console.log('=== API RESPONSE FROM BE ===');
+      console.log('Full response:', JSON.stringify(response, null, 2));
+      console.log('Response status:', response.status);
+      console.log('Response message:', response.message);
+      console.log('Has data:', !!response.data);
       
       if (response.status === 'Success' && response.data) {
         const appointment = response.data as MyCareServiceData;
         setAppointmentData(appointment);
         
+        console.log('=== APPOINTMENT DATA (Parsed) ===');
+        console.log('Full appointment object:', JSON.stringify(appointment, null, 2));
+        console.log('careSeekerProfile:', JSON.stringify(appointment.careSeekerProfile, null, 2));
+        console.log('careSeekerProfile keys:', appointment.careSeekerProfile ? Object.keys(appointment.careSeekerProfile) : []);
+        console.log('Has accountId in careSeekerProfile:', !!(appointment.careSeekerProfile as any)?.accountId);
+        console.log('Has account_id in careSeekerProfile:', !!(appointment.careSeekerProfile as any)?.account_id);
+        console.log('accountId value:', (appointment.careSeekerProfile as any)?.accountId);
+        console.log('account_id value:', (appointment.careSeekerProfile as any)?.account_id);
+        
         // Debug: Log CI/CO data
-        console.log('=== Appointment Data ===');
         console.log('workSchedule:', appointment.workSchedule);
         console.log('checkInImageUrl:', appointment.workSchedule?.checkInImageUrl);
         console.log('checkOutImageUrl:', appointment.workSchedule?.checkOutImageUrl);
         console.log('startTime:', appointment.workSchedule?.startTime);
         console.log('endTime:', appointment.workSchedule?.endTime);
+        console.log('=== END APPOINTMENT DATA ===');
         
         // Map status to Vietnamese
         const statusMap: Record<string, string> = {
@@ -676,10 +705,19 @@ export default function AppointmentDetailScreen() {
           setRemainingMinutes(minutes);
         }
       } else {
+        console.log('=== API RESPONSE ERROR ===');
+        console.log('Response status:', response.status);
+        console.log('Response message:', response.message);
+        console.log('Response data:', response.data);
+        console.log('=== END ERROR ===');
         Alert.alert('Lỗi', response.message || 'Không thể tải thông tin lịch hẹn');
       }
     } catch (error: any) {
-      console.error('Error fetching appointment:', error);
+      console.error('=== ERROR FETCHING APPOINTMENT ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response?.data);
+      console.error('=== END ERROR ===');
       Alert.alert('Lỗi', 'Không thể tải thông tin lịch hẹn');
     } finally {
       setLoading(false);
@@ -2240,27 +2278,86 @@ export default function AppointmentDetailScreen() {
               <View style={styles.divider} />
               <TouchableOpacity 
                 style={styles.chatButton}
-                onPress={() => {
-                  const contactName = displayData.careSeeker.name || 'Người thuê';
-                  let contactAvatar = "👤";
-                  
-                  if (displayData.careSeeker.gender === "Nam") {
-                    contactAvatar = "👨";
-                  } else if (displayData.careSeeker.gender === "Nữ") {
-                    contactAvatar = "👩";
+                onPress={async () => {
+                  try {
+                    const contactName = displayData.careSeeker.name || 'Người thuê';
+                    let contactAvatar = displayData.careSeeker.avatar || "👤";
+                    
+                    if (!contactAvatar || contactAvatar === "👤") {
+                      if (displayData.careSeeker.gender === "Nam") {
+                        contactAvatar = "👨";
+                      } else if (displayData.careSeeker.gender === "Nữ") {
+                        contactAvatar = "👩";
+                      }
+                    }
+                    
+                    // Lấy accountId từ appointmentData.careSeekerProfile
+                    // Kiểm tra xem có accountId không (có thể có nhưng không được định nghĩa trong type)
+                    const careSeekerProfileId = displayData.careSeeker.id;
+                    
+                    // Log toàn bộ để debug
+                    console.log('=== CHAT BUTTON DEBUG ===');
+                    console.log('careSeekerProfileId:', careSeekerProfileId);
+                    console.log('Full appointmentData:', JSON.stringify(appointmentData, null, 2));
+                    console.log('careSeekerProfile object:', appointmentData?.careSeekerProfile);
+                    console.log('careSeekerProfile keys:', appointmentData?.careSeekerProfile ? Object.keys(appointmentData.careSeekerProfile) : []);
+                    console.log('Has accountId (camelCase):', !!(appointmentData?.careSeekerProfile as any)?.accountId);
+                    console.log('Has account_id (snake_case):', !!(appointmentData?.careSeekerProfile as any)?.account_id);
+                    console.log('accountId value:', (appointmentData?.careSeekerProfile as any)?.accountId);
+                    console.log('account_id value:', (appointmentData?.careSeekerProfile as any)?.account_id);
+                    
+                    // Thử lấy accountId từ nhiều nguồn (camelCase và snake_case)
+                    let accountId = (appointmentData?.careSeekerProfile as any)?.accountId 
+                      || (appointmentData?.careSeekerProfile as any)?.account_id;
+                    
+                    // Nếu không có accountId, thử dùng careSeekerProfileId (có thể là accountId)
+                    if (!accountId) {
+                      accountId = careSeekerProfileId;
+                      console.log('Using careSeekerProfileId as accountId fallback');
+                    }
+                    
+                    console.log('Final accountId to use:', accountId);
+                    console.log('=== END CHAT BUTTON DEBUG ===');
+                    
+                    // Gọi API để lấy chatId với accountId
+                    try {
+                      const chatIdResponse = await chatService.getChatId(accountId);
+                      const chatId = chatIdResponse.chatId || chatIdResponse.id;
+                      
+                      console.log('ChatId response:', chatIdResponse);
+                      
+                      // Navigate với chatId và accountId
+                      (navigation.navigate as any)("Tin nhắn", {
+                        receiverId: accountId, // Dùng accountId, không phải profileId
+                        seekerId: accountId,
+                        accountId: accountId, // accountId để gửi tin nhắn
+                        chatId: chatId,
+                        chatName: contactName,
+                        chatAvatar: contactAvatar,
+                        seekerName: contactName,
+                        seekerAvatar: contactAvatar,
+                        fromScreen: "appointment-detail",
+                        appointmentId: appointmentId,
+                      });
+                    } catch (chatError) {
+                      // Fallback: navigate không có chatId, nhưng vẫn dùng accountId
+                      console.error('Error getting chatId:', chatError);
+                      (navigation.navigate as any)("Tin nhắn", {
+                        receiverId: accountId, // Dùng accountId
+                        seekerId: accountId,
+                        accountId: accountId, // accountId để gửi tin nhắn
+                        chatName: contactName,
+                        chatAvatar: contactAvatar,
+                        seekerName: contactName,
+                        seekerAvatar: contactAvatar,
+                        fromScreen: "appointment-detail",
+                        appointmentId: appointmentId,
+                      });
+                    }
+                  } catch (error) {
+                    console.error('Error navigating to chat:', error);
+                    Alert.alert('Lỗi', 'Không thể mở chat. Vui lòng thử lại.');
                   }
-                  
-                  (navigation.navigate as any)("Tin nhắn", {
-                    clientName: contactName,
-                    clientAvatar: contactAvatar,
-                    chatName: contactName,
-                    chatAvatar: contactAvatar,
-                    fromScreen: "appointment-detail",
-                    appointmentId: appointmentId,
-                    seekerId: displayData.careSeeker.id,
-                    seekerName: contactName,
-                    seekerAvatar: contactAvatar,
-                  });
                 }}
                 activeOpacity={0.7}
               >
@@ -2320,86 +2417,6 @@ export default function AppointmentDetailScreen() {
               {services.map((service) => renderService(service))}
             </View>
 
-            {/* Quick Actions - For new and confirmed appointments */}
-            {(status === 'Mới' || status === 'new' || status === 'pending' || status === 'Chờ thực hiện' || status === 'confirmed') && (
-              <View style={styles.quickActionsSection}>
-                <View style={styles.quickActionsHeader}>
-                  <MaterialCommunityIcons name="lightning-bolt" size={20} color="#F59E0B" />
-                  <Text style={styles.quickActionsTitle}>Hành động nhanh</Text>
-                </View>
-                <View style={styles.quickActionsButtons}>
-                  <TouchableOpacity
-                    style={styles.quickActionButton}
-                    onPress={async () => {
-                      // Open Google Maps with full address
-                      const fullAddress = `${displayData.elderly.address}, Việt Nam`;
-                      const encodedAddress = encodeURIComponent(fullAddress);
-                      
-                      // Use search query format for better accuracy
-                      const url = Platform.select({
-                        ios: `maps://maps.apple.com/?q=${encodedAddress}`,
-                        android: `geo:0,0?q=${encodedAddress}`,
-                      });
-                      
-                      // Fallback to web URL
-                      const webUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-                      
-                      try {
-                        const canOpen = url ? await Linking.canOpenURL(url) : false;
-                        if (canOpen && url) {
-                          await Linking.openURL(url);
-                        } else {
-                          await Linking.openURL(webUrl);
-                        }
-                      } catch (error) {
-                        console.error('Error opening maps:', error);
-                        showAlert(
-                          "Lỗi",
-                          "Không thể mở bản đồ. Vui lòng thử lại.",
-                          [{ text: 'OK', style: 'default' }],
-                          { icon: 'alert-circle', iconColor: '#EF4444' }
-                        );
-                      }
-                    }}
-                  >
-                    <View style={styles.quickActionIconWrapper}>
-                      <MaterialCommunityIcons name="map-marker" size={24} color="#70C1F1" />
-                    </View>
-                    <Text style={styles.quickActionText}>Xem bản đồ</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.quickActionButton}
-                    onPress={() => {
-                      // Navigate to chat
-                      const contactName = displayData.elderly.emergencyContact?.name || displayData.elderly.name;
-                      let contactAvatar = "👤";
-                      
-                      if (displayData.elderly?.gender === "Nam") {
-                        contactAvatar = "👨";
-                      } else if (displayData.elderly?.gender === "Nữ") {
-                        contactAvatar = "👩";
-                      }
-                      
-                      (navigation.navigate as any)("Tin nhắn", {
-                        clientName: contactName,
-                        clientAvatar: contactAvatar,
-                        chatName: contactName,
-                        chatAvatar: contactAvatar,
-                        fromScreen: "appointment-detail",
-                        appointmentId: appointmentId,
-                      });
-                    }}
-                  >
-                    <View style={styles.quickActionIconWrapper}>
-                      <MaterialCommunityIcons name="message-text" size={24} color="#70C1F1" />
-                    </View>
-                    <Text style={styles.quickActionText}>Nhắn tin</Text>
-          
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
           </View>
         )}
 

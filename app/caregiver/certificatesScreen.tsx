@@ -3,13 +3,15 @@ import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -64,6 +66,7 @@ export default function CertificatesScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [imageSourceModal, setImageSourceModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [qualificationTypes, setQualificationTypes] = useState<QualificationType[]>([]);
   const [showQualificationPicker, setShowQualificationPicker] = useState(false);
@@ -110,17 +113,9 @@ export default function CertificatesScreen() {
     loadQualificationTypes();
   }, []);
 
-  // Load certificates from API
-  const loadCertificates = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await mainService.getCaregiverProfile();
-      
-      if (response.status === 'Success' && response.data) {
-        // Map qualifications to certificates format
-        const mappedCertificates = (response.data.qualifications || []).map((qual: any, index: number) => {
+  // Map qualifications to certificates format
+  const mapQualificationsToCertificates = (qualifications: any[]) => {
+    return qualifications.map((qual: any, index: number) => {
           
           // Format dates
           const formatDate = (dateString: string | null) => {
@@ -135,15 +130,34 @@ export default function CertificatesScreen() {
 
           // Map status - check deleted first
           let status = 'pending';
+          
+          // Get raw status value
+          const rawStatus = qual.status;
+          
+          // Debug: Log raw status before processing
+          console.log('=== MAPPING STATUS ===', {
+            qualificationId: qual.qualificationId,
+            rawStatus: rawStatus,
+            rawStatusType: typeof rawStatus,
+            rawStatusValue: JSON.stringify(rawStatus),
+            deleted: qual.deleted
+          });
+          
           if (qual.deleted === true || qual.deleted === 'true') {
             status = 'deleted';
-          } else if (qual.isVerified && qual.status === 'ACCEPTED') {
+          } else if (rawStatus === 'APPROVED' || rawStatus === 'Approved' || rawStatus === 'approved') {
             status = 'verified';
-          } else if (qual.status === 'REJECTED') {
+          } else if (rawStatus === 'REJECTED' || rawStatus === 'Rejected' || rawStatus === 'rejected') {
             status = 'rejected';
-          } else if (qual.status === 'PENDING') {
+          } else if (rawStatus === 'PENDING' || rawStatus === 'Pending' || rawStatus === 'pending') {
             status = 'pending';
           }
+          
+          console.log('=== MAPPED STATUS ===', {
+            qualificationId: qual.qualificationId,
+            rawStatus: rawStatus,
+            mappedStatus: status
+          });
 
           return {
             id: qual.qualificationId || index + 1,
@@ -158,7 +172,25 @@ export default function CertificatesScreen() {
             rejectReason: qual.rejection_reason || qual.rejectionReason || null,
             certificateUrl: qual.certificateUrl || null,
           };
-        });
+    });
+  };
+
+  // Load certificates from API
+  const loadCertificates = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      
+      // Always load from API
+      const response = await mainService.getCaregiverProfile();
+      
+      if (response.status === 'Success' && response.data) {
+        // Map qualifications to certificates format
+        const mappedCertificates = mapQualificationsToCertificates(response.data.qualifications || []);
         
         setCertificates(mappedCertificates);
       } else {
@@ -169,12 +201,24 @@ export default function CertificatesScreen() {
       setError(err.message || 'Có lỗi xảy ra khi tải dữ liệu');
       setCertificates([]);
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
-  useEffect(() => {
-    loadCertificates();
+  // Load certificates when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadCertificates();
+    }, [])
+  );
+
+  // Pull to refresh handler
+  const onRefresh = useCallback(() => {
+    loadCertificates(true);
   }, []);
 
   const validateForm = () => {
@@ -452,7 +496,17 @@ export default function CertificatesScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#3FD2CD']}
+            tintColor="#3FD2CD"
+          />
+        }
+      >
         <View>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
@@ -464,10 +518,20 @@ export default function CertificatesScreen() {
             </View>
             
             {certificates.map((cert) => {
+              console.log('Rendering certificate:', {
+                id: cert.id,
+                name: cert.name,
+                status: cert.status,
+                deleted: cert.deleted,
+                statusType: typeof cert.status
+              });
+              
               const isVerified = cert.status === "verified";
               const isPending = cert.status === "pending";
               const isRejected = cert.status === "rejected";
               const isDeleted = cert.status === "deleted" || cert.deleted === true;
+              
+              console.log('Status flags:', { isVerified, isPending, isRejected, isDeleted });
 
               return (
                 <View

@@ -1064,22 +1064,170 @@ export const mainService = {
           }
         );
 
-        return response.data;
-      } catch (axiosError: any) {
-        // Silent fail
+        const responseData = response.data;
 
-        // Throw error để xử lý ở nơi gọi
+        // Check if response is HTML (from nginx error page)
+        if (typeof responseData === 'string' && responseData.includes('<html>')) {
+          console.error('Received HTML error page from server:', responseData);
+          let errorMessage = 'Có lỗi xảy ra khi upload file.';
+          if (responseData.includes('413') || responseData.includes('Request Entity Too Large')) {
+            errorMessage = 'Kích thước file quá lớn. Vui lòng giảm chất lượng ảnh hoặc chọn ảnh nhỏ hơn.';
+          }
+          return {
+            status: 'Fail',
+            message: errorMessage,
+            error: 'Request Entity Too Large',
+            data: null,
+          };
+        }
+
+        // Ensure response has status field
+        if (responseData && typeof responseData === 'object' && !responseData.hasOwnProperty('status')) {
+          // If response doesn't have status, wrap it
+          console.error('Response missing status field:', responseData);
+          return {
+            status: 'Fail',
+            message: responseData.message || responseData.error || 'Có lỗi xảy ra khi tạo hồ sơ',
+            error: responseData.error,
+            data: responseData,
+          };
+        }
+        return responseData;
+      } catch (axiosError: any) {
+        // Log detailed error for debugging
+        const errorDetails: any = {
+          message: axiosError?.message || 'Không có message',
+          code: axiosError?.code || 'Không có code',
+          name: axiosError?.name || 'Không có name',
+        };
+
+        if (axiosError?.response) {
+          errorDetails.response = {
+            status: axiosError.response.status,
+            statusText: axiosError.response.statusText,
+            data: axiosError.response.data,
+          };
+        }
+
+        if (axiosError?.request) {
+          errorDetails.request = {
+            method: axiosError.request.method,
+            url: axiosError.request.url,
+          };
+        }
+
+        console.error('createCaregiverProfile axios error:', JSON.stringify(errorDetails, null, 2));
+
+        // If there's a response from server, we should return it instead of throwing
+        // This allows the caller to handle the error response properly
+        if (axiosError.response?.data) {
+          const responseData = axiosError.response.data;
+
+          // Check if response is HTML (from nginx error page like 413)
+          if (typeof responseData === 'string' && responseData.includes('<html>')) {
+            console.error('Received HTML error page from server:', responseData);
+            let errorMessage = 'Có lỗi xảy ra khi upload file.';
+            if (responseData.includes('413') || responseData.includes('Request Entity Too Large')) {
+              errorMessage = 'Kích thước file quá lớn. Vui lòng giảm chất lượng ảnh hoặc chọn ảnh nhỏ hơn.';
+            } else if (axiosError.response.status === 413) {
+              errorMessage = 'Kích thước file quá lớn. Vui lòng giảm chất lượng ảnh hoặc chọn ảnh nhỏ hơn.';
+            }
+            return {
+              status: 'Fail',
+              message: errorMessage,
+              error: 'Request Entity Too Large',
+              data: null,
+            };
+          }
+
+          // Check HTTP status code for 413
+          if (axiosError.response.status === 413) {
+            return {
+              status: 'Fail',
+              message: 'Kích thước file quá lớn. Vui lòng giảm chất lượng ảnh hoặc chọn ảnh nhỏ hơn.',
+              error: 'Request Entity Too Large',
+              data: null,
+            };
+          }
+
+          // Ensure response has status field
+          if (responseData && typeof responseData === 'object' && !responseData.hasOwnProperty('status')) {
+            // If response doesn't have status, wrap it
+            return {
+              status: 'Fail',
+              message: responseData.message || responseData.error || 'Có lỗi xảy ra khi tạo hồ sơ',
+              error: responseData.error,
+              data: responseData,
+            };
+          }
+          // Return the error response so caller can check response.status
+          return responseData;
+        }
+
+        // Throw error để xử lý ở nơi gọi (for network errors, etc.)
         throw axiosError;
       }
     } catch (error: any) {
+      // Log detailed error for debugging
+      const errorDetails: any = {
+        message: error?.message || 'Không có message',
+        code: error?.code || 'Không có code',
+        name: error?.name || 'Không có name',
+      };
+
+      if (error?.response) {
+        errorDetails.response = {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+        };
+      }
+
+      if (error?.request) {
+        errorDetails.request = {
+          method: error.request.method,
+          url: error.request.url,
+        };
+      }
+
+      console.error('createCaregiverProfile error:', JSON.stringify(errorDetails, null, 2));
+
+      // If there's a response from server, return it
       if (error.response?.data) {
-        return error.response.data;
+        const responseData = error.response.data;
+        // Ensure response has status field
+        if (responseData && typeof responseData === 'object' && !responseData.hasOwnProperty('status')) {
+          // If response doesn't have status, wrap it
+          return {
+            status: 'Fail',
+            message: responseData.message || responseData.error || 'Có lỗi xảy ra khi tạo hồ sơ',
+            error: responseData.error,
+            data: responseData,
+          };
+        }
+        return responseData;
       }
 
       // Network error - có thể do FormData hoặc network issue
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        console.error('Network error detected:', error.code, error.message);
+        return {
+          status: 'Fail',
+          message: 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối internet và thử lại.',
+          data: null,
+        };
       }
 
+      // Timeout error
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        return {
+          status: 'Fail',
+          message: 'Yêu cầu quá thời gian chờ. Vui lòng thử lại.',
+          data: null,
+        };
+      }
+
+      // Other errors
       return {
         status: 'Fail',
         message: error.message || 'Không thể tạo hồ sơ. Vui lòng thử lại sau.',
@@ -1122,7 +1270,7 @@ export const mainService = {
     message: string;
     data: {
       totalEarnings: number;
-      incomeByMonth: Array<{
+      incomeByMonth: {
         year: number;
         month: number;
         totalEarnings: number;
@@ -1131,7 +1279,7 @@ export const mainService = {
         status: string;
         batchCode: string;
         payoutBatchId: string;
-        payoutDetails: Array<{
+        payoutDetails: {
           payoutId: string;
           payoutCode: string;
           caregiverEarnings: number;
@@ -1147,8 +1295,8 @@ export const mainService = {
           workDate: string;
           payoutBatchId: string;
           batchCode: string;
-        }>;
-      }>;
+        }[];
+      }[];
     } | null;
   }> => {
     try {

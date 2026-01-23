@@ -301,10 +301,9 @@ export default function CompleteProfileScreen() {
 
         {/* Location */}
         <View style={styles.section}>
-          <View style={styles.labelContainer}>
-            <ThemedText style={styles.label}>Vị trí</ThemedText>
-            <ThemedText style={styles.required}>*</ThemedText>
-          </View>
+          <ThemedText style={styles.label}>
+            Vị trí <ThemedText style={styles.required}>*</ThemedText>
+          </ThemedText>
           <TouchableOpacity
             style={styles.locationButton}
             onPress={() => setShowLocationPicker(true)}

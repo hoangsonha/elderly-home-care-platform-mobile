@@ -815,9 +815,9 @@ export default function CaregiverSidebar() {
           })}
         />
 
-        {/* Thanh toán - hidden from drawer */}
+        {/* Thu nhập - hidden from drawer */}
         <Drawer.Screen
-          name="Thanh toán"
+          name="Thu nhập"
           component={PaymentScreen}
           options={{
             drawerItemStyle: { height: 0 },

@@ -1,4 +1,4 @@
-﻿import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -17,71 +17,71 @@ export default function CaregiverBottomNav({ activeTab }: CaregiverBottomNavProp
       styles.bottomNav,
       { paddingBottom: Math.max(insets.bottom, 8) + 12 } // Tự động điều chỉnh theo safe area
     ]}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.navItem, activeTab === "home" && styles.navItemActive]}
         onPress={() => navigation.navigate("Trang chủ")}
       >
         <View style={[styles.iconContainer, activeTab === "home" && styles.iconContainerActive]}>
-          <MaterialCommunityIcons 
-            name="home" 
-            size={24} 
-            color={activeTab === "home" ? "#FFFFFF" : "#9CA3AF"} 
+          <MaterialCommunityIcons
+            name="home"
+            size={24}
+            color={activeTab === "home" ? "#FFFFFF" : "#9CA3AF"}
           />
         </View>
         <Text style={activeTab === "home" ? styles.navLabelActive : styles.navLabel}>Trang chủ</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.navItem, activeTab === "jobs" && styles.navItemActive]}
         onPress={() => navigation.navigate("Yêu cầu dịch vụ")}
       >
         <View style={[styles.iconContainer, activeTab === "jobs" && styles.iconContainerActive]}>
-          <MaterialCommunityIcons 
-            name="clipboard-text" 
-            size={24} 
-            color={activeTab === "jobs" ? "#FFFFFF" : "#9CA3AF"} 
+          <MaterialCommunityIcons
+            name="clipboard-text"
+            size={24}
+            color={activeTab === "jobs" ? "#FFFFFF" : "#9CA3AF"}
           />
         </View>
         <Text style={activeTab === "jobs" ? styles.navLabelActive : styles.navLabel}>Yêu cầu</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.navItem, activeTab === "schedule" && styles.navItemActive]}
         onPress={() => navigation.navigate("Quản lý lịch")}
       >
         <View style={[styles.iconContainer, activeTab === "schedule" && styles.iconContainerActive]}>
-          <MaterialCommunityIcons 
-            name="calendar-month" 
-            size={24} 
-            color={activeTab === "schedule" ? "#FFFFFF" : "#9CA3AF"} 
+          <MaterialCommunityIcons
+            name="calendar-month"
+            size={24}
+            color={activeTab === "schedule" ? "#FFFFFF" : "#9CA3AF"}
           />
         </View>
         <Text style={activeTab === "schedule" ? styles.navLabelActive : styles.navLabel}>Lịch</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.navItem, activeTab === "income" && styles.navItemActive]}
-        onPress={() => navigation.navigate("Thanh toán")}
+        onPress={() => navigation.navigate("Thu nhập")}
       >
         <View style={[styles.iconContainer, activeTab === "income" && styles.iconContainerActive]}>
-          <MaterialCommunityIcons 
-            name="cash" 
-            size={24} 
-            color={activeTab === "income" ? "#FFFFFF" : "#9CA3AF"} 
+          <MaterialCommunityIcons
+            name="cash"
+            size={24}
+            color={activeTab === "income" ? "#FFFFFF" : "#9CA3AF"}
           />
         </View>
         <Text style={activeTab === "income" ? styles.navLabelActive : styles.navLabel}>Thu nhập</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.navItem, activeTab === "profile" && styles.navItemActive]}
         onPress={() => navigation.navigate("Cá nhân")}
       >
         <View style={[styles.iconContainer, activeTab === "profile" && styles.iconContainerActive]}>
-          <MaterialCommunityIcons 
-            name="account" 
-            size={24} 
-            color={activeTab === "profile" ? "#FFFFFF" : "#9CA3AF"} 
+          <MaterialCommunityIcons
+            name="account"
+            size={24}
+            color={activeTab === "profile" ? "#FFFFFF" : "#9CA3AF"}
           />
         </View>
         <Text style={activeTab === "profile" ? styles.navLabelActive : styles.navLabel}>Cá nhân</Text>

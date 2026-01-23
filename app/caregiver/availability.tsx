@@ -19,6 +19,7 @@ import {
   Alert,
   Dimensions,
   Modal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -130,6 +131,7 @@ export default function AvailabilityScreen() {
   const [elderlyNames, setElderlyNames] = useState<{ [key: string]: string }>(
     {}
   );
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadFreeSchedule = async () => {
     try {
@@ -725,6 +727,23 @@ export default function AvailabilityScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              try {
+                await loadFreeSchedule();
+              } catch (error) {
+                console.error('Error refreshing schedule:', error);
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            colors={['#68C2E8']}
+            tintColor="#68C2E8"
+          />
+        }
       >
         {/* Calendar Section */}
         <View style={styles.calendarSection}>

@@ -552,6 +552,27 @@ export default function CompleteProfileScreen() {
         .filter((cred) => cred.file)
         .map((cred) => cred.file!);
 
+      // Log request data for debugging (without file URIs to avoid cluttering)
+      const logData = {
+        requestData: {
+          ...requestData,
+          // Don't log full location object, just summary
+          location: requestData.location ? {
+            address: requestData.location.address,
+            latitude: requestData.location.latitude,
+            longitude: requestData.location.longitude,
+          } : null,
+        },
+        hasAvatar: !!avatarFile,
+        hasCitizenIdFront: !!citizenIdFrontImage,
+        hasCitizenIdBack: !!citizenIdBackImage,
+        credentialFilesCount: credentialFiles.length,
+        avatarUri: avatarFile?.uri ? (avatarFile.uri.substring(0, 50) + '...') : null,
+        citizenIdFrontUri: citizenIdFrontImage?.uri ? (citizenIdFrontImage.uri.substring(0, 50) + '...') : null,
+        citizenIdBackUri: citizenIdBackImage?.uri ? (citizenIdBackImage.uri.substring(0, 50) + '...') : null,
+      };
+      console.log('Submitting caregiver profile:', JSON.stringify(logData, null, 2));
+
       const response = await mainService.createCaregiverProfile(
         requestData,
         avatarFile,
@@ -561,6 +582,55 @@ export default function CompleteProfileScreen() {
       );
 
       setIsSubmitting(false);
+
+      // Check if response is valid
+      if (!response) {
+        setErrorMessage('Không nhận được phản hồi từ server. Vui lòng thử lại.');
+        setShowErrorModal(true);
+        return;
+      }
+
+      // Log full response for debugging
+      console.error('Full API Response:', JSON.stringify(response, null, 2));
+
+      // Check if response is HTML (from nginx error page)
+      if (typeof response === 'string' && response.includes('<html>')) {
+        // This is an HTML error page from nginx (usually 413 Request Entity Too Large)
+        console.error('Received HTML error page from server:', response);
+
+        let errorMessage = 'Có lỗi xảy ra khi upload file.';
+        if (response.includes('413') || response.includes('Request Entity Too Large')) {
+          errorMessage = 'Kích thước file quá lớn. Vui lòng:\n\n1. Giảm chất lượng ảnh khi chụp/chọn\n2. Chọn ảnh có kích thước nhỏ hơn\n3. Hoặc liên hệ admin để tăng giới hạn upload';
+        } else if (response.includes('502') || response.includes('Bad Gateway')) {
+          errorMessage = 'Server đang bận. Vui lòng thử lại sau.';
+        } else if (response.includes('504') || response.includes('Gateway Timeout')) {
+          errorMessage = 'Yêu cầu quá thời gian chờ. Vui lòng thử lại.';
+        }
+
+        Alert.alert('Lỗi upload', errorMessage, [{ text: 'OK' }]);
+        setErrorMessage(errorMessage);
+        setShowErrorModal(true);
+        return;
+      }
+
+      // Check if response has status field
+      if (!response.hasOwnProperty('status')) {
+        // Response doesn't have status field - treat as error
+        console.error('Response missing status field:', response);
+        const errorMessage = response.message
+          || response.error
+          || (typeof response === 'string' ? response : 'Có lỗi xảy ra khi hoàn thiện hồ sơ. Vui lòng thử lại.');
+
+        Alert.alert(
+          'Lỗi API',
+          `Response không có status field.\n\nResponse: ${JSON.stringify(response, null, 2).substring(0, 500)}`,
+          [{ text: 'OK' }]
+        );
+
+        setErrorMessage(errorMessage);
+        setShowErrorModal(true);
+        return;
+      }
 
       if (response.status === 'Success') {
         // Update user profile in context
@@ -599,16 +669,107 @@ export default function CompleteProfileScreen() {
           }
         }, 1500);
       } else {
-        // Show error modal
-        setErrorMessage(response.message || 'Có lỗi xảy ra khi hoàn thiện hồ sơ');
+        // Log error details
+        const errorDetails = {
+          status: response.status,
+          message: response.message,
+          error: response.error,
+          data: response.data,
+          fullResponse: response,
+        };
+        console.error('API Error Response:', JSON.stringify(errorDetails, null, 2));
+
+        // Show detailed error in Alert for debugging (especially in release build)
+        const status = response.status || 'undefined';
+        const message = response.message || 'Không có thông báo';
+        const error = response.error || 'N/A';
+        const alertMessage = `Status: ${status}\nMessage: ${message}\nError: ${error}\n\nFull details logged to console.`;
+        Alert.alert('Lỗi API', alertMessage, [{ text: 'OK' }]);
+
+        // Show error modal with proper error message
+        const errorMessage = response.message
+          || response.error
+          || (typeof response.data === 'string' ? response.data : 'Có lỗi xảy ra khi hoàn thiện hồ sơ');
+        setErrorMessage(errorMessage);
         setShowErrorModal(true);
       }
     } catch (error: any) {
       setIsSubmitting(false);
-      console.error('Error completing profile:', error);
 
-      // Show error modal
-      setErrorMessage(error.message || 'Có lỗi xảy ra khi hoàn thiện hồ sơ. Vui lòng thử lại.');
+      // Extract detailed error information
+      const errorDetails: any = {
+        message: error?.message || 'Không có message',
+        code: error?.code || 'Không có code',
+        name: error?.name || 'Không có name',
+        stack: error?.stack || 'Không có stack',
+      };
+
+      // Add response details if available
+      if (error?.response) {
+        errorDetails.response = {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          headers: error.response.headers,
+        };
+      }
+
+      // Add request details if available
+      if (error?.request) {
+        errorDetails.request = {
+          method: error.request.method,
+          url: error.request.url,
+          headers: error.request.headers,
+        };
+      }
+
+      // Log to console
+      console.error('Error completing profile:', error);
+      console.error('Error details:', JSON.stringify(errorDetails, null, 2));
+
+      // Show detailed error in Alert for debugging (especially in release build)
+      const errorCode = errorDetails.code || 'N/A';
+      const errorStatus = errorDetails.response?.status || 'N/A';
+      const errorResponseMessage = errorDetails.response?.data?.message || errorDetails.response?.data?.error || 'N/A';
+
+      // Extract error message from various sources for error modal
+      let errorMessage = 'Có lỗi xảy ra khi hoàn thiện hồ sơ. Vui lòng thử lại.';
+
+      if (error?.response?.data) {
+        // If there's response data, try to get message from it
+        const responseData = error.response.data;
+        errorMessage = responseData.message
+          || responseData.error
+          || (typeof responseData === 'string' ? responseData : errorMessage);
+      } else if (error?.message) {
+        // Use error message if available
+        errorMessage = error.message;
+      }
+
+      // Create a concise alert message
+      const alertMessage = `Message: ${errorMessage}\n\nCode: ${errorCode}\nHTTP Status: ${errorStatus}\nServer Message: ${errorResponseMessage}\n\nFull error details logged to console.`;
+
+      Alert.alert(
+        'Lỗi khi hoàn thiện hồ sơ',
+        alertMessage,
+        [
+          { text: 'OK' },
+          {
+            text: 'Xem chi tiết',
+            onPress: () => {
+              // Show full error in another alert
+              Alert.alert(
+                'Chi tiết lỗi đầy đủ',
+                JSON.stringify(errorDetails, null, 2).substring(0, 2000) + (JSON.stringify(errorDetails, null, 2).length > 2000 ? '...' : ''),
+                [{ text: 'OK' }]
+              );
+            }
+          }
+        ]
+      );
+
+      // Show error modal with proper error message (errorMessage already extracted above)
+      setErrorMessage(errorMessage);
       setShowErrorModal(true);
     }
   };
