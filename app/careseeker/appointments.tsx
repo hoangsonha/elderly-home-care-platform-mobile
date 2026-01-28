@@ -1,46 +1,45 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { Platform } from 'react-native';
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Image,
-  StyleSheet,
+  Image, Platform, StyleSheet,
   TouchableOpacity,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAppointmentStatus, subscribeToStatusChanges } from '@/data/appointmentStore';
 import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
-import { mainService, type MyCareServiceData } from '@/services/main.service';
 import { Appointment } from '@/services/database.types';
+import { mainService, type MyCareServiceData } from '@/services/main.service';
 
 type StatusTab = 'all' | 'upcoming' | 'completed' | 'cancelled';
 
 export default function AppointmentsScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const bottomNavPadding = useBottomNavPadding();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [activeTab, setActiveTab] = useState<StatusTab>('all');
   const [refreshKey, setRefreshKey] = useState(0); // For triggering re-render when status changes
-  
+
   // Fetch appointments from API
   const fetchAppointments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await mainService.getMyCareServices();
-      
+
       if (response.status === 'Success' && response.data) {
         // Map API data to appointment format
         const mappedAppointments = response.data.map((service: MyCareServiceData) => {
@@ -90,7 +89,7 @@ export default function AppointmentsScreen() {
             feedback: service.feedback || null,
           };
         });
-        
+
         setAppointments(mappedAppointments);
       } else {
         setError(new Error(response.message || 'Không thể tải danh sách lịch hẹn'));
@@ -112,14 +111,14 @@ export default function AppointmentsScreen() {
       }
     }, [user?.id, fetchAppointments])
   );
-  
+
   // Subscribe to status changes from global store
   useEffect(() => {
     const unsubscribe = subscribeToStatusChanges(() => {
       // Trigger re-render when appointment status changes
       setRefreshKey(prev => prev + 1);
     });
-    
+
     return () => {
       unsubscribe();
     };
@@ -169,9 +168,9 @@ export default function AppointmentsScreen() {
       return appointments.filter(apt => {
         const globalStatus = getAppointmentStatus(apt.id);
         const currentStatus = globalStatus || apt.status;
-        return currentStatus === 'CAREGIVER_APPROVED' || 
-               currentStatus === 'IN_PROGRESS' || 
-               currentStatus === 'COMPLETED_WAITING_REVIEW';
+        return currentStatus === 'CAREGIVER_APPROVED' ||
+          currentStatus === 'IN_PROGRESS' ||
+          currentStatus === 'COMPLETED_WAITING_REVIEW';
       });
     }
     if (activeTab === 'completed') {
@@ -202,9 +201,9 @@ export default function AppointmentsScreen() {
       return appointments.filter(apt => {
         const globalStatus = getAppointmentStatus(apt.id);
         const currentStatus = globalStatus || apt.status;
-        return currentStatus === 'CAREGIVER_APPROVED' || 
-               currentStatus === 'IN_PROGRESS' || 
-               currentStatus === 'COMPLETED_WAITING_REVIEW';
+        return currentStatus === 'CAREGIVER_APPROVED' ||
+          currentStatus === 'IN_PROGRESS' ||
+          currentStatus === 'COMPLETED_WAITING_REVIEW';
       }).length;
     }
     if (tab === 'completed') {
@@ -252,7 +251,7 @@ export default function AppointmentsScreen() {
 
   const handleViewMap = (item: any, event: any) => {
     event.stopPropagation(); // Prevent triggering the card press
-    
+
     if (!item.latitude || !item.longitude || item.latitude === 0 || item.longitude === 0) {
       Alert.alert('Thông báo', 'Chưa có tọa độ địa điểm');
       return;
@@ -260,7 +259,7 @@ export default function AppointmentsScreen() {
 
     const lat = item.latitude;
     const lng = item.longitude;
-    
+
     const url = Platform.select({
       ios: `maps://maps.apple.com/?q=${lat},${lng}`,
       android: `geo:${lat},${lng}?q=${lat},${lng}`,
@@ -278,11 +277,11 @@ export default function AppointmentsScreen() {
     // Get real-time status from global store
     const globalStatus = getAppointmentStatus(item.id);
     const currentStatus = globalStatus || item.status;
-    
+
     // Get caregiver info from mapped data
     const caregiverName = item.caregiver?.name || 'Đang tải...';
     const caregiverAvatar = item.caregiver?.avatar;
-    
+
     return (
       <TouchableOpacity
         style={styles.appointmentCard}
@@ -296,72 +295,72 @@ export default function AppointmentsScreen() {
           </View>
         </View>
 
-      {/* Appointment Info */}
-      <View style={styles.appointmentInfo}>
-        <View style={styles.infoRow}>
-          <View style={styles.avatarContainer}>
-            {caregiverAvatar ? (
-              <Image source={{ uri: caregiverAvatar }} style={styles.avatarImage} />
-            ) : (
-              <ThemedText style={styles.avatarText}>
-                {caregiverName.charAt(0).toUpperCase()}
-              </ThemedText>
-            )}
+        {/* Appointment Info */}
+        <View style={styles.appointmentInfo}>
+          <View style={styles.infoRow}>
+            <View style={styles.avatarContainer}>
+              {caregiverAvatar ? (
+                <Image source={{ uri: caregiverAvatar }} style={styles.avatarImage} />
+              ) : (
+                <ThemedText style={styles.avatarText}>
+                  {caregiverName.charAt(0).toUpperCase()}
+                </ThemedText>
+              )}
+            </View>
+            <View style={styles.infoContent}>
+              <ThemedText style={styles.caregiverName}>{caregiverName}</ThemedText>
+              {item.feedback && item.feedback.rating ? (
+                <View style={styles.ratingRow}>
+                  <Ionicons name="star" size={14} color="#FFB648" />
+                  <ThemedText style={styles.ratingText}>{item.feedback.rating.toFixed(1)}</ThemedText>
+                </View>
+              ) : null}
+            </View>
           </View>
-          <View style={styles.infoContent}>
-            <ThemedText style={styles.caregiverName}>{caregiverName}</ThemedText>
-            {item.feedback && item.feedback.rating ? (
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={14} color="#FFB648" />
-                <ThemedText style={styles.ratingText}>{item.feedback.rating.toFixed(1)}</ThemedText>
-              </View>
-            ) : null}
+
+          <View style={styles.divider} />
+
+          <View style={styles.detailsGrid}>
+            <View style={styles.detailItem}>
+              <Ionicons name="person" size={18} color="#6B7280" />
+              <ThemedText style={styles.detailText}>{item.elderly?.name || 'Người già'}</ThemedText>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="calendar" size={18} color="#6B7280" />
+              <ThemedText style={styles.detailText}>{item.start_date}</ThemedText>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="time" size={18} color="#6B7280" />
+              <ThemedText style={styles.detailText}>{item.start_time} - {item.end_time}</ThemedText>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="location" size={18} color="#6B7280" />
+              {item.latitude && item.longitude && item.latitude !== 0 && item.longitude !== 0 ? (
+                <TouchableOpacity
+                  style={styles.mapButton}
+                  onPress={(e) => handleViewMap(item, e)}
+                  activeOpacity={0.7}
+                >
+                  <ThemedText style={styles.mapButtonText}>Xem bản đồ</ThemedText>
+                  <Ionicons name="map-outline" size={16} color="#68C2E8" />
+                </TouchableOpacity>
+              ) : (
+                <ThemedText style={styles.detailText}>Chưa có địa điểm</ThemedText>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.footer}>
+            <View style={styles.packageBadge}>
+              <ThemedText style={styles.packageText}>{item.package_type || 'Gói cơ bản'}</ThemedText>
+            </View>
+            <ThemedText style={styles.amountText}>
+              {(item.total_amount || 0).toLocaleString('vi-VN')} đ
+            </ThemedText>
           </View>
         </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.detailsGrid}>
-          <View style={styles.detailItem}>
-            <Ionicons name="person" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText}>{item.elderly?.name || 'Người già'}</ThemedText>
-          </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="calendar" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText}>{item.start_date}</ThemedText>
-          </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="time" size={18} color="#6B7280" />
-            <ThemedText style={styles.detailText}>{item.start_time} - {item.end_time}</ThemedText>
-          </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="location" size={18} color="#6B7280" />
-            {item.latitude && item.longitude && item.latitude !== 0 && item.longitude !== 0 ? (
-              <TouchableOpacity
-                style={styles.mapButton}
-                onPress={(e) => handleViewMap(item, e)}
-                activeOpacity={0.7}
-              >
-                <ThemedText style={styles.mapButtonText}>Xem bản đồ</ThemedText>
-                <Ionicons name="map-outline" size={16} color="#68C2E8" />
-              </TouchableOpacity>
-            ) : (
-              <ThemedText style={styles.detailText}>Chưa có địa điểm</ThemedText>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.footer}>
-          <View style={styles.packageBadge}>
-            <ThemedText style={styles.packageText}>{item.package_type || 'Gói cơ bản'}</ThemedText>
-          </View>
-          <ThemedText style={styles.amountText}>
-            {(item.total_amount || 0).toLocaleString('vi-VN')} đ
-          </ThemedText>
-        </View>
-      </View>
 
         {/* View Detail Arrow */}
         <View style={styles.arrowContainer}>
@@ -372,19 +371,19 @@ export default function AppointmentsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       {/* Header */}
-      <View style={styles.headerContainer}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <ThemedText style={styles.headerTitle}>Lịch hẹn</ThemedText>
-          <ThemedText style={styles.headerSubtitle}>Quản lý lịch chăm sóc</ThemedText>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <ThemedText style={styles.headerTitle}>Lịch hẹn</ThemedText>
+            <ThemedText style={styles.headerSubtitle}>Quản lý lịch chăm sóc</ThemedText>
+          </View>
+          <View style={styles.placeholder} />
         </View>
-        <View style={styles.placeholder} />
-      </View>
       </View>
 
       {/* Tabs */}

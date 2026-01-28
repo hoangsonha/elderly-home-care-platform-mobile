@@ -21,6 +21,7 @@ import { SimpleNavBar } from "@/components/navigation/SimpleNavBar";
 import { useBottomNavPadding } from "@/hooks/useBottomNavPadding";
 import { mainService, type MyCareServiceData } from "@/services/main.service";
 import { caregiverService } from "@/services/caregiver.service";
+import { SuccessModal } from "@/components/ui/SuccessModal";
 
 // Mock data
 const appointmentsDataMap: { [key: string]: any } = {
@@ -210,6 +211,8 @@ export default function AppointmentDetailScreen() {
   const [showCancelErrorModal, setShowCancelErrorModal] = useState(false);
   const [cancelErrorMessage, setCancelErrorMessage] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showFeedbackSuccessModal, setShowFeedbackSuccessModal] = useState(false);
+  const [showNoteSuccessModal, setShowNoteSuccessModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [rating, setRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
@@ -231,7 +234,60 @@ export default function AppointmentDetailScreen() {
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [isProcessingNote, setIsProcessingNote] = useState(false);
   const [selectedFeedbackImage, setSelectedFeedbackImage] = useState<string | null>(null);
+
+  // Function to fetch work notes
+  const fetchWorkNotes = async (workScheduleId: string) => {
+    try {
+      console.log('=== FETCHING WORK NOTES ===');
+      console.log('workScheduleId:', workScheduleId);
+      console.log('Calling API: GET /api/v1/work-notes/work-schedule/' + workScheduleId);
+      
+      const workNotesResponse = await mainService.getWorkNotes(workScheduleId);
+      console.log('Work notes response:', JSON.stringify(workNotesResponse, null, 2));
+      console.log('Response status:', workNotesResponse?.status);
+      console.log('Response data:', workNotesResponse?.data);
+      console.log('Is array?', Array.isArray(workNotesResponse?.data));
+      
+      if (workNotesResponse && workNotesResponse.status === 'Success' && workNotesResponse.data) {
+        // Transform work notes to match display format
+        const workNotes = Array.isArray(workNotesResponse.data) 
+          ? workNotesResponse.data.map((note: any) => ({
+              id: note.workNoteId || `note-${Date.now()}-${Math.random()}`,
+              workNoteId: note.workNoteId,
+              content: note.content,
+              author: note.createdByFullName || 'Người dùng',
+              time: note.createdAt ? new Date(note.createdAt).toLocaleTimeString('vi-VN', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              }) : '',
+              createdAt: note.createdAt,
+              createdByFullName: note.createdByFullName,
+              type: "info",
+            }))
+          : [];
+        console.log('Transformed work notes:', JSON.stringify(workNotes, null, 2));
+        console.log('Setting notes with length:', workNotes.length);
+        setNotes(workNotes);
+        console.log('=== END FETCHING WORK NOTES ===');
+      } else {
+        console.log('No work notes data or status not Success');
+        console.log('Response status:', workNotesResponse?.status);
+        console.log('Response data:', workNotesResponse?.data);
+        setNotes([]);
+      }
+    } catch (error: any) {
+      console.error('=== ERROR FETCHING WORK NOTES ===');
+      console.error('Error:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response);
+      console.error('Error response data:', error?.response?.data);
+      console.error('Error response status:', error?.response?.status);
+      // Don't show error to user, just log it and set empty notes
+      setNotes([]);
+    }
+  };
 
   // Calculate remaining minutes until deadline
   const calculateRemainingMinutes = (deadline: string): number | null => {
@@ -261,6 +317,13 @@ export default function AppointmentDetailScreen() {
     }
   }, [appointmentData?.caregiverResponseDeadline, status]);
 
+  // Debug: Log notes when they change
+  useEffect(() => {
+    console.log('=== NOTES STATE CHANGED ===');
+    console.log('Notes length:', notes.length);
+    console.log('Notes:', JSON.stringify(notes, null, 2));
+  }, [notes]);
+
   // Fetch appointment data
   const fetchAppointment = async () => {
     try {
@@ -273,12 +336,27 @@ export default function AppointmentDetailScreen() {
         );
         
         if (appointment) {
+          console.log('=== APPOINTMENT FOUND ===');
+          console.log('Appointment status:', appointment.status);
+          console.log('WorkSchedule:', appointment.workSchedule);
+          console.log('WorkScheduleId:', appointment.workSchedule?.workScheduleId);
+          
           setAppointmentData(appointment);
           setStatus(appointment.status);
           // Calculate remaining minutes if status is PENDING_CAREGIVER
           if (appointment.status === "PENDING_CAREGIVER" && appointment.caregiverResponseDeadline) {
             const minutes = calculateRemainingMinutes(appointment.caregiverResponseDeadline);
             setRemainingMinutes(minutes);
+          }
+
+          // Fetch work notes if workSchedule exists
+          if (appointment.workSchedule?.workScheduleId) {
+            console.log('Calling fetchWorkNotes with:', appointment.workSchedule.workScheduleId);
+            // Await to ensure notes are loaded before showing the screen
+            await fetchWorkNotes(appointment.workSchedule.workScheduleId);
+          } else {
+            console.log('No workScheduleId found, setting notes to empty');
+            setNotes([]);
           }
         } else {
           Alert.alert('Lỗi', 'Không tìm thấy lịch hẹn');
@@ -433,24 +511,51 @@ export default function AppointmentDetailScreen() {
     return healthStatus;
   };
 
+  // Note handlers
+  // Chỉ cho phép thêm ghi chú khi status là IN_PROGRESS
+  const canAddNote = appointmentData?.status === "IN_PROGRESS";
+
   // Add note
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!newNoteContent.trim()) {
       Alert.alert("Lỗi", "Vui lòng nhập nội dung ghi chú");
       return;
     }
 
-    const newNote = {
-      id: `N${notes.length + 1}`,
-      time: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
-      content: newNoteContent,
-      author: "Bạn",
-    };
+    // Kiểm tra có workScheduleId không
+    if (!appointmentData?.workSchedule?.workScheduleId) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin lịch làm việc");
+      return;
+    }
 
-    setNotes([...notes, newNote]);
-    setNewNoteContent("");
-    setIsNoteModalVisible(false);
-    Alert.alert("Thành công", "Đã thêm ghi chú mới");
+    try {
+      setIsProcessingNote(true);
+      const response = await mainService.createWorkNote(
+        appointmentData.workSchedule.workScheduleId,
+        newNoteContent.trim()
+      );
+
+      if (response.status === 'Success' && response.data) {
+        setIsNoteModalVisible(false);
+        setNewNoteContent("");
+        
+        // Fetch lại work notes để đảm bảo có đầy đủ dữ liệu từ server
+        if (appointmentData.workSchedule?.workScheduleId) {
+          await fetchWorkNotes(appointmentData.workSchedule.workScheduleId);
+        }
+        
+        // Hiển thị modal thông báo thành công
+        setShowNoteSuccessModal(true);
+      } else {
+        throw new Error(response.message || 'Không thể tạo ghi chú');
+      }
+    } catch (error: any) {
+      console.error('Error creating work note:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể tạo ghi chú';
+      Alert.alert("Lỗi", errorMessage);
+    } finally {
+      setIsProcessingNote(false);
+    }
   };
 
   // Handle image picker
@@ -597,38 +702,29 @@ export default function AppointmentDetailScreen() {
       const response = await mainService.createFeedback(feedbackData, imageFiles);
 
       if (response.status === 'Success') {
-        Alert.alert(
-          "Thành công",
-          "Cảm ơn bạn đã đánh giá!",
-          [
-            {
-              text: "OK",
-              onPress: async () => {
-                setShowReviewModal(false);
-                // Reset form
-                setRating(0);
-                setReviewComment("");
-                setReviewImages([]);
-                setRatingDetails({
-                  professionalism: 0,
-                  attitude: 0,
-                  punctuality: 0,
-                  quality: 0,
-                });
-                setReviewErrors({
-                  rating: false,
-                  comment: false,
-                  professionalism: false,
-                  attitude: false,
-                  punctuality: false,
-                  quality: false,
-                });
-                // Reload appointment data to get feedback
-                await fetchAppointment();
-              },
-            },
-          ]
-        );
+        setShowReviewModal(false);
+        // Reset form
+        setRating(0);
+        setReviewComment("");
+        setReviewImages([]);
+        setRatingDetails({
+          professionalism: 0,
+          attitude: 0,
+          punctuality: 0,
+          quality: 0,
+        });
+        setReviewErrors({
+          rating: false,
+          comment: false,
+          professionalism: false,
+          attitude: false,
+          punctuality: false,
+          quality: false,
+        });
+        // Show success modal
+        setShowFeedbackSuccessModal(true);
+        // Reload appointment data to get feedback
+        await fetchAppointment();
       } else {
         Alert.alert("Lỗi", response.message || "Có lỗi xảy ra khi gửi đánh giá");
       }
@@ -1191,8 +1287,33 @@ export default function AppointmentDetailScreen() {
                 <Text style={styles.noteContent}>{appointmentData.work_note}</Text>
               </View>
             )}
-            {notes.map((note: any) => (
-              <View key={note.id} style={styles.noteCard}>
+
+            {/* Add Note Button - Only show when status is IN_PROGRESS */}
+            {canAddNote && (
+              <TouchableOpacity 
+                style={styles.addNoteButton}
+                onPress={() => setIsNoteModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add-circle" size={20} color="#10B981" />
+                <Text style={styles.addNoteText}>Thêm ghi chú mới</Text>
+              </TouchableOpacity>
+            )}
+
+            {!canAddNote && notes.length === 0 && (
+              <View style={styles.emptyNotesContainer}>
+                <Ionicons name="document-text-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyNotesText}>Chưa có ghi chú nào</Text>
+                {appointmentData?.status !== "IN_PROGRESS" && (
+                  <Text style={styles.emptyNotesSubText}>
+                    Chỉ có thể thêm ghi chú khi đang thực hiện
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {notes.length > 0 && notes.map((note: any) => (
+              <View key={note.id || note.workNoteId} style={styles.noteCard}>
                 <View style={styles.noteHeader}>
                   <View style={styles.noteAuthor}>
                     <Ionicons
@@ -1200,9 +1321,21 @@ export default function AppointmentDetailScreen() {
                       size={16}
                       color="#6B7280"
                     />
-                    <Text style={styles.noteAuthorText}>{note.author}</Text>
+                    <Text style={styles.noteAuthorText}>
+                      {note.createdByFullName || note.author || 'Người dùng'}
+                    </Text>
                   </View>
-                  <Text style={styles.noteTime}>{note.time}</Text>
+                  <Text style={styles.noteTime}>
+                    {note.createdAt 
+                      ? new Date(note.createdAt).toLocaleString('vi-VN', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : note.time || ''}
+                  </Text>
                 </View>
                 <Text style={styles.noteContent}>{note.content}</Text>
               </View>
@@ -1466,11 +1599,11 @@ export default function AppointmentDetailScreen() {
       <Modal
         visible={isNoteModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setIsNoteModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <View style={styles.modalOverlayCenter}>
+          <View style={styles.modalContentCenter}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Thêm ghi chú</Text>
               <TouchableOpacity onPress={() => setIsNoteModalVisible(false)}>
@@ -1485,9 +1618,16 @@ export default function AppointmentDetailScreen() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+              editable={!isProcessingNote}
             />
-            <TouchableOpacity style={styles.saveButton} onPress={handleAddNote}>
-              <Text style={styles.saveButtonText}>Lưu ghi chú</Text>
+            <TouchableOpacity 
+              style={[styles.saveButton, isProcessingNote && styles.saveButtonDisabled]} 
+              onPress={handleAddNote}
+              disabled={isProcessingNote}
+            >
+              <Text style={styles.saveButtonText}>
+                {isProcessingNote ? "Đang lưu..." : "Lưu ghi chú"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1969,6 +2109,23 @@ export default function AppointmentDetailScreen() {
         </View>
       </Modal>
 
+      {/* Feedback Success Modal */}
+      <SuccessModal
+        visible={showFeedbackSuccessModal}
+        title="Đánh giá thành công!"
+        message="Cảm ơn bạn đã dành thời gian đánh giá dịch vụ. Đánh giá của bạn sẽ giúp chúng tôi cải thiện chất lượng phục vụ."
+        buttonText="Đóng"
+        onPress={() => setShowFeedbackSuccessModal(false)}
+      />
+
+      <SuccessModal
+        visible={showNoteSuccessModal}
+        title="Thành công!"
+        message="Đã thêm ghi chú mới thành công."
+        buttonText="Đóng"
+        onPress={() => setShowNoteSuccessModal(false)}
+      />
+
       <SimpleNavBar activeTab="home" />
     </SafeAreaView>
   );
@@ -2324,7 +2481,40 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addNoteButton: {
-    padding: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0FDF4",
+    borderColor: "#10B981",
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 8,
+  },
+  addNoteText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#10B981",
+  },
+  emptyNotesContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyNotesText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    marginTop: 12,
+    textAlign: "center",
+  },
+  emptyNotesSubText: {
+    fontSize: 12,
+    color: "#D1D5DB",
+    marginTop: 4,
+    textAlign: "center",
   },
   noteItem: {
     paddingVertical: 12,
@@ -2340,11 +2530,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
     fontWeight: "500",
-  },
-  noteAuthor: {
-    fontSize: 12,
-    color: "#68C2E8",
-    fontWeight: "600",
   },
   noteContent: {
     fontSize: 14,
@@ -2392,6 +2577,14 @@ const styles = StyleSheet.create({
     padding: 20,
     maxHeight: "80%",
   },
+  modalContentCenter: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 20,
+    width: "90%",
+    maxWidth: 500,
+    maxHeight: "80%",
+  },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -2411,6 +2604,10 @@ const styles = StyleSheet.create({
     color: "#12394A",
     minHeight: 120,
     marginBottom: 16,
+  },
+  saveButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.6,
   },
   saveButton: {
     backgroundColor: "#68C2E8",

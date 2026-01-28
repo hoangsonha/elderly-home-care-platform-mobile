@@ -26,10 +26,10 @@ export function SimpleNavBar() {
       route: '/careseeker/appointments',
     },
     {
-      id: 'hired',
+      id: 'elderly',
       icon: 'people',
-      label: 'Đã thuê',
-      route: '/careseeker/hired-caregivers',
+      label: 'Người già',
+      route: '/careseeker/elderly-list',
     },
     {
       id: 'profile',

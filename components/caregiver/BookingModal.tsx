@@ -3,14 +3,14 @@ import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -63,6 +63,17 @@ interface BookingModalProps {
 
 type BookingType = 'immediate' | 'schedule';
 
+// Helper function to map package type to Vietnamese
+const getPackageTypeLabel = (packageType: string | undefined): string => {
+  if (!packageType) return '';
+  const typeMap: { [key: string]: string } = {
+    'BASIC': 'Cơ bản',
+    'PROFESSIONAL': 'Chuyên nghiệp',
+    'ADVANCED': 'Nâng cao',
+  };
+  return typeMap[packageType.toUpperCase()] || packageType;
+};
+
 export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: initialProfiles, immediateOnly = false }: BookingModalProps) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -91,7 +102,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         try {
           setIsLoadingElderly(true);
           const apiProfiles = await UserService.getElderlyProfiles();
-          
+
           // Map API response to ElderlyProfile format
           const mappedProfiles: ElderlyProfile[] = apiProfiles.map((profile: ElderlyProfileApiResponse) => {
             // Map healthStatus from API to component format
@@ -106,7 +117,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                 healthStatus = 'poor';
               }
             }
-            
+
             return {
               id: profile.elderlyProfileId,
               name: profile.fullName,
@@ -123,7 +134,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
               } : undefined,
             };
           });
-          
+
           setElderlyProfiles(mappedProfiles);
         } catch (error) {
           // Fallback to initial profiles on error
@@ -165,7 +176,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   // Fetch schedule when selectedDate changes
   useEffect(() => {
     const selectedDate = immediateData?.selectedDate || '';
-    
+
     if (!selectedDate) {
       setSelectedDateSchedule(null);
       setLastFetchedDate('');
@@ -181,9 +192,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         setIsLoadingSchedule(true);
         setLastFetchedDate(selectedDate);
         const dateApiFormat = formatDateForAPI(selectedDate);
-        
+
         const response = await mainService.getFreeScheduleByDate(dateApiFormat, caregiver.id);
-        
+
         if (response && response.status === 'Success' && response.data) {
           setSelectedDateSchedule(response.data);
         } else {
@@ -218,7 +229,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         try {
           setIsLoadingPackages(true);
           const apiPackages = await mainService.getServicePackagesWithEligibility(caregiver.id);
-          
+
           // Map API response to ServicePackage format
           const mappedPackages: ServicePackage[] = apiPackages.map((pkg: ServicePackageWithEligibility) => ({
             id: pkg.servicePackageId,
@@ -227,8 +238,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             price: pkg.price,
             services: pkg.serviceTasks.map(task => task.taskName),
             isEligible: pkg.isEligible,
+            packageType: pkg.packageType,
           }));
-          
+
           setServicePackages(mappedPackages);
         } catch (error) {
           // Fallback to constants on error
@@ -367,28 +379,28 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         setShowValidation(true);
         return;
       }
-      
+
       setShowValidation(false);
       setCurrentStep(2);
-      
+
     } else if (currentStep === 2) {
       if (!immediateData?.selectedDate) {
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn ngày làm việc');
         return;
       }
-      
+
       if (!immediateData?.startHour || !immediateData?.startMinute) {
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn giờ bắt đầu');
         return;
       }
-      
+
       if (!immediateData?.selectedPackage) {
         Alert.alert('Thiếu thông tin', 'Vui lòng chọn gói dịch vụ');
         return;
       }
-      
+
       setCurrentStep(3);
-      
+
     } else if (currentStep === 3) {
       setCurrentStep(4);
     }
@@ -401,12 +413,12 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
     }
 
     const selectedTime = `${hour}:${minute}`;
-    
+
     // Check if selected time falls within any booked slot
     return selectedDateSchedule.booked_slots.some((slot: BookedSlot) => {
       const slotStart = slot.start_time; // Format: "09:00"
       const slotEnd = slot.end_time; // Format: "12:00"
-      
+
       // Compare time strings (HH:mm format)
       return selectedTime >= slotStart && selectedTime < slotEnd;
     });
@@ -423,7 +435,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       const slotStartHour = parseInt(slot.start_time.split(':')[0]);
       const slotEndHour = parseInt(slot.end_time.split(':')[0]);
       const selectedHour = parseInt(hour);
-      
+
       // Check if selected hour is within the booked slot range
       // If slot is 09:00-12:00, hours 09, 10, 11 are disabled
       if (slotStartHour === slotEndHour) {
@@ -463,7 +475,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           return `${year}-${month}-${day}`;
         }
       }
-      
+
       // Fallback: try to parse as ISO date or use today
       const parsed = new Date(dateStr);
       if (!isNaN(parsed.getTime())) {
@@ -478,7 +490,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   };
 
   const handleSubmit = async () => {
-    
+
     if (!user?.id) {
       Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
       return;
@@ -508,9 +520,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn địa điểm làm việc');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       // Get selected elderly profile
       const selectedProfile = elderlyProfiles.find(p => p.id === selectedProfiles[0]);
@@ -554,7 +566,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
       // Call API
       const response = await mainService.createCareService(requestData);
-      
+
       if (response.status === 'Success') {
         setIsSubmitting(false);
         setShowSuccessModal(true);
@@ -567,15 +579,15 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
       }
     } catch (error: any) {
       setIsSubmitting(false);
-      
+
       // Handle unexpected errors (should not happen if service handles errors properly)
       let errorMsg = 'Không thể tạo lịch hẹn. Vui lòng thử lại.';
-      
+
       // Only use error message if it's from API response
       if (error.response?.data?.message) {
         errorMsg = error.response.data.message;
       }
-      
+
       setErrorMessage(errorMsg);
       setShowErrorModal(true);
     }
@@ -629,219 +641,219 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
   );
 
   const renderStep2 = () => {
-      return (
-        <View style={styles.stepContent}>
-          <ThemedText style={styles.stepTitle}>Thông tin thuê dịch vụ</ThemedText>
-          
-          {/* Section 1: Basic Info */}
-          <View style={styles.sectionContainer}>
-            <TouchableOpacity 
-              style={styles.sectionHeader}
-              onPress={() => toggleSection('basicInfo')}
-            >
-              <ThemedText style={styles.sectionTitle}>📋 Thông tin cơ bản</ThemedText>
-              <Ionicons 
-                name={expandedSections.basicInfo ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#68C2E8" 
-              />
-            </TouchableOpacity>
-            
-            {expandedSections.basicInfo && (
-              <View style={styles.sectionContent}>
-                <View style={styles.inputGroup}>
-                  <View style={styles.labelContainer}>
-                    <ThemedText style={styles.inputLabel}>Địa điểm làm việc</ThemedText>
-                    <ThemedText style={styles.requiredMark}>*</ThemedText>
-                  </View>
+    return (
+      <View style={styles.stepContent}>
+        <ThemedText style={styles.stepTitle}>Thông tin thuê dịch vụ</ThemedText>
 
-                  <View style={[styles.locationSelector, styles.locationSelectorDisabled]}>
-                    <View style={styles.locationContent}>
-                      <Ionicons name="location" size={20} color="white" />
-                      <View style={styles.locationTextContainer}>
-                        <ThemedText style={styles.locationTitle}>
-                          {immediateData?.workLocation ? 'Địa chỉ từ hồ sơ người già' : 'Chưa có địa chỉ'}
-                        </ThemedText>
-                        {immediateData?.workLocation && (
-                          <ThemedText style={styles.locationAddress}>
-                            {immediateData.workLocation}
-                          </ThemedText>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.locationWarning}>
-                    <ThemedText style={styles.locationWarningMark}>*</ThemedText>
-                    <ThemedText style={styles.locationWarningText}>
-                      Bạn chỉ có thể thay đổi địa chỉ từ thông tin cơ bản của người già trong mục Hồ sơ người già
-                    </ThemedText>
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
+        {/* Section 1: Basic Info */}
+        <View style={styles.sectionContainer}>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => toggleSection('basicInfo')}
+          >
+            <ThemedText style={styles.sectionTitle}>📋 Thông tin cơ bản</ThemedText>
+            <Ionicons
+              name={expandedSections.basicInfo ? "chevron-up" : "chevron-down"}
+              size={20}
+              color="#68C2E8"
+            />
+          </TouchableOpacity>
 
-          {/* Section 2: Date & Time Selection */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>📅 Ngày giờ làm việc</ThemedText>
-            </View>
-            
+          {expandedSections.basicInfo && (
             <View style={styles.sectionContent}>
-              {/* Date Selection */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelContainer}>
-                  <ThemedText style={styles.inputLabel}>Ngày làm việc</ThemedText>
+                  <ThemedText style={styles.inputLabel}>Địa điểm làm việc</ThemedText>
                   <ThemedText style={styles.requiredMark}>*</ThemedText>
                 </View>
-                <TouchableOpacity 
-                  style={styles.pickerButton}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <ThemedText                   style={[
-                    styles.pickerButtonText,
-                    !immediateData?.selectedDate && styles.placeholderText
-                  ]}>
-                    {immediateData?.selectedDate || 'Chọn ngày làm việc'}
+
+                <View style={[styles.locationSelector, styles.locationSelectorDisabled]}>
+                  <View style={styles.locationContent}>
+                    <Ionicons name="location" size={20} color="white" />
+                    <View style={styles.locationTextContainer}>
+                      <ThemedText style={styles.locationTitle}>
+                        {immediateData?.workLocation ? 'Địa chỉ từ hồ sơ người già' : 'Chưa có địa chỉ'}
+                      </ThemedText>
+                      {immediateData?.workLocation && (
+                        <ThemedText style={styles.locationAddress}>
+                          {immediateData.workLocation}
+                        </ThemedText>
+                      )}
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.locationWarning}>
+                  <ThemedText style={styles.locationWarningMark}>*</ThemedText>
+                  <ThemedText style={styles.locationWarningText}>
+                    Bạn chỉ có thể thay đổi địa chỉ từ thông tin cơ bản của người già trong mục Hồ sơ người già
                   </ThemedText>
-                  <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Section 2: Date & Time Selection */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>📅 Ngày giờ làm việc</ThemedText>
+          </View>
+
+          <View style={styles.sectionContent}>
+            {/* Date Selection */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Ngày làm việc</ThemedText>
+                <ThemedText style={styles.requiredMark}>*</ThemedText>
+              </View>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <ThemedText style={[
+                  styles.pickerButtonText,
+                  !immediateData?.selectedDate && styles.placeholderText
+                ]}>
+                  {immediateData?.selectedDate || 'Chọn ngày làm việc'}
+                </ThemedText>
+                <Ionicons name="calendar-outline" size={20} color="#68C2E8" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Available Schedule Display - Only show after date is selected */}
+            {immediateData?.selectedDate && (
+              <View style={styles.inputGroup}>
+                {isLoadingSchedule ? (
+                  <View style={styles.scheduleLoadingContainer}>
+                    <ThemedText style={styles.scheduleLoadingText}>Đang tải lịch rảnh...</ThemedText>
+                  </View>
+                ) : selectedDateSchedule ? (
+                  <View style={styles.scheduleInfoContainer}>
+                    {selectedDateSchedule.available_all_day ? (
+                      <View style={styles.scheduleStatusAvailable}>
+                        <View style={styles.scheduleStatusRow}>
+                          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                          <ThemedText style={styles.scheduleStatusText}>
+                            Bạn có thể book bất cứ giờ nào trong ngày này
+                          </ThemedText>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.scheduleStatusBusy}>
+                        <View style={styles.scheduleStatusRow}>
+                          <Ionicons name="time-outline" size={20} color="#F59E0B" />
+                          <ThemedText style={styles.scheduleStatusText}>
+                            Các khung giờ người chăm sóc đã bận trong ngày:
+                          </ThemedText>
+                        </View>
+                        {selectedDateSchedule.booked_slots && selectedDateSchedule.booked_slots.length > 0 && (
+                          <View style={styles.bookedSlotsContainer}>
+                            {selectedDateSchedule.booked_slots.map((slot: BookedSlot, index: number) => (
+                              <View key={index} style={styles.bookedSlotItem}>
+                                <Ionicons name="time" size={16} color="#F59E0B" />
+                                <ThemedText style={styles.bookedSlotText}>
+                                  {slot.start_time} - {slot.end_time}
+                                </ThemedText>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.scheduleInfoContainer}>
+                    <ThemedText style={styles.scheduleStatusText}>
+                      Đang tải thông tin lịch rảnh...
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Time Selection */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
+                <ThemedText style={styles.requiredMark}>*</ThemedText>
+              </View>
+              <View style={styles.timePickerContainer}>
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => {
+                    setTimePickerType('hour');
+                    setShowTimePicker(true);
+                  }}
+                >
+                  <ThemedText style={[
+                    styles.pickerButtonText,
+                    !immediateData?.startHour && styles.placeholderText
+                  ]}>
+                    {immediateData?.startHour || 'Giờ'}
+                  </ThemedText>
+                </TouchableOpacity>
+
+                <ThemedText style={styles.timeSeparator}>:</ThemedText>
+
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => {
+                    setTimePickerType('minute');
+                    setShowTimePicker(true);
+                  }}
+                >
+                  <ThemedText style={[
+                    styles.pickerButtonText,
+                    !immediateData?.startMinute && styles.placeholderText
+                  ]}>
+                    {immediateData?.startMinute || 'Phút'}
+                  </ThemedText>
                 </TouchableOpacity>
               </View>
 
-              {/* Available Schedule Display - Only show after date is selected */}
-              {immediateData?.selectedDate && (
-                <View style={styles.inputGroup}>
-                  {isLoadingSchedule ? (
-                    <View style={styles.scheduleLoadingContainer}>
-                      <ThemedText style={styles.scheduleLoadingText}>Đang tải lịch rảnh...</ThemedText>
-                    </View>
-                  ) : selectedDateSchedule ? (
-                    <View style={styles.scheduleInfoContainer}>
-                      {selectedDateSchedule.available_all_day ? (
-                        <View style={styles.scheduleStatusAvailable}>
-                          <View style={styles.scheduleStatusRow}>
-                            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                            <ThemedText style={styles.scheduleStatusText}>
-                              Bạn có thể book bất cứ giờ nào trong ngày này
-                            </ThemedText>
-                          </View>
-                        </View>
-                      ) : (
-                        <View style={styles.scheduleStatusBusy}>
-                          <View style={styles.scheduleStatusRow}>
-                            <Ionicons name="time-outline" size={20} color="#F59E0B" />
-                            <ThemedText style={styles.scheduleStatusText}>
-                              Các khung giờ người chăm sóc đã bận trong ngày:
-                            </ThemedText>
-                          </View>
-                          {selectedDateSchedule.booked_slots && selectedDateSchedule.booked_slots.length > 0 && (
-                            <View style={styles.bookedSlotsContainer}>
-                              {selectedDateSchedule.booked_slots.map((slot: BookedSlot, index: number) => (
-                                <View key={index} style={styles.bookedSlotItem}>
-                                  <Ionicons name="time" size={16} color="#F59E0B" />
-                                  <ThemedText style={styles.bookedSlotText}>
-                                    {slot.start_time} - {slot.end_time}
-                                  </ThemedText>
-                                </View>
-                              ))}
-                            </View>
-                          )}
-                        </View>
-                      )}
-                    </View>
-                  ) : (
-                    <View style={styles.scheduleInfoContainer}>
-                      <ThemedText style={styles.scheduleStatusText}>
-                        Đang tải thông tin lịch rảnh...
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
+              {immediateData?.startHour && immediateData?.startMinute && (
+                <ThemedText style={styles.timeRangeText}>
+                  Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
+                </ThemedText>
               )}
-
-              {/* Time Selection */}
-              <View style={styles.inputGroup}>
-                <View style={styles.labelContainer}>
-                  <ThemedText style={styles.inputLabel}>Giờ bắt đầu</ThemedText>
-                  <ThemedText style={styles.requiredMark}>*</ThemedText>
-                </View>
-                <View style={styles.timePickerContainer}>
-                  <TouchableOpacity 
-                    style={styles.pickerButton}
-                    onPress={() => {
-                      setTimePickerType('hour');
-                      setShowTimePicker(true);
-                    }}
-                  >
-                    <ThemedText style={[
-                      styles.pickerButtonText,
-                      !immediateData?.startHour && styles.placeholderText
-                    ]}>
-                      {immediateData?.startHour || 'Giờ'}
-                    </ThemedText>
-                  </TouchableOpacity>
-                  
-                  <ThemedText style={styles.timeSeparator}>:</ThemedText>
-                  
-                  <TouchableOpacity 
-                    style={styles.pickerButton}
-                    onPress={() => {
-                      setTimePickerType('minute');
-                      setShowTimePicker(true);
-                    }}
-                  >
-                    <ThemedText style={[
-                      styles.pickerButtonText,
-                      !immediateData?.startMinute && styles.placeholderText
-                    ]}>
-                      {immediateData?.startMinute || 'Phút'}
-                    </ThemedText>
-                  </TouchableOpacity>
-                </View>
-                
-                {immediateData?.startHour && immediateData?.startMinute && (
-                  <ThemedText style={styles.timeRangeText}>
-                    Giờ bắt đầu: {immediateData.startHour}:{immediateData.startMinute}
-                  </ThemedText>
-                )}
-              </View>
             </View>
           </View>
+        </View>
 
-          {/* Section 3: Service Package */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>Chọn gói dịch vụ</ThemedText>
+        {/* Section 3: Service Package */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={styles.sectionTitle}>Chọn gói dịch vụ</ThemedText>
+          </View>
+
+          {servicePackages.some(pkg => pkg.isEligible === false) && (
+            <View style={styles.eligibilityWarning}>
+              <Ionicons name="information-circle" size={16} color="#F39C12" />
+              <ThemedText style={styles.eligibilityWarningText}>
+                Người chăm sóc chưa đủ điều kiện cho một số gói dịch vụ
+              </ThemedText>
             </View>
-            
-            {servicePackages.some(pkg => pkg.isEligible === false) && (
-              <View style={styles.eligibilityWarning}>
-                <Ionicons name="information-circle" size={16} color="#F39C12" />
-                <ThemedText style={styles.eligibilityWarningText}>
-                  Người chăm sóc chưa đủ điều kiện cho một số gói dịch vụ
-                </ThemedText>
+          )}
+
+          <View style={styles.sectionContent}>
+            {isLoadingPackages ? (
+              <View style={styles.loadingContainer}>
+                <ThemedText style={styles.loadingText}>Đang tải danh sách gói dịch vụ...</ThemedText>
               </View>
-            )}
-            
-            <View style={styles.sectionContent}>
-              {isLoadingPackages ? (
-                <View style={styles.loadingContainer}>
-                  <ThemedText style={styles.loadingText}>Đang tải danh sách gói dịch vụ...</ThemedText>
-                </View>
-              ) : (
-                <ScrollView 
-                  style={styles.packagesScrollView}
-                  contentContainerStyle={styles.packagesContainer}
-                  showsVerticalScrollIndicator={true}
-                  nestedScrollEnabled={true}
-                  indicatorStyle={Platform.OS === 'ios' ? 'default' : undefined}
-                  scrollIndicatorInsets={{ right: 8, top: 4, bottom: 4 }}
-                  fadingEdgeLength={Platform.OS === 'android' ? 20 : undefined}
-                >
-                  {servicePackages.map((pkg) => {
-                    const isDisabled = pkg.isEligible === false;
-                    return (
+            ) : (
+              <ScrollView
+                style={styles.packagesScrollView}
+                contentContainerStyle={styles.packagesContainer}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+                indicatorStyle={Platform.OS === 'ios' ? 'default' : undefined}
+                scrollIndicatorInsets={{ right: 8, top: 4, bottom: 4 }}
+                fadingEdgeLength={Platform.OS === 'android' ? 20 : undefined}
+              >
+                {servicePackages.map((pkg) => {
+                  const isDisabled = pkg.isEligible === false;
+                  return (
                     <TouchableOpacity
                       key={pkg.id}
                       style={[
@@ -861,26 +873,35 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                           <Ionicons name="checkmark-circle" size={24} color="#68C2E8" />
                         </View>
                       )}
-                      
+
                       {pkg.isEligible === false && (
                         <View style={styles.packageNotEligibleBadge}>
                           <Ionicons name="alert-circle" size={16} color="#E74C3C" />
                           <ThemedText style={styles.packageNotEligibleText}>Không thể chọn</ThemedText>
                         </View>
                       )}
-                      
+
                       <ThemedText style={[styles.packageName, isDisabled && styles.packageNameDisabled]}>{pkg.name}</ThemedText>
-                      
+
                       <View style={styles.packageDetails}>
-                        <View style={styles.packageDetailItem}>
-                          <Ionicons name="time-outline" size={16} color={isDisabled ? "#BDC3C7" : "#6c757d"} />
-                          <ThemedText style={[styles.packageDetailText, isDisabled && styles.packageTextDisabled]}>{pkg.duration}h</ThemedText>
+                        <View style={styles.packageDetailRow}>
+                          <View style={styles.packageDetailItem}>
+                            <Ionicons name="time-outline" size={16} color={isDisabled ? "#BDC3C7" : "#6c757d"} />
+                            <ThemedText style={[styles.packageDetailText, isDisabled && styles.packageTextDisabled]}>{pkg.duration}h</ThemedText>
+                          </View>
+                          <ThemedText style={[styles.packagePrice, isDisabled && styles.packageTextDisabled]}>
+                            {pkg.price.toLocaleString('vi-VN')} VNĐ
+                          </ThemedText>
                         </View>
-                        <ThemedText style={[styles.packagePrice, isDisabled && styles.packageTextDisabled]}>
-                          {pkg.price.toLocaleString('vi-VN')} VNĐ
-                        </ThemedText>
+                        {pkg.packageType && (
+                          <View style={styles.packageTypeContainer}>
+                            <ThemedText style={[styles.packageTypeText, isDisabled && styles.packageTextDisabled]}>
+                              Loại: {getPackageTypeLabel(pkg.packageType)}
+                            </ThemedText>
+                          </View>
+                        )}
                       </View>
-                      
+
                       <View style={styles.packageServices}>
                         <ThemedText style={[styles.packageServicesTitle, isDisabled && styles.packageTextDisabled]}>Dịch vụ bao gồm:</ThemedText>
                         {pkg.services.map((service, index) => (
@@ -891,32 +912,32 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                         ))}
                       </View>
                     </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
-            </View>
+                  );
+                })}
+              </ScrollView>
+            )}
           </View>
+        </View>
 
-          {/* Section 3: Note */}
-          <View style={styles.sectionContainer}>
-            <TouchableOpacity
-              style={styles.sectionHeader}
-              onPress={() => toggleSection('note')}
-            >
-              <ThemedText style={styles.sectionTitle}>📝 Ghi chú</ThemedText>
-              <Ionicons 
-                name={expandedSections.note ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#68C2E8" 
-              />
-            </TouchableOpacity>
-            
-            {expandedSections.note && (
-              <View style={styles.sectionContent}>
-                <View style={styles.labelContainer}>
-                  <ThemedText style={styles.inputLabel}>Ghi chú thêm</ThemedText>
-          </View>
+        {/* Section 3: Note */}
+        <View style={styles.sectionContainer}>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            onPress={() => toggleSection('note')}
+          >
+            <ThemedText style={styles.sectionTitle}>📝 Ghi chú</ThemedText>
+            <Ionicons
+              name={expandedSections.note ? "chevron-up" : "chevron-down"}
+              size={20}
+              color="#68C2E8"
+            />
+          </TouchableOpacity>
+
+          {expandedSections.note && (
+            <View style={styles.sectionContent}>
+              <View style={styles.labelContainer}>
+                <ThemedText style={styles.inputLabel}>Ghi chú thêm</ThemedText>
+              </View>
               <TextInput
                 style={styles.noteInput}
                 placeholder="Nhập ghi chú của bạn..."
@@ -931,19 +952,19 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                 numberOfLines={6}
                 textAlignVertical="top"
               />
-              </View>
-                )}
-              </View>
-
+            </View>
+          )}
         </View>
-      );
+
+      </View>
+    );
   };
 
   const renderStep3 = () => {
     return (
       <View style={styles.stepContent}>
         <ThemedText style={styles.stepTitle}>Xem trước thông tin</ThemedText>
-        
+
         <View style={styles.reviewContainer}>
           {/* Work Location */}
           <View style={styles.reviewItem}>
@@ -964,8 +985,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           <View style={styles.reviewItem}>
             <ThemedText style={styles.reviewLabel}>Giờ bắt đầu:</ThemedText>
             <ThemedText style={styles.reviewValue}>
-              {immediateData?.startHour && immediateData?.startMinute 
-                ? `${immediateData?.startHour}:${immediateData?.startMinute}` 
+              {immediateData?.startHour && immediateData?.startMinute
+                ? `${immediateData?.startHour}:${immediateData?.startMinute}`
                 : 'Chưa chọn'}
             </ThemedText>
           </View>
@@ -974,7 +995,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           <View style={styles.reviewItem}>
             <ThemedText style={styles.reviewLabel}>Gói dịch vụ:</ThemedText>
             <ThemedText style={styles.reviewValue}>
-              {immediateData?.selectedPackage ? 
+              {immediateData?.selectedPackage ?
                 servicePackages.find(p => p.id === immediateData?.selectedPackage)?.name : 'Chưa chọn'}
             </ThemedText>
           </View>
@@ -983,7 +1004,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           <View style={styles.reviewItem}>
             <ThemedText style={styles.reviewLabel}>Tổng chi phí:</ThemedText>
             <ThemedText style={styles.reviewValue}>
-              {immediateData?.selectedPackage ? 
+              {immediateData?.selectedPackage ?
                 `${servicePackages.find(p => p.id === immediateData?.selectedPackage)?.price.toLocaleString('vi-VN')} VNĐ` : 'Chưa tính'}
             </ThemedText>
           </View>
@@ -1127,13 +1148,13 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
 
   const renderCurrentStep = () => {
     switch (currentStep) {
-      case 1: 
+      case 1:
         return renderStep1();
-      case 2: 
+      case 2:
         return renderStep2();
-      case 3: 
+      case 3:
         return renderStep3();
-      default: 
+      default:
         return renderStep1();
     }
   };
@@ -1146,7 +1167,7 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
-          
+
           <View style={styles.headerContent}>
             <ThemedText style={styles.headerTitle}>Đặt lịch với {caregiver.name}</ThemedText>
             <ThemedText style={styles.headerSubtitle}>
@@ -1160,11 +1181,11 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View 
+            <View
               style={[
-                styles.progressFill, 
+                styles.progressFill,
                 { width: `${(currentStep / 3) * 100}%` }
-              ]} 
+              ]}
             />
           </View>
         </View>
@@ -1182,11 +1203,11 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
               <ThemedText style={styles.previousButtonText}>Trước</ThemedText>
             </TouchableOpacity>
           )}
-          
+
           <View style={styles.navigationSpacer} />
-          
-          <TouchableOpacity 
-            style={styles.nextButton} 
+
+          <TouchableOpacity
+            style={styles.nextButton}
             onPress={() => {
               if (currentStep === 1) {
                 handleNext();
@@ -1199,9 +1220,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
             disabled={isSubmitting}
           >
             <ThemedText style={styles.nextButtonText}>
-              {isSubmitting ? 'Đang xử lý...' : 
-               currentStep === 2 ? 'Xem trước' : 
-               currentStep === 3 ? 'Xác nhận đặt lịch' : 'Tiếp theo'}
+              {isSubmitting ? 'Đang xử lý...' :
+                currentStep === 2 ? 'Xem trước' :
+                  currentStep === 3 ? 'Xác nhận đặt lịch' : 'Tiếp theo'}
             </ThemedText>
             {!isSubmitting && (
               <Ionicons name="chevron-forward" size={20} color="white" />
@@ -1242,8 +1263,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                           <TouchableOpacity
                             style={styles.locationOptionTouchable}
                             onPress={() => handleSelectLocation(
-                              profile.address, 
-                              profile.location?.latitude, 
+                              profile.address,
+                              profile.location?.latitude,
                               profile.location?.longitude
                             )}
                           >
@@ -1255,8 +1276,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                                 <ThemedText style={styles.locationOptionName}>{profile.name}</ThemedText>
                                 <ThemedText style={styles.locationOptionAddress}>
                                   {formatLocationDisplay(
-                                    profile.address, 
-                                    profile.location?.latitude, 
+                                    profile.address,
+                                    profile.location?.latitude,
                                     profile.location?.longitude
                                   )}
                                 </ThemedText>
@@ -1378,77 +1399,77 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                   <Ionicons name="close" size={24} color="#6c757d" />
                 </TouchableOpacity>
               </View>
-              
+
               <ScrollView style={styles.pickerScroll}>
                 <View style={styles.pickerContent}>
                   {(() => {
                     const dates = [];
                     const today = new Date();
-                    
+
                     // Only show 7 days (1 week) from today
                     for (let i = 0; i < 7; i++) {
                       const date = new Date(today);
                       date.setDate(today.getDate() + i);
-                      
+
                       const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-                      const monthNames = ['Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6', 
-                                        'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'];
-                      
+                      const monthNames = ['Thg 1', 'Thg 2', 'Thg 3', 'Thg 4', 'Thg 5', 'Thg 6',
+                        'Thg 7', 'Thg 8', 'Thg 9', 'Thg 10', 'Thg 11', 'Thg 12'];
+
                       const dateStr = `${dayNames[date.getDay()]}, ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
                       dates.push(
                         <TouchableOpacity
                           key={i}
-                    style={[
-                      styles.pickerItem,
-                      styles.datePickerItem,
-                      immediateData?.selectedDate === dateStr && styles.pickerItemSelected
-                    ]}
-                    onPress={() => {
-                      setImmediateData(prev => {
-                        const updated = { ...prev, selectedDate: dateStr };
-                        // Trigger fetch immediately after setting date
-                        setTimeout(() => {
-                          const fetchScheduleForDate = async () => {
-                            try {
-                              setIsLoadingSchedule(true);
-                              const dateApiFormat = formatDateForAPI(dateStr);
-                              
-                              const response = await mainService.getFreeScheduleByDate(dateApiFormat, caregiver.id);
-                              
-                              if (response && response.status === 'Success' && response.data) {
-                                setSelectedDateSchedule(response.data);
-                                setLastFetchedDate(dateStr);
-                              } else {
-                                setSelectedDateSchedule({
-                                  date: dateApiFormat,
-                                  available_all_day: true,
-                                  booked_slots: [],
-                                });
-                                setLastFetchedDate(dateStr);
-                              }
-                            } catch (error: any) {
-                              const dateApiFormat = formatDateForAPI(dateStr);
-                              setSelectedDateSchedule({
-                                date: dateApiFormat,
-                                available_all_day: true,
-                                booked_slots: [],
-                              });
-                              setLastFetchedDate(dateStr);
-                            } finally {
-                              setIsLoadingSchedule(false);
-                            }
-                          };
-                          fetchScheduleForDate();
-                        }, 100);
-                        return updated;
-                      });
-                      setShowDatePicker(false);
-                    }}
-                  >
-                    <ThemedText style={[
-                      styles.pickerText,
-                      immediateData?.selectedDate === dateStr && styles.pickerTextSelected
-                    ]}>
+                          style={[
+                            styles.pickerItem,
+                            styles.datePickerItem,
+                            immediateData?.selectedDate === dateStr && styles.pickerItemSelected
+                          ]}
+                          onPress={() => {
+                            setImmediateData(prev => {
+                              const updated = { ...prev, selectedDate: dateStr };
+                              // Trigger fetch immediately after setting date
+                              setTimeout(() => {
+                                const fetchScheduleForDate = async () => {
+                                  try {
+                                    setIsLoadingSchedule(true);
+                                    const dateApiFormat = formatDateForAPI(dateStr);
+
+                                    const response = await mainService.getFreeScheduleByDate(dateApiFormat, caregiver.id);
+
+                                    if (response && response.status === 'Success' && response.data) {
+                                      setSelectedDateSchedule(response.data);
+                                      setLastFetchedDate(dateStr);
+                                    } else {
+                                      setSelectedDateSchedule({
+                                        date: dateApiFormat,
+                                        available_all_day: true,
+                                        booked_slots: [],
+                                      });
+                                      setLastFetchedDate(dateStr);
+                                    }
+                                  } catch (error: any) {
+                                    const dateApiFormat = formatDateForAPI(dateStr);
+                                    setSelectedDateSchedule({
+                                      date: dateApiFormat,
+                                      available_all_day: true,
+                                      booked_slots: [],
+                                    });
+                                    setLastFetchedDate(dateStr);
+                                  } finally {
+                                    setIsLoadingSchedule(false);
+                                  }
+                                };
+                                fetchScheduleForDate();
+                              }, 100);
+                              return updated;
+                            });
+                            setShowDatePicker(false);
+                          }}
+                        >
+                          <ThemedText style={[
+                            styles.pickerText,
+                            immediateData?.selectedDate === dateStr && styles.pickerTextSelected
+                          ]}>
                             {dateStr}
                           </ThemedText>
                         </TouchableOpacity>
@@ -1479,74 +1500,74 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                   <Ionicons name="close" size={24} color="#6c757d" />
                 </TouchableOpacity>
               </View>
-              
+
               <ScrollView style={styles.pickerScroll}>
                 <View style={styles.pickerContent}>
-                  {timePickerType === 'hour' 
+                  {timePickerType === 'hour'
                     ? Array.from({ length: 24 }, (_, i) => {
-                        const hour = i.toString().padStart(2, '0');
-                        // Check if this hour has any booked slots
-                        const isDisabled = isHourInBookedSlot(hour);
-                        
-                        return (
-                          <TouchableOpacity
-                            key={hour}
-                            style={[
-                              styles.pickerItem,
-                              immediateData?.startHour === hour && styles.pickerItemSelected,
-                              isDisabled && styles.pickerItemDisabled
-                            ]}
-                            onPress={() => {
-                              if (!isDisabled) {
-                                setImmediateData(prev => ({ ...prev, startHour: hour }));
-                                setShowTimePicker(false);
-                              }
-                            }}
-                            disabled={isDisabled}
-                          >
-                            <ThemedText style={[
-                              styles.pickerText,
-                              immediateData?.startHour === hour && styles.pickerTextSelected,
-                              isDisabled && styles.pickerTextDisabled
-                            ]}>
-                              {hour}
-                            </ThemedText>
-                          </TouchableOpacity>
-                        );
-                      })
+                      const hour = i.toString().padStart(2, '0');
+                      // Check if this hour has any booked slots
+                      const isDisabled = isHourInBookedSlot(hour);
+
+                      return (
+                        <TouchableOpacity
+                          key={hour}
+                          style={[
+                            styles.pickerItem,
+                            immediateData?.startHour === hour && styles.pickerItemSelected,
+                            isDisabled && styles.pickerItemDisabled
+                          ]}
+                          onPress={() => {
+                            if (!isDisabled) {
+                              setImmediateData(prev => ({ ...prev, startHour: hour }));
+                              setShowTimePicker(false);
+                            }
+                          }}
+                          disabled={isDisabled}
+                        >
+                          <ThemedText style={[
+                            styles.pickerText,
+                            immediateData?.startHour === hour && styles.pickerTextSelected,
+                            isDisabled && styles.pickerTextDisabled
+                          ]}>
+                            {hour}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      );
+                    })
                     : Array.from({ length: 60 }, (_, i) => {
-                        const minute = i.toString().padStart(2, '0');
-                        // Check if this minute (with selected hour) is in a booked slot
-                        const isDisabled = immediateData?.startHour 
-                          ? isTimeInBookedSlot(immediateData?.startHour, minute)
-                          : false;
-                        
-                        return (
-                          <TouchableOpacity
-                            key={minute}
-                            style={[
-                              styles.pickerItem,
-                              immediateData?.startMinute === minute && styles.pickerItemSelected,
-                              isDisabled && styles.pickerItemDisabled
-                            ]}
-                            onPress={() => {
-                              if (!isDisabled) {
-                                setImmediateData(prev => ({ ...prev, startMinute: minute }));
-                                setShowTimePicker(false);
-                              }
-                            }}
-                            disabled={isDisabled}
-                          >
-                            <ThemedText style={[
-                              styles.pickerText,
-                              immediateData?.startMinute === minute && styles.pickerTextSelected,
-                              isDisabled && styles.pickerTextDisabled
-                            ]}>
-                              {minute}
-                            </ThemedText>
-                          </TouchableOpacity>
-                        );
-                      })
+                      const minute = i.toString().padStart(2, '0');
+                      // Check if this minute (with selected hour) is in a booked slot
+                      const isDisabled = immediateData?.startHour
+                        ? isTimeInBookedSlot(immediateData?.startHour, minute)
+                        : false;
+
+                      return (
+                        <TouchableOpacity
+                          key={minute}
+                          style={[
+                            styles.pickerItem,
+                            immediateData?.startMinute === minute && styles.pickerItemSelected,
+                            isDisabled && styles.pickerItemDisabled
+                          ]}
+                          onPress={() => {
+                            if (!isDisabled) {
+                              setImmediateData(prev => ({ ...prev, startMinute: minute }));
+                              setShowTimePicker(false);
+                            }
+                          }}
+                          disabled={isDisabled}
+                        >
+                          <ThemedText style={[
+                            styles.pickerText,
+                            immediateData?.startMinute === minute && styles.pickerTextSelected,
+                            isDisabled && styles.pickerTextDisabled
+                          ]}>
+                            {minute}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      );
+                    })
                   }
                 </View>
               </ScrollView>
@@ -1566,9 +1587,9 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
               <View style={styles.successIconContainer}>
                 <Ionicons name="checkmark-circle" size={80} color="#68C2E8" />
               </View>
-              
+
               <ThemedText style={styles.successTitle}>Đặt lịch thành công!</ThemedText>
-              
+
               <ThemedText style={styles.successMessage}>
                 Yêu cầu thuê dịch vụ của bạn đã được gửi đi.
                 {'\n\n'}
@@ -1576,8 +1597,8 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
                 {'\n\n'}
                 <ThemedText style={styles.successMessageBold}>Lưu ý:</ThemedText> Bạn sẽ thanh toán sau khi nhân viên hoàn thành công việc.
               </ThemedText>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.successButton}
                 onPress={handleSuccessClose}
               >
@@ -1599,14 +1620,14 @@ export function BookingModal({ visible, onClose, caregiver, elderlyProfiles: ini
               <View style={styles.errorIconContainer}>
                 <Ionicons name="close-circle" size={80} color="#EF4444" />
               </View>
-              
+
               <ThemedText style={styles.errorTitle}>Đặt lịch thất bại</ThemedText>
-              
+
               <ThemedText style={styles.errorMessage}>
                 {errorMessage || 'Không thể tạo lịch hẹn. Vui lòng thử lại.'}
               </ThemedText>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.errorButton}
                 onPress={handleErrorClose}
               >
@@ -2444,13 +2465,16 @@ const styles = StyleSheet.create({
     color: '#95A5A6',
   },
   packageDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
     marginBottom: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
+  },
+  packageDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 8,
   },
   packageDetailItem: {
     flexDirection: 'row',
@@ -2466,6 +2490,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#68C2E8',
     fontWeight: 'bold',
+  },
+  packageTypeContainer: {
+    marginTop: 4,
+  },
+  packageTypeText: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
   },
   packageTextDisabled: {
     color: '#BDC3C7',

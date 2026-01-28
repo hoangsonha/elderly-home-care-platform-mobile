@@ -35,6 +35,8 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResendingCode, setIsResendingCode] = useState(false);
   const [otpKey, setOtpKey] = useState(0); // Key để reset OTP input
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { showSuccessTooltip } = useSuccessNotification();
   const { showErrorTooltip, showError } = useErrorNotification();
@@ -48,10 +50,37 @@ export default function RegisterScreen() {
       setPasswordError("Vui lòng nhập mật khẩu");
       return false;
     }
-    if (formData.password.length < 6) {
-      setPasswordError("Mật khẩu phải có ít nhất 6 ký tự");
+    
+    // Kiểm tra độ dài tối thiểu 8 ký tự
+    if (formData.password.length < 8) {
+      setPasswordError("Mật khẩu phải có ít nhất 8 ký tự");
       return false;
     }
+    
+    // Kiểm tra có ít nhất 1 chữ hoa
+    if (!/[A-Z]/.test(formData.password)) {
+      setPasswordError("Mật khẩu phải có ít nhất 1 chữ hoa");
+      return false;
+    }
+    
+    // Kiểm tra có ít nhất 1 chữ thường
+    if (!/[a-z]/.test(formData.password)) {
+      setPasswordError("Mật khẩu phải có ít nhất 1 chữ thường");
+      return false;
+    }
+    
+    // Kiểm tra có ít nhất 1 số
+    if (!/[0-9]/.test(formData.password)) {
+      setPasswordError("Mật khẩu phải có ít nhất 1 số");
+      return false;
+    }
+    
+    // Kiểm tra có ít nhất 1 ký tự đặc biệt
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password)) {
+      setPasswordError("Mật khẩu phải có ít nhất 1 ký tự đặc biệt");
+      return false;
+    }
+    
     if (!formData.confirmPassword) {
       setPasswordError("Vui lòng xác nhận mật khẩu");
       return false;
@@ -284,8 +313,19 @@ export default function RegisterScreen() {
                       }}
                       placeholder="Nhập mật khẩu"
                       placeholderTextColor="#adb5bd"
-                      secureTextEntry
+                      secureTextEntry={!showPassword}
                     />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={styles.eyeIcon}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={showPassword ? "eye-outline" : "eye-off-outline"}
+                        size={20}
+                        color="#6c757d"
+                      />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -305,8 +345,19 @@ export default function RegisterScreen() {
                       }}
                       placeholder="Nhập lại mật khẩu"
                       placeholderTextColor="#adb5bd"
-                      secureTextEntry
+                      secureTextEntry={!showConfirmPassword}
                     />
+                    <TouchableOpacity
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={styles.eyeIcon}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
+                        size={20}
+                        color="#6c757d"
+                      />
+                    </TouchableOpacity>
                   </View>
                   {passwordError && (
                     <View style={styles.errorContainer}>
@@ -503,6 +554,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: "#2c3e50",
+    paddingRight: 10,
+  },
+  eyeIcon: {
+    padding: 4,
   },
   inputError: { 
     borderColor: "#dc3545", 

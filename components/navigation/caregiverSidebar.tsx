@@ -177,7 +177,7 @@ export default function CaregiverSidebar() {
             })}
           />
         ))}
-        
+
         {/* Đào tạo với back button */}
         <Drawer.Screen
           name="Đào tạo"
@@ -204,7 +204,7 @@ export default function CaregiverSidebar() {
             ),
           })}
         />
-        
+
         {/* Chứng chỉ với back button */}
         <Drawer.Screen
           name="Chứng chỉ"
@@ -231,7 +231,7 @@ export default function CaregiverSidebar() {
             ),
           })}
         />
-        
+
         {/* Hồ sơ của bạn với back button */}
         <Drawer.Screen
           name="Hồ sơ của bạn"
@@ -258,7 +258,7 @@ export default function CaregiverSidebar() {
             ),
           })}
         />
-        
+
         {/* Danh sách tin nhắn */}
         <Drawer.Screen
           name="Danh sách tin nhắn"
@@ -274,50 +274,50 @@ export default function CaregiverSidebar() {
             ),
           })}
         />
-        
-                  {/* Tin nhắn với back button */}
-          <Drawer.Screen
-            name="Tin nhắn"
-            component={ChatScreen}
-            options={({ navigation, route }) => {
-              const chatParams = route.params as { chatName?: string; chatId?: string; chatAvatar?: string } | undefined;
-              
-              return {
-                drawerItemStyle: { height: 0 },
-                headerLeft: () => (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("Danh sách tin nhắn")}
-                    style={{ marginLeft: 15 }}
-                  >
-                    <MaterialCommunityIcons
-                      name="arrow-left"
-                      size={28}
-                      color="#fff"
-                    />
-                  </TouchableOpacity>
-                ),
-                headerRight: () => (
-                  <TouchableOpacity
-                    onPress={() => {
-                      (navigation as any).navigate("Video Call", {
-                        chatName: chatParams?.chatName,
-                        chatId: chatParams?.chatId,
-                        chatAvatar: chatParams?.chatAvatar,
-                      });
-                    }}
-                    style={{ marginRight: 15 }}
-                  >
-                    <MaterialCommunityIcons
-                      name="video-outline"
-                      size={28}
-                      color="#fff"
-                    />
-                  </TouchableOpacity>
-                ),
-              };
-            }}
-          />
-        
+
+        {/* Tin nhắn với back button */}
+        <Drawer.Screen
+          name="Tin nhắn"
+          component={ChatScreen}
+          options={({ navigation, route }) => {
+            const chatParams = route.params as { chatName?: string; chatId?: string; chatAvatar?: string } | undefined;
+
+            return {
+              drawerItemStyle: { height: 0 },
+              headerLeft: () => (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("Danh sách tin nhắn")}
+                  style={{ marginLeft: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+              headerRight: () => (
+                <TouchableOpacity
+                  onPress={() => {
+                    (navigation as any).navigate("Video Call", {
+                      chatName: chatParams?.chatName,
+                      chatId: chatParams?.chatId,
+                      chatAvatar: chatParams?.chatAvatar,
+                    });
+                  }}
+                  style={{ marginRight: 15 }}
+                >
+                  <MaterialCommunityIcons
+                    name="video-outline"
+                    size={28}
+                    color="#fff"
+                  />
+                </TouchableOpacity>
+              ),
+            };
+          }}
+        />
+
         {/* Video Call - hidden from drawer */}
         <Drawer.Screen
           name="Video Call"
@@ -327,7 +327,7 @@ export default function CaregiverSidebar() {
             headerShown: false,
           }}
         />
-        
+
         {/* Video Quality Review - hidden from drawer */}
         <Drawer.Screen
           name="Video Quality Review"
@@ -337,7 +337,7 @@ export default function CaregiverSidebar() {
             headerShown: false,
           }}
         />
-        
+
         {/* Appointment Detail - hidden from drawer */}
         <Drawer.Screen
           name="Appointment Detail"
@@ -345,7 +345,7 @@ export default function CaregiverSidebar() {
           options={({ navigation, route }) => {
             const params = route.params as { fromScreen?: string } | undefined;
             const fromScreen = params?.fromScreen;
-            
+
             const handleBack = () => {
               if (fromScreen) {
                 // Navigate to specific screen based on fromScreen param
@@ -394,7 +394,7 @@ export default function CaregiverSidebar() {
             };
           }}
         />
-        
+
         {/* Income Detail - hidden from drawer */}
         <Drawer.Screen
           name="Chi tiết thu nhập"
@@ -404,7 +404,7 @@ export default function CaregiverSidebar() {
             headerShown: false, // Use custom header from component
           })}
         />
-        
+
         {/* Complete Profile - hidden from drawer */}
         <Drawer.Screen
           name="Hoàn thiện hồ sơ"
@@ -461,7 +461,7 @@ export default function CaregiverSidebar() {
           options={({ navigation, route }) => {
             const params = route.params as { fromScreen?: string; bookingId?: string } | undefined;
             const fromScreen = params?.fromScreen;
-            
+
             const handleBack = () => {
               if (fromScreen) {
                 switch (fromScreen) {
@@ -472,9 +472,9 @@ export default function CaregiverSidebar() {
                     // Navigate về appointment detail với appointmentId từ params
                     const appointmentId = params?.bookingId;
                     if (appointmentId) {
-                      navigation.navigate("Appointment Detail" as never, { 
+                      navigation.navigate("Appointment Detail" as never, {
                         appointmentId: appointmentId,
-                        fromScreen: "complaint" 
+                        fromScreen: "complaint"
                       } as never);
                     } else {
                       navigation.goBack();
@@ -522,7 +522,7 @@ export default function CaregiverSidebar() {
           options={({ navigation, route }) => {
             const params = route.params as { fromScreen?: string } | undefined;
             const fromScreen = params?.fromScreen;
-            
+
             const handleBack = () => {
               if (fromScreen) {
                 switch (fromScreen) {
@@ -574,7 +574,7 @@ export default function CaregiverSidebar() {
           options={({ navigation, route }) => {
             const params = route.params as { fromScreen?: string; appointmentId?: string } | undefined;
             const fromScreen = params?.fromScreen;
-            
+
             const handleBack = () => {
               if (fromScreen) {
                 switch (fromScreen) {
@@ -634,7 +634,7 @@ export default function CaregiverSidebar() {
           options={({ navigation, route }) => {
             const params = route.params as { fromScreen?: string } | undefined;
             const fromScreen = params?.fromScreen;
-            
+
             const handleBack = () => {
               if (fromScreen) {
                 switch (fromScreen) {
@@ -678,7 +678,7 @@ export default function CaregiverSidebar() {
             };
           }}
         />
-        
+
         <Drawer.Screen
           name="Chi tiết khóa học"
           component={TrainingCourseDetail}
@@ -863,7 +863,7 @@ export default function CaregiverSidebar() {
           component={FeedbackScreen}
           options={({ navigation, route }) => {
             const params = route.params as { fromScreen?: string } | undefined;
-            
+
             return {
               drawerItemStyle: { height: 0 },
               headerShown: true,

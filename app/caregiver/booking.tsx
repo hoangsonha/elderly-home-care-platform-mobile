@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Linking,
   Modal,
   Platform,
@@ -36,9 +37,11 @@ interface BookingItem {
   careSeekerName: string;
   careSeekerAge: number;
   careSeekerPhone: string;
+  careSeekerAvatar: string | null;
   elderlyName: string;
   elderlyAge: number;
   elderlyGender: string;
+  elderlyAvatar: string | null;
   packageName: string;
   workDate: string;
   startTime: string;
@@ -61,7 +64,7 @@ export default function BookingScreen() {
   const route = useRoute<any>();
   const { user } = useAuth();
   const bottomNavPadding = useBottomNavPadding();
-  
+
   const [activeTab, setActiveTab] = useState<TabStatus>(route.params?.initialTab || "Tất cả");
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,10 +78,10 @@ export default function BookingScreen() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectSuccessModal, setShowRejectSuccessModal] = useState(false);
-  
+
   // Ref for FlatList to scroll to specific item
   const flatListRef = useRef<FlatList>(null);
-  
+
   // Get careServiceId from route params (for scrolling to specific item from notification)
   const targetCareServiceId = route.params?.careServiceId;
 
@@ -122,16 +125,16 @@ export default function BookingScreen() {
   // Calculate time remaining until deadline
   const calculateTimeRemaining = useCallback((deadline: string | null): string | null => {
     if (!deadline) return null;
-    
+
     const now = new Date();
     const deadlineDate = new Date(deadline);
     const diff = deadlineDate.getTime() - now.getTime();
-    
+
     if (diff <= 0) return "Đã hết hạn";
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     return `Còn ${hours}h ${minutes.toString().padStart(2, '0')}m`;
   }, []);
 
@@ -145,9 +148,39 @@ export default function BookingScreen() {
       }
 
       const statusFilter = STATUS_MAP[activeTab];
+      console.log('=== Booking Screen: Fetching bookings ===');
+      console.log('Active tab:', activeTab);
+      console.log('Status filter:', statusFilter);
+
       const response = await mainService.getMyCareServices(undefined, statusFilter || undefined);
 
+      console.log('=== RAW RESPONSE FROM BE (Caregiver Booking) ===');
+      console.log('Response status:', response.status);
+      console.log('Response data length:', response.data?.length || 0);
+      console.log('Full response:', JSON.stringify(response, null, 2));
+
       if (response.status === "Success" && response.data) {
+        // Log avatar URLs từ raw response
+        response.data.forEach((service: MyCareServiceData, index: number) => {
+          console.log(`\n--- Service ${index + 1} (${service.careServiceId}) ---`);
+          console.log('Care Seeker Profile:');
+          console.log('  - fullName:', service.careSeekerProfile.fullName);
+          console.log('  - avatarUrl (raw):', service.careSeekerProfile.avatarUrl);
+          console.log('  - avatarUrl type:', typeof service.careSeekerProfile.avatarUrl);
+          if (service.careSeekerProfile.avatarUrl) {
+            console.log('  - avatarUrl includes %2F:', service.careSeekerProfile.avatarUrl.includes('%2F'));
+            console.log('  - avatarUrl includes /o/:', service.careSeekerProfile.avatarUrl.includes('/o/'));
+          }
+          console.log('Elderly Profile:');
+          console.log('  - fullName:', service.elderlyProfile.fullName);
+          console.log('  - avatarUrl (raw):', service.elderlyProfile.avatarUrl);
+          console.log('  - avatarUrl type:', typeof service.elderlyProfile.avatarUrl);
+          if (service.elderlyProfile.avatarUrl) {
+            console.log('  - avatarUrl includes %2F:', service.elderlyProfile.avatarUrl.includes('%2F'));
+            console.log('  - avatarUrl includes /o/:', service.elderlyProfile.avatarUrl.includes('/o/'));
+          }
+        });
+        console.log('=== END RAW RESPONSE LOG ===\n');
         const mappedBookings: BookingItem[] = response.data.map((service: MyCareServiceData) => {
           // Parse location
           let locationObj = { address: "", latitude: 0, longitude: 0 };
@@ -170,9 +203,11 @@ export default function BookingScreen() {
             careSeekerName: service.careSeekerProfile.fullName,
             careSeekerAge: service.careSeekerProfile.age,
             careSeekerPhone: service.careSeekerProfile.phoneNumber,
+            careSeekerAvatar: service.careSeekerProfile.avatarUrl || null, // Dùng trực tiếp từ BE, không decode/encode
             elderlyName: service.elderlyProfile.fullName,
             elderlyAge: service.elderlyProfile.age,
             elderlyGender: service.elderlyProfile.gender,
+            elderlyAvatar: service.elderlyProfile.avatarUrl || null, // Dùng trực tiếp từ BE, không decode/encode
             packageName: service.servicePackage.packageName,
             workDate: service.workDate,
             startTime: service.startTime.split(":").slice(0, 2).join(":"),
@@ -186,14 +221,28 @@ export default function BookingScreen() {
             timeRemaining: calculateTimeRemaining(service.caregiverResponseDeadline),
           };
         });
+
+        // Log mapped bookings với avatar info
+        console.log('=== MAPPED BOOKINGS ===');
+        mappedBookings.forEach((booking, index) => {
+          const originalService = response.data[index];
+          console.log(`\n--- Mapped Booking ${index + 1} ---`);
+          console.log('  - careServiceId:', booking.careServiceId);
+          console.log('  - careSeekerName:', booking.careSeekerName);
+          console.log('  - Original Care Seeker avatarUrl:', originalService.careSeekerProfile.avatarUrl);
+          console.log('  - Original Elderly avatarUrl:', originalService.elderlyProfile.avatarUrl);
+          console.log('  - status:', booking.status);
+        });
+        console.log('=== END MAPPED BOOKINGS LOG ===\n');
+
         setBookings(mappedBookings);
-        
+
         // Log booking statuses
         console.log('Booking Statuses after fetch:');
         mappedBookings.forEach((booking) => {
           console.log(`  - careServiceId: ${booking.careServiceId}, status: ${booking.status}`);
         });
-        
+
         // Scroll to specific item if careServiceId is provided (from notification)
         if (targetCareServiceId && !isRefreshing && flatListRef.current) {
           setTimeout(() => {
@@ -203,11 +252,11 @@ export default function BookingScreen() {
             if (index !== -1) {
               console.log('Booking: Scrolling to item at index:', index, 'careServiceId:', targetCareServiceId);
               try {
-              flatListRef.current?.scrollToIndex({
-                index,
-                animated: true,
-                viewPosition: 0.5, // Center the item
-              });
+                flatListRef.current?.scrollToIndex({
+                  index,
+                  animated: true,
+                  viewPosition: 0.5, // Center the item
+                });
               } catch (error) {
                 console.error('Booking: Error scrolling to index:', error);
                 // Fallback: scroll to offset
@@ -320,7 +369,7 @@ export default function BookingScreen() {
 
     const lat = location.latitude;
     const lng = location.longitude;
-    
+
     const url = Platform.select({
       ios: `maps://maps.apple.com/?q=${lat},${lng}`,
       android: `geo:${lat},${lng}?q=${lat},${lng}`,
@@ -337,7 +386,7 @@ export default function BookingScreen() {
   // Open phone dialer
   const handleCallPhone = useCallback((phone: string) => {
     console.log("handleCallPhone called with:", phone);
-    
+
     if (!phone || phone.trim() === "") {
       Alert.alert("Thông báo", "Chưa có số điện thoại");
       return;
@@ -346,7 +395,7 @@ export default function BookingScreen() {
     // Remove all spaces, dashes, parentheses, and other formatting characters
     // Keep only digits and + sign
     let cleanPhone = phone.replace(/[\s\-\(\)\.]/g, "");
-    
+
     // If phone starts with +84 (Vietnam country code), keep it
     // If phone starts with 84 (without +), add +
     // If phone starts with 0, remove 0 and add +84
@@ -360,23 +409,23 @@ export default function BookingScreen() {
       // Assume it's a Vietnamese phone number without country code
       cleanPhone = "+84" + cleanPhone;
     }
-    
+
     // Final cleanup: remove any remaining non-digit characters except +
     cleanPhone = cleanPhone.replace(/[^\d+]/g, "");
-    
+
     // Ensure it starts with + for international format
     if (!cleanPhone.startsWith("+")) {
       cleanPhone = "+" + cleanPhone;
     }
-    
+
     console.log("Cleaned phone:", cleanPhone);
-    
+
     // For Android, use tel: scheme (works better)
     // For iOS, use telprompt: to show confirmation dialog
     const phoneUrl = Platform.OS === "ios" ? `telprompt:${cleanPhone}` : `tel:${cleanPhone}`;
-    
+
     console.log("Phone URL:", phoneUrl);
-    
+
     Linking.canOpenURL(phoneUrl)
       .then((supported) => {
         console.log("Can open URL:", supported);
@@ -457,7 +506,7 @@ export default function BookingScreen() {
   // Handle card press to view details
   const handleCardPress = useCallback((item: BookingItem) => {
     console.log('Navigating to appointment detail with ID:', item.careServiceId);
-    
+
     // Use React Navigation since CaregiverSidebar uses Drawer Navigator
     (navigation.navigate as any)("Appointment Detail", {
       appointmentId: item.careServiceId,
@@ -482,7 +531,17 @@ export default function BookingScreen() {
         {/* Header with Name and Status */}
         <View style={styles.cardHeader}>
           <View style={styles.avatarContainer}>
-            <Ionicons name="person-circle" size={48} color="#68C2E8" />
+            {item.careSeekerAvatar && item.careSeekerAvatar.trim() !== '' && item.careSeekerAvatar.startsWith('http') ? (
+              <Image
+                source={{ uri: item.careSeekerAvatar }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="person" size={24} color="#68C2E8" />
+              </View>
+            )}
           </View>
           <View style={styles.headerInfo}>
             <View style={styles.nameStatusRow}>
@@ -925,7 +984,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
     marginRight: 12,
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E8F6FB',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerInfo: {
     flex: 1,

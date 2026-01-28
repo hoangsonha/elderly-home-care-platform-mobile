@@ -704,6 +704,13 @@ export default function AppointmentDetailScreen() {
           const minutes = calculateRemainingMinutes(appointment.caregiverResponseDeadline);
           setRemainingMinutes(minutes);
         }
+
+        // Fetch work notes if workSchedule exists
+        if (appointment.workSchedule?.workScheduleId) {
+          await fetchWorkNotes(appointment.workSchedule.workScheduleId);
+        } else {
+          setNotes([]);
+        }
       } else {
         console.log('=== API RESPONSE ERROR ===');
         console.log('Response status:', response.status);
@@ -1580,8 +1587,38 @@ export default function AppointmentDetailScreen() {
     });
   };
 
+  // Function to fetch work notes
+  const fetchWorkNotes = async (workScheduleId: string) => {
+    try {
+      const workNotesResponse = await mainService.getWorkNotes(workScheduleId);
+      if (workNotesResponse.status === 'Success' && workNotesResponse.data) {
+        // Transform work notes to match display format
+        const workNotes = Array.isArray(workNotesResponse.data) 
+          ? workNotesResponse.data.map((note: any) => ({
+              id: note.workNoteId || `note-${Date.now()}-${Math.random()}`,
+              workNoteId: note.workNoteId,
+              content: note.content,
+              author: note.createdByFullName || 'Người dùng',
+              time: note.createdAt ? new Date(note.createdAt).toLocaleTimeString('vi-VN', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              }) : '',
+              createdAt: note.createdAt,
+              createdByFullName: note.createdByFullName,
+              type: "info",
+            }))
+          : [];
+        setNotes(workNotes);
+      }
+    } catch (error: any) {
+      console.error('Error fetching work notes:', error);
+      // Don't show error to user, just log it
+    }
+  };
+
   // Note handlers
-  const canAddNote = status === "in-progress" || status === "confirmed";
+  // Chỉ cho phép thêm ghi chú khi status là IN_PROGRESS (từ API) hoặc "Đang thực hiện" (mapped)
+  const canAddNote = appointmentData?.status === "IN_PROGRESS" || status === "Đang thực hiện";
 
   const handleOpenNoteModal = () => {
     if (!canAddNote) {
@@ -1601,7 +1638,7 @@ export default function AppointmentDetailScreen() {
     setNewNoteContent("");
   };
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     if (newNoteContent.trim() === "") {
       showAlert(
         "Thiếu thông tin", 
@@ -1612,25 +1649,53 @@ export default function AppointmentDetailScreen() {
       return;
     }
 
-    const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
-    const newNote = {
-      id: `N${notes.length + 1}`,
-      time: timeStr,
-      author: "Caregiver",
-      content: newNoteContent.trim(),
-      type: "info",
-    };
+    // Kiểm tra có workScheduleId không
+    if (!appointmentData?.workSchedule?.workScheduleId) {
+      showAlert(
+        "Lỗi", 
+        "Không tìm thấy thông tin lịch làm việc",
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'alert-circle', iconColor: '#F59E0B' }
+      );
+      return;
+    }
 
-    setNotes([newNote, ...notes]);
-    handleCloseNoteModal();
-    showAlert(
-      "Thành công", 
-      "Đã thêm ghi chú mới",
-      [{ text: 'OK', style: 'default' }],
-      { icon: 'check-circle', iconColor: '#10B981' }
-    );
+    try {
+      setIsProcessing(true);
+      const response = await mainService.createWorkNote(
+        appointmentData.workSchedule.workScheduleId,
+        newNoteContent.trim()
+      );
+
+      if (response.status === 'Success' && response.data) {
+        handleCloseNoteModal();
+        
+        // Fetch lại work notes để đảm bảo có đầy đủ dữ liệu từ server
+        if (appointmentData.workSchedule?.workScheduleId) {
+          await fetchWorkNotes(appointmentData.workSchedule.workScheduleId);
+        }
+        
+        showAlert(
+          "Thành công", 
+          "Đã thêm ghi chú mới",
+          [{ text: 'OK', style: 'default' }],
+          { icon: 'check-circle', iconColor: '#10B981' }
+        );
+      } else {
+        throw new Error(response.message || 'Không thể tạo ghi chú');
+      }
+    } catch (error: any) {
+      console.error('Error creating work note:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể tạo ghi chú';
+      showAlert(
+        "Lỗi", 
+        errorMessage,
+        [{ text: 'OK', style: 'default' }],
+        { icon: 'alert-circle', iconColor: '#F59E0B' }
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Check if can cancel booking (more than 3 days before appointment)
@@ -2441,22 +2506,41 @@ export default function AppointmentDetailScreen() {
               </Text>
             </TouchableOpacity>
 
-            {notes.map((note: any) => (
-              <View key={note.id} style={styles.noteCard}>
-                <View style={styles.noteHeader}>
-                  <View style={styles.noteAuthor}>
-                    <Ionicons
-                      name={note.type === "health" ? "medical" : "person-circle"}
-                      size={16}
-                      color="#6B7280"
-                    />
-                    <Text style={styles.noteAuthorText}>{note.author}</Text>
-                  </View>
-                  <Text style={styles.noteTime}>{note.time}</Text>
-                </View>
-                <Text style={styles.noteContent}>{note.content}</Text>
+            {notes.length === 0 ? (
+              <View style={styles.emptyNotesContainer}>
+                <Ionicons name="document-text-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyNotesText}>Chưa có ghi chú nào</Text>
               </View>
-            ))}
+            ) : (
+              notes.map((note: any) => (
+                <View key={note.id || note.workNoteId} style={styles.noteCard}>
+                  <View style={styles.noteHeader}>
+                    <View style={styles.noteAuthor}>
+                      <Ionicons
+                        name={note.type === "health" ? "medical" : "person-circle"}
+                        size={16}
+                        color="#6B7280"
+                      />
+                      <Text style={styles.noteAuthorText}>
+                        {note.createdByFullName || note.author || 'Người dùng'}
+                      </Text>
+                    </View>
+                    <Text style={styles.noteTime}>
+                      {note.createdAt 
+                        ? new Date(note.createdAt).toLocaleString('vi-VN', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : note.time || ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.noteContent}>{note.content}</Text>
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -2676,6 +2760,7 @@ export default function AppointmentDetailScreen() {
               textAlignVertical="top"
               value={newNoteContent}
               onChangeText={setNewNoteContent}
+              editable={!isProcessing}
               autoFocus
             />
           </View>
@@ -2684,14 +2769,20 @@ export default function AppointmentDetailScreen() {
             <TouchableOpacity
               style={styles.modalButtonCancel}
               onPress={handleCloseNoteModal}
+              disabled={isProcessing}
             >
               <Text style={styles.modalButtonCancelText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.modalButtonSave}
+              style={[styles.modalButtonSave, isProcessing && styles.modalButtonSaveDisabled]}
               onPress={handleSaveNote}
+              disabled={isProcessing}
             >
-              <Text style={styles.modalButtonSaveText}>Lưu ghi chú</Text>
+              {isProcessing ? (
+                <Text style={styles.modalButtonSaveText}>Đang lưu...</Text>
+              ) : (
+                <Text style={styles.modalButtonSaveText}>Lưu ghi chú</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -3491,6 +3582,18 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     lineHeight: 20,
   },
+  emptyNotesContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyNotesText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    marginTop: 12,
+    textAlign: "center",
+  },
   bottomActions: {
   position: "absolute",
   left: 0,
@@ -3821,6 +3924,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: "#10B981",
+  },
+  modalButtonSaveDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.6,
   },
   modalButtonSaveText: {
     fontSize: 14,

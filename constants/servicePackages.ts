@@ -5,6 +5,7 @@ export interface ServicePackage {
   price: number; // in VND
   services: string[];
   isEligible?: boolean; // true if caregiver can work with this package
+  packageType?: string; // Loại gói dịch vụ
 }
 
 export const SERVICE_PACKAGES: ServicePackage[] = [

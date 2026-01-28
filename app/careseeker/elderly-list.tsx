@@ -13,6 +13,7 @@ import ElderlyList from '@/components/elderly/ElderlyList';
 import { SimpleNavBar } from '@/components/navigation/SimpleNavBar';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigation } from '@/contexts/NavigationContext';
 import { useBottomNavPadding } from '@/hooks/useBottomNavPadding';
 import { UserService } from '@/services/user.service';
 
@@ -32,10 +33,18 @@ interface ElderlyPerson {
 
 export default function ElderlyListScreen() {
   const { user } = useAuth();
+  const { setActiveTab } = useNavigation();
   const bottomNavPadding = useBottomNavPadding();
   const [profiles, setProfiles] = useState<ElderlyPerson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Set active tab when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      setActiveTab('elderly');
+    }, [setActiveTab])
+  );
 
   const loadProfiles = useCallback(async () => {
     try {

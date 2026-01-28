@@ -110,13 +110,6 @@ export default function ProfileScreen() {
                     badge: profile?.totalElderlyProfiles || 0,
                     color: '#68C2E8',
                 },
-                {
-                    id: 'hired',
-                    title: 'Người chăm sóc đã thuê',
-                    icon: 'person-add',
-                    route: '/careseeker/hired-caregivers',
-                    color: '#10B981',
-                },
             ],
         },
         {
@@ -128,13 +121,6 @@ export default function ProfileScreen() {
                     icon: 'calendar',
                     route: '/careseeker/appointments',
                     color: '#3B82F6',
-                },
-                {
-                    id: 'history',
-                    title: 'Lịch sử thuê',
-                    icon: 'time',
-                    route: '/careseeker/hiring-history',
-                    color: '#F59E0B',
                 },
                 {
                     id: 'reviews',

@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { mainService, type MyCareServiceData } from '@/services/main.service';
 
 interface ServiceRequest {
   id: string;
@@ -46,129 +47,160 @@ interface ServiceRequestsProps {
   onBookPress?: (caregiver: any) => void;
 }
 
-const mockServiceRequests: ServiceRequest[] = [
-  {
-    id: '1',
-    name: 'Chăm sóc bà Nguyễn Thị Lan',
-    caregiverName: 'Nguyễn Văn Minh',
-    caregiverAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    familyName: 'Gia đình Nguyễn',
-    elderlyName: 'Bà Nguyễn Thị Lan',
-    elderlyAvatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
-    salary: 500000,
-    status: 'pending',
-    createdAt: '2024-01-15T14:30:00',
-    workAddress: '123 Đường Lê Lợi, Quận 1, TP.HCM',
-    salaryPerHour: 50000,
-    elderlyProfile: {
-      age: 75,
-      healthCondition: 'Cao huyết áp, tiểu đường',
-      specialNeeds: ['Hỗ trợ đi lại', 'Uống thuốc đúng giờ'],
-      medications: ['Thuốc huyết áp', 'Thuốc tiểu đường'],
-    },
-    workSchedule: {
-      type: 'long-term',
-      startDate: '2024-02-01',
-      endDate: '2024-12-31',
-      startTime: '08:00',
-      endTime: '16:00',
-      workingHours: ['08:00-16:00'],
-    },
-    salaryFrequency: 'Hàng tháng',
-  },
-  {
-    id: '2',
-    name: 'Chăm sóc ông Trần Văn Hùng',
-    caregiverName: 'Lê Thị Mai',
-    caregiverAvatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-    familyName: 'Gia đình Trần',
-    elderlyName: 'Ông Trần Văn Hùng',
-    elderlyAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-    salary: 300000,
-    status: 'approved',
-    createdAt: '2024-01-10T09:15:00',
-    workAddress: '456 Đường Nguyễn Huệ, Quận 3, TP.HCM',
-    salaryPerHour: 45000,
-    elderlyProfile: {
-      age: 82,
-      healthCondition: 'Suy giảm trí nhớ',
-      specialNeeds: ['Giám sát 24/7', 'Hỗ trợ ăn uống'],
-      medications: ['Thuốc bổ não'],
-    },
-    workSchedule: {
-      type: 'short-term',
-      startDate: '2024-01-20',
-      endDate: '2024-03-20',
-      startTime: '06:00',
-      endTime: '22:00',
-      workingHours: ['06:00-22:00'],
-    },
-    salaryFrequency: 'Hàng tuần',
-  },
-  {
-    id: '3',
-    name: 'Chăm sóc bà Phạm Thị Hoa',
-    caregiverName: 'Võ Minh Tuấn',
-    caregiverAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
-    familyName: 'Gia đình Phạm',
-    elderlyName: 'Bà Phạm Thị Hoa',
-    elderlyAvatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face',
-    salary: 200000,
-    status: 'rejected',
-    createdAt: '2024-01-05T16:45:00',
-    workAddress: '789 Đường Điện Biên Phủ, Quận Bình Thạnh, TP.HCM',
-    salaryPerHour: 40000,
-    elderlyProfile: {
-      age: 68,
-      healthCondition: 'Viêm khớp',
-      specialNeeds: ['Vật lý trị liệu', 'Massage'],
-      medications: ['Thuốc giảm đau'],
-    },
-    workSchedule: {
-      type: 'hourly',
-      startDate: '2024-01-25',
-      startTime: '08:00',
-      endTime: '12:00',
-      workingHours: ['08:00-12:00'],
-    },
-    salaryFrequency: 'Hàng ngày',
-  },
-  {
-    id: '4',
-    name: 'Chăm sóc bà Lê Thị Hương',
-    caregiverName: 'Phạm Minh Đức',
-    caregiverAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    familyName: 'Gia đình Lê',
-    elderlyName: 'Bà Lê Thị Hương',
-    elderlyAvatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&crop=face',
-    salary: 400000,
-    status: 'completed',
-    createdAt: '2024-01-08T10:20:00',
-    workAddress: '321 Đường Võ Văn Tần, Quận 3, TP.HCM',
-    salaryPerHour: 50000,
-    elderlyProfile: {
-      age: 70,
-      healthCondition: 'Suy tim nhẹ',
-      specialNeeds: ['Theo dõi huyết áp', 'Uống thuốc đúng giờ'],
-      medications: ['Thuốc tim', 'Thuốc huyết áp'],
-    },
-    workSchedule: {
-      type: 'long-term',
-      startDate: '2024-01-15',
-      endDate: '2024-06-15',
-      startTime: '09:00',
-      endTime: '17:00',
-      workingHours: ['09:00-17:00'],
-    },
-    salaryFrequency: 'Hàng tuần',
-  },
-];
-
 export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsProps) {
+  console.log('=== ServiceRequests Component Rendered ===');
+  
   const [activeStatusTab, setActiveStatusTab] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'completed'>('all');
   const [selectedService, setSelectedService] = useState<ServiceRequest | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentService, setPaymentService] = useState<ServiceRequest | null>(null);
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [rawResponse, setRawResponse] = useState<any>(null);
+  const [showResponseModal, setShowResponseModal] = useState(false);
+
+  // Map API status to component status
+  const mapApiStatusToComponentStatus = (apiStatus: string): 'pending' | 'approved' | 'rejected' | 'completed' => {
+    switch (apiStatus) {
+      case 'PENDING':
+      case 'WAITING_CAREGIVER_RESPONSE':
+        return 'pending';
+      case 'CAREGIVER_APPROVED':
+      case 'ACCEPTED':
+        return 'approved';
+      case 'CAREGIVER_DECLINED':
+      case 'DECLINED':
+      case 'CANCELLED':
+        return 'rejected';
+      case 'COMPLETED':
+      case 'PAID':
+        return 'completed';
+      default:
+        return 'pending';
+    }
+  };
+
+  // Fetch service requests from API
+  useEffect(() => {
+    console.log('=== ServiceRequests useEffect triggered ===');
+    const fetchServiceRequests = async () => {
+      console.log('=== fetchServiceRequests called ===');
+      setIsLoading(true);
+      try {
+        console.log('=== Calling mainService.getMyCareServices() ===');
+        const response = await mainService.getMyCareServices();
+        console.log('=== Response received ===');
+        
+        // Lưu raw response để hiển thị
+        setRawResponse(response);
+        
+        // Log raw response từ BE
+        console.log('=== RAW RESPONSE FROM BE (ServiceRequests) ===');
+        console.log('Response status:', response.status);
+        console.log('Response data length:', response.data?.length || 0);
+        console.log('Full response:', JSON.stringify(response, null, 2));
+        
+        if (response.status === 'Success' && response.data) {
+          // Log avatar URLs từ raw response
+          response.data.forEach((service: MyCareServiceData, index: number) => {
+            console.log(`\n--- Service ${index + 1} (${service.careServiceId}) ---`);
+            console.log('Caregiver Profile:');
+            console.log('  - fullName:', service.caregiverProfile.fullName);
+            console.log('  - avatarUrl (raw):', service.caregiverProfile.avatarUrl);
+            console.log('  - avatarUrl type:', typeof service.caregiverProfile.avatarUrl);
+            console.log('  - avatarUrl length:', service.caregiverProfile.avatarUrl?.length || 0);
+            if (service.caregiverProfile.avatarUrl) {
+              console.log('  - avatarUrl includes %2F:', service.caregiverProfile.avatarUrl.includes('%2F'));
+              console.log('  - avatarUrl includes /o/:', service.caregiverProfile.avatarUrl.includes('/o/'));
+            }
+            console.log('Elderly Profile:');
+            console.log('  - fullName:', service.elderlyProfile.fullName);
+            console.log('  - avatarUrl (raw):', service.elderlyProfile.avatarUrl);
+            console.log('  - avatarUrl type:', typeof service.elderlyProfile.avatarUrl);
+            console.log('  - avatarUrl length:', service.elderlyProfile.avatarUrl?.length || 0);
+            if (service.elderlyProfile.avatarUrl) {
+              console.log('  - avatarUrl includes %2F:', service.elderlyProfile.avatarUrl.includes('%2F'));
+              console.log('  - avatarUrl includes /o/:', service.elderlyProfile.avatarUrl.includes('/o/'));
+            }
+          });
+          console.log('=== END RAW RESPONSE LOG ===\n');
+          
+          const mappedRequests: ServiceRequest[] = response.data.map((service: MyCareServiceData) => {
+            // Parse location if it's a JSON string
+            let locationObj = { address: '', latitude: 0, longitude: 0 };
+            try {
+              if (typeof service.location === 'string') {
+                locationObj = JSON.parse(service.location);
+              } else {
+                locationObj = service.location as any;
+              }
+            } catch {
+              locationObj = {
+                address: service.elderlyProfile.location.address,
+                latitude: service.elderlyProfile.location.latitude,
+                longitude: service.elderlyProfile.location.longitude,
+              };
+            }
+
+            // Parse care requirement for elderly profile
+            const careRequirement = service.elderlyProfile.careRequirement || {};
+            const healthCondition = service.elderlyProfile.healthNote || careRequirement.healthCondition || 'Không có';
+            const specialNeeds = careRequirement.specialNeeds || [];
+            const medications = careRequirement.medications || [];
+
+            const caregiverAvatar = service.caregiverProfile.avatarUrl || '';
+            const elderlyAvatar = service.elderlyProfile.avatarUrl || '';
+            
+            // Log mapped avatar URLs
+            console.log(`\n[MAPPED] Service ${service.careServiceId}:`);
+            console.log('  - caregiverAvatar (mapped):', caregiverAvatar);
+            console.log('  - elderlyAvatar (mapped):', elderlyAvatar);
+            
+            return {
+              id: service.careServiceId,
+              name: `Chăm sóc ${service.elderlyProfile.fullName}`,
+              caregiverName: service.caregiverProfile.fullName,
+              caregiverAvatar: caregiverAvatar, // Dùng trực tiếp từ BE, không decode/encode
+              familyName: service.careSeekerProfile.fullName,
+              elderlyName: service.elderlyProfile.fullName,
+              elderlyAvatar: elderlyAvatar, // Dùng trực tiếp từ BE, không decode/encode
+              salary: service.totalPrice,
+              status: mapApiStatusToComponentStatus(service.status),
+              createdAt: service.workDate,
+              workAddress: locationObj.address,
+              salaryPerHour: Math.round(service.totalPrice / service.servicePackage.durationHours),
+              elderlyProfile: {
+                age: service.elderlyProfile.age,
+                healthCondition: healthCondition,
+                specialNeeds: specialNeeds,
+                medications: medications,
+              },
+              workSchedule: {
+                type: service.servicePackage.packageType === 'LONG_TERM' ? 'long-term' : 
+                      service.servicePackage.packageType === 'SHORT_TERM' ? 'short-term' : 'hourly',
+                startDate: service.workDate,
+                endDate: undefined, // API không có endDate trong MyCareServiceData
+                startTime: service.startTime.split(':').slice(0, 2).join(':'),
+                endTime: service.endTime.split(':').slice(0, 2).join(':'),
+                workingHours: [`${service.startTime.split(':').slice(0, 2).join(':')}-${service.endTime.split(':').slice(0, 2).join(':')}`],
+              },
+              salaryFrequency: 'Hàng ngày', // Default, có thể map từ servicePackage nếu có
+            };
+          });
+          setServiceRequests(mappedRequests);
+        } else {
+          setServiceRequests([]);
+        }
+      } catch (error: any) {
+        console.error('Error fetching service requests:', error);
+        setServiceRequests([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchServiceRequests();
+  }, []);
 
   const handlePayment = (service: ServiceRequest) => {
     setPaymentService(service);
@@ -186,18 +218,18 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
     console.log('Payment completed for service:', service.id);
     setShowPaymentModal(false);
     setPaymentService(null);
-    // Có thể cập nhật mockServiceRequests ở đây
+    // TODO: Refresh service requests after payment
   };
 
   const getFilteredRequests = () => {
     if (activeStatusTab === 'all') {
-      return mockServiceRequests;
+      return serviceRequests;
     }
-    return mockServiceRequests.filter(request => request.status === activeStatusTab);
+    return serviceRequests.filter(request => request.status === activeStatusTab);
   };
 
   const getStatusCount = (status: string) => {
-    return mockServiceRequests.filter(request => request.status === status).length;
+    return serviceRequests.filter(request => request.status === status).length;
   };
 
   const getStatusText = (status: string) => {
@@ -257,7 +289,13 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
       activeOpacity={0.7}
     >
       <View style={styles.requestHeader}>
-        <Image source={{ uri: item.caregiverAvatar }} style={styles.caregiverAvatar} />
+        {item.caregiverAvatar ? (
+          <Image source={{ uri: item.caregiverAvatar }} style={styles.caregiverAvatar} />
+        ) : (
+          <View style={[styles.caregiverAvatar, styles.avatarPlaceholder]}>
+            <Ionicons name="person" size={24} color="#BDC3C7" />
+          </View>
+        )}
         <View style={styles.requestInfo}>
           <View style={styles.nameRow}>
             <ThemedText style={styles.caregiverName}>{item.caregiverName}</ThemedText>
@@ -373,7 +411,13 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
             <View style={styles.detailSection}>
               <ThemedText style={styles.sectionTitle}>Hồ sơ người già</ThemedText>
               <TouchableOpacity style={styles.elderlyProfileCard}>
-                <Image source={{ uri: selectedService.elderlyAvatar }} style={styles.elderlyAvatar} />
+                {selectedService.elderlyAvatar ? (
+                  <Image source={{ uri: selectedService.elderlyAvatar }} style={styles.elderlyAvatar} />
+                ) : (
+                  <View style={[styles.elderlyAvatar, styles.avatarPlaceholder]}>
+                    <Ionicons name="person" size={30} color="#BDC3C7" />
+                  </View>
+                )}
                 <View style={styles.elderlyInfo}>
                   <ThemedText style={styles.elderlyName}>{selectedService.elderlyName}</ThemedText>
                   <ThemedText style={styles.elderlyAge}>{selectedService.elderlyProfile.age} tuổi</ThemedText>
@@ -468,13 +512,22 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
     <View style={styles.container}>
       {/* Status Tabs */}
       <View style={styles.statusTabsContainer}>
+        {/* Debug Button - Hiển thị response từ BE */}
+        <TouchableOpacity
+          style={styles.debugButton}
+          onPress={() => setShowResponseModal(true)}
+        >
+          <Ionicons name="code-outline" size={20} color="#68C2E8" />
+          <ThemedText style={styles.debugButtonText}>Xem Response BE</ThemedText>
+        </TouchableOpacity>
+        
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statusTabsScrollContainer}>
           <TouchableOpacity
             style={[styles.statusTab, activeStatusTab === 'all' && styles.statusTabActive]}
             onPress={() => setActiveStatusTab('all')}
           >
             <ThemedText style={[styles.statusTabText, activeStatusTab === 'all' && styles.statusTabTextActive]}>
-              Tất cả ({mockServiceRequests.length})
+              Tất cả ({serviceRequests.length})
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
@@ -513,13 +566,25 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
       </View>
 
       {/* Requests List */}
-      <FlatList
-        data={getFilteredRequests()}
-        renderItem={renderServiceRequest}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContainer}
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ThemedText style={styles.loadingText}>Đang tải...</ThemedText>
+        </View>
+      ) : (
+        <FlatList
+          data={getFilteredRequests()}
+          renderItem={renderServiceRequest}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="document-text-outline" size={64} color="#BDC3C7" />
+              <ThemedText style={styles.emptyText}>Chưa có yêu cầu dịch vụ nào</ThemedText>
+            </View>
+          }
+        />
+      )}
 
       {/* Detail Modal */}
       {renderDetailModal()}
@@ -579,6 +644,63 @@ export function ServiceRequests({ onChatPress, onBookPress }: ServiceRequestsPro
           </View>
         </Modal>
       )}
+
+      {/* Response Modal - Hiển thị raw response từ BE */}
+      <Modal
+        visible={showResponseModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowResponseModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowResponseModal(false)}
+            >
+              <Ionicons name="close" size={24} color="#6C757D" />
+            </TouchableOpacity>
+            <ThemedText style={styles.modalTitle}>Response từ BE</ThemedText>
+            <View style={styles.placeholder} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.responseContainer}>
+              <ThemedText style={styles.responseTitle}>Raw Response:</ThemedText>
+              <ScrollView horizontal style={styles.responseScrollView}>
+                <ThemedText style={styles.responseText}>
+                  {rawResponse ? JSON.stringify(rawResponse, null, 2) : 'Chưa có dữ liệu'}
+                </ThemedText>
+              </ScrollView>
+            </View>
+
+            {rawResponse?.data && (
+              <View style={styles.responseContainer}>
+                <ThemedText style={styles.responseTitle}>Avatar URLs:</ThemedText>
+                {rawResponse.data.map((service: any, index: number) => (
+                  <View key={index} style={styles.avatarInfoContainer}>
+                    <ThemedText style={styles.avatarInfoTitle}>
+                      Service {index + 1} ({service.careServiceId}):
+                    </ThemedText>
+                    <ThemedText style={styles.avatarInfoLabel}>
+                      Caregiver Avatar:
+                    </ThemedText>
+                    <ThemedText style={styles.avatarInfoValue}>
+                      {service.caregiverProfile?.avatarUrl || 'null'}
+                    </ThemedText>
+                    <ThemedText style={styles.avatarInfoLabel}>
+                      Elderly Avatar:
+                    </ThemedText>
+                    <ThemedText style={styles.avatarInfoValue}>
+                      {service.elderlyProfile?.avatarUrl || 'null'}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -887,5 +1009,104 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6C757D',
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    minHeight: 300,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6C757D',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#E9ECEF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  debugButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#E8F6FB',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  debugButtonText: {
+    fontSize: 12,
+    color: '#68C2E8',
+    fontWeight: '600',
+  },
+  responseContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  responseTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2C3E50',
+    marginBottom: 12,
+  },
+  responseScrollView: {
+    maxHeight: 400,
+  },
+  responseText: {
+    fontSize: 12,
+    color: '#2C3E50',
+    fontFamily: 'monospace',
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 8,
+  },
+  avatarInfoContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  avatarInfoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#68C2E8',
+    marginBottom: 8,
+  },
+  avatarInfoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6C757D',
+    marginTop: 6,
+  },
+  avatarInfoValue: {
+    fontSize: 11,
+    color: '#2C3E50',
+    fontFamily: 'monospace',
+    marginTop: 4,
+    marginBottom: 4,
+    backgroundColor: 'white',
+    padding: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
 });

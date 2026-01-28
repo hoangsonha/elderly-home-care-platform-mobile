@@ -1095,7 +1095,7 @@ export default function CertificatesScreen() {
               <TouchableOpacity
                 style={[styles.deleteModalConfirmButton, deleting && styles.deleteModalConfirmButtonDisabled]}
                 onPress={confirmDelete}
-                disabled={deleting}
+                disabled={!!deleting}
               >
                 {deleting ? (
                   <ActivityIndicator size="small" color="#FFF" />

@@ -1571,4 +1571,40 @@ export const mainService = {
       throw error;
     }
   },
+
+  /**
+   * Tạo work note cho work schedule
+   * @param workScheduleId - ID của work schedule
+   * @param content - Nội dung ghi chú
+   */
+  createWorkNote: async (
+    workScheduleId: string,
+    content: string
+  ): Promise<any> => {
+    try {
+      const response = await apiClient.post('/api/v1/work-notes', {
+        workScheduleId,
+        content,
+      });
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Error creating work note:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách work notes theo work schedule ID
+   * @param workScheduleId - ID của work schedule
+   */
+  getWorkNotes: async (workScheduleId: string): Promise<any> => {
+    try {
+      const response = await apiClient.get(`/api/v1/work-notes/work-schedule/${workScheduleId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching work notes:', error);
+      throw error;
+    }
+  },
 };

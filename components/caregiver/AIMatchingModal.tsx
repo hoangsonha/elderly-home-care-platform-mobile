@@ -125,6 +125,17 @@ const ratingRangeOptions = [
 ];
 
 
+// Helper function to map package type to Vietnamese
+const getPackageTypeLabel = (packageType: string | undefined): string => {
+  if (!packageType) return '';
+  const typeMap: { [key: string]: string } = {
+    'BASIC': 'Cơ bản',
+    'PROFESSIONAL': 'Chuyên nghiệp',
+    'ADVANCED': 'Nâng cao',
+  };
+  return typeMap[packageType.toUpperCase()] || packageType;
+};
+
 export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderlyProfiles: initialProfiles = [] }: AIMatchingModalProps) {
   const insets = useSafeAreaInsets();
   const [userInfo, setUserInfo] = useState<UserInfo>({
@@ -663,13 +674,22 @@ export function AIMatchingModal({ visible, onClose, onGetRecommendations, elderl
                     )}
                     <ThemedText style={styles.packageName}>{pkg.packageName}</ThemedText>
                     <View style={styles.packageDetails}>
-                      <View style={styles.packageDetailItem}>
-                        <Ionicons name="time-outline" size={16} color="#6c757d" />
-                        <ThemedText style={styles.packageDetailText}>{pkg.durationHours}h</ThemedText>
+                      <View style={styles.packageDetailRow}>
+                        <View style={styles.packageDetailItem}>
+                          <Ionicons name="time-outline" size={16} color="#6c757d" />
+                          <ThemedText style={styles.packageDetailText}>{pkg.durationHours}h</ThemedText>
+                        </View>
+                        <ThemedText style={styles.packagePrice}>
+                          {pkg.price.toLocaleString('vi-VN')} VNĐ
+                        </ThemedText>
                       </View>
-                      <ThemedText style={styles.packagePrice}>
-                        {pkg.price.toLocaleString('vi-VN')} VNĐ
-                      </ThemedText>
+                      {pkg.packageType && (
+                        <View style={styles.packageTypeContainer}>
+                          <ThemedText style={styles.packageTypeText}>
+                            Loại: {getPackageTypeLabel(pkg.packageType)}
+                          </ThemedText>
+                        </View>
+                      )}
                     </View>
                     {pkg.serviceTasks && pkg.serviceTasks.length > 0 && (
                       <View style={styles.packageServices}>
@@ -1552,10 +1572,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   packageDetails: {
+    marginBottom: 12,
+  },
+  packageDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   packageDetailItem: {
     flexDirection: 'row',
@@ -1570,6 +1593,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#4ECDC4',
+  },
+  packageTypeContainer: {
+    marginTop: 4,
+  },
+  packageTypeText: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
   },
   packageServices: {
     marginTop: 8,
